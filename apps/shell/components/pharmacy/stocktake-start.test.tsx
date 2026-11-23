@@ -1,6 +1,6 @@
 import { screen, waitFor } from "@testing-library/react";
 import { useQueryClient } from "@tanstack/react-query";
-import { stocktakeKey } from "@helivanta/api";
+import { stocktakeKey, type PharmacyStocktakeScope } from "@helivanta/api";
 import { afterEach, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
 import { NavigationGuardProvider } from "@helivanta/ui";
@@ -20,12 +20,12 @@ afterEach(() => {
   vi.restoreAllMocks();
   sessionStorage.clear();
 });
-function panel() {
+function panel(account: PharmacyStocktakeScope = scope) {
   const started = vi.fn();
   return {
     ...renderWithProviders(
       <NavigationGuardProvider>
-        <StocktakeStart scope={scope} onStarted={started} />
+        <StocktakeStart scope={account} onStarted={started} />
       </NavigationGuardProvider>,
     ),
     started,
@@ -125,62 +125,110 @@ it("does not start a count if its recovery reference cannot be retained", async 
   await screen.findByText(/No start request was sent/i);
   expect(fetch.mock.calls.some((call) => call[1]?.method === "PUT")).toBe(false);
 });
-it("starts a selected-product snapshot with a named quarantine target and required reason", async () => {
-  const fetch = vi.fn(async (url: string, init?: RequestInit) => {
-    if (url.includes("/stock/locations"))
-      return json(
-        page([
-          {
-            id: location,
-            outlet_id: scope.outletId,
-            code: "TEST-Q",
-            name: "TEST Quarantine",
-            stock_status: "quarantine",
-            created_at: "2026-11-20T00:00:00Z",
-          },
-          { id: product, name: "TEST Shelf", code: "TEST-S", stock_status: "sellable" },
-        ]),
-      );
-    if (url.includes("/catalogue/products"))
-      return json(
-        page([{ id: product, brand_name: "TEST Product", sku: "TEST-SKU", status: "active" }]),
-      );
-    const input = JSON.parse(String(init?.body));
-    return json({
-      ...input,
-      id: url.split("/").at(-1),
-      outlet_id: scope.outletId,
-      number: 1,
-      started_by: scope.subject,
-      started_at: "2026-11-20T00:00:00Z",
-      snapshot_rows: 1,
-      counted_rows: 0,
-      difference_rows: 0,
-      positive_difference_rows: 0,
-      review_relationship: "starter",
-      version: 0,
-      state: "counting",
+it.each(["legacy", "operating"] as const)(
+  "starts a %s selected-product snapshot with named choices and no extra authority",
+  async (authority) => {
+    const account = { ...scope, authority };
+    const reviewed = authority === "operating";
+    const fetch = vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.includes(reviewed ? "/quarantine-choices" : "/stock/locations"))
+        return json(
+          page([
+            {
+              id: location,
+              outlet_id: scope.outletId,
+              code: "TEST-Q",
+              name: "TEST Quarantine",
+              stock_status: "quarantine",
+              ...(reviewed
+                ? {
+                    storage_address: {
+                      zone_code: "",
+                      aisle_code: "",
+                      rack_code: "",
+                      shelf_code: "",
+                    },
+                  }
+                : {}),
+              created_at: "2026-11-20T00:00:00Z",
+            },
+            ...(reviewed
+              ? []
+              : [{ id: product, name: "TEST Shelf", code: "TEST-S", stock_status: "sellable" }]),
+          ]),
+        );
+      if (url.includes(reviewed ? "/product-choices" : "/catalogue/products"))
+        return json(
+          page([
+            {
+              id: product,
+              brand_name: "TEST Product",
+              sku: "TEST-SKU",
+              ...(reviewed
+                ? {
+                    outlet_id: scope.outletId,
+                    generic_name: "TEST generic",
+                    dosage_form: "tablet",
+                    ingredients: [{ name: "TEST", strength: "500", unit: "mg" }],
+                    pack_size: 10,
+                    unit_of_issue: "tablet",
+                    currency: "INR",
+                    version: 2,
+                    created_at: "2026-11-20T00:00:00Z",
+                  }
+                : { status: "active" }),
+            },
+          ]),
+        );
+      if (init?.method !== "PUT") throw new Error("Unexpected TEST stocktake authority request");
+      const input = JSON.parse(String(init?.body));
+      return json({
+        ...input,
+        id: url.split("/").at(-1),
+        outlet_id: scope.outletId,
+        number: 1,
+        started_by: scope.subject,
+        started_at: "2026-11-20T00:00:00Z",
+        snapshot_rows: 1,
+        counted_rows: 0,
+        difference_rows: 0,
+        positive_difference_rows: 0,
+        review_relationship: "starter",
+        version: 0,
+        state: "counting",
+      });
     });
-  });
-  vi.stubGlobal("fetch", fetch);
-  const { user, started } = panel();
-  await user.click(screen.getByRole("combobox", { name: "Product scope" }));
-  await user.click(screen.getByRole("option", { name: "Selected products" }));
-  await user.click(await screen.findByRole("checkbox", { name: "TEST Product · TEST-SKU" }));
-  await user.click(screen.getByRole("combobox", { name: "Quarantine destination" }));
-  expect(screen.queryByRole("option", { name: /TEST Shelf/ })).not.toBeInTheDocument();
-  await user.click(screen.getByRole("option", { name: "TEST Quarantine · TEST-Q" }));
-  await user.type(
-    screen.getByRole("textbox", { name: "Start reason" }),
-    "TEST monthly shelf count",
-  );
-  await user.click(screen.getByRole("button", { name: "Freeze book and start count" }));
-  await waitFor(() => expect(started).toHaveBeenCalledOnce());
-  const save = fetch.mock.calls.find((call) => call[1]?.method === "PUT");
-  expect(JSON.parse(String(save?.[1]?.body))).toEqual({
-    selection: "selected",
-    product_ids: [product],
-    quarantine_location_id: location,
-    reason: "TEST monthly shelf count",
-  });
-});
+    vi.stubGlobal("fetch", fetch);
+    const { user, started } = panel(account);
+    await user.click(screen.getByRole("combobox", { name: "Product scope" }));
+    await user.click(screen.getByRole("option", { name: "Selected products" }));
+    await user.click(await screen.findByRole("checkbox", { name: "TEST Product · TEST-SKU" }));
+    await user.click(screen.getByRole("combobox", { name: "Quarantine destination" }));
+    expect(screen.queryByRole("option", { name: /TEST Shelf/ })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("option", { name: "TEST Quarantine · TEST-Q" }));
+    await user.type(
+      screen.getByRole("textbox", { name: "Start reason" }),
+      "TEST monthly shelf count",
+    );
+    await user.click(screen.getByRole("button", { name: "Freeze book and start count" }));
+    await waitFor(() => expect(started).toHaveBeenCalledOnce());
+    if (reviewed) {
+      expect(
+        fetch.mock.calls.every(([url]) =>
+          url.includes(`/operating-locations/${scope.outletId}/stocktakes/`),
+        ),
+      ).toBe(true);
+      for (const [, init] of fetch.mock.calls) {
+        expect(new Headers(init?.headers).get("X-Helivanta-Expected-Tenant")).toBe(scope.tenantId);
+        expect(new Headers(init?.headers).get("X-Helivanta-Expected-Subject")).toBe(scope.subject);
+      }
+    }
+    const save = fetch.mock.calls.find((call) => call[1]?.method === "PUT");
+    expect(JSON.parse(String(save?.[1]?.body))).toEqual({
+      selection: "selected",
+      product_ids: [product],
+      quarantine_location_id: location,
+      reason: "TEST monthly shelf count",
+    });
+  },
+);

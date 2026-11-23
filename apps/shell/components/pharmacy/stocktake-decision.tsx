@@ -44,20 +44,35 @@ export function StocktakeDecision({
   onSaved,
   paused = false,
   cancelOnly = false,
+  canCount = true,
+  canReview = true,
 }: {
   scope: PharmacyStocktakeScope;
   take: PharmacyStocktake;
   onSaved: () => void;
   paused?: boolean;
   cancelOnly?: boolean;
+  canCount?: boolean;
+  canReview?: boolean;
 }) {
   const [basis] = useState(take);
   const allowed: PharmacyStocktakeDecisionInput["decision"][] = [];
-  if (!cancelOnly && basis.state === "counting" && basis.counted_rows === basis.snapshot_rows)
+  if (
+    canCount &&
+    !cancelOnly &&
+    basis.state === "counting" &&
+    basis.counted_rows === basis.snapshot_rows
+  )
     allowed.push("submit");
-  if (!cancelOnly && basis.state === "submitted" && basis.review_relationship === "independent")
+  if (
+    canReview &&
+    !cancelOnly &&
+    basis.state === "submitted" &&
+    basis.review_relationship === "independent"
+  )
     allowed.push("approve", "reject");
-  if (basis.state === "counting" || basis.state === "submitted") allowed.push("cancel");
+  if (canCount && (basis.state === "counting" || basis.state === "submitted"))
+    allowed.push("cancel");
   const schema = pharmacyStocktakeDecisionInputSchema
     .pick({ decision: true, reason: true })
     .extend({ attested: z.boolean() })

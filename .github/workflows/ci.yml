@@ -377,6 +377,7 @@ jobs:
           curl --fail --silent --max-time 2 "$HELIVANTA_OPERATING_BROWSER_URL/login" > /dev/null
           go -C backend test -race -timeout 16m -run '^TestGovernanceAccountLinkReviewConsumesExactEmployerSourceWithoutManagerAccess$/(pharmacy|supplier)$' -count=1 -v ./internal/bootstrap
           go -C backend test -race -timeout 16m -run '^TestGovernancePersonReviewNeedsNoFabricatedStaffAndRechecksDisclosure$' -count=1 -v ./internal/bootstrap
+          go -C backend test -tags stocktakebrowser -race -timeout 8m -run '^TestStocktakeReviewedBrowser$' -count=1 -v ./internal/globalapi
       - name: Verify production frontend error references and sanitised logs
         id: frontend_error_browser
         timeout-minutes: 3

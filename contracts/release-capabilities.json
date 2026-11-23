@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "policy_version": "2026-11-23.stocktake-continuations.v1",
+  "policy_version": "2026-11-23.stocktake-worker-workspace.v1",
   "capabilities": [
     {
       "key": "onboarding",
@@ -6007,6 +6007,21 @@
       "method": "PUT",
       "path": "/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes/:stocktake/cancellations/:command",
       "capability": "baseline"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/me/pharmacy-stocktake-locations",
+      "capability": "baseline"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes/product-choices",
+      "capability": "pharmacy_stocktake"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes/quarantine-choices",
+      "capability": "pharmacy_stocktake"
     }
   ],
   "pages": [
@@ -6301,6 +6316,10 @@
     {
       "path": "/workforce/shared-shipments",
       "capability": "supplier_collaboration"
+    },
+    {
+      "path": "/pharmacy/working-stocktakes",
+      "capability": "pharmacy_setup"
     }
   ],
   "panels": [

@@ -5,13 +5,19 @@ import { useMutation } from "@tanstack/react-query";
 import { Button, Input } from "@tesserix/web";
 import {
   ApiError,
+  apiFetch,
+  fetchStocktakeProductChoices,
+  fetchStocktakeQuarantineChoices,
+  stocktakeAuthority,
+  stocktakeHeaders,
   newPharmacyId,
   stocktakeKey,
   pharmacyRoot,
   pharmacyStocktakeStartInputSchema,
   startStocktake,
   recoverStocktakeStart,
-  useApiPagedQuery,
+  usePagedQuery,
+  type Page,
   type PharmacyStocktakeScope,
   type PharmacyLocation,
   type PharmacyProduct,
@@ -64,19 +70,28 @@ export function StocktakeStart({
     reason: "",
   });
   const selected = form.watch("selection") === "selected";
-  const request = {
-    headers: { "X-Helivanta-Expected-Tenant": scope.tenantId },
-    cache: "no-store" as const,
-  };
-  const locations = useApiPagedQuery<PharmacyLocation>(
+  const operating = stocktakeAuthority(scope) === "operating";
+  const request = { headers: stocktakeHeaders(scope), cache: "no-store" as const };
+  const locations = usePagedQuery<Pick<PharmacyLocation, "id" | "name" | "code" | "stock_status">>(
     stocktakeKey(scope, "stocktake-locations"),
-    `${pharmacyRoot(scope)}/stock/locations`,
-    { request },
+    (cursor, signal) =>
+      operating
+        ? fetchStocktakeQuarantineChoices(scope, cursor, signal)
+        : apiFetch<Page<PharmacyLocation>>(
+            `${pharmacyRoot(scope)}/stock/locations${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`,
+            { ...request, signal },
+          ),
   );
-  const products = useApiPagedQuery<PharmacyProduct>(
+  const products = usePagedQuery<Pick<PharmacyProduct, "id" | "brand_name" | "sku">>(
     stocktakeKey(scope, "stocktake-products"),
-    `${pharmacyRoot(scope)}/catalogue/products`,
-    { request, enabled: selected },
+    (cursor, signal) =>
+      operating
+        ? fetchStocktakeProductChoices(scope, cursor, signal)
+        : apiFetch<Page<PharmacyProduct>>(
+            `${pharmacyRoot(scope)}/catalogue/products${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`,
+            { ...request, signal },
+          ),
+    { enabled: selected },
   );
   const [attempt, setAttempt] = useState<Attempt | null>(null);
   const [notFound, setNotFound] = useState(false);

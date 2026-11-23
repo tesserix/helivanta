@@ -52,11 +52,15 @@ export function StocktakeDetail({
   takeId,
   timeZone,
   canConfigure,
+  canCount = canConfigure,
+  canReview = canConfigure,
 }: {
   scope: PharmacyStocktakeScope;
   takeId: string;
   timeZone: string;
   canConfigure: boolean;
+  canCount?: boolean;
+  canReview?: boolean;
 }) {
   const client = useQueryClient();
   const leave = useConfirmLeave();
@@ -94,7 +98,7 @@ export function StocktakeDetail({
     );
   if (!take) return <p role="status">Loading stocktake…</p>;
   const unavailable = header.isFetching || lines.isRefreshing;
-  const editable = canConfigure && take.state === "counting" && !unavailable;
+  const editable = canConfigure && canCount && take.state === "counting" && !unavailable;
   return (
     <div className="flex flex-col gap-5">
       <Panel aria-label={`Stocktake ${take.number}`}>
@@ -171,7 +175,7 @@ export function StocktakeDetail({
                     <th className="p-2">Physical count</th>
                     <th className="p-2">Difference</th>
                     <th className="p-2">Counted by</th>
-                    {canConfigure && <th className="p-2">Entry</th>}
+                    {canConfigure && canCount && <th className="p-2">Entry</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -204,7 +208,7 @@ export function StocktakeDetail({
                           "Not recorded"
                         )}
                       </td>
-                      {canConfigure && (
+                      {canConfigure && canCount && (
                         <td className="p-2">
                           <Button
                             variant="outline"
@@ -254,7 +258,10 @@ export function StocktakeDetail({
         );
       })}
       {canConfigure &&
-        (take.state === "counting" || take.state === "submitted") &&
+        ((canCount && (take.state === "counting" || take.state === "submitted")) ||
+          (canReview &&
+            take.state === "submitted" &&
+            take.review_relationship === "independent")) &&
         entry === null && (
           <Button variant="outline" disabled={unavailable} onClick={() => setEntry("decision")}>
             Review or close stocktake
@@ -270,6 +277,8 @@ export function StocktakeDetail({
               <StocktakeDecision
                 scope={scope}
                 take={take}
+                canCount={canCount}
+                canReview={canReview}
                 onSaved={complete}
                 paused={unavailable || !canConfigure}
               />
@@ -279,7 +288,7 @@ export function StocktakeDetail({
                 take={take}
                 line={entry}
                 onSaved={complete}
-                paused={unavailable || !canConfigure}
+                paused={unavailable || !canConfigure || !canCount}
               />
             )}
           </div>

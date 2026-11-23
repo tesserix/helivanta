@@ -77,6 +77,24 @@ type OperatingLocationChoice struct {
 	LocationVersion int64     `json:"location_version"`
 }
 
+type StocktakeDutyLocationChoice struct {
+	OwnerTenantID       uuid.UUID `json:"owner_tenant_id"`
+	DutyID              uuid.UUID `json:"duty_id"`
+	EmployerID          uuid.UUID `json:"employer_id"`
+	LocationID          uuid.UUID `json:"location_id"`
+	EmployerName        string    `json:"employer_name"`
+	LocationName        string    `json:"location_name"`
+	LocationCode        string    `json:"location_code"`
+	TimeZone            string    `json:"time_zone"`
+	TemplateKey         string    `json:"template_key"`
+	TemplateLabel       string    `json:"template_label"`
+	CountryCode         string    `json:"country_code"`
+	AssignedPermissions []string  `json:"assigned_permissions"`
+	SnapshotVersion     int64     `json:"snapshot_version"`
+	AuthorityEpoch      int64     `json:"authority_epoch"`
+	ExpiresAt           time.Time `json:"expires_at"`
+}
+
 var operatingDutyTemplates = []OperatingDutyTemplate{
 	{Key: "supply.inventory_receiver.v1", EmployerKind: "supplier", Label: "Warehouse receiving and stock history", Permissions: []string{"supply.operations.read", "supply.operations.write", "drugmaster.stock_reference.read"}, MaxValidityHours: 8784},
 	{Key: "pharmacy.inventory_receiver.v1", EmployerKind: "pharmacy", Label: "Outlet receiving and stock history", Permissions: []string{"pharmacy.stock.read", "pharmacy.stock.receive", "drugmaster.stock_reference.read"}, MaxValidityHours: 8784},

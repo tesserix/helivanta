@@ -53,6 +53,7 @@ Source: [backend/internal/modules/iam/module.go](../../../backend/internal/modul
 | GET | `/v1/iam/identity-assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/intake-assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/me/permissions` | `no_tenant_membership` | false | false |
+| GET | `/v1/iam/me/pharmacy-stocktake-locations` | `public` | true | false |
 | GET | `/v1/iam/me/profile` | `no_tenant_membership` | false | false |
 | GET | `/v1/iam/me/security` | `iam.member.manage` | false | false |
 | POST | `/v1/iam/me/security` | `iam.member.manage` | false | false |
@@ -519,6 +520,8 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes/:stocktake/register.csv` | `public` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes/:stocktake` | `public` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes/:stocktake` | `public` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes/product-choices` | `public` | true | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes/quarantine-choices` | `public` | true | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes` | `public` | true | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/access-grants` | `pharmacy.access.manage` | true | false |
 | DELETE | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/access/:subject` | `pharmacy.access.manage` | false | false |

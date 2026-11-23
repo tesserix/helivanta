@@ -121,6 +121,25 @@ Relevant executable evidence:
   refreshed reads hide cached evidence; recovery and independent read/edit access.
 - `e2e/tests/pharmacy-stocktake.spec.ts`: real hosted count → lost-response recovery
   → independent review → verified export, with injected read denial/recheck.
+  This is the legacy outlet-grant journey, not reviewed Staff admission.
+- `backend/internal/globalapi/stocktake_operating_browser_test.go` and
+  `scripts/verify-stocktake-worker.mjs`: the separate reviewed-duty journey,
+  selected with `-tags stocktakebrowser` and
+  `HELIVANTA_OPERATING_BROWSER_URL` pointing to the hosted built shell. Four
+  fixture identities separate owner setup, independent access approval,
+  physical counting and stocktake review. Normal owner APIs prepare current
+  Staff, reviewed account links, duties and synthetic stock. Worker browser
+  requests traverse the Global API into actual IAM/OpenFGA, Workforce and
+  Pharmacy/Postgres; only authentication and the explicitly development-only
+  release source are fixtures. Neither worker receives general catalogue,
+  receiving, outlet-editor or management authority. Assertions cover named
+  outlet discovery, owner/approver absence from worker choices, an explicit
+  physical shortage, lost committed count response and reload recovery without
+  another write, submission, counter self-review exclusion, reviewer
+  count/start exclusion, independent posting, verified CSV values and one
+  attributable stock correction. The focused **Stocktake capacity** workflow
+  runs this against a production shell build on hosted Linux and retains its
+  screenshot/log. This does not test real Staff sign-in or live onboarding.
 
 Use [ADR-0073](../adr/0073-pharmacy-stocktake.md) and the
 [API contract](../api/domains/pharmacy.md) against current source.

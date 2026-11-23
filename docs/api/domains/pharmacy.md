@@ -31,8 +31,16 @@ The independent/chain route root is
 `PUT/GET /{stocktake}`, `GET /`, `GET /{stocktake}/lines`,
 `GET /{stocktake}/register.csv`, `PUT/GET /{stocktake}/counts/{command}` and
 `PUT/GET /{stocktake}/decisions/{command}` and
-`PUT /{stocktake}/cancellations/{command}` are registered in this slice. They reuse the canonical stocktake input/output schemas and the existing
-physical ledger; they are not a second stock master. New writes, lines and CSV
+`PUT /{stocktake}/cancellations/{command}`, `GET /product-choices` and
+`GET /quarantine-choices` are registered in this slice. They reuse the canonical stocktake input/output schemas and the existing
+physical ledger; they are not a second stock master. Named product choices reuse
+the receiving product projection, include discontinued products that may still
+have physical stock, and expose no editor-only facts. Named quarantine choices
+reuse the receiving location projection with server-side quarantine filtering.
+Both use bounded keyset pagination (maximum 200), bind cursors to actor/outlet
+and filters, require current exact-outlet stocktake read authority, and commit
+stocktake provenance and read audit before releasing names. They confer no
+receiving, catalogue or stock-editing permission. New writes, choices, lines and CSV
 bind to the compiled-ineligible `pharmacy_stocktake` capability. Retained header,
 paged list, exact original count/decision receipts and the dedicated cancellation
 route are baseline continuations. They remain subject to current IAM duty,
@@ -141,12 +149,18 @@ capacity checks remain mandatory. Snapshot inserts now use at most 2,000 rows
 and stay below PostgreSQL's bind-parameter limit, reducing repeated statement
 checks while preserving atomic validation and rollback.
 
-PR #1818 contains this unreleased backend slice. Compiled eligibility stays false. Hospital
-admission, withdrawal-safe continuations, named choices, SDK/UI, full modern
-reservation/concurrency coverage and both-model browser/live acceptance remain
-open. New read routes are still Stocktake-gated and do not yet meet withdrawal
-continuation acceptance. IAM 0055/pharmacy 0065 are candidate migrations, not live
-state; migration 0064/main rollout awaits separately named approval.
+PR #1818 merged the unreleased backend foundation. Compiled eligibility stays
+false. PR #1822 merged withdrawal-safe continuations and explicit reviewed SDK routing.
+The #1823 candidate consolidates named current-duty discovery, product/quarantine
+choices, the worker command UI and personal dashboard navigation. Hosted reviewed
+API tests cover product selection/frozen quantities, native supplier holds and
+posting races, frozen scheduled-register sections, and a 23-outlet chain.
+Current-head protected checks, release eligibility and deployed browser/live
+acceptance remain open. Hospital-owned admission remains unsupported by the
+independent operating routes; independent employment must not be fabricated to
+work around that boundary. IAM 0055 and Pharmacy
+0064/0065 are merged source migrations, not verified live state; rollout awaits
+separately named approval.
 
 ## Current contract families
 

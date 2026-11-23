@@ -20,6 +20,34 @@ Paths are relative to `/v1/iam/operating-duties/{duty}`. IDs are UUIDv7. Expecte
 
 The Staff-private directory is `GET /v1/iam/operating-employers/{kind}/{employer}/staff/{staff}/duties`. It requires the same current read and private employer-reader authority. It accepts only one `limit` and optional signed `cursor`, orders by descending `(created_at,id)`, and audits the disclosure. Staff and employer identifiers filter owner data; they never supply authority. SDK pages request at most 25 rows and reject duplicate, foreign-owner or inconsistent continuation results. Duty and retained decision payloads include `owner_tenant_id` for explicit workspace verification.
 
+### Current worker stocktake locations
+
+The implementation candidate `GET /v1/iam/me/pharmacy-stocktake-locations`
+discovers only the current principal's acknowledged pharmacy stocktake duties.
+It requires expected tenant/subject headers, accepts only one `limit` (1–20) and
+optional opaque cursor, and scans immutable `(created_at,id)` oldest first.
+Candidates are filtered through exact-duty current read admission; empty filtered
+pages preserve continuation. Cursors are sealed to the tenant, account and route.
+Owner-management permissions, affiliations and supplied identifiers do not create
+a worker choice. Missing/mismatched account headers return `409 session_changed`;
+malformed filters/cursors return 400, credential cutoff 401 and unavailable
+graph/source/audit or inconsistent metadata 503 without partial names.
+
+`StocktakeDutyLocationChoice` is defined in the canonical operating-assignment
+input. Pharmacy supplies current employer/outlet names, code, country and
+timezone through its guarded source reference; IAM does not join or persist a
+second Pharmacy master. Each choice identifies its exact duty, template label,
+assigned permissions, snapshot/epoch and expiry. Assigned permissions are a
+display hint; every action independently rechecks its current authority. Invalid
+names or timezone are unavailable data, never replaced with IDs.
+
+This is a baseline continuation so a current read duty can locate retained work
+when new stocktakes are withdrawn. It does not enable a page, grant a duty, expose
+hospital-owned pharmacies as independent employers or release `pharmacy_stocktake`.
+The worker-discovery and named stock-choice acceptance remains tracked in
+[#1686](https://github.com/tesserix/helivanta/issues/1686) and the
+[worker discovery design](../superpowers/specs/2026-11-23-stocktake-worker-discovery.md).
+
 Initial templates are `supply.inventory_receiver.v1` and `pharmacy.inventory_receiver.v1`. Both permit own-source quarantined receiving/history and the published stock-reference purpose. They do not authorize release, dispensing, dispatch, hospital/patient access or financial approval. The pharmacy template does not yet have a product consumer in this candidate; its presence is not working pharmacy end-to-end evidence.
 
 Preparation/revocation requires an actual IAM owner/admin or pharmacy-owner membership with the corresponding permission. Compliance can review; auditors can read. TenantAdmin is implicit. Current employer-manager access is additionally mandatory for new decisions, and reader/manager access for retained reads. The IAM membership and employer access rows remain locked through the command, so deletion cannot race a completed authorization check. Structural employer registration remains a separate TenantAdmin bootstrap action.

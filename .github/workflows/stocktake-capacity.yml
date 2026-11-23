@@ -6,7 +6,7 @@ on:
         description: Focused validation suite
         type: choice
         default: all
-        options: [all, go, web, reviewed-reads]
+        options: [all, go, web, reviewed-reads, browser]
   pull_request:
     paths:
       - "backend/internal/modules/pharmacy/**"
@@ -14,8 +14,13 @@ on:
       - "backend/internal/modules/workforce/independent_staff*"
       - "backend/pkg/authz/independent_staff.go"
       - "backend/internal/globalapi/stocktake*"
+      - "scripts/verify-stocktake-worker.mjs"
       - "apps/shell/components/workforce/operating-duty*"
       - "apps/shell/components/workforce/independent-operating-duties*"
+      - "apps/shell/components/pharmacy/stocktake*"
+      - "apps/shell/app/(workspace)/pharmacy/working-stocktakes/**"
+      - "packages/api/src/pharmacy-stocktake*"
+      - "packages/api/src/stocktake-worker-locations*"
       - "contracts/operating-assignments.json"
       - "contracts/release-capabilities.json"
       - "scripts/generate-operating-assignments.mjs"
@@ -30,7 +35,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   stocktake-capacity:
-    if: inputs.suite != 'web'
+    if: inputs.suite != 'web' && inputs.suite != 'browser'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     defaults:
@@ -46,7 +51,7 @@ jobs:
       - name: Build and vet the affected package
         run: |
           go build ./internal/modules/pharmacy ./internal/modules/iam ./internal/modules/workforce
-          go vet ./internal/modules/pharmacy ./internal/modules/iam ./internal/modules/workforce
+          go vet ./internal/modules/pharmacy ./internal/modules/iam ./internal/modules/workforce ./internal/globalapi
       - name: Regenerate and verify registered contracts
         run: |
           go run ./cmd/contractdocs
@@ -67,7 +72,9 @@ jobs:
         run: go test -race -count=1 -timeout=10m ./internal/globalapi -run '^TestStocktake'
       - name: Reviewed stocktake read contracts
         if: inputs.suite == 'reviewed-reads'
-        run: go test -race -count=1 -timeout=10m ./internal/globalapi -run '^TestStocktakeReviewedReads'
+        run: go test -v -race -count=1 -timeout=10m ./internal/globalapi -run '^TestStocktakeReviewedReads'
+      - name: Current operating authority and existing receiving consumers
+        run: go test -race -count=1 -timeout=10m ./internal/globalapi -run '^(TestIndependentOperatingAuthorityUsesCurrentStaffSourceAndAcknowledgement|TestIndependentOperatingCredentialCutoffPreservesStillValidBusinessDuty|TestIndependentPharmacyReceiverRecordsQuarantinedReceiptUnderReviewedDuty|TestIndependentReceiverUsesReviewedDutyAtSupplierStockAPI|TestWholesaleIdentityCheckThroughGlobalAPIUsesCurrentCatalogueOwner)$'
       - name: Snapshot guards and native stocktake regression
         if: inputs.suite != 'reviewed-reads'
         run: go test -race -count=1 -timeout=15m ./internal/modules/pharmacy -run '^TestStocktake'
@@ -91,6 +98,10 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5
+        with:
+          go-version-file: backend/go.mod
+          cache: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
           node-version-file: .nvmrc
@@ -101,15 +112,22 @@ jobs:
       - name: Stocktake SDK routes and retained command isolation
         run: |
           stocktake_failed=0
-          if ! pnpm --filter @helivanta/api exec vitest run src/pharmacy-stocktakes.test.ts src/pharmacy-stocktake-export.test.ts src/pharmacy-stocktake-contract.test.ts; then stocktake_failed=1; fi
-          if ! pnpm --filter @helivanta/shell exec vitest run components/pharmacy/stocktake-recovery.test.ts components/pharmacy/stocktake-recovery-panel.test.tsx; then stocktake_failed=1; fi
+          if ! pnpm --filter @helivanta/api exec vitest run src/pharmacy-stocktakes.test.ts src/pharmacy-stocktake-export.test.ts src/pharmacy-stocktake-contract.test.ts src/stocktake-worker-locations.test.ts src/pharmacy-stocktake-choices.test.ts; then stocktake_failed=1; fi
+          if ! pnpm --filter @helivanta/shell exec vitest run components/pharmacy/stocktake-recovery.test.ts components/pharmacy/stocktake-recovery-panel.test.tsx components/pharmacy/stocktake-start.test.tsx components/pharmacy/stocktake-worker-workspace.test.tsx components/pharmacy/stocktake-decision.test.tsx components/pharmacy/stocktake-detail.test.tsx components/pharmacy/stocktake-list.test.tsx components/pharmacy/stocktake-work-shortcut.test.tsx "app/(workspace)/dashboard/page.test.tsx" "app/(workspace)/dashboard/page.release.test.tsx"; then stocktake_failed=1; fi
           exit "$stocktake_failed"
       - name: Lint affected Staff and release files
         run: |
           pnpm --filter @helivanta/shell exec eslint components/workforce/operating-duty-preparation.tsx components/workforce/operating-duty-preparation.test.tsx components/workforce/independent-operating-duties.tsx components/workforce/independent-operating-duties.test.tsx
           pnpm --filter @helivanta/api exec eslint src/operating-assignments-contract.ts src/release-capabilities-contract.ts src/release-capabilities.ts
           pnpm --filter @helivanta/api exec eslint src/pharmacy-stocktakes.ts src/pharmacy-stocktake-export.ts src/pharmacy-stocktakes.test.ts src/pharmacy-stocktake-export.test.ts
+          pnpm --filter @helivanta/api exec eslint src/stocktake-worker-locations.ts src/stocktake-worker-locations.test.ts
+          pnpm --filter @helivanta/api exec eslint src/pharmacy-stocktake-choices.ts src/pharmacy-stocktake-choices.test.ts
           pnpm --filter @helivanta/shell exec eslint components/pharmacy/stocktake-recovery.ts components/pharmacy/stocktake-recovery.test.ts
+          pnpm --filter @helivanta/shell exec eslint components/pharmacy/stocktake-start.tsx components/pharmacy/stocktake-start.test.tsx
+          pnpm --filter @helivanta/shell exec eslint components/pharmacy/stocktake-worker-workspace.tsx components/pharmacy/stocktake-worker-workspace.test.tsx
+          pnpm --filter @helivanta/shell exec eslint components/pharmacy/stocktake-work-shortcut.tsx components/pharmacy/stocktake-work-shortcut.test.tsx "app/(workspace)/dashboard/page.tsx" "app/(workspace)/dashboard/page.release.test.tsx"
+          pnpm --filter @helivanta/shell exec eslint components/pharmacy/stocktake-decision.tsx components/pharmacy/stocktake-decision.test.tsx
+          pnpm --filter @helivanta/shell exec eslint components/pharmacy/stocktake-detail.tsx components/pharmacy/stocktake-detail.test.tsx components/pharmacy/stocktake-list.tsx components/pharmacy/stocktake-list.test.tsx
       - name: Affected API and shell type checks
         run: |
           pnpm --filter @helivanta/api exec tsc --noEmit --incremental false
@@ -120,3 +138,43 @@ jobs:
           API_URL: http://127.0.0.1:8081
           NEXT_PUBLIC_ZITADEL_CLIENT_ID: ci-build-client-id
           NEXT_PUBLIC_ZITADEL_ISSUER_URL: http://auth.tesserix.localhost:20080
+      - name: Install reviewed stocktake browser
+        run: pnpm --dir e2e exec playwright install --with-deps chromium
+      - name: Reviewed Staff stocktake through the built UI and real owners
+        env:
+          NEXT_PUBLIC_ZITADEL_CLIENT_ID: ci-build-client-id
+          NEXT_PUBLIC_ZITADEL_ISSUER_URL: http://auth.tesserix.localhost:20080
+          HOSTNAME: 127.0.0.1
+          PORT: "4344"
+          API_URL: http://127.0.0.1:8081
+          HELIVANTA_OPERATING_BROWSER_URL: http://127.0.0.1:4344
+        run: |
+          set -euo pipefail
+          standalone=apps/shell/.next/standalone/apps/shell
+          mkdir -p "$standalone/.next/static"
+          cp -R apps/shell/.next/static/. "$standalone/.next/static/"
+          if [ -d apps/shell/public ]; then
+            mkdir -p "$standalone/public"
+            cp -R apps/shell/public/. "$standalone/public/"
+          fi
+          node "$standalone/server.js" > "$RUNNER_TEMP/stocktake-web.log" 2>&1 &
+          web_pid=$!
+          trap 'kill "$web_pid" 2>/dev/null || true' EXIT
+          for _ in $(seq 1 30); do
+            kill -0 "$web_pid"
+            if curl --fail --silent --max-time 2 "$HELIVANTA_OPERATING_BROWSER_URL/login" > /dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          curl --fail --silent --max-time 2 "$HELIVANTA_OPERATING_BROWSER_URL/login" > /dev/null
+          go -C backend test -tags stocktakebrowser -race -count=1 -timeout=8m -run '^TestStocktakeReviewedBrowser$' -v ./internal/globalapi
+      - name: Retain reviewed browser evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: stocktake-worker-browser
+          path: |
+            /tmp/helivanta-stocktake-worker.png
+            ${{ runner.temp }}/stocktake-web.log
+          retention-days: 7

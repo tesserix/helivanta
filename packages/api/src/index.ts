@@ -250,6 +250,7 @@ export {
   startStocktake,
   stocktakeKey,
   stocktakeAuthority,
+  stocktakeHeaders,
   recoverStocktakeStart,
   readStocktake,
   recordStocktakeCount,
@@ -269,6 +270,18 @@ export {
   type PharmacyStocktakeDecisionReceipt,
 } from "./pharmacy-stocktakes";
 export { fetchStocktakeCSV } from "./pharmacy-stocktake-export";
+export {
+  fetchStocktakeProductChoices,
+  fetchStocktakeQuarantineChoices,
+  type StocktakeProductChoice,
+  type StocktakeQuarantineChoice,
+} from "./pharmacy-stocktake-choices";
+export {
+  listStocktakeWorkerLocations,
+  stocktakeWorkerLocationsKey,
+  type StocktakeWorkerScope,
+  type StocktakeWorkerLocation,
+} from "./stocktake-worker-locations";
 export {
   pharmacyStocktakeCountInputSchema,
   pharmacyStocktakeCountEntrySchema,

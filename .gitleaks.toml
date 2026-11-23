@@ -51,4 +51,9 @@ regexes = [
   '''^department-supplier-commercial-v1$''',
   # Public stock-fulfilment duty identifiers; no authentication material.
   '''^(supply|pharmacy)\.stock_fulfiller\.v1$''',
+
+  # The same public duty identifiers as release-capability keys under the
+  # staff.operating. namespace (release-capabilities.json and its generated
+  # contract); exact values only.
+  '''^staff\.operating\.(supply|pharmacy)\.(inventory_receiver|order_acceptor|stock_fulfiller)\.v1$''',
 ]

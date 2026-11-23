@@ -150,11 +150,15 @@ and stay below PostgreSQL's bind-parameter limit, reducing repeated statement
 checks while preserving atomic validation and rollback.
 
 PR #1818 merged the unreleased backend foundation. Compiled eligibility stays
-false. PR #1822 adds withdrawal-safe continuations and explicit reviewed SDK
-routing; its protected checks remain a merge gate. The worker-discovery candidate
-adds named current-duty locations and stocktake-specific product/quarantine
-choices. Hospital admission, operational UI, full modern reservation/concurrency
-coverage and both-model browser/live acceptance remain open. IAM 0055 and Pharmacy
+false. PR #1822 merged withdrawal-safe continuations and explicit reviewed SDK routing.
+The #1823 candidate consolidates named current-duty discovery, product/quarantine
+choices, the worker command UI and personal dashboard navigation. Hosted reviewed
+API tests cover product selection/frozen quantities, native supplier holds and
+posting races, frozen scheduled-register sections, and a 23-outlet chain.
+Current-head protected checks, release eligibility and deployed browser/live
+acceptance remain open. Hospital-owned admission remains unsupported by the
+independent operating routes; independent employment must not be fabricated to
+work around that boundary. IAM 0055 and Pharmacy
 0064/0065 are merged source migrations, not verified live state; rollout awaits
 separately named approval.
 

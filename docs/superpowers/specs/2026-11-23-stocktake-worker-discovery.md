@@ -85,7 +85,8 @@ are stocktake-gated collections (maximum 200) with actor/outlet-bound cursors,
 current read-duty admission, stocktake provenance and read audit. They grant no
 receiving permission. The SDK validates owner schemas, outlet, quarantine
 status, duplicate IDs, page bounds and cursor progress before exposing choices.
-Hosted backend validation remains required before acceptance.
+Hosted named-choice validation passed in 45106386216; current-head protected
+checks and deployed acceptance remain required.
 
 The SDK and UI use authority/account/outlet namespaces from #1822. A scope change
 removes private results and actions until the next scope is checked. No ID entry,
@@ -166,3 +167,51 @@ receiving, catalogue, legacy outlet-access or direct-product discovery is used.
 45109897459 reproduced missing current-duty navigation; 45110111746 passed the
 navigation, existing dashboard and worker UI tests, lint, type checks and shell
 build after integration. No deployed browser acceptance is claimed.
+
+## Reviewed operational and chain acceptance
+
+Hosted 45114139363 on `cf46ff9457ed71dd774005650fc92a471552896f` passed affected
+build/vet (including Global API test compilation), generated contract checks,
+architecture checks, reviewed-read race tests and existing authority/receiving
+consumer regressions. Additional real Global API cases prove:
+
+- A selected-product snapshot excludes other stocked products, retains its frozen
+  quantities after subsequent receipts/cancellation, and a later full count sees
+  the new physical ledger quantities.
+- A live native supplier hold prevents a reviewed shortage posting. The failed
+  command leaves no receipt or correction. Releasing the hold permits the same
+  approval identity; replay adds no duplicate correction.
+- The opposite sequential ordering rejects an incompatible supplier reservation.
+  A concurrent reservation/posting race permits only a safe ordering and finishes
+  with the same attributable single correction and no overcommitted stock.
+- The scheduled register retains the snapshot's H1 section after an independently
+  approved later X classification. The fixture does not bypass the existing
+  platform-review requirement for a lower classification.
+- One real reviewed Staff account has 23 outlet duties across three independent
+  pharmacies. Two bounded pages return 20 and 3 rows with current owner names,
+  outlet codes and exact duties, without duplicates. Observed request times were
+  579 ms and 87 ms, within the existing four-second shared directory deadline.
+
+The supplier repository provides real reservation evidence in these cases; its
+caller's separate Staff-admission workflow is not claimed as covered by that
+fixture. Stocktake writes and reads themselves use actual reviewed IAM and
+Workforce admission through the Global API. None of this substitutes for the
+remaining deployed browser acceptance.
+
+No extra subject-page index or migration is added. The small-fixture captured
+query plan and full native chain pages meet the measured pilot needs. No
+10,000-duty directory throughput claim is made; the separate 10,000-stock-bucket
+and 500-adjustment acceptance retains its original budgets and evidence.
+
+PR #1822 is merged at `cf3dd6a1c404a523795829bcaaab987888abfca1`, with a tree
+identical to tested `5e80ad97`. Its local merge gate passed API/Global API binary
+builds, shell build, focused vet/lint, type checks, 53 SDK and 16 recovery tests
+using Go 1.27.4 and Node 24.22.1. The shell needed a 4 GB Node heap for its embedded
+TypeScript phase. Task build outputs/cache were removed; no applications,
+databases, containers or Colima were started.
+
+The remaining worker branches are consolidated into #1823 through normal merges.
+The main squash-ancestry conflict resolution first verified that main's full tree
+matched the already-contained #1822 head, then preserved the tested worker tree
+exactly. Current-head full checks, local merge validation, signed images,
+separately approved migration/rollout and deployed browser acceptance remain gates.

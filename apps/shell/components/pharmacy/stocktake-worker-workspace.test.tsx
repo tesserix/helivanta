@@ -37,7 +37,7 @@ it("finds named reviewed work through an empty candidate page and retains recove
     if (url === "/api/v1/iam/me/permissions")
       return Response.json({ data: [], tenant_id: account.tenantId, subject: account.subject });
     if (url === "/api/v1/workspace/release-capabilities")
-      return Response.json(releaseSnapshotForTest(account, ["pharmacy_setup"]));
+      return Response.json(releaseSnapshotForTest(account, ["team_accounts", "pharmacy_setup"]));
     if (url.startsWith("/api/v1/iam/me/pharmacy-stocktake-locations?")) {
       return Response.json(url.includes("cursor=") ? page([choice]) : page([], "TEST-next"));
     }
@@ -76,6 +76,60 @@ it("finds named reviewed work through an empty candidate page and retains recove
       ),
     ).toBe(true),
   );
+  expect(
+    fetch.mock.calls.some(
+      ([url]) =>
+        url.includes("/outlets/") || url.includes("/catalogue/") || url.includes("/stock/"),
+    ),
+  ).toBe(false);
+});
+
+it("opens a released counter's named start form without general stock access", async () => {
+  const fetch = vi.fn(async (url: string) => {
+    const path = new URL(url, "https://stocktake.test").pathname;
+    if (path === "/api/v1/iam/me/permissions")
+      return Response.json({ data: [], tenant_id: account.tenantId, subject: account.subject });
+    if (path === "/api/v1/workspace/release-capabilities")
+      return Response.json(
+        releaseSnapshotForTest(account, ["team_accounts", "pharmacy_setup", "pharmacy_stocktake"]),
+      );
+    if (path === "/api/v1/iam/me/pharmacy-stocktake-locations")
+      return Response.json(page([choice]));
+    const root = `/api/v1/pharmacy/pharmacies/${choice.employer_id}/operating-locations/${choice.location_id}/stocktakes`;
+    if (path === root) return Response.json(page([]));
+    if (path === `${root}/quarantine-choices`)
+      return Response.json(
+        page([
+          {
+            id: "019a55c0-1111-7111-8111-111111111115",
+            outlet_id: choice.location_id,
+            code: "TEST-Q",
+            name: "TEST Quarantine",
+            stock_status: "quarantine",
+            storage_address: { zone_code: "", aisle_code: "", rack_code: "", shelf_code: "" },
+            created_at: "2026-11-20T00:00:00Z",
+          },
+        ]),
+      );
+    throw new Error("Unexpected TEST worker stocktake request");
+  });
+  vi.stubGlobal("fetch", fetch);
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <StocktakeWorkerWorkspace />
+    </NavigationGuardProvider>,
+  );
+  await user.click(
+    await screen.findByRole("button", {
+      name: "TEST Independent Pharmacy · TEST Main Outlet · TEST-MAIN · Outlet stocktake counter",
+    }),
+  );
+  await user.click(await screen.findByRole("button", { name: "Start stocktake" }));
+  expect(await screen.findByRole("textbox", { name: "Start reason" })).toBeEnabled();
+  await user.click(screen.getByRole("combobox", { name: "Quarantine destination" }));
+  expect(
+    await screen.findByRole("option", { name: "TEST Quarantine · TEST-Q" }),
+  ).toBeInTheDocument();
   expect(
     fetch.mock.calls.some(
       ([url]) =>

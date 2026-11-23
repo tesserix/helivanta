@@ -14,7 +14,7 @@ import (
 )
 
 func (h *catalogueHandlers) putOperatingStocktakeCount(c *gin.Context) {
-	p, pharmacy, outlet, ok := operatingStockScope(c)
+	p, pharmacy, outlet, ok := stocktakeWorkScope(c)
 	if !ok {
 		return
 	}
@@ -86,7 +86,7 @@ func (h *catalogueHandlers) putOperatingStocktakeCount(c *gin.Context) {
 }
 
 func (h *catalogueHandlers) getOperatingStocktakeCount(c *gin.Context) {
-	p, pharmacy, outlet, ok := operatingStockScope(c)
+	p, pharmacy, outlet, ok := stocktakeWorkScope(c)
 	if !ok {
 		return
 	}

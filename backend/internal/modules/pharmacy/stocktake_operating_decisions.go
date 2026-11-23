@@ -22,7 +22,7 @@ func (h *catalogueHandlers) putOperatingStocktakeCancellation(c *gin.Context) {
 }
 
 func (h *catalogueHandlers) writeOperatingStocktakeDecision(c *gin.Context, cancelOnly bool) {
-	p, pharmacy, outlet, ok := operatingStockScope(c)
+	p, pharmacy, outlet, ok := stocktakeWorkScope(c)
 	if !ok {
 		return
 	}
@@ -108,7 +108,7 @@ func (h *catalogueHandlers) writeOperatingStocktakeDecision(c *gin.Context, canc
 }
 
 func (h *catalogueHandlers) getOperatingStocktakeDecision(c *gin.Context) {
-	p, pharmacy, outlet, ok := operatingStockScope(c)
+	p, pharmacy, outlet, ok := stocktakeWorkScope(c)
 	if !ok {
 		return
 	}

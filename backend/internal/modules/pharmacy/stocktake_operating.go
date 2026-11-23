@@ -75,7 +75,7 @@ func (u operatingStockUse) stocktakeEvidence(tx *gorm.DB, take uuid.UUID, kind s
 }
 
 func (h *catalogueHandlers) putOperatingStocktake(c *gin.Context) {
-	p, pharmacy, outlet, ok := operatingStockScope(c)
+	p, pharmacy, outlet, ok := stocktakeWorkScope(c)
 	if !ok {
 		return
 	}
@@ -139,7 +139,7 @@ func (h *catalogueHandlers) putOperatingStocktake(c *gin.Context) {
 }
 
 func (h *catalogueHandlers) listOperatingStocktakeLines(c *gin.Context, params pagination.Params) ([]stocktakeLineRow, error) {
-	p, pharmacy, outlet, ok := operatingStockScope(c)
+	p, pharmacy, outlet, ok := stocktakeWorkScope(c)
 	if !ok {
 		return nil, nil
 	}

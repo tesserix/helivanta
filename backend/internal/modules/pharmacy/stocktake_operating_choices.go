@@ -11,7 +11,7 @@ import (
 )
 
 func (h *catalogueHandlers) readStocktakeChoices(c *gin.Context, kind string, read func(*gorm.DB, authn.Principal, uuid.UUID) error) bool {
-	p, pharmacy, outlet, ok := operatingStockScope(c)
+	p, pharmacy, outlet, ok := stocktakeWorkScope(c)
 	if !ok || !stocktakeRead(c, true) {
 		return false
 	}

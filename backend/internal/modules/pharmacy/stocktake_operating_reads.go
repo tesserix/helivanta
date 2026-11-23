@@ -14,7 +14,7 @@ import (
 )
 
 func (h *catalogueHandlers) getOperatingStocktake(c *gin.Context) {
-	p, pharmacy, outlet, ok := operatingStockScope(c)
+	p, pharmacy, outlet, ok := stocktakeWorkScope(c)
 	if !ok {
 		return
 	}
@@ -49,7 +49,7 @@ func (h *catalogueHandlers) getOperatingStocktake(c *gin.Context) {
 }
 
 func (h *catalogueHandlers) listOperatingStocktakes(c *gin.Context, params pagination.Params) ([]stocktakeHeaderRow, error) {
-	p, pharmacy, outlet, ok := operatingStockScope(c)
+	p, pharmacy, outlet, ok := stocktakeWorkScope(c)
 	if !ok || !stocktakeRead(c, true) {
 		return nil, nil
 	}
@@ -76,7 +76,7 @@ func (h *catalogueHandlers) listOperatingStocktakes(c *gin.Context, params pagin
 }
 
 func (h *catalogueHandlers) exportOperatingStocktakeRegister(c *gin.Context) {
-	p, pharmacy, outlet, ok := operatingStockScope(c)
+	p, pharmacy, outlet, ok := stocktakeWorkScope(c)
 	if !ok {
 		return
 	}

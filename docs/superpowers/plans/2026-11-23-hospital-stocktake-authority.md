@@ -237,3 +237,17 @@ hardcoded version 1 although the canonical header returned version 0. The journe
 now derives each write precondition from the actual prior receipt and separately
 asserts that an incorrect future version returns 409 and leaves no receipt. This
 corrects the test precondition without changing the established stocktake protocol.
+
+### Runtime schema guard (red-first, pending implementation)
+
+The dedicated hosted `hospital-schema` suite exercises the new integrity boundary
+without running the full employment journey. Pharmacy must refuse hospital work
+when its hospital evidence isolation, immutable triggers, approved-binding policy
+or source helper definitions drift. The planned guard captures reviewed metadata
+for the hospital evidence/binding/stocktake tables, source functions and immutable
+command triggers after the candidate migration; it retains the existing selection
+integrity check. It returns false on drift and is checked inside the held source
+transaction before the consumer runs. Missing functions/query failures also return
+503; metadata is not a substitute for actual IAM/Workforce/Organization proofs.
+Legitimate future schema changes must deliberately reseal the owner guard in a
+forward migration. No live schema has been changed for these tests.

@@ -10,6 +10,7 @@ type OperatingScopeRequest struct {
 	Principal              authn.Principal
 	EmployerKind           string
 	EmployerID, LocationID uuid.UUID
+	DutyID                 uuid.UUID
 	Permission             Permission
 }
 type OperatingScopeGrant struct {

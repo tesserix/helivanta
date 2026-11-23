@@ -1,7 +1,7 @@
 # Reviewed stocktake worker discovery
 
-Status: proposed implementation for #1686; this document does not register or
-release an API. Depends on the reviewed authority and continuation work in #1818
+Status: implementation candidate for #1686; source registration and generated
+models are under hosted validation, with no deployment or release claim. Depends on the reviewed authority and continuation work in #1818
 and #1822. `pharmacy_stocktake` remains compiled ineligible.
 
 ## Requirement and owners

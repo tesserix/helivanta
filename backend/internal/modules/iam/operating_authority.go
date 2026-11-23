@@ -43,6 +43,9 @@ func (a *operatingAuthority) WithOperatingScope(ctx context.Context, request aut
 	if !authz.ValidOperatingLocationScope(scope) || !proposalSubject(p.Subject) || p.AuthTime.IsZero() || !p.IdleDeadline.After(time.Now()) || (tenantdb.ActorFrom(ctx) != "" && tenantdb.ActorFrom(ctx) != p.Subject) {
 		return authz.ErrInvalidScopedAssignment
 	}
+	if request.DutyID != uuid.Nil && (request.DutyID.Version() != 7 || request.DutyID.Variant() != uuid.RFC4122) {
+		return authz.ErrInvalidScopedAssignment
+	}
 	known := false
 	for _, template := range operatingDutyTemplates {
 		if template.EmployerKind == scope.EmployerKind {
@@ -69,7 +72,13 @@ func (a *operatingAuthority) WithOperatingScope(ctx context.Context, request aut
 		if err := tx.Exec(`SELECT set_config('app.iam_operating_access','authorized',true)`).Error; err != nil {
 			return err
 		}
-		return tx.Raw(`SELECT s.document,d.version AS duty_version,d.authority_epoch FROM iam_operating_duties d JOIN iam_operating_snapshots s ON(s.tenant_id,s.duty_id,s.version,s.authority_epoch)=(d.tenant_id,d.id,d.version-1,d.authority_epoch)JOIN iam_operating_projection_acks k ON(k.tenant_id,k.duty_id,k.version,k.authority_epoch)=(s.tenant_id,s.duty_id,s.version,s.authority_epoch)WHERE d.tenant_id=? AND d.subject=? AND d.employer_kind=? AND d.employer_id=? AND d.location_id=? AND d.status='active' AND jsonb_exists(s.document->'Permissions',?) ORDER BY d.id LIMIT 33`, p.TenantID, p.Subject, scope.EmployerKind, scope.EmployerID, scope.LocationID, string(request.Permission)).Scan(&candidates).Error
+		query := `SELECT s.document,d.version AS duty_version,d.authority_epoch FROM iam_operating_duties d JOIN iam_operating_snapshots s ON(s.tenant_id,s.duty_id,s.version,s.authority_epoch)=(d.tenant_id,d.id,d.version-1,d.authority_epoch)JOIN iam_operating_projection_acks k ON(k.tenant_id,k.duty_id,k.version,k.authority_epoch)=(s.tenant_id,s.duty_id,s.version,s.authority_epoch)WHERE d.tenant_id=? AND d.subject=? AND d.employer_kind=? AND d.employer_id=? AND d.location_id=? AND d.status='active' AND jsonb_exists(s.document->'Permissions',?)`
+		args := []any{p.TenantID, p.Subject, scope.EmployerKind, scope.EmployerID, scope.LocationID, string(request.Permission)}
+		if request.DutyID != uuid.Nil {
+			query += ` AND d.id=?`
+			args = append(args, request.DutyID)
+		}
+		return tx.Raw(query+` ORDER BY d.id LIMIT 33`, args...).Scan(&candidates).Error
 	})
 	if err != nil {
 		return authz.ErrScopedAuthorizationUnavailable
@@ -80,6 +89,9 @@ func (a *operatingAuthority) WithOperatingScope(ctx context.Context, request aut
 	for _, candidate := range candidates {
 		var snapshot authz.OperatingAssignment
 		if err := json.Unmarshal(candidate.Document, &snapshot); err != nil {
+			return authz.ErrScopedAuthorizationUnavailable
+		}
+		if request.DutyID != uuid.Nil && snapshot.ID != request.DutyID.String() {
 			return authz.ErrScopedAuthorizationUnavailable
 		}
 		now := time.Now()

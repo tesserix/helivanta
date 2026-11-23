@@ -58,6 +58,7 @@ type operatingHandlers struct {
 	graph             currentGraph
 	staff             authz.CurrentIndependentStaffGuard
 	locations         authz.CurrentOperatingLocationGuard
+	operating         authz.OperatingScopeAuthorizer
 }
 type operatingDutyRow struct {
 	NativeAdministration                     bool
@@ -71,7 +72,7 @@ type operatingDutyRow struct {
 
 func registerOperatingDutyRoutes(r *platform.Router, deps platform.Deps) {
 	r = r.Group("/iam")
-	h := &operatingHandlers{db: deps.DB, bus: deps.Bus, staff: deps.IndependentStaff, locations: deps.OperatingLocations, governanceSources: deps.GovernanceSources, releasePolicy: deps.ReleasePolicy}
+	h := &operatingHandlers{db: deps.DB, bus: deps.Bus, staff: deps.IndependentStaff, locations: deps.OperatingLocations, operating: deps.OperatingAuthorizer, governanceSources: deps.GovernanceSources, releasePolicy: deps.ReleasePolicy}
 	h.graph, _ = deps.Authz.(currentGraph)
 	platform.ListRoute(r, "/operating-employers/:kind/:employer/staff/:staff/duties", PermOperatingRead, h.list)
 	r.PUT("/operating-duties/:id", PermOperatingPrepare, h.prepare)
@@ -80,6 +81,7 @@ func registerOperatingDutyRoutes(r *platform.Router, deps platform.Deps) {
 	r.PUT("/operating-duties/:id/commands/:command", authz.Public, h.decide)
 	r.GET("/operating-duties/:id/commands/:command", PermOperatingRead, h.getCommand)
 	registerOperatingGovernanceRoutes(r, h)
+	registerStocktakeWorkerLocationRoutes(r, h)
 }
 func operatingScope(c *gin.Context, permission authz.Permission) (authn.Principal, uuid.UUID, bool) {
 	c.Header("Cache-Control", "no-store")

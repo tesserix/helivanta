@@ -150,6 +150,57 @@ export const OperatingLocationChoiceContract = z
   .strict();
 export type OperatingLocationChoice = z.infer<typeof OperatingLocationChoiceContract>;
 
+export const StocktakeDutyLocationChoiceContract = z
+  .object({
+    owner_tenant_id: identifier,
+    duty_id: identifier,
+    employer_id: identifier,
+    location_id: identifier,
+    employer_name: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes(String.fromCharCode(0)), "Use a valid identifier.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    location_name: z
+      .string()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes(String.fromCharCode(0)), "Use a valid identifier.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    location_code: z
+      .string()
+      .min(1)
+      .max(40)
+      .refine((value) => !value.includes(String.fromCharCode(0)), "Use a valid identifier.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    time_zone: z
+      .string()
+      .min(1)
+      .max(100)
+      .refine((value) => !value.includes(String.fromCharCode(0)), "Use a valid identifier.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    template_key: z
+      .string()
+      .min(1)
+      .max(100)
+      .refine((value) => !value.includes(String.fromCharCode(0)), "Use a valid identifier.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    template_label: z
+      .string()
+      .min(1)
+      .max(100)
+      .refine((value) => !value.includes(String.fromCharCode(0)), "Use a valid identifier.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    country_code: z.enum(["IN"]),
+    assigned_permissions: z.array(z.string()).min(1).max(3),
+    snapshot_version: z.number().int().min(1).max(9007199254740991),
+    authority_epoch: z.number().int().min(1).max(9007199254740991),
+    expires_at: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type StocktakeDutyLocationChoice = z.infer<typeof StocktakeDutyLocationChoiceContract>;
+
 export const operatingDutyTemplates: readonly OperatingDutyTemplate[] = [
   {
     key: "supply.inventory_receiver.v1",

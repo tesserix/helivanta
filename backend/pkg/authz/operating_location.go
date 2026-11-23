@@ -17,6 +17,8 @@ type OperatingLocationReference struct {
 	Scope                            OperatingLocationScope
 	EmployerVersion, LocationVersion int64
 	Country                          string
+	EmployerName, LocationName       string
+	LocationCode, TimeZone           string
 }
 
 type CurrentOperatingLocationGuard interface {

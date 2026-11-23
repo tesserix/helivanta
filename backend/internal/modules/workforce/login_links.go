@@ -99,6 +99,11 @@ func (h *handlers) loginLinkTransaction(c *gin.Context, p authn.Principal, hospi
 			} else if err := prepareLoginReviewPurpose(c, tx, p, root, staffID, command, *source); err != nil {
 				return err
 			}
+			if command != "" {
+				if err := tx.Exec(`SELECT workforce_lock_supervision(?::uuid,?::uuid)`, p.TenantID, hospital).Error; err != nil {
+					return err
+				}
+			}
 			query := tx.Table("workforce_staff").Select(staffColumns).Where("tenant_id=? AND hospital_id=? AND id=?", p.TenantID, hospital, staffID)
 			if source != nil {
 				query = query.Select("id,employment_status,version").Clauses(clause.Locking{Strength: "SHARE"})

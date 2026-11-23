@@ -230,6 +230,7 @@ var approvedPermissionMatrix = map[authz.Permission][]authz.Role{
 	pharmacy.PermStaffBindingPrepare:    {authz.RoleTenantAdmin},
 	pharmacy.PermStaffBindingReview:     {authz.RoleTenantAdmin},
 	authz.PurchaseOrderActorUse:         {authz.RoleTenantAdmin},
+	authz.StocktakeActorUse:             {authz.RoleTenantAdmin},
 	authz.StaffActorUse:                 {authz.RoleTenantAdmin},
 	organization.PermStructureRead:      {authz.RoleTenantAdmin},
 	organization.PermStructureManage:    {authz.RoleTenantAdmin},

@@ -5,6 +5,15 @@ Depends on the independent worker continuation in #1823. This completes the
 hospital side of the [reviewed authority design](../specs/2026-11-23-reviewed-stocktake-authority.md);
 it does not redefine the issue around the independent path already implemented.
 
+Development checkpoint: the candidate now declares Workforce-owned
+`workforce.stocktake_actor.use` and a separate callback guard using the existing
+current-employment checks. Source declaration and missing-basis unit checks are
+tested. The module declares no legacy role grant; the independent permission
+matrix records the platform's existing automatic tenant-admin reconciliation,
+which cannot establish the exact guarded assignment or current Staff basis.
+No hospital count consumer, historical-participant guard, template, route or UI
+has been delivered by this checkpoint. Hosted real-source tests remain required.
+
 ## Verified starting point
 
 - Pharmacy's `operatingStock` consumes independent IAM duties. Its employer guard

@@ -1885,7 +1885,6 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 	var postingRootApproverStaff string
 	var postingDepartmentReviewer string
 	var stocktakeParticipant authz.StocktakeActorObservation
-	var stocktakeDepartment string
 	var pharmacyBindingPrepared *pharmacyBindingPreparation
 	for _, scenario := range []string{"identity_restore", "future", "pre_submission_restore", "rollback_audit", "rollback_outbox", "consumption", "uuid_staff", "actor_enforcement", "review_discovery", "posting_submission", "posting_ongoing", "posting_supervision", "posting_root_reviewer", "posting_root_approval", "posting_root_source_first", "posting_root_dept_first", "posting_dept_reviewer", "posting_chain_child", "posting_dept_review", "posting_dept_leave", "posting_nondigital", "posting_command_first", "posting_new_command_first", "posting_new_source_first", "posting_membership", "posting_credential", "posting_source_expiry", "posting_term_expiry", "concurrent_consumption", "concurrent_replay", "recipient_race", "activation_first", "reciprocal_denial"} {
 		t.Run("activation_"+scenario, func(t *testing.T) {
@@ -2292,11 +2291,17 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 					standing := call(t, "GET", assignment, maker, nil, 200)
 					call(t, "POST", assignment+"/decision", maker, map[string]any{"expected_version": standing["version"], "decision": "withdraw", "reason": "Synthetic reviewer discovery authority cutoff"}, 200)
 					require.Empty(t, call(t, "GET", "/v1/workforce/posting-review-scopes", recipient, nil, 200)["data"], "the unchanged signed-in actor loses review discovery immediately after withdrawal")
+					stocktakeDepartment := uuid.Must(uuid.NewV7()).String()
+					historyDepartmentBase := "/v1/organization/hospitals/" + hospital + "/departments/" + stocktakeDepartment + "/revisions/"
+					historyDepartment := map[string]any{"expected_version": 0, "code": "SYN-STOCKTAKE-HISTORY", "name": "Synthetic stocktake history review", "kind": "department", "parent_id": nil, "status": "active", "reason": "Synthetic current reviewer scope for historical counter attribution"}
+					call(t, "PUT", historyDepartmentBase+uuid.Must(uuid.NewV7()).String(), maker, historyDepartment, 200)
 					grantDepartment(recipient, stocktakeDepartment, []string{stocktakeDepartment}, "pharmacy.department_stocktake_reviewer.v1", authz.StocktakeActorUse)
 					participantPath := base + "/staff/" + stocktakeParticipant.Reference.StaffID.String()
 					priorCounter := call(t, "GET", participantPath, maker, nil, 200)
 					call(t, "PUT", participantPath, maker, map[string]any{"employee_code": priorCounter["employee_code"], "display_name": priorCounter["display_name"], "job_category": priorCounter["job_category"], "employment_status": "inactive"}, 200)
 					assertHospitalStocktakeActorHistory(t, ctx, db, authority, authz.StaffActorScope{TenantID: testutil.TenantA, Subject: recipient, HospitalID: uuid.MustParse(hospital), DepartmentPath: []string{stocktakeDepartment}}, authz.StaffActorReference{StaffID: uuid.MustParse(joiner), LinkID: uuid.MustParse(loginPath[strings.LastIndex(loginPath, "/")+1:]), LinkVersion: 2, GenerationID: uuid.MustParse(activationID), EmploymentEpoch: int64(generation["employment_epoch"].(float64))}, stocktakeParticipant)
+					historyDepartment["expected_version"], historyDepartment["status"] = 1, "retired"
+					call(t, "PUT", historyDepartmentBase+uuid.Must(uuid.NewV7()).String(), maker, historyDepartment, 200)
 					return
 				}
 				beforeEvidenceBoundary := sourceAudits()
@@ -2355,7 +2360,6 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 					sourceGrant, sourceErr = authority.AuthorizeScope(ctx, sourceRequest)
 					require.NoError(t, sourceErr)
 					assertHospitalStocktakeActorSource(t, ctx, db, authority, authz.StaffActorScope{TenantID: testutil.TenantA, Subject: recipient, HospitalID: uuid.MustParse(hospital), DepartmentPath: []string{departmentID}}, authz.StaffActorReference{StaffID: uuid.MustParse(joiner), LinkID: uuid.MustParse(loginPath[strings.LastIndex(loginPath, "/")+1:]), LinkVersion: 2, GenerationID: uuid.MustParse(activationID), EmploymentEpoch: int64(generation["employment_epoch"].(float64))}, useSource)
-					stocktakeDepartment = departmentID
 					stocktakeParticipant = authz.StocktakeActorObservation{Subject: recipient, Reference: authz.StaffActorReference{StaffID: uuid.MustParse(joiner), LinkID: uuid.MustParse(loginPath[strings.LastIndex(loginPath, "/")+1:]), LinkVersion: 2, GenerationID: uuid.MustParse(activationID), EmploymentEpoch: int64(generation["employment_epoch"].(float64))}}
 				}
 				if scenario == "posting_submission" || scenario == "posting_ongoing" || scenario == "posting_supervision" || scenario == "posting_chain_child" || strings.HasPrefix(scenario, "posting_root_") {

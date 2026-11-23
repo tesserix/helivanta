@@ -591,3 +591,20 @@ platform/directory and Billing final-bill/deposit tests and regenerates contract
 No local application, database, container, Colima or local build is used.
 Acceptance still requires green hosted results, current protected checks and
 the unchanged capacity budgets; no merge bypass is authorized by this plan.
+
+Hosted green **45265180142** passed the new platform-review isolation regression,
+all selected existing platform schedule-review and hospital integrity/migration
+tests, final-bill/deposit tests (including open-stay midnight grace refusal), API
+build, vet and contract generation/check. Generated references were downloaded
+from its artifact; inventory records the candidate 0067 SQL hash.
+
+Hosted isolated capacity **45265456113** passed the original limits without
+changing the thresholds: native start **2.241 s**, page p99 **7.074 ms**, 500
+adjustments **1.492 s**; reviewed independent start **1.352 s**, page p99
+**118.280 ms**, 500 adjustments **2.125 s**. Both assert 10,000 buckets and
+conserved stock after duplicate decision recovery. Setup logs show an actual Go
+cache hit and successful restoration on Ubuntu 26; these results do not identify
+a cache defect. This is native/independent evidence, not hospital capacity.
+
+The fixes and generated output are ready for the protected current-head PR
+checks. They do not enable Stocktake, close #1686 or perform a live migration.

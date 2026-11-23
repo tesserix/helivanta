@@ -39,6 +39,8 @@ it("finds named reviewed work through an empty candidate page and retains recove
       return Response.json({ data: [], tenant_id: account.tenantId, subject: account.subject });
     if (url === "/api/v1/workspace/release-capabilities")
       return Response.json(releaseSnapshotForTest(account, ["team_accounts", "pharmacy_setup"]));
+    if (url.startsWith("/api/v1/iam/me/hospital-pharmacy-stocktake-scopes?"))
+      return Response.json(page([]));
     if (url.startsWith("/api/v1/iam/me/pharmacy-stocktake-locations?")) {
       return Response.json(url.includes("cursor=") ? page([choice]) : page([], "TEST-next"));
     }
@@ -121,6 +123,8 @@ it.each(["open", "unconfirmed", "withdrawn"] as const)(
           ]),
         );
       }
+      if (path === "/api/v1/iam/me/hospital-pharmacy-stocktake-scopes")
+        return Response.json(page([]));
       if (path === "/api/v1/iam/me/pharmacy-stocktake-locations")
         return Response.json(page([choice]));
       const root = `/api/v1/pharmacy/pharmacies/${choice.employer_id}/operating-locations/${choice.location_id}/stocktakes`;

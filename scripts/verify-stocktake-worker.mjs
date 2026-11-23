@@ -50,7 +50,7 @@ try {
   for (const actor of ["owner", "reviewer"]) {
     const page = await open(actor);
     await expect(
-      page.getByText("No current reviewed stocktake duty is available to this account."),
+      page.getByText("No current reviewed stocktake assignment is available to this account."),
     ).toBeVisible();
     await expect(page.getByRole("button", { name: "Start stocktake", exact: true })).toHaveCount(0);
   }

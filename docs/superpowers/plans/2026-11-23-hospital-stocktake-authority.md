@@ -504,3 +504,34 @@ cases plus 17 independent-location cases** pass with API typecheck and focused
 ESLint. These client tests are not a substitute for the actual owner workflow or
 hospital browser acceptance. Workspace integration remains a development candidate
 and release eligibility is unchanged.
+
+### Named hospital workspace and accepted outlet evidence
+
+Hosted **45220832661** passed outlet migration, purpose-restricted reads and
+schema drift/restoration. Hosted **45224688258**, source head **0856d40b**, passed
+the full actual hospital employment/assignment and physical count/review workflow
+plus multiple named approved outlets, single-row paging, cursor isolation and
+selective binding withdrawal. These supersede the pending outlet results above.
+
+The worker workspace now selects a named hospital/department/role and an approved
+named pharmacy outlet, separately from independent operating duties. Selection
+keys retain assignment version/epoch and binding version/department revision.
+Changing or withdrawing the current assignment removes the previous work view.
+Both models share the existing count/review and retained-outcome components.
+The dashboard shortcut recognizes either current authority without reading stock
+or outlet details, including an empty filtered page with continuation.
+
+Local validation: 69 stocktake component tests, 109 stocktake SDK tests and 16
+dashboard tests passed; both API/shell TypeScript checks, focused ESLint,
+actionlint, script syntax and the affected shell production build passed.
+Generated build and incremental outputs were removed. Hospital component tests
+cover filtered assignment/outlet pages, private-name rejection across tenants,
+withdrawal, reader/reviewer start denial, hospital-only counter commands and
+retained recovery after a lost start response and release outage. The dashboard
+regression was observed failing before its implementation. Hosted CI explicitly
+includes the new hospital paths and tests.
+
+This remains an unreleased candidate: current-head hosted browser checks, actual
+hospital browser/capacity, ancestor/descendant selection, source-change recovery
+and reviewable migration/rollout approval plus live acceptance remain required.
+`pharmacy_stocktake` eligibility stays disabled and #1686 stays open.

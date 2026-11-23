@@ -5,8 +5,11 @@ import (
 	"encoding/json"
 	"net/http/httptest"
 	"net/url"
+	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -260,4 +263,71 @@ func TestStocktakeReviewedReadsRequireOneExactAccountHeader(t *testing.T) {
 			require.NotContains(t, response.Body.String(), "TEST Independent Pharmacy")
 		})
 	}
+}
+
+func TestStocktakeReviewedReadsInspectActualCandidateQueryPlan(t *testing.T) {
+	f := newPharmacyReceiverFixture(t)
+	f.input.TemplateKey = "pharmacy.stocktake_counter.v1"
+	f.activate(t)
+	const callback = "test:stocktake-worker-plan"
+	var hooks *gorm.DB
+	var mu sync.Mutex
+	var query string
+	var args []any
+	require.NoError(t, f.db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+		hooks = tx
+		return tx.Callback().Row().Before("gorm:row").Register(callback, func(tx *gorm.DB) {
+			if tx.DryRun || !strings.HasPrefix(tx.Statement.SQL.String(), "SELECT d.id,d.created_at,d.template_key,s.document FROM iam_operating_duties d") {
+				return
+			}
+			mu.Lock()
+			query, args = tx.Statement.SQL.String(), append([]any(nil), tx.Statement.Vars...)
+			mu.Unlock()
+		})
+	}))
+	t.Cleanup(func() { require.NoError(t, hooks.Callback().Row().Remove(callback)) })
+	start := time.Now()
+	f.call("GET", "/v1/iam/me/pharmacy-stocktake-locations", "receiver", nil, 200)
+	require.Less(t, time.Since(start), 5*time.Second)
+	mu.Lock()
+	statement, parameters := query, append([]any(nil), args...)
+	mu.Unlock()
+	require.NotEmpty(t, statement, "inspect the actual handler query, not a separately copied SQL statement")
+	require.Equal(t, 21, parameters[len(parameters)-1])
+	var raw []byte
+	require.NoError(t, f.db.WithTenant(tenantdb.WithActor(t.Context(), "user-receiver"), testutil.TenantA, func(tx *gorm.DB) error {
+		if err := tx.Exec(`SELECT set_config('app.iam_operating_access','authorized',true)`).Error; err != nil {
+			return err
+		}
+		return tx.Raw("EXPLAIN (ANALYZE,BUFFERS,FORMAT JSON) "+statement, parameters...).Row().Scan(&raw)
+	}))
+	type node struct {
+		Kind     string  `json:"Node Type"`
+		Relation string  `json:"Relation Name"`
+		Index    string  `json:"Index Name"`
+		Rows     float64 `json:"Actual Rows"`
+		Loops    float64 `json:"Actual Loops"`
+		Filtered float64 `json:"Rows Removed by Filter"`
+		Hits     float64 `json:"Shared Hit Blocks"`
+		Plans    []node  `json:"Plans"`
+	}
+	var plans []struct {
+		Plan node `json:"Plan"`
+	}
+	require.NoError(t, json.Unmarshal(raw, &plans))
+	require.Len(t, plans, 1)
+	require.LessOrEqual(t, plans[0].Plan.Rows, float64(21))
+	seen := false
+	var inspect func(node)
+	inspect = func(n node) {
+		if n.Relation == "iam_operating_duties" {
+			seen = true
+			t.Logf("worker candidate plan operator=%s index=%s rows=%g loops=%g filtered=%g shared_hits=%g", n.Kind, n.Index, n.Rows, n.Loops, n.Filtered, n.Hits)
+		}
+		for _, child := range n.Plans {
+			inspect(child)
+		}
+	}
+	inspect(plans[0].Plan)
+	require.True(t, seen)
 }

@@ -2088,8 +2088,9 @@ New-work/lines/export routes remain `pharmacy_stocktake` gated and compiled
 ineligible. Header/list/original command receipts and cancellation retain baseline
 classification with full current authority. This is candidate code, not deployed
 hospital release acceptance. Real hospital command integration passed in hosted
-run 45197016258; binding-change recovery, complete worker discovery/UI, hospital
-browser/capacity and live verification remain tracked in the
+runs 45197016258 and 45224688258, including current named scope/outlet discovery.
+Binding-change recovery, hierarchy coverage, hospital browser/capacity and live
+verification remain tracked in the
 [hospital delivery plan](../../superpowers/plans/2026-11-23-hospital-stocktake-authority.md).
 
 Hospital candidate commands also verify the Pharmacy owner schema seal inside the
@@ -2160,5 +2161,23 @@ concurrent bounded-page index. No live migration or production rollout is implie
 This is exact-department discovery. Inherited ancestor grants still require a
 separate authorized descendant-department selection before exposing a worker UI
 for that hierarchy; this endpoint does not invent Organization-owned hierarchy
-projections. Hospital worker UI, hierarchy coverage, binding/source replacement
-recovery, hospital browser/capacity and live acceptance remain release gates.
+projections. Hierarchy coverage, binding/source replacement recovery, hospital
+browser/capacity and live acceptance remain release gates.
+
+### Hospital worker workspace — development candidate
+
+`/pharmacy/working-stocktakes` loads current hospital department assignments and
+independent pharmacy duties through their separate Global API projections. A
+hospital worker chooses a named hospital/department/role, then an approved named
+pharmacy/outlet. Internal account and resource IDs are not display labels.
+Only one authority/location is selected at a time. Assignment version/epoch and
+binding version/department revision isolate component and cache contexts; a
+withdrawn or unverifiable selection removes its work view.
+
+The selected canonical permissions control counter/reviewer UI affordances; every
+command still reauthorizes on the server. Hospital and independent work reuse the
+same start, count, review and retained-recovery components with explicit authority
+coordinates. Release unavailability removes new work while retaining authorized
+outcome checks. The dashboard advertises current work from either model,
+including filtered pages with continuation, without fetching outlet or stock
+records. This UI remains unreleased while the acceptance gates above are open.

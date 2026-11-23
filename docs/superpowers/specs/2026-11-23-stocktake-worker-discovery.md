@@ -102,3 +102,28 @@ and retained-work pages, unknown outcomes and feature withdrawal. Run focused
 hosted builds/race/unit/browser checks, protected PR checks, approved migration and
 Kargo rollout, and actual deployed browser acceptance. Keep #1686 open until its
 complete requested workflow is verified.
+
+## Worker retained-work page
+
+The candidate `/pharmacy/working-stocktakes` page is classified under
+`pharmacy_setup`. It resolves the current account, then uses only the current-user
+duty directory. Empty filtered pages keep their continuation. Each option names
+its pharmacy, outlet/code and reviewed role; no identifier entry or ID-as-name
+fallback is provided. A selected duty opens reviewed retained status, original
+command recovery and count-authorized cancellation through the existing baseline
+continuations. It does not discover through owner-management or legacy outlet
+access APIs. General Stock and Catalogue remain disabled.
+
+Account transition, identity refresh/failure, directory refresh/failure, or a
+changed duty snapshot removes the prior outlet panel. The panel and recovery
+state are keyed by account, tenant, duty, snapshot version and authority epoch.
+Current action permissions remain enforced by the owning APIs. Starting, physical
+entry and reviewer controls still need integration into this worker page before
+operational release; the start form itself now selects reviewed named-choice SDK
+readers when `authority: "operating"` is supplied.
+
+Hosted 45106386216 passed the named-choice Global API contracts, actual directory
+query-plan inspection and existing receiving consumers on `69fdd874`. That plan
+uses a small fixture and is not subject-page scale acceptance. UI regression
+45106877670 reproduced the legacy catalogue lookup in operating mode. Follow-up
+UI validation is running; no merged or deployed UI acceptance is claimed.

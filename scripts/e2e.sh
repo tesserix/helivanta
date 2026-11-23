@@ -24,6 +24,10 @@
 set -euo pipefail
 
 REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)
+# shellcheck source=lib/e2e-spec-filter.sh
+. "$REPO_ROOT/scripts/lib/e2e-spec-filter.sh"
+focused_spec=${HELIVANTA_E2E_SPEC-}
+validate_e2e_spec_filter "$REPO_ROOT" "$focused_spec"
 # shellcheck source=lib/repo-owns.sh
 # shellcheck source=lib/repo-owns.sh
 . "$REPO_ROOT/scripts/lib/repo-owns.sh"
@@ -422,7 +426,11 @@ fi
 echo "Stopping any web apps on ${ZONE_PORTS[*]} $SHELL_INTERNAL_PORT for the run…"
 stop_ports_if_ours "web app" "${ZONE_PORTS[@]}" "$SHELL_INTERNAL_PORT"
 echo "Building production web apps…"
-scripts/e2e-web.sh build
+if [ -n "$focused_spec" ]; then
+  scripts/e2e-web.sh build main
+else
+  scripts/e2e-web.sh build
+fi
 echo "Starting the main web stack from its production builds…"
 start_main_web
 echo "Starting the e2e ingress…"
@@ -430,6 +438,11 @@ echo "Starting the e2e ingress…"
 wait_for_port "http://$WEB_HOST:$SHELL_PORT/login" "e2e ingress on :$SHELL_PORT"
 
 echo "Phase 1/3 — specs + bulk against the main stack…"
+if [ -n "$focused_spec" ]; then
+  pnpm --filter e2e exec playwright test --project=specs "$focused_spec"
+  echo "Focused browser acceptance passed."
+  exit 0
+fi
 pnpm --filter e2e exec playwright test --project=specs --project=bulk
 node scripts/retain-supplier-return-evidence.mjs
 

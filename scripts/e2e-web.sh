@@ -3,7 +3,7 @@
 # standalone servers, never `next dev` (#976, design spec
 # docs/superpowers/specs/2026-10-12-e2e-against-production-builds-design.md).
 #
-#   scripts/e2e-web.sh build           build the shell for each of the three e2e stacks
+#   scripts/e2e-web.sh build [all|main] build the shell for each of the three e2e stacks
 #   scripts/e2e-web.sh start NAME PORT run one built app in the foreground
 #
 # Why production builds: e2e must exercise the server production runs, not
@@ -79,16 +79,21 @@ build_app() {
 }
 
 build() {
-  local main idle renewal
+  local main idle renewal selection=${1:-all}
+  case "$selection" in all|main) ;; *) echo "Build selection must be all or main." >&2; return 2 ;; esac
   main=$(client_id_from "$SECRETS/zitadel.env")
-  idle=$(client_id_from "$SECRETS/zitadel-idle-timeout.env")
-  renewal=$(client_id_from "$SECRETS/zitadel-renewal.env")
+  if [ "$selection" = all ]; then
+    idle=$(client_id_from "$SECRETS/zitadel-idle-timeout.env")
+    renewal=$(client_id_from "$SECRETS/zitadel-renewal.env")
+  fi
 
   # One app: MediCore, Pharmacy and Lab are its routes since #933.
   build_app shell shell-main "$main" "http://localhost:$API_PORT"
-  build_app shell shell-idle-timeout "$idle" "http://localhost:$IDLE_API_PORT"
-  build_app shell shell-renewal "$renewal" "http://localhost:$RENEWAL_API_PORT"
-  echo "Built every e2e web app into $OUT."
+  if [ "$selection" = all ]; then
+    build_app shell shell-idle-timeout "$idle" "http://localhost:$IDLE_API_PORT"
+    build_app shell shell-renewal "$renewal" "http://localhost:$RENEWAL_API_PORT"
+  fi
+  echo "Built selected e2e web apps into $OUT."
 }
 
 # start NAME PORT — run one assembled build in the foreground (the caller
@@ -112,7 +117,7 @@ start() {
 }
 
 case "${1:-}" in
-  build) build ;;
+  build) build "${2:-all}" ;;
   start)
     [ $# -eq 3 ] || { echo "usage: $0 start NAME PORT" >&2; exit 2; }
     start "$2" "$3"

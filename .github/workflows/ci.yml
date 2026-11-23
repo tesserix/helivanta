@@ -1,5 +1,12 @@
 name: CI
 on:
+  workflow_call:
+    inputs:
+      focused_e2e_spec:
+        description: "One specs-project acceptance file; separate checks from required full CI."
+        required: false
+        default: ""
+        type: string
   push:
     branches: [main]
   pull_request:
@@ -59,6 +66,8 @@ concurrency:
 
 jobs:
   go:
+    name: ${{ inputs.focused_e2e_spec && 'focused-browser-go-excluded' || 'go' }}
+    if: ${{ !inputs.focused_e2e_spec }}
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -244,6 +253,8 @@ jobs:
             ${{ runner.temp }}/ryuk-*.log
           retention-days: 7
   web:
+    name: ${{ inputs.focused_e2e_spec && 'focused-browser-web-excluded' || 'web' }}
+    if: ${{ !inputs.focused_e2e_spec }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -446,6 +457,7 @@ jobs:
       # listener with `sudo -n` and reads it as this non-root runner user —
       # the only case that proves `ss` really omits a foreign owner. Without
       # this it says "n/a" where sudo is unavailable; here it must fail.
+      - run: bash scripts/e2e-spec-filter.test.sh
       - run: make test-scripts
         env:
           PREFLIGHT_TEST_REQUIRE_FOREIGN: "1"
@@ -488,8 +500,10 @@ jobs:
             gitleaks git . --no-banner --redact
           fi
   e2e:
+    name: ${{ inputs.focused_e2e_spec && 'focused-browser' || 'e2e' }}
     runs-on: ubuntu-latest
     env:
+      HELIVANTA_E2E_SPEC: ${{ inputs.focused_e2e_spec || '' }}
       HELIVANTA_PASSWORD_RECOVERY_FIXTURE: "true"
       HELIVANTA_STAFF_MFA_RECOVERY_FIXTURE: "true"
     # Run 44425880230 reached 105 passing main tests in 14m, then passed
@@ -500,6 +514,11 @@ jobs:
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Validate focused browser selection
+        run: |
+          . scripts/lib/e2e-spec-filter.sh
+          validate_e2e_spec_filter "$PWD" "$HELIVANTA_E2E_SPEC"
+
 
       # *.localhost DOES resolve on ubuntu-24.04 without this — systemd-resolved
       # synthesizes it (verified live on image 20260810.271.1: `getent hosts

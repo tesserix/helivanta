@@ -19,6 +19,8 @@ import (
 
 func operatingStocktakeRoutes(g *platform.Router, h *catalogueHandlers) {
 	s := g.Group("/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes")
+	platform.ResourceListRoute(s, "/product-choices", authz.Public, 200, h.listStocktakeProductChoices)
+	platform.ResourceListRoute(s, "/quarantine-choices", authz.Public, 200, h.listStocktakeQuarantineChoices)
 	s.PUT("/:stocktake", authz.Public, h.putOperatingStocktake)
 	platform.ListRoute(s, "", authz.Public, h.listOperatingStocktakes)
 	s.GET("/:stocktake", authz.Public, h.getOperatingStocktake)

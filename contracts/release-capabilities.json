@@ -6012,6 +6012,16 @@
       "method": "GET",
       "path": "/v1/iam/me/pharmacy-stocktake-locations",
       "capability": "baseline"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes/product-choices",
+      "capability": "pharmacy_stocktake"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes/quarantine-choices",
+      "capability": "pharmacy_stocktake"
     }
   ],
   "pages": [

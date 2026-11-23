@@ -133,6 +133,11 @@ approval or rejection. These continuations do not need a release-provider
 snapshot, but still require the current account, Staff/link, exact outlet,
 command ownership and audit evidence. New starts/counts/decisions, line browsing
 and CSV export remain gated; retrying a blocked write is not the recovery path.
+The SDK requires explicit `authority: "operating"` to use reviewed routes and
+separate recovery/cache namespaces. Existing legacy references remain readable
+through the legacy flow; they are not adopted into reviewed work. A scope change
+removes confirmed results from view until the new scope is checked. This SDK
+support does not release a page or replace current server authorization.
 
 Hospital department admission/capacity, the operational
 page/SDK and both-model live acceptance remain required by #1686. Keep eligibility

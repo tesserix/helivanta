@@ -19,7 +19,7 @@ export type PharmacyStocktakeScope = PharmacyActorScope & {
   authority?: z.infer<typeof authoritySchema>;
 };
 export function stocktakeAuthority(scope: PharmacyStocktakeScope) {
-  return authoritySchema.parse(scope.authority ?? "legacy");
+  return authoritySchema.parse(scope.authority === undefined ? "legacy" : scope.authority);
 }
 export function stocktakeKey(scope: PharmacyStocktakeScope, ...parts: unknown[]) {
   const namespace =

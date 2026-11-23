@@ -5,6 +5,7 @@ import { Button } from "@tesserix/web";
 import {
   ApiError,
   pharmacyKey,
+  stocktakeKey,
   readStocktake,
   readStocktakeCount,
   readStocktakeDecision,
@@ -50,7 +51,9 @@ export function StocktakeRecoveryPanel({
       <div className="mt-4 space-y-4">
         {recovery.markers.map((marker, index) => (
           <RecoveryResult
-            key={`${scope.subject}:${marker.kind}:${marker.stocktakeId}:${marker.commandId}`}
+            key={JSON.stringify(
+              stocktakeKey(scope, marker.kind, marker.stocktakeId, marker.commandId),
+            )}
             scope={scope}
             timeZone={timeZone}
             marker={marker}

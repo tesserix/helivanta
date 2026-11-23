@@ -40,7 +40,14 @@ Workforce Staff/link, exact pharmacy/outlet and attributable audit checks even
 when the feature is disabled or release configuration is unavailable. The
 cancellation route accepts only `decision=cancel`; other decisions return 400,
 and reusing an existing command for another intent returns 409. Cancellation uses
-the existing protocol and never changes physical stock. No new operational page
+the existing protocol and never changes physical stock. The SDK selects this
+route family explicitly with `authority: "operating"`; omitted or `"legacy"`
+authority retains the legacy route and persisted-reference contract. Unknown or
+null authority is refused before traffic or cache use. Reviewed cache keys and
+reference-only browser recovery queues are separated by authority, tenant,
+account, pharmacy and outlet. Switching scope clears previously confirmed
+recovery results until they are checked under the new scope. This selector grants
+no server authority. No new operational page
 or production availability is established by their registration.
 
 IAM must consume an acknowledged current independent duty for

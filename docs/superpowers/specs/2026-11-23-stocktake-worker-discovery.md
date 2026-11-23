@@ -145,4 +145,5 @@ counter-only cancellation; 45108121437 passed after permission separation.
 review-only physical-entry controls; 45108665090 passed the affected SDK/UI tests,
 lint, type checks and shell build after integration. 45108976853 reproduced lost
 open-form recovery and retained new-work controls after a failed flag refresh;
-45109143051 is validating the fixes. Broader protected checks remain required.
+45109143051 passed the fixes with 77 SDK and 49 shell tests, Staff visibility
+checks, lint, type checks and the affected shell build. Broader protected checks remain required.

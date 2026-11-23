@@ -100,7 +100,7 @@ adjustments or export inventory while Stock is disabled.
 
 ### Reviewed Stocktake duties — development only
 
-The candidate **My retained stocktakes** page (`/pharmacy/working-stocktakes`)
+The candidate **My stocktakes** page (`/pharmacy/working-stocktakes`)
 uses `pharmacy_setup` and current-user reviewed-duty discovery, without general
 Stock/Catalogue access. With `pharmacy_stocktake` unavailable it offers retained
 status/recovery and current-counter cancellation only. The worker-command

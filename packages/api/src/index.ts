@@ -250,6 +250,7 @@ export {
   startStocktake,
   stocktakeKey,
   stocktakeAuthority,
+  stocktakeHeaders,
   recoverStocktakeStart,
   readStocktake,
   recordStocktakeCount,

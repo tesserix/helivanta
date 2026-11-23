@@ -44,10 +44,9 @@ jobs:
     if: ${{ inputs.suite == 'hospital-schema' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
-    env:
-      GOCACHE: ${{ runner.temp }}/helivanta-stocktake-hospital-schema-cache
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - run: printf 'GOCACHE=%s/helivanta-stocktake-hospital-schema-cache\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
       - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5
         with:
           go-version-file: backend/go.mod

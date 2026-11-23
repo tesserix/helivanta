@@ -6,7 +6,7 @@ on:
         description: Focused validation suite
         type: choice
         default: all
-        options: [all, go, web, reviewed-reads, browser, hospital-source]
+        options: [all, go, web, reviewed-reads, browser, hospital-source, hospital-schema]
   pull_request:
     paths:
       - "backend/internal/modules/pharmacy/**"

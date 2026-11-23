@@ -1,6 +1,6 @@
 import { screen, waitFor } from "@testing-library/react";
 import { useQueryClient } from "@tanstack/react-query";
-import { stocktakeKey } from "@helivanta/api";
+import { stocktakeKey, type PharmacyStocktakeScope } from "@helivanta/api";
 import { afterEach, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
 import { NavigationGuardProvider } from "@helivanta/ui";
@@ -20,12 +20,12 @@ afterEach(() => {
   vi.restoreAllMocks();
   sessionStorage.clear();
 });
-function panel() {
+function panel(account: PharmacyStocktakeScope = scope) {
   const started = vi.fn();
   return {
     ...renderWithProviders(
       <NavigationGuardProvider>
-        <StocktakeStart scope={scope} onStarted={started} />
+        <StocktakeStart scope={account} onStarted={started} />
       </NavigationGuardProvider>,
     ),
     started,
@@ -125,9 +125,11 @@ it("does not start a count if its recovery reference cannot be retained", async 
   await screen.findByText(/No start request was sent/i);
   expect(fetch.mock.calls.some((call) => call[1]?.method === "PUT")).toBe(false);
 });
-it("starts a selected-product snapshot with a named quarantine target and required reason", async () => {
+it.each(["legacy", "operating"] as const)("starts a %s selected-product snapshot with named choices and no extra authority", async (authority) => {
+  const account = { ...scope, authority };
+  const reviewed = authority === "operating";
   const fetch = vi.fn(async (url: string, init?: RequestInit) => {
-    if (url.includes("/stock/locations"))
+    if (url.includes(reviewed ? "/quarantine-choices" : "/stock/locations"))
       return json(
         page([
           {
@@ -136,15 +138,19 @@ it("starts a selected-product snapshot with a named quarantine target and requir
             code: "TEST-Q",
             name: "TEST Quarantine",
             stock_status: "quarantine",
+            ...(reviewed ? { storage_address: { zone_code: "", aisle_code: "", rack_code: "", shelf_code: "" } } : {}),
             created_at: "2026-11-20T00:00:00Z",
           },
-          { id: product, name: "TEST Shelf", code: "TEST-S", stock_status: "sellable" },
+          ...(reviewed ? [] : [{ id: product, name: "TEST Shelf", code: "TEST-S", stock_status: "sellable" }]),
         ]),
       );
-    if (url.includes("/catalogue/products"))
+    if (url.includes(reviewed ? "/product-choices" : "/catalogue/products"))
       return json(
-        page([{ id: product, brand_name: "TEST Product", sku: "TEST-SKU", status: "active" }]),
+        page([{ id: product, brand_name: "TEST Product", sku: "TEST-SKU",
+          ...(reviewed ? { outlet_id: scope.outletId, generic_name: "TEST generic", dosage_form: "tablet", ingredients: [{ name: "TEST", strength: "500", unit: "mg" }], pack_size: 10, unit_of_issue: "tablet", currency: "INR", version: 2, created_at: "2026-11-20T00:00:00Z" } : { status: "active" })
+        }]),
       );
+    if (init?.method !== "PUT") throw new Error("Unexpected TEST stocktake authority request");
     const input = JSON.parse(String(init?.body));
     return json({
       ...input,
@@ -163,7 +169,7 @@ it("starts a selected-product snapshot with a named quarantine target and requir
     });
   });
   vi.stubGlobal("fetch", fetch);
-  const { user, started } = panel();
+  const { user, started } = panel(account);
   await user.click(screen.getByRole("combobox", { name: "Product scope" }));
   await user.click(screen.getByRole("option", { name: "Selected products" }));
   await user.click(await screen.findByRole("checkbox", { name: "TEST Product · TEST-SKU" }));
@@ -176,6 +182,13 @@ it("starts a selected-product snapshot with a named quarantine target and requir
   );
   await user.click(screen.getByRole("button", { name: "Freeze book and start count" }));
   await waitFor(() => expect(started).toHaveBeenCalledOnce());
+  if (reviewed) {
+    expect(fetch.mock.calls.every(([url]) => url.includes(`/operating-locations/${scope.outletId}/stocktakes/`))).toBe(true);
+    for (const [, init] of fetch.mock.calls) {
+      expect(new Headers(init?.headers).get("X-Helivanta-Expected-Tenant")).toBe(scope.tenantId);
+      expect(new Headers(init?.headers).get("X-Helivanta-Expected-Subject")).toBe(scope.subject);
+    }
+  }
   const save = fetch.mock.calls.find((call) => call[1]?.method === "PUT");
   expect(JSON.parse(String(save?.[1]?.body))).toEqual({
     selection: "selected",

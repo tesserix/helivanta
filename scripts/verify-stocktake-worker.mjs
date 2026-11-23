@@ -25,7 +25,7 @@ try {
       const incoming = new URL(request.url());
       const path = incoming.pathname.replace(/^\/api/, "") + incoming.search;
       if (actor === "receiver" || actor === "stock-reviewer") {
-        expect(path).not.toMatch(/\/outlets\/.*\/(catalogue|stock)/);
+        expect(path).not.toMatch(/\/outlets\/[^/]+\/(catalogue|stock)(\/|$)/);
         expect(path).not.toContain("/operating-management");
         if (fixture.hospital) expect(path).not.toContain("/operating-locations/");
       }

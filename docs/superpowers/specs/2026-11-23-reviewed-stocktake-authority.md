@@ -35,11 +35,13 @@ concurrent `(tenant_id,outlet_id,product_id,id)` index was not chosen and was
 removed. Diagnostic 45088497678 subsequently measured an exact batch lookup
 using `pharmacy_stock_batch_expiry` at 1.189 ms, with 641.575 ms of snapshot
 validation and 225.580 ms of batch FK checks in the third 2,000-row insert.
-Candidate migration 0066 now adds a narrow, non-unique `id` index concurrently
-to give exact identity checks an alternative to the expiry-ordered scan.
-Tenant/outlet predicates, existing composite keys, RLS and all FK checks remain
-mandatory. Its query plan and clean capacity acceptance are still pending;
-this is not deployment evidence or permission to apply the migration live.
+A second trial narrow `id` index was also not selected. Diagnostic 45089686272
+found all batch index statistics still at zero tuples after fixture bulk loading,
+despite valid indexes, and the expiry scan touched 100 shared index blocks for
+one exact identity lookup. Both trial indexes and migration 0066 are removed.
+The next diagnostic refreshes only disposable fixture batch statistics to verify
+whether the existing primary key restores bounded identity lookups. No fixture
+statistics result is clean capacity acceptance or deployment evidence.
 The snapshot query aggregates physical movements per
 selected batch/location before metadata projection, retaining selection,
 zero-balance buckets, cutoff, ordering, units, row cap and regulatory source.

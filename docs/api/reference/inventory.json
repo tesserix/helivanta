@@ -13644,6 +13644,10 @@
           "roles": []
         },
         {
+          "permission": "workforce.stocktake_actor.use",
+          "roles": []
+        },
+        {
           "permission": "workforce.posting.proposal.read",
           "roles": []
         },

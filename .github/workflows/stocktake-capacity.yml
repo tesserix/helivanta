@@ -12,6 +12,9 @@ on:
       - "backend/internal/modules/pharmacy/**"
       - "backend/internal/modules/iam/**"
       - "backend/internal/modules/workforce/independent_staff*"
+      - "backend/internal/modules/workforce/stocktake_actor*"
+      - "backend/internal/modules/workforce/staff_actor*"
+      - "backend/pkg/authz/stocktake_actor.go"
       - "backend/pkg/authz/independent_staff.go"
       - "backend/internal/globalapi/stocktake*"
       - "scripts/verify-stocktake-worker.mjs"
@@ -67,6 +70,8 @@ jobs:
       - name: Workforce retained identity history
         if: inputs.suite != 'reviewed-reads'
         run: go test -race -count=1 -timeout=10m ./internal/modules/workforce -run '^TestIndependentStaffHistoryReview$'
+      - name: Hospital stocktake actor source-use isolation
+        run: go test -race -count=1 -timeout=5m ./internal/modules/workforce -run '^(TestHospitalStocktakeActor|TestStaffActorSourceRejectsCommandsWithoutCurrentIAMEvidence|TestPurchaseOrderActorCannotManufactureEligibilityOrBorrowGovernancePurpose)'
       - name: Global API stocktake and reservation conservation
         if: inputs.suite != 'reviewed-reads'
         run: go test -race -count=1 -timeout=10m ./internal/globalapi -run '^TestStocktake'

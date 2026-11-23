@@ -9,6 +9,9 @@ import (
 // StaffActorUse is Workforce's permission to consume current Staff actor eligibility.
 const StaffActorUse Permission = "workforce.staff_actor.use"
 
+// StocktakeActorUse permits consuming current hospital Staff for physical counts.
+const StocktakeActorUse Permission = "workforce.stocktake_actor.use"
+
 type StaffActorScope struct {
 	TenantID, Subject string
 	HospitalID        uuid.UUID

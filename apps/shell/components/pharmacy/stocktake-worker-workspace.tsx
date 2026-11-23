@@ -52,7 +52,7 @@ export function StocktakeWorkerWorkspace() {
     <WorkingLocations
       key={JSON.stringify(stocktakeWorkerLocationsKey(scope))}
       scope={scope}
-      released={release.available("pharmacy_stocktake")}
+      released={!release.error && release.available("pharmacy_stocktake")}
     />
   );
 }
@@ -206,7 +206,7 @@ function WorkingStocktakes({
           Back to stocktakes
         </Button>
       )}
-      {starting && canCount && !blocked ? (
+      {starting && canCount ? (
         <StocktakeStart
           scope={scope}
           onStarted={(take) => {

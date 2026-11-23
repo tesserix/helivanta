@@ -10,6 +10,7 @@ import {
   startStocktake,
   recoverStocktakeStart,
   stocktakeKey,
+  type PharmacyStocktakeScope,
 } from "./index";
 
 const scope = {
@@ -173,6 +174,18 @@ it("separates reviewed cache keys from legacy, other accounts and other outlets"
     stocktakeKey({ ...operating, outletId: take }, take),
   );
 });
+
+it.each([null, "", "unknown"])(
+  "refuses invalid authority %s before traffic or cache use",
+  async (authority) => {
+    const invalid = { ...scope, authority } as unknown as PharmacyStocktakeScope;
+    const fetch = vi.fn().mockResolvedValue(json(receipt));
+    vi.stubGlobal("fetch", fetch);
+    await expect(readStocktake(invalid, take)).rejects.toThrow();
+    expect(fetch).not.toHaveBeenCalled();
+    expect(() => stocktakeKey(invalid, take)).toThrow();
+  },
+);
 
 it.each(["start", "count", "decision"] as const)(
   "refuses a %s write receipt recorded by another account",

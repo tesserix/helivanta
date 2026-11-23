@@ -36,6 +36,25 @@ it("keeps reviewed recovery references separate across authority changes and rel
   expect(pendingStocktakeCommands(operating)).toEqual([marker]);
 });
 
+it("retains compatibility with persisted legacy references without adopting them as reviewed", () => {
+  const key =
+    "helivanta:stocktake-recovery:v1:" +
+    JSON.stringify([scope.tenantId, scope.subject, scope.pharmacyId, scope.outletId]);
+  sessionStorage.setItem(key, JSON.stringify([marker]));
+  expect(pendingStocktakeCommands(scope)).toEqual([marker]);
+  expect(pendingStocktakeCommands({ ...scope, authority: "legacy" })).toEqual([marker]);
+  expect(pendingStocktakeCommands({ ...scope, authority: "operating" })).toEqual([]);
+});
+
+it.each([null, "", "unknown"])(
+  "refuses authority %s instead of adopting legacy recovery",
+  (authority) => {
+    retainStocktakeCommand(scope, marker);
+    const invalid = { ...scope, authority } as unknown as PharmacyStocktakeScope;
+    expect(() => pendingStocktakeCommands(invalid)).toThrow(/recovery/i);
+  },
+);
+
 it("binds the recovery hook to authority changes without losing retained references", () => {
   const operating = { ...scope, authority: "operating" as const };
   const { result, rerender } = renderHook(

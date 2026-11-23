@@ -68,6 +68,8 @@ jobs:
       - name: Reviewed stocktake read contracts
         if: inputs.suite == 'reviewed-reads'
         run: go test -race -count=1 -timeout=10m ./internal/globalapi -run '^TestStocktakeReviewedReads'
+      - name: Current operating authority and existing receiving consumers
+        run: go test -race -count=1 -timeout=10m ./internal/globalapi -run '^(TestIndependentOperatingAuthorityUsesCurrentStaffSourceAndAcknowledgement|TestIndependentOperatingCredentialCutoffPreservesStillValidBusinessDuty|TestIndependentPharmacyReceiverRecordsQuarantinedReceiptUnderReviewedDuty|TestIndependentReceiverUsesReviewedDutyAtSupplierStockAPI|TestWholesaleIdentityCheckThroughGlobalAPIUsesCurrentCatalogueOwner)$'
       - name: Snapshot guards and native stocktake regression
         if: inputs.suite != 'reviewed-reads'
         run: go test -race -count=1 -timeout=15m ./internal/modules/pharmacy -run '^TestStocktake'

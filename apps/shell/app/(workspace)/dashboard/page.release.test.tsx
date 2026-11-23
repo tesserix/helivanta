@@ -72,6 +72,8 @@ function mockOwner(read: () => Response) {
         data: permissions,
       });
     if (url.endsWith("/workspace/release-capabilities")) return read();
+    if (url.includes("/iam/me/pharmacy-stocktake-locations?"))
+      return Response.json({ data: [], page: { next_cursor: null, has_more: false } });
     throw new Error(`Unexpected dashboard business request: ${url}`);
   });
 }

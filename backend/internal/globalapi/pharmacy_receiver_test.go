@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
@@ -30,8 +31,12 @@ func v7() string { return uuid.Must(uuid.NewV7()).String() }
 
 // newPharmacyReceiverFixture prepares one independent outlet, a reviewed pharmacist account and an unapproved receiver duty.
 func newPharmacyReceiverFixture(t *testing.T) pharmacyReceiverFixture {
+	return newPharmacyReceiverFixtureWithAdmission(t, nil)
+}
+
+func newPharmacyReceiverFixtureWithAdmission(t *testing.T, admission func(string, string) gin.HandlerFunc) pharmacyReceiverFixture {
 	t.Helper()
-	f := pharmacyReceiverFixture{operatingDutyFixture: newOperatingDutyFixtureWithOwners(t, nil, pharmacy.New())}
+	f := pharmacyReceiverFixture{operatingDutyFixture: newOperatingDutyFixtureWithAdmission(t, nil, admission, pharmacy.New())}
 	call := f.call
 	f.pharmacy, f.outlet, f.sibling, f.product, f.quarantine, f.shelf = v7(), v7(), v7(), v7(), v7(), v7()
 	root := "/v1/pharmacy/pharmacies/" + f.pharmacy

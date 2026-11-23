@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/tesserix/helivanta/internal/modules/drugmaster"
@@ -100,6 +101,10 @@ func newOperatingDutyFixture(t *testing.T) operatingDutyFixture {
 	return newOperatingDutyFixtureWithOwners(t, nil)
 }
 func newOperatingDutyFixtureWithOwners(t *testing.T, documents *attachments.GCS, extra ...platform.Module) operatingDutyFixture {
+	return newOperatingDutyFixtureWithAdmission(t, documents, nil, extra...)
+}
+
+func newOperatingDutyFixtureWithAdmission(t *testing.T, documents *attachments.GCS, admission func(string, string) gin.HandlerFunc, extra ...platform.Module) operatingDutyFixture {
 	t.Helper()
 	graph, err := authz.NewClient(t.Context(), testinfra.StartOpenFGA(t), testinfra.IsolationKey(t))
 	require.NoError(t, err)
@@ -113,7 +118,7 @@ func newOperatingDutyFixtureWithOwners(t *testing.T, documents *attachments.GCS,
 		}
 	}
 	authenticatedAt := time.Now().Add(-time.Minute)
-	backend, db, _, fixtureCtx := testutil.NewHarness(t, testutil.HarnessOptions{GovernanceSources: testutil.GovernanceReviewProtocol, Documents: documents, PharmacyEvidenceEnabled: documents != nil, SourceAdministration: func(db *tenantdb.DB) authz.SourceAdministrationGuard {
+	backend, db, _, fixtureCtx := testutil.NewHarness(t, testutil.HarnessOptions{ReleaseAdmission: admission, GovernanceSources: testutil.GovernanceReviewProtocol, Documents: documents, PharmacyEvidenceEnabled: documents != nil, SourceAdministration: func(db *tenantdb.DB) authz.SourceAdministrationGuard {
 		return iam.NewSourceAdministrationGuard(db, graph)
 	}, Verifier: operatingVerifier{at: authenticatedAt}, Writer: projection, Roles: graph, OperatingAuthorizer: func(db *tenantdb.DB) authz.OperatingScopeAuthorizer {
 		return iam.NewOperatingAuthorizer(db, checks, platform.IndependentStaffIdentities(modules, db), platform.OperatingLocations(modules, db))

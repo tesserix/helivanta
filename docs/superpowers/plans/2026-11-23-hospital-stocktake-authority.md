@@ -1,25 +1,27 @@
 # Hospital-owned pharmacy stocktake delivery — #1686
 
-Status: implementation plan, not implemented authority or release approval.
-Depends on the independent worker continuation in #1823. This completes the
-hospital side of the [reviewed authority design](../specs/2026-11-23-reviewed-stocktake-authority.md);
-it does not redefine the issue around the independent path already implemented.
+Status: implemented development candidate, still unreleased. The independent
+foundation in #1823 is merged; hospital work remains in draft #1826 and its
+continuation branch. This implements part of the
+[reviewed authority design](../specs/2026-11-23-reviewed-stocktake-authority.md),
+not the full #1686 release.
 
-Development checkpoint: the candidate now declares Workforce-owned
-`workforce.stocktake_actor.use` and a separate callback guard using the existing
-current-employment checks. Source declaration and missing-basis unit checks are
-tested. The module declares no legacy role grant; the independent permission
-matrix records the platform's existing automatic tenant-admin reconciliation,
-which cannot establish the exact guarded assignment or current Staff basis.
-Canonical department-only reader/counter/reviewer templates and their separate
-assignment-list route are now candidates under forward IAM migration
-`0056_iam_pharmacy_stocktake_templates`. SDK family routing and release locking
-have focused tests. An actual reviewed-employment fixture now additionally
-exercises this guard under the precise department assignment, including purpose
-separation, scope/escaped-context denial and audit rollback. The prior current-source fixture passed hosted execution in run 45133937513.
-A hospital historical-participant guard and regression fixtures are now candidates;
-their complete hosted fixture passed in run 45181539642. These changes do not yet provide a
-hospital count consumer or operating UI.
+The hospital command path and separate immutable evidence are implemented. The
+actual reviewed employment/department-assignment fixture passed start, count,
+submit, independent approval, exact retries and receipt recovery, source/evidence
+failure, movement/stale rejection, ledger conservation and binding withdrawal in
+hosted run **45197016258**. The schema integrity and exact-restoration cases passed
+in **45197010131**. These runs do not establish hospital browser or capacity
+acceptance.
+
+Current-account named assignment discovery is a newer candidate with narrow
+Workforce hospital-name and Organization department-name projections. Its
+missing-endpoint red is recorded in **45203058085**; hosted verification of the
+implementation is running separately. Local focused race tests, canonical
+checks, affected builds, typechecks and linters pass. New work remains compiled
+ineligible. Pharmacy-owned bound-outlet discovery, hospital worker entry UI,
+binding/department/ownership-change recovery, hospital browser/capacity and
+approved rollout/live acceptance remain open.
 
 ## Verified starting point
 
@@ -33,11 +35,12 @@ hospital count consumer or operating UI.
 - Workforce's `staffActorGuard.withCurrentEmployeeActor` locks current Staff,
   account link and employment generation, requires an already-held exact IAM
   source-use grant, constrains its guarded transaction deadline and audits the
-  consumed source. It currently permits governance and procurement purposes only.
+  consumed source. Before this candidate it permitted governance and procurement purposes only;
+  the candidate adds the separate stocktake purpose.
 - `IndependentStaffHistoryGuard` verifies retired observation evidence and known
   Staff/account aliases. It does not establish hospital employment history.
-- Pharmacy's current header discriminator permits legacy and independent
-  operating counts. Independent evidence records duty, Staff revision and link
+- Pharmacy's preceding header discriminator permitted legacy and independent
+  operating counts; the candidate adds hospital authority. Independent evidence records duty, Staff revision and link
   revision; hospital evidence needs assignment and employment generation instead.
 
 ## Owners, authority and invariants

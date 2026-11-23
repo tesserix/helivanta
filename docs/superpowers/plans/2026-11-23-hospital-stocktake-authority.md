@@ -18,7 +18,7 @@ have focused tests. An actual reviewed-employment fixture now additionally
 exercises this guard under the precise department assignment, including purpose
 separation, scope/escaped-context denial and audit rollback. The prior current-source fixture passed hosted execution in run 45133937513.
 A hospital historical-participant guard and regression fixtures are now candidates;
-their hosted acceptance remains pending. These changes do not yet provide a
+their complete hosted fixture passed in run 45181539642. These changes do not yet provide a
 hospital count consumer or operating UI.
 
 ## Verified starting point
@@ -164,5 +164,15 @@ Candidate migrations `0122_workforce_stocktake_actor_history` and
 integrity checks, update only the three explicitly changed policy fingerprints,
 and refuse prior authority drift. Runtime checks require canonical immutable
 history and forced row-level security. These are development changes only:
-hospital commands, positive fixture acceptance, UI and live migration/rollout
+hospital commands, UI and live migration/rollout
 remain pending; the release capability stays compiled ineligible.
+
+### Application source wiring checkpoint
+
+The application and integration harness now resolve a combined current/history
+stocktake guard from exactly one Workforce owner. Missing database, missing or
+duplicate Workforce ownership, or an incomplete source provider deny admission.
+The provider retains the existing Workforce factory and does not expose
+procurement authority. The real-owner platform test verifies these refusals and
+that neither current nor historical source callbacks run without guarded IAM
+authority. This wiring adds no hospital route or stock write admission by itself.

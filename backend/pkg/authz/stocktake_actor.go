@@ -19,3 +19,9 @@ type StocktakeActorObservation struct {
 type StocktakeActorHistoryGuard interface {
 	WithStocktakeActorHistoryReview(context.Context, StaffActorScope, StaffActorReference, StocktakeActorObservation, func(context.Context) error) error
 }
+
+// HospitalStocktakeActorGuard keeps current eligibility and historical independence under one owner.
+type HospitalStocktakeActorGuard interface {
+	CurrentStocktakeActorGuard
+	StocktakeActorHistoryGuard
+}

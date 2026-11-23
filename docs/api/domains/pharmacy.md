@@ -24,6 +24,115 @@ The hierarchy is tenant → pharmacy organization → outlet, with optional hosp
 
 The [runtime reference](../reference/README.md#pharmacy) lists every implemented path. The outlet root is `/v1/pharmacy/pharmacies/{pharmacy}/outlets/{outlet}`. Organization/outlet administration and the legacy `/medications`/`dispenses` surfaces are separate route families; do not equate the legacy dispense task with the outlet stock ledger.
 
+## Reviewed operating stocktakes — unreleased development slice
+
+The independent/chain route root is
+`/v1/pharmacy/pharmacies/{pharmacy}/operating-locations/{outlet}/stocktakes`.
+`PUT/GET /{stocktake}`, `GET /`, `GET /{stocktake}/lines`,
+`GET /{stocktake}/register.csv`, `PUT/GET /{stocktake}/counts/{command}` and
+`PUT/GET /{stocktake}/decisions/{command}` are registered in this slice. They reuse the canonical stocktake input/output schemas and the existing
+physical ledger; they are not a second stock master. These routes bind to the
+compiled-ineligible `pharmacy_stocktake` capability. No new operational page
+or production availability is established by their registration.
+
+IAM must consume an acknowledged current independent duty for
+`pharmacy.stocktake.count`, `pharmacy.stocktake.review` or
+`pharmacy.stocktake.read`, with the current
+Workforce Staff/link and owner-issued outlet scope. Existing receiver rights,
+tenant ownership, supplied IDs and legacy editor grants cannot substitute.
+Hospital-owned pharmacies remain ineligible independent employers. Current
+expected tenant/subject preconditions and nondisclosing scope errors follow the
+operating stock contract. Exact start replay is actor/intent-bound; changed reuse
+conflicts. Graph/source or audit failure withholds results and writes.
+
+Start/read evidence retains the consumed duty version/epoch and Staff/link
+identity under forced RLS, without adding those private facts to the public
+count payload. Snapshot completeness is validated while the reviewed purpose
+is held, before its transaction settings are restored. Purpose restrictions
+deny general stock, catalogue and receipt writes even if the account separately
+holds a legacy editor grant.
+
+Legacy and actual reviewed-duty capacity are separate acceptance gates. Clean
+run 45075494219 passed both, together with core source/command, corruption,
+rollback, dependency-failure and IAM admission regression. Header/list/register
+and Staff-aware participation reads also passed focused acceptance. Hospital
+department admission/capacity, withdrawal continuations, operational SDK/UI,
+full modern reservation/concurrency evidence and both-model browser/live
+acceptance remain open in #1686. See the
+[reviewed authority proposal](../../superpowers/specs/2026-11-23-reviewed-stocktake-authority.md).
+
+Reviewed independent count-entry development follows the same scoped route root:
+`PUT/GET /:stocktake/counts/:command`. It consumes current `pharmacy.stocktake.count`
+for entry and `.read` for original receipt reads. Inputs, limits, version-zero
+semantics and immutable receipts reuse the canonical count contract above.
+The command stores current duty/Staff/link evidence atomically before recording
+observations, validates completeness while that authority is held, and binds
+exact replay to the original Staff and account. Conflicting reuse or stale
+versions return 409; missing scope/current authority is 404, dependency failure 503. No command is retried automatically.
+
+Forward candidate migration0065 adds an immutable header authority discriminator:
+existing rows remain legacy; reviewed starts are marked only under held authority.
+Legacy editor commands cannot modify reviewed counts, and reviewed count commands
+cannot adopt legacy history or invent historical Staff evidence. Count receipts
+require retained reviewed provenance. These routes remain compiled ineligible;
+the first hosted count-entry test failed with the expected missing route (run
+45058843484). Hosted run 45059958549 passed the count-entry implementation and
+rollback/cutoff/legacy-boundary checks. Submission and independent approval/posting
+are implemented in the unreleased candidate described below. Hospital authority,
+operational UI and live acceptance remain unfinished.
+
+Reviewed commands use `PUT/GET /{stocktake}/decisions/{command}`. Submit and
+cancel require current `.stocktake.count`; approve and reject require current
+`.stocktake.review`. Submission requires the exact version and every physical
+observation, retains current Staff/link/duty evidence and posts no adjustment.
+Exact replay/GET recovers the original receipt; conflicting intent, actor/Staff
+or cross-command reuse is rejected.
+
+Review validates every retained starter/counter/submitter through Workforce's
+callback-only history guard. An accepted observation remains attributable after
+its author account retires; current reviewer identity and historical
+independence must remain provable. Corrections use the existing command/line
+ledger, quantity/reservation guards and deferred completeness checks. Movement
+proof is validated atomically per inserted batch. Reviewed correction purposes
+can read exact-outlet supplier holds but cannot change or release them. Core
+source, command, rejection/cancellation, alias-denial, dependency-failure and
+one-time conservation checks passed hosted 45072870012; its final actual-reviewed
+capacity stage still failed, so it did not establish full acceptance.
+
+Current header/list/line/register reads require exact-outlet `.stocktake.read`
+and exclude legacy counts. Collection provenance is outlet-scoped; only
+collection evidence may omit a count reference. Header participation follows
+retained Staff/account identity after login rotation; it is a presentation hint,
+not approval authority. The shared CSV loader preserves its lock, complete-row
+check, row/byte bounds, digest and retained version metadata. Failed source,
+provenance or audit commits withhold data and bytes. Focused 45074844870 passed
+actual posted register values, tenant/outlet/legacy separation, rotated-account
+and distinct-reviewer labels, graph failure nondisclosure, provenance/audit
+rollback, unchanged stock, retry and cleanup.
+
+Snapshot totals are aggregated per selected batch/location before metadata
+projection, preserving zero-balance buckets, selection, cutoff, ordering, units,
+row cap and regulatory source. Reviewed RLS chooses the reviewed-purpose branch
+directly. No new batch index remains. Completeness SQL is compiled when submit
+is executed, after observations exist. Diagnostic 45074658896 passed the actual
+reviewed 10,000-bucket workflow: start 4.348 s, page p99 110.18 ms and posting 500
+corrections in 1.433 s, including exact replay and 99,500 retained units. Diagnostic
+results are not clean capacity acceptance. Temporary probes/options were
+removed; clean full regression 45075494219 passed at the unchanged 5 s
+start/post and 300 ms page-p99 limits. Its actual reviewed measurements were
+start 4.331 s, page p99 108.30 ms and post 1.432 s; both capacity paths retained
+exact replay and conservation. Those measurements apply to commit `55e10301`; current-head protected and
+capacity checks remain mandatory. Snapshot inserts now use at most 2,000 rows
+and stay below PostgreSQL's bind-parameter limit, reducing repeated statement
+checks while preserving atomic validation and rollback.
+
+PR #1818 contains this unreleased backend slice. Compiled eligibility stays false. Hospital
+admission, withdrawal-safe continuations, named choices, SDK/UI, full modern
+reservation/concurrency coverage and both-model browser/live acceptance remain
+open. New read routes are still Stocktake-gated and do not yet meet withdrawal
+continuation acceptance. IAM 0055/pharmacy 0065 are candidate migrations, not live
+state; migration 0064/main rollout awaits separately named approval.
+
 ## Current contract families
 
 | Family                                        | Owning records / schema                                                                                                                                                          | Rules and consumer boundary                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |

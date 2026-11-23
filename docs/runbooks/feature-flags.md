@@ -79,7 +79,8 @@ flowchart TD
     PS --> PST
 ```
 
-The other 16 definitions are release locked: `pharmacy_catalogue`, `pharmacy_stock`,
+The other 17 definitions are release locked: `pharmacy_catalogue`, `pharmacy_stock`,
+`pharmacy_stocktake`,
 `pharmacy_prescriptions`, `pharmacy_returns`, `pharmacy_reports`, `pharmacy_counter`,
 `pharmacy_payables`, `workforce_scheduling`, `workforce_payroll`,
 `workforce_advanced`, `supplier_collaboration`, `clinical`, `lab`, `emergency`,
@@ -96,6 +97,39 @@ access-management authority. Managers also have recovery in an opened outlet's
 original outcomes; cancellation additionally needs correction permission and an
 outlet editor grant. They cannot start a count, change quantities, approve
 adjustments or export inventory while Stock is disabled.
+
+### Reviewed Stocktake duties — development only
+
+`pharmacy_stocktake` is a separate capability, dependent on `pharmacy_setup`
+and compiled **ineligible**. Its provider key is
+`helivanta.release.pharmacy_stocktake`. A Console value of true cannot override
+that compiled lock. Do not enable broad Stock/Catalogue to reach this work.
+
+The canonical release panels classify each operating template as
+`staff.operating.<template-key>`. Existing duties retain their baseline
+visibility. The new `pharmacy.stocktake_reader.v1`,
+`pharmacy.stocktake_counter.v1` and `pharmacy.stocktake_reviewer.v1` all bind to
+`pharmacy_stocktake`. The duty picker filters these bindings using the current
+account's release snapshot. IAM independently checks availability for new
+proposals and approval; unknown bindings or unavailable policy fail closed.
+Rejection, withdrawal, revocation and exact recorded-result recovery retain
+their existing current-authority checks.
+
+When adding a template, update its canonical panel binding in
+`contracts/release-capabilities.json`, then run both
+`generate-release-capabilities.mjs` and `generate-operating-assignments.mjs`.
+The operating generator refuses a missing or unknown release binding. These
+bindings control availability, and do not assign Staff or confer stock authority.
+
+The unreleased independent/chain development path includes start, line reads,
+counting, submission, independent posting, rejection, cancellation and original
+command recovery with retained Staff/link/duty evidence. Current reviewed
+header/list/register reads also passed hosted scope, audit-failure and rollback
+tests. Clean independent reviewed capacity also passed in hosted 45075494219.
+Hospital department admission/capacity, withdrawal continuations, the operational
+page/SDK and both-model live acceptance remain required by #1686. Keep eligibility
+false until those gates pass. A passing independent backend gate does not enable
+these capabilities by itself.
 
 ### Pending Staff authenticator recovery control
 

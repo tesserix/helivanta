@@ -97,15 +97,17 @@ const stocktakeSnapshotQuery = `WITH products AS (
  SELECT p.id product_id,p.version product_version,p.sku,p.brand_name,p.unit_of_issue,
  b.id batch_id,b.lot_number,b.expires_on::text expires_on,
  l.id location_id,l.code location_code,l.name location_name,l.stock_status,
- SUM(m.quantity_units)::bigint book_units,COUNT(*)::bigint movement_count,
+ m.book_units,m.movement_count,
  c.declaration_id schedule_declaration_id,c.regulatory_class,
  CASE WHEN c.declaration_id IS NULL THEN 'unknown' WHEN c.ndps THEN 'yes' ELSE 'no' END ndps_status
  FROM products p JOIN pharmacy_stock_batches b ON b.tenant_id=p.tenant_id AND b.outlet_id=p.outlet_id AND b.product_id=p.id
- JOIN pharmacy_stock_movements m ON m.tenant_id=b.tenant_id AND m.outlet_id=b.outlet_id AND m.batch_id=b.id
+ JOIN LATERAL (
+  SELECT tenant_id,outlet_id,location_id,SUM(quantity_units)::bigint book_units,COUNT(*)::bigint movement_count
+  FROM pharmacy_stock_movements WHERE tenant_id=b.tenant_id AND outlet_id=b.outlet_id AND batch_id=b.id
+  GROUP BY tenant_id,outlet_id,location_id
+ )m ON true
  JOIN pharmacy_stock_locations l ON l.tenant_id=m.tenant_id AND l.outlet_id=m.outlet_id AND l.id=m.location_id
  LEFT JOIN LATERAL pharmacy_product_schedule_in_force(p.tenant_id,p.outlet_id,p.id)c ON true
- GROUP BY p.id,p.version,p.sku,p.brand_name,p.unit_of_issue,b.id,b.lot_number,b.expires_on,
- l.id,l.code,l.name,l.stock_status,c.declaration_id,c.regulatory_class,c.ndps
  ORDER BY p.id,b.id,l.id LIMIT 10001
 )
 SELECT statement_timestamp() captured_at,(SELECT COUNT(*) FROM products) product_count,
@@ -153,6 +155,10 @@ func stocktakeRead(c *gin.Context, paged bool) bool {
 }
 
 func stocktakeError(c *gin.Context, err error) {
+	if errors.Is(err, errStocktakeIndependence) {
+		respond.Conflict(c, "Review requires independent Staff and verifiable participant identity history.")
+		return
+	}
 	if errors.Is(err, errStocktakePostingLimit) {
 		respond.Error(c, 409, "stocktake_posting_limit", "These differences exceed posting limits. Retain the observations and ask the responsible stock owner to review them.")
 		return
@@ -337,7 +343,8 @@ func startStocktake(tx *gorm.DB, p authn.Principal, outlet, id uuid.UUID, in Sto
 	}
 	if len(rows) > 0 {
 		columns := []string{"tenant_id", "outlet_id", "id", "stocktake_id", "product_id", "product_version", "sku", "brand_name", "unit_of_issue", "batch_id", "lot_number", "expires_on", "location_id", "location_code", "location_name", "stock_status", "book_units", "movement_count", "regulatory_class", "ndps_status", "schedule_declaration_id", "created_at"}
-		if err := tx.Select(columns).CreateInBatches(&rows, 500).Error; err != nil {
+		batchSize := min(2000, 65535/len(columns))
+		if err := tx.Select(columns).CreateInBatches(&rows, batchSize).Error; err != nil {
 			return err
 		}
 	}

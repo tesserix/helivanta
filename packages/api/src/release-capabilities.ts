@@ -77,6 +77,6 @@ export function capabilityForPage(pathname: string): ReleaseCapabilityKey | "bas
   })?.capability;
 }
 
-export function capabilityForPanel(key: string): ReleaseCapabilityKey | undefined {
+export function capabilityForPanel(key: string): ReleaseCapabilityKey | "baseline" | undefined {
   return releasePanels.find((panel) => panel.key === key)?.capability;
 }

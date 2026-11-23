@@ -85,4 +85,7 @@ var operatingDutyTemplates = []OperatingDutyTemplate{
 	{Key: "pharmacy.order_acceptor.v1", EmployerKind: "pharmacy", Label: "Outlet supplier order acceptance", Permissions: []string{"supply.supplier_order.accept", "supply.supplier_order.read"}, MaxValidityHours: 8784},
 	{Key: "supply.stock_fulfiller.v1", EmployerKind: "supplier", Label: "Warehouse reservation and physical dispatch", Permissions: []string{"supply.stock.fulfil", "supply.supplier_order.read", "supply.operations.read", "drugmaster.stock_reference.read", "supply.receiving_response.record"}, MaxValidityHours: 8784},
 	{Key: "pharmacy.stock_fulfiller.v1", EmployerKind: "pharmacy", Label: "Outlet reservation and physical dispatch", Permissions: []string{"pharmacy.stock.fulfil", "supply.supplier_order.read", "pharmacy.stock.read", "drugmaster.stock_reference.read", "supply.receiving_response.record"}, MaxValidityHours: 8784},
+	{Key: "pharmacy.stocktake_reader.v1", EmployerKind: "pharmacy", Label: "Outlet stocktake reader", Permissions: []string{"pharmacy.stocktake.read"}, MaxValidityHours: 8784},
+	{Key: "pharmacy.stocktake_counter.v1", EmployerKind: "pharmacy", Label: "Outlet stocktake counter", Permissions: []string{"pharmacy.stocktake.read", "pharmacy.stocktake.count"}, MaxValidityHours: 8784},
+	{Key: "pharmacy.stocktake_reviewer.v1", EmployerKind: "pharmacy", Label: "Outlet independent stocktake reviewer", Permissions: []string{"pharmacy.stocktake.read", "pharmacy.stocktake.review"}, MaxValidityHours: 8784},
 }

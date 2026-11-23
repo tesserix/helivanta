@@ -22,6 +22,8 @@ import {
   newOperatingDutyId,
   OperatingDutyDecisionInputContract,
   operatingDutyTemplates,
+  capabilityForPanel,
+  useReleaseCapabilities,
   type OperatingDutyStaffScope,
   type OperatingGovernanceStaffChoice,
   type OperatingDuty,
@@ -207,9 +209,16 @@ export function OperatingDutyReview({
     },
   );
   const independent = scope.subject !== row.prepared_by && scope.subject !== row.input.subject;
+  const release = useReleaseCapabilities();
+  const templateReleased = release.available(
+    capabilityForPanel(`staff.operating.${row.input.template_key}`),
+  );
   const actions: OperatingDutyDecisionInput["decision"][] = [];
   if (row.status === "pending_review") {
-    if (canReview && independent) actions.push("approve", "reject");
+    if (canReview && independent) {
+      if (templateReleased) actions.push("approve");
+      actions.push("reject");
+    }
     if (canPrepare && scope.subject === row.prepared_by) actions.push("withdraw");
   }
   if (canRevoke && ["active", "approved_pending_activation", "pending_review"].includes(row.status))

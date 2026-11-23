@@ -66,6 +66,30 @@ Independent link changes publish `helivanta.in.workforce.independent_login_link_
 
 This reference is source evidence. The consumer must separately enforce current Shared IAM duty, exact source location, credential/membership epochs, legal operating scope, applicable licence/qualification and reviewed activity/category policy. It cannot satisfy `CurrentStaffActorGuard` or a hospital clinical employment generation.
 
+## Retained observation independence candidate
+
+`authz.IndependentStaffHistoryGuard` is a separate, callback-only source fact for
+reviewing an already accepted nonclinical observation. PharmaConnect's reviewed
+Stocktake consumer separately holds current IAM review authority and supplies its
+verified reviewer scope/current source reference plus a retained
+`IndependentStaffObservation` (subject and exact Staff/link reference). This
+interface grants no operating permission and exposes no directory or link history.
+
+Workforce rechecks the current reviewer and exact expected source, holds the
+existing employer identity lock, verifies the participant's exact historically
+active link version and immutable Staff/version/subject binding, and excludes
+same-Staff and historically shared-account aliases. Retired participant accounts
+remain historical facts; they receive no restored access. Missing or inconsistent
+history refuses, unavailable source/audit refuses, and callback failure rolls back
+source-use audits with the product command. Current reviewer changes still cut
+off the action. Private source settings are restored before invoking the callback.
+
+The implementation uses the existing owner-only source purposes, immutable link
+history and subject discovery index; no Workforce DDL or new client endpoint is
+introduced. Consumers page their own immutable participant evidence rather than
+query Workforce tables or copy its history. Native Workforce and actual Global
+API/IAM acceptance are under development; this candidate is not activated.
+
 ## Canonical inputs and release boundary
 
 [workforce-establishments.json](../../contracts/workforce-establishments.json) derives supplier directory models from the existing canonical pharmacy directory fields. [workforce-independent-identity.json](../../contracts/workforce-independent-identity.json) declares typed independent identity envelopes and derives common link fields/statuses from [workforce-login-links.json](../../contracts/workforce-login-links.json). Run `node scripts/generate-workforce-establishments.mjs` and `node scripts/generate-workforce-independent-identity.mjs`; each supports `--check`.
@@ -94,6 +118,8 @@ Public wire models and event payloads remain unchanged. Canonical generators do
 not add private provenance to v1 responses. Focused Workforce/gateway fixtures use
 an explicit IAM protocol double; bootstrap acceptance uses the actual IAM grant
 and owner guards, FGA membership, PharmaConnect/SupplyConnect owner APIs and
-Workforce employer registration. New consumer database acceptance remains pending;
-this candidate does not prove first employment activation, operating-duty review,
-stock access or live recipient login.
+Workforce employer registration. The independent Stocktake consumer passed core
+history/command, focused read/failure and clean capacity acceptance. Hospital
+admission and live acceptance remain separate gates. This evidence does not
+establish first employment activation, unrelated consumers or live recipient
+login.

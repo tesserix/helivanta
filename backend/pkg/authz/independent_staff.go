@@ -41,3 +41,16 @@ type GovernedIndependentEmployerRequest struct {
 type GovernedIndependentEmployerGuard interface {
 	WithGovernedIndependentEmployerAccess(context.Context, GovernedIndependentEmployerRequest, func(context.Context) error) error
 }
+
+// IndependentStaffObservation names a previously consumed, owner-issued identity basis.
+// It grants no current access to the subject or its employer.
+type IndependentStaffObservation struct {
+	Subject   string
+	Reference IndependentStaffReference
+}
+
+// IndependentStaffHistoryGuard verifies a retained basis and historical independence
+// while the reviewer's current source locks remain held through the owner command.
+type IndependentStaffHistoryGuard interface {
+	WithIndependentStaffHistoryReview(context.Context, IndependentStaffScope, IndependentStaffReference, IndependentStaffObservation, func(context.Context) error) error
+}

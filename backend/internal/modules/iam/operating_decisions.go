@@ -179,6 +179,11 @@ func (h *operatingHandlers) decide(c *gin.Context) {
 			return err
 		}
 		return h.employerAccess(commandCtx, p.TenantID, view.Input.Scope, "manager", func(commandCtx context.Context) error {
+			if in.Decision == "approve" {
+				if err := h.templateAvailability(commandCtx, p, view.Input.TemplateKey); err != nil {
+					return err
+				}
+			}
 			next := map[string]string{"approve": "approved_pending_activation", "reject": "rejected", "withdraw": "withdrawn", "revoke": "revoked"}[in.Decision]
 			if row.Version != in.ExpectedVersion || row.Status != "pending_review" && (in.Decision != "revoke" || row.Status != "approved_pending_activation" && row.Status != "active") {
 				return errProposalConflict

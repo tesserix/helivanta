@@ -15,6 +15,29 @@ const manifest = () => ({
   panels: [{ key: "staff.postings", capability: "staff_core" }],
 });
 
+test("every operating duty has a release binding and stocktake duties stay locked", () => {
+  const release = JSON.parse(
+    readFileSync(new URL("../contracts/release-capabilities.json", import.meta.url), "utf8"),
+  );
+  const operating = JSON.parse(
+    readFileSync(new URL("../contracts/operating-assignments.json", import.meta.url), "utf8"),
+  );
+  const panels = new Map(release.panels.map((panel) => [panel.key, panel.capability]));
+  const capabilities = new Set(["baseline", ...release.capabilities.map((row) => row.key)]);
+  for (const template of operating.templates)
+    assert.ok(capabilities.has(panels.get(`staff.operating.${template.key}`)), template.key);
+  for (const template of ["reader", "counter", "reviewer"])
+    assert.equal(
+      panels.get(`staff.operating.pharmacy.stocktake_${template}.v1`),
+      "pharmacy_stocktake",
+    );
+  assert.equal(
+    release.capabilities.find((row) => row.key === "pharmacy_stocktake").eligible,
+    false,
+  );
+  assert.equal(panels.get("staff.operating.pharmacy.stock_fulfiller.v1"), "baseline");
+});
+
 test("every governance template and scope has an explicit release binding", () => {
   const release = JSON.parse(
     readFileSync(new URL("../contracts/release-capabilities.json", import.meta.url), "utf8"),

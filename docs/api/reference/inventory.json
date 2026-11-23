@@ -1488,6 +1488,11 @@
             "iam_staff_mfa_cancellations",
             "iam_staff_mfa_fences"
           ]
+        },
+        {
+          "id": "0055_iam_stocktake_operating_templates",
+          "sql_sha256": "1e5302f8b18805ed0698f159405caa29970a75e1e6f158cb6a017919fb8003f1",
+          "creates_tables": []
         }
       ]
     },
@@ -3701,6 +3706,87 @@
         },
         {
           "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes/:stocktake/counts/:command",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes/:stocktake/counts/:command",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes/:stocktake/decisions/:command",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes/:stocktake/decisions/:command",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes/:stocktake/lines",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes/:stocktake/register.csv",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes/:stocktake",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes/:stocktake",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/operating-locations/:outlet/stocktakes",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/access-grants",
           "permission": "pharmacy.access.manage",
           "authentication_required": true,
@@ -5559,6 +5645,18 @@
       ],
       "grants": [
         {
+          "permission": "pharmacy.stocktake.read",
+          "roles": []
+        },
+        {
+          "permission": "pharmacy.stocktake.count",
+          "roles": []
+        },
+        {
+          "permission": "pharmacy.stocktake.review",
+          "roles": []
+        },
+        {
           "permission": "pharmacy.stock.fulfil",
           "roles": []
         },
@@ -6524,8 +6622,15 @@
         },
         {
           "id": "0064_pharmacy_stocktake_snapshot_validation",
-          "sql_sha256": "79e882264e26904be75fadf687df264609fa7769a44eec38f440c14ff526cc45",
+          "sql_sha256": "d915d3b3fff9b14c20985d18ffe21719d2693a3baa84a369d9d2fe7879c11e2f",
           "creates_tables": []
+        },
+        {
+          "id": "0065_pharmacy_stocktake_operating",
+          "sql_sha256": "75f511fcdb6913efa9174cd936df36c649fe81c5f9b602bb28f99a03b9972e35",
+          "creates_tables": [
+            "pharmacy_stocktake_operating_evidence"
+          ]
         }
       ]
     },

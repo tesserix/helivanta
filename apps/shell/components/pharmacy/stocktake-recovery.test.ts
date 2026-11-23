@@ -1,8 +1,11 @@
 import { afterEach, expect, it, vi } from "vitest";
+import { act, renderHook } from "@testing-library/react";
+import type { PharmacyStocktakeScope } from "@helivanta/api";
 import {
   pendingStocktakeCommands,
   retainStocktakeCommand,
   forgetStocktakeCommand,
+  useStocktakeRecovery,
 } from "./stocktake-recovery";
 const scope = {
   tenantId: "0199e000-0000-7000-8000-0000000000aa",
@@ -18,6 +21,33 @@ const marker = {
 afterEach(() => {
   vi.restoreAllMocks();
   sessionStorage.clear();
+});
+
+it("keeps reviewed recovery references separate across authority changes and reloads", () => {
+  const operating = { ...scope, authority: "operating" as const };
+  retainStocktakeCommand(operating, marker);
+  expect(pendingStocktakeCommands(scope)).toEqual([]);
+  expect(pendingStocktakeCommands(operating)).toEqual([marker]);
+  retainStocktakeCommand(scope, { ...marker, commandId: scope.pharmacyId });
+  expect(pendingStocktakeCommands(operating)).toEqual([marker]);
+  expect(pendingStocktakeCommands({ ...operating, subject: "TEST another account" })).toEqual([]);
+  expect(pendingStocktakeCommands({ ...operating, outletId: scope.pharmacyId })).toEqual([]);
+  forgetStocktakeCommand(scope, marker);
+  expect(pendingStocktakeCommands(operating)).toEqual([marker]);
+});
+
+it("binds the recovery hook to authority changes without losing retained references", () => {
+  const operating = { ...scope, authority: "operating" as const };
+  const { result, rerender } = renderHook(
+    ({ value }: { value: PharmacyStocktakeScope }) => useStocktakeRecovery(value),
+    { initialProps: { value: operating } },
+  );
+  act(() => retainStocktakeCommand(operating, marker));
+  expect(result.current.markers).toEqual([marker]);
+  rerender({ value: scope });
+  expect(result.current.markers).toEqual([]);
+  rerender({ value: operating });
+  expect(result.current.markers).toEqual([marker]);
 });
 
 it("refuses oversized serialized storage before treating it as an empty queue", () => {

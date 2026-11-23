@@ -98,10 +98,18 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Reviewed operating duty release visibility
         run: pnpm --filter @helivanta/shell exec vitest run components/workforce/operating-duty-preparation.test.tsx components/workforce/independent-operating-duties.test.tsx
+      - name: Stocktake SDK routes and retained command isolation
+        run: |
+          stocktake_failed=0
+          if ! pnpm --filter @helivanta/api exec vitest run src/pharmacy-stocktakes.test.ts src/pharmacy-stocktake-export.test.ts src/pharmacy-stocktake-contract.test.ts; then stocktake_failed=1; fi
+          if ! pnpm --filter @helivanta/shell exec vitest run components/pharmacy/stocktake-recovery.test.ts components/pharmacy/stocktake-recovery-panel.test.tsx; then stocktake_failed=1; fi
+          exit "$stocktake_failed"
       - name: Lint affected Staff and release files
         run: |
           pnpm --filter @helivanta/shell exec eslint components/workforce/operating-duty-preparation.tsx components/workforce/operating-duty-preparation.test.tsx components/workforce/independent-operating-duties.tsx components/workforce/independent-operating-duties.test.tsx
           pnpm --filter @helivanta/api exec eslint src/operating-assignments-contract.ts src/release-capabilities-contract.ts src/release-capabilities.ts
+          pnpm --filter @helivanta/api exec eslint src/pharmacy-stocktakes.ts src/pharmacy-stocktake-export.ts src/pharmacy-stocktakes.test.ts src/pharmacy-stocktake-export.test.ts
+          pnpm --filter @helivanta/shell exec eslint components/pharmacy/stocktake-recovery.ts components/pharmacy/stocktake-recovery.test.ts
       - name: Affected API and shell type checks
         run: |
           pnpm --filter @helivanta/api exec tsc --noEmit --incremental false

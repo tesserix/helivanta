@@ -2,6 +2,7 @@ package globalapi
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -137,6 +138,37 @@ func diagnoseStocktakeInsert(t *testing.T, f pharmacyReceiverFixture) {
 	var hooks *gorm.DB
 	f.ownerOutletTx(t, func(tx *gorm.DB) error {
 		hooks = tx
+		before := func(tx *gorm.DB) {
+			if !tx.DryRun {
+				tx.Statement.Settings.Store(callback+":time", time.Now())
+			}
+		}
+		after := func(tx *gorm.DB) {
+			if tx.DryRun {
+				return
+			}
+			if start, ok := tx.Statement.Settings.LoadAndDelete(callback + ":time"); ok {
+				elapsed := time.Since(start.(time.Time))
+				if elapsed >= 50*time.Millisecond || tx.Error != nil {
+					hash := sha256.Sum256([]byte(tx.Statement.SQL.String()))
+					t.Logf("diagnostic statement table=%s elapsed=%s template=%x error=%T", tx.Statement.Table, elapsed, hash[:8], tx.Error)
+				}
+			}
+		}
+		for _, register := range []func() error{
+			func() error { return tx.Callback().Create().Before("*").Register(callback+":before", before) },
+			func() error { return tx.Callback().Create().After("*").Register(callback+":after", after) },
+			func() error { return tx.Callback().Query().Before("*").Register(callback+":before", before) },
+			func() error { return tx.Callback().Query().After("*").Register(callback+":after", after) },
+			func() error { return tx.Callback().Row().Before("*").Register(callback+":before", before) },
+			func() error { return tx.Callback().Row().After("*").Register(callback+":after", after) },
+			func() error { return tx.Callback().Raw().Before("*").Register(callback+":before", before) },
+			func() error { return tx.Callback().Raw().After("*").Register(callback+":after", after) },
+		} {
+			if err := register(); err != nil {
+				return err
+			}
+		}
 		return tx.Callback().Create().Before("gorm:create").Register(callback, func(tx *gorm.DB) {
 			if tx.DryRun || tx.Statement.Table != "pharmacy_stocktake_lines" {
 				return
@@ -197,5 +229,13 @@ func diagnoseStocktakeInsert(t *testing.T, f pharmacyReceiverFixture) {
 			})
 		})
 	})
-	t.Cleanup(func() { require.NoError(t, hooks.Callback().Create().Remove(callback)) })
+	t.Cleanup(func() {
+		require.NoError(t, hooks.Callback().Create().Remove(callback))
+		for _, name := range []string{callback + ":before", callback + ":after"} {
+			require.NoError(t, hooks.Callback().Create().Remove(name))
+			require.NoError(t, hooks.Callback().Query().Remove(name))
+			require.NoError(t, hooks.Callback().Row().Remove(name))
+			require.NoError(t, hooks.Callback().Raw().Remove(name))
+		}
+	})
 }

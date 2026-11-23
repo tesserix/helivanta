@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/tesserix/helivanta/internal/modules/workforce"
+	"github.com/tesserix/helivanta/internal/modules/workforce" //nolint:depguard // External test exercises the Workforce-owned historical migration boundary.
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/testutil"
 	"github.com/tesserix/helivanta/pkg/tenantdb"

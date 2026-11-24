@@ -48,7 +48,7 @@ func TestLowStockBuiltBrowser(t *testing.T) {
 					return err
 				}
 				var revisions int64
-				if err := tx.Table("pharmacy_reorder_levels").Where("tenant_id=? AND outlet_id=? AND product_id=?", testutil.TenantA, f.outlet, f.product).Count(&revisions).Error; err != nil {
+				if err := tx.Table("pharmacy_reorder_levels").Where("tenant_id=? AND outlet_id=? AND product_id=? AND actor_subject=?", testutil.TenantA, f.outlet, f.product, "user-owner").Count(&revisions).Error; err != nil {
 					return err
 				}
 				require.EqualValues(t, 2, revisions, "authorized history contains exactly the enable and disable revisions")

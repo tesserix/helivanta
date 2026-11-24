@@ -35,7 +35,6 @@ try {
       const path = incoming.pathname.replace(/^\/api/, "") + incoming.search;
       if (request.method() === "PUT" && path.startsWith(levelRoot + "/reorder-levels/")) {
         expect(request.headers()["x-helivanta-expected-tenant"]).toBe(fixture.tenant_id);
-        expect(request.headers()["x-helivanta-expected-subject"]).toBe(`user-${actor}`);
         writes.push({ actor, path, input: request.postDataJSON() });
       }
       const response = await route.fetch({

@@ -58,7 +58,41 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
-  go:
+  # #1832: the Go work is split so the required `go` check reports in about
+  # 40 minutes rather than two hours, and a pull request that changes no Go
+  # input does not wait for it at all.
+  #   go-changes  decides whether this run tests Go; pushes to main always do
+  #   go-static   build, lint, vulnerabilities, gate script tests, latency
+  #   go-test     the coverage gate's packages, in three shards
+  #   go          the required check: every job passed and the merged coverage holds
+  go-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.decide.outputs.run }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # A pull request checks out its merge commit; its first parent is
+          # the base tip, so the diff below is the change against current main.
+          fetch-depth: 2
+      - name: Reject MedCora alias
+        working-directory: .
+        run: "! grep -rn --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=docs --exclude-dir=.superpowers --exclude=ci.yml 'MedCora' . || (echo 'MedCora is a rejected alias (issue 12) - use MediCore' && exit 1)"
+      - run: bash scripts/ci/go-inputs-changed.test.sh
+      - name: Decide whether the Go jobs run
+        id: decide
+        env:
+          EVENT: ${{ github.event_name }}
+        # Every main run is the record for its commit, so a push always runs.
+        run: |
+          if [ "$EVENT" != pull_request ]; then
+            echo run=true >> "$GITHUB_OUTPUT"
+          else
+            git diff --name-only HEAD^1 HEAD | bash scripts/ci/go-inputs-changed.sh >> "$GITHUB_OUTPUT"
+          fi
+  go-static:
+    needs: go-changes
+    if: needs.go-changes.outputs.run == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -69,60 +103,7 @@ jobs:
         with:
           go-version-file: backend/go.mod
           cache-dependency-path: backend/go.sum
-      - name: Reject MedCora alias
-        working-directory: .
-        run: "! grep -rn --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=docs --exclude-dir=.superpowers --exclude=ci.yml 'MedCora' . || (echo 'MedCora is a rejected alias (issue 12) - use MediCore' && exit 1)"
       - run: go build ./...
-      - name: Prepare canonical Staff identity owner fixture
-        working-directory: .
-        run: |
-          staff_schema=$(mktemp "$RUNNER_TEMP/staff-owner-schema.XXXXXX.sql")
-          bash scripts/ci/fetch-staff-identity-schema.sh "$staff_schema"
-          printf 'STAFF_IDENTITY_OWNER_SCHEMA=%s\n' "$staff_schema" >> "$GITHUB_ENV"
-      - name: Bounded outbox batch atomicity
-        run: go test -race -count=1 -timeout=10m -run '^TestEnqueueBatch' ./pkg/events
-      - name: Pharmacy supplier return draft acceptance
-        run: go test -race -count=1 -timeout=15m -run '^TestSupplierReturn' ./internal/modules/pharmacy
-      - name: Pharmacy physical quarantine hold acceptance
-        run: |
-          go test -race -count=1 -timeout=15m -run '^(TestStockHold|TestStockPositionsAndExportFootEveryMovementKind$|TestStockReconciliationFootsEveryMovementKind$)' ./internal/modules/pharmacy
-          go test -race -count=1 -timeout=10m -run '^TestStockHold' ./internal/globalapi
-      - name: Pharmacy stocktake native acceptance
-        run: go test -race -count=1 -timeout=15m -run '^TestStocktake(SnapshotIsFrozenAndOutletScoped|CountsAreVersionedAndMovementBound|IndependentApprovalPreservesLaterMovements|SellableDifferencesPreserveQuarantineAndLaterTransfers|OwnershipModelsKeepScopedPosting|PostingFailuresDoNotPartiallyAdjustBuckets)$' ./internal/modules/pharmacy
-      - name: Pharmacy stocktake Global API acceptance
-        run: go test -race -count=1 -timeout=10m -run '^TestStocktake(ThroughGlobalAPIPreservesScopeAndRegisterEvidence|PreservesSupplierReservations)$' ./internal/globalapi
-      - name: Verify integration harness context lifetime
-        run: go test -race ./internal/testutil -run '^TestHarnessContextLivesUntilTestCleanup$'
-      - name: Staff governance input boundaries
-        run: |
-          go test -race ./internal/modules/iam -run '^Test(Governance|OperatingInbox)'
-          go test -race ./internal/modules/workforce -run '^Test(Governance|OperatingSelectionPlan)'
-          go test -race ./internal/bootstrap -run '^TestGovernance'
-      - name: Qualified hospital assignment department selection
-        run: go test -race ./internal/bootstrap -run '^TestGovernedAssignmentDepartmentChoicesUseCurrentOwnerScopeAndDenyMasterWrites$'
-      - name: Medicine master and outlet import boundaries
-        run: |
-          go test -race ./internal/modules/drugmaster -run '^(TestOutletCatalogue.*|TestScheduledReleaseReplay.*)$'
-          go test -race ./internal/globalapi -run '^TestOutletMedicineImportThroughGlobalAPI'
-      - name: Customer onboarding authority and replay
-        run: |
-          go test -race ./internal/customeronboarding
-          go test -race ./internal/modules/pharmacy ./internal/modules/workforce -run '^(TestPharmacyBusinessProfileReadIsManagerAndTenantScoped|TestHospitalBusinessProfileReadIsManagerAndHospitalScoped|TestStorageAddressMigrationPreservesLegacyRowsAndReplay)$'
-      - name: Tenant identity admission and MFA regression
-        run: go test -race ./internal/modules/iam -run '^(TestNewLegacyGrantRequiresCurrentTenantOwnedIdentity|TestLegacyGrant.*|TestLegacyRepair.*|TestFirstEnrollment.*|TestEnrollmentFakeKeepsNativeUserPathBinding|TestTOTPEnrollmentLifecycleConfirmsReplaysCompletesAndProjectsAMR|TestTOTPEnrollmentExpiryAndDependencyFailuresDoNotAdvance|TestRecoveryRequiresEligibleIdentity)$'
-      - name: Named member presentation isolation and source changes
-        run: go test -race ./internal/modules/iam -run '^Test(MemberPresentations|AccountPresentation)'
-      - name: Supplier architecture and tenant preconditions
-        run: |
-          go test -race ./internal/archtest
-          go test -race ./internal/modules/pharmacy -run '^(TestTradingCommandsRejectChangedTenantBeforeBodyValidation|TestPharmacyOperationalRolesHaveSeparateCapabilities|TestPharmacyExpectedTenantRejectsEveryRouteFamilyWithoutSideEffects)$'
-          go test -race ./internal/modules/iam -run '^(TestAccessBoundary.*|TestOperatingBoundary.*|TestMigrationIDIsPhaseScoped|TestMembershipMigrationPreservesEvidenceWithoutInventingContinuity|TestEstablishmentRootBackfillKeepsHospitalGrants)$'
-      - name: Effective supplier grant consent tests
-        run: go test -race ./pkg/supplieraccess
-      - name: Supplier consent and peer boundary tests
-        run: go test -race ./pkg/suppliertrade
-      - name: Supplier proof and workload caller tests
-        run: go test -race ./internal/modules/supply -run 'TestRelationshipProof|TestTradeClaim|TestDirectedRelationshipProtocol'
       - name: golangci-lint
         # Cold package loading exceeded five minutes in run 38894793923.
         timeout-minutes: 30
@@ -134,6 +115,40 @@ jobs:
           args: --timeout=10m
       # Fails on any known vulnerability reachable from our code, stdlib included (SOC 2 CC7.1).
       - run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
+      - run: bash ./scripts/coverage-gate.test.sh
+      # The drug master's latency target (#476 spec D8), measured alone: the
+      # gate runs every package under -race, where a wall-clock budget
+      # measures the runner, not the search.
+      - name: Drug master search latency
+        env:
+          HELIVANTA_LATENCY_CHECK: "1"
+        run: go test -count=1 -run TestSearchStaysUnder120msAcross60000Products -v ./internal/modules/drugmaster/
+  go-test:
+    needs: go-changes
+    if: needs.go-changes.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      # Every shard finishes, so one push shows every failing package.
+      fail-fast: false
+      matrix:
+        # The shard count is also the `run` total below. Weights that balance
+        # the shards: backend/scripts/coverage-shard-weights.txt.
+        shard: [1, 2, 3]
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+      - name: Prepare canonical Staff identity owner fixture
+        working-directory: .
+        run: |
+          staff_schema=$(mktemp "$RUNNER_TEMP/staff-owner-schema.XXXXXX.sql")
+          bash scripts/ci/fetch-staff-identity-schema.sh "$staff_schema"
+          printf 'STAFF_IDENTITY_OWNER_SCHEMA=%s\n' "$staff_schema" >> "$GITHUB_ENV"
       # #963: the shared Postgres container of a test binary has vanished
       # mid-run on CI (twice, at the same point in the iam sequence) and
       # never locally on an identical 4-CPU/16 GiB machine. The test log can
@@ -166,19 +181,13 @@ jobs:
               done
               sleep 0.2
             done' > /dev/null 2>&1 &
-      - run: bash ./scripts/coverage-gate.test.sh
-      - name: Document scan worker and finding isolation
-        run: go test -race -count=1 ./internal/modules/workforce -run '^(TestStaffDocumentUploadPinsBytesAndPublishesOneScanIntent|TestGovernanceFindingFileIsolationSurvivesGuardRollback)$'
-      - name: Staff authenticator recovery integration tests
-        run: go test -race -count=1 -timeout=10m -run '^Test(StaffMFA|IndependentPharmacyStaffMFA)' ./internal/integration
-      - run: ./scripts/coverage-gate.sh
-      # The drug master's latency target (#476 spec D8), measured alone: the
-      # gate above runs every package in parallel under -race, where a
-      # wall-clock budget measures the runner, not the search.
-      - name: Drug master search latency
-        env:
-          HELIVANTA_LATENCY_CHECK: "1"
-        run: go test -count=1 -run TestSearchStaysUnder120msAcross60000Products -v ./internal/modules/drugmaster/
+      - run: ./scripts/coverage-gate.sh run ${{ matrix.shard }} 3 "$RUNNER_TEMP/coverage"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage-shard-${{ matrix.shard }}
+          path: ${{ runner.temp }}/coverage
+          if-no-files-found: error
+          retention-days: 1
       # Forensics for #963, on failure only (same `!success() || cancelled()`
       # condition and reasoning as the e2e job's dumps). The two causes on
       # the table leave different evidence, and this prints exactly the
@@ -238,11 +247,52 @@ jobs:
         if: ${{ !success() || cancelled() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: go-docker-events
+          name: go-docker-events-${{ matrix.shard }}
           path: |
             ${{ runner.temp }}/docker-events.jsonl
             ${{ runner.temp }}/ryuk-*.log
           retention-days: 7
+  go:
+    needs: [go-changes, go-static, go-test]
+    # Not `always()`: a cancelled run reports cancelled. Otherwise this job
+    # runs after a failed or skipped need, so the required check always reports
+    # and decides itself whether the Go jobs passed.
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Require every Go job
+        working-directory: .
+        env:
+          CHANGES: ${{ needs.go-changes.result }}
+          RUN: ${{ needs.go-changes.outputs.run }}
+          STATIC: ${{ needs.go-static.result }}
+          TEST: ${{ needs.go-test.result }}
+        run: |
+          echo "go-changes=$CHANGES run=$RUN go-static=$STATIC go-test=$TEST"
+          [ "$CHANGES" = success ] || exit 1
+          if [ "$RUN" != true ]; then
+            echo "No Go input changed in this pull request, so the Go jobs did not run."
+            exit 0
+          fi
+          [ "$STATIC" = success ] || exit 1
+          [ "$TEST" = success ] || exit 1
+      - if: needs.go-changes.outputs.run == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - if: needs.go-changes.outputs.run == 'true'
+        uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+      - if: needs.go-changes.outputs.run == 'true'
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: coverage-shard-*
+          path: ${{ runner.temp }}/coverage
+      - if: needs.go-changes.outputs.run == 'true'
+        run: ./scripts/coverage-gate.sh check "$RUNNER_TEMP/coverage"
   web:
     runs-on: ubuntu-latest
     steps:

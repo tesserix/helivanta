@@ -1,12 +1,89 @@
 #!/usr/bin/env bash
 set -euo pipefail
 FLOOR="${COVERAGE_FLOOR:-70}"
-profile=$(mktemp)
-trap 'rm -f "$profile"' EXIT
-# Owner code is also exercised through gateway and cross-module integration tests.
-# Database-heavy package fixtures share the runner; retain concurrency inside each suite.
-out=$(go test -p=1 -race -count=1 -coverpkg=./... -coverprofile="$profile" -timeout=40m ./... 2>&1) || { echo "$out"; exit 1; }
-echo "$out"
+weights="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/coverage-shard-weights.txt"
+work=$(mktemp -d)
+trap 'rm -rf "$work"' EXIT
+
+# Usage (#1832):
+#   coverage-gate.sh                            test every package, then check the floor
+#   coverage-gate.sh run <shard> <total> <dir>  test one CI shard's packages into <dir>
+#   coverage-gate.sh check <dir>                check the floor over every shard in <dir>/*/
+# CI runs the shards on separate runners and checks once over their merged
+# results, so the floor and the no-test-files rule judge the same evidence as
+# a single local run.
+usage() {
+  echo 'usage: coverage-gate.sh [run <shard> <total> <dir> | check <dir>]' >&2
+  exit 2
+}
+
+# Longest package first onto the least-loaded shard. The weights only balance
+# the shards: an unlisted package weighs 1s and still lands in exactly one.
+shard_packages() {
+  go list ./... |
+    awk -v weights="$weights" '
+      BEGIN { while ((getline line < weights) > 0) if (line !~ /^(#|$)/) { split(line, f, " "); w[f[2]] = f[1] } }
+      { print (($0 in w) ? w[$0] : 1), $0 }' |
+    sort -k1,1nr -k2,2 |
+    awk -v shard="$1" -v total="$2" '{
+      b = 1
+      for (i = 2; i <= total; i++) if (load[i] < load[b]) b = i
+      load[b] += $1
+      if (b == shard) print $2
+    }'
+}
+
+run_shard() {
+  if ! [[ $1 =~ ^[1-9][0-9]*$ && $2 =~ ^[1-9][0-9]*$ ]] || (($1 > $2)); then usage; fi
+  mkdir -p "$3"
+  shard_packages "$1" "$2" >"$3/packages"
+  : >"$3/profile"
+  : >"$3/output"
+  [[ -s "$3/packages" ]] || return 0
+  local pkg pkgs=() out
+  while IFS= read -r pkg; do pkgs+=("$pkg"); done <"$3/packages"
+  # Owner code is also exercised through gateway and cross-module integration tests.
+  # Database-heavy package fixtures share the runner; retain concurrency inside each suite.
+  out=$(go test -p=1 -race -count=1 -coverpkg=./... -coverprofile="$3/profile" -timeout=40m "${pkgs[@]}" 2>&1) || { echo "$out"; exit 1; }
+  echo "$out" | tee "$3/output"
+}
+
+# A shard that did not report, or a package tested twice or never, fails
+# here: a missing package would otherwise leave its coverage unjudged.
+merge_shards() {
+  local dirs
+  shopt -s nullglob
+  dirs=("$1"/*/)
+  shopt -u nullglob
+  ((${#dirs[@]})) || { echo "FAIL coverage: no shard results in $1"; exit 1; }
+  if ! diff <(go list ./... | sort) <(cat "${dirs[@]/%/packages}" | sort) >"$work/packages.diff"; then
+    echo 'FAIL coverage: the shards did not test every package exactly once (< untested, > extra)'
+    cat "$work/packages.diff"
+    exit 1
+  fi
+  cat "${dirs[@]/%/profile}" >"$work/profile"
+  out=$(cat "${dirs[@]/%/output}")
+}
+
+case "${1:-}" in
+  run)
+    (($# == 4)) || usage
+    run_shard "$2" "$3" "$4"
+    exit 0
+    ;;
+  check)
+    (($# == 2)) || usage
+    merge_shards "$2"
+    ;;
+  "")
+    run_shard 1 1 "$work/shards/all"
+    merge_shards "$work/shards"
+    ;;
+  *) usage ;;
+esac
+profile="$work/profile"
+grep -qv '^mode:' "$profile" || { echo 'FAIL coverage: the combined profile is empty'; exit 1; }
+
 is_gated() {
   case "$1" in
     # A module's contract package holds its published event interface and
@@ -29,7 +106,7 @@ is_gated() {
 }
 
 counts=$(awk '
-  NR == 1 {next}
+  /^mode:/ {next}
   {
     block = $1
     pkg = block

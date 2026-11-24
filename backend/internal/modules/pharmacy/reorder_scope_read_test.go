@@ -105,7 +105,7 @@ func TestReorderReadPolicyMigrationPreservesVisibilityAndWrites(t *testing.T) {
 								return err
 							}
 							expected := int64(0)
-							if scope.allowed && !(scope.name == "overview" && table == "pharmacy_reorder_levels") {
+							if scope.allowed && (scope.name != "overview" || table != "pharmacy_reorder_levels") {
 								expected = 1
 							}
 							require.Equal(t, expected, count, "%s on %s", scope.name, table)

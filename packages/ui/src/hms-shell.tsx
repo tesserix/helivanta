@@ -12,7 +12,7 @@ import {
   type ReactNode,
 } from "react";
 import { usePathname } from "next/navigation";
-import { ChevronsLeft, ChevronsRight, Menu, X } from "lucide-react";
+import { ChevronsLeft, ChevronsRight, HeartPulse, Menu, X } from "lucide-react";
 import {
   ApiError,
   useApiQuery,
@@ -30,7 +30,7 @@ import {
 import { GuardedLink, NavigationGuardProvider } from "./navigation-guard";
 import { ZONES, visibleZones, activeZone, activePage, railName, type Zone } from "./zones";
 import { AccountPresentationsProvider } from "./account-identity";
-import { BrandLogo, TesserixFooter } from "./branding";
+import { TesserixFooter } from "./branding";
 import { BrandThemeContext } from "./brand-theme";
 import {
   endZitadelSession,
@@ -115,7 +115,7 @@ function ZoneLink({
       aria-current={active ? "page" : undefined}
       className={`flex items-center rounded-lg transition-colors ${expanded ? "h-11 w-full gap-3 px-3" : "h-11 w-11 justify-center md:h-auto md:w-16 md:flex-col md:gap-1 md:py-2"} ${
         active
-          ? "bg-(--hms-accent-dim) text-(--hms-accent)"
+          ? "hms-current bg-sidebar-accent text-sidebar-accent-foreground"
           : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
       }`}
     >
@@ -181,7 +181,7 @@ function PhoneMenu({
           aria-current={active ? "page" : undefined}
           className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
             active
-              ? "bg-(--hms-accent-dim) text-(--hms-accent)"
+              ? "hms-current bg-sidebar-accent text-sidebar-accent-foreground"
               : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
           }`}
         >
@@ -646,19 +646,21 @@ export function HmsShell({
             returnFocusTo={menuButtonRef}
           />
           <aside
-            // Floating and content-height from md (#1286 D1); below md the rail
-            // stays the flush 64px icon column and the open rail a full-height
-            // drawer (D3), so every card class is md-scoped.
-            className={`hms-rail hms-sidebar-border hidden shrink-0 flex-col bg-(--sidebar-rail) md:flex ${navigationOpen ? "absolute inset-y-0 left-0 z-40 w-52 border-r shadow-xl md:relative md:inset-auto md:m-2 md:max-h-[calc(100dvh-1rem)] md:self-start md:rounded-xl md:border md:shadow-sm" : "w-16 border-r md:m-2 md:max-h-[calc(100dvh-1rem)] md:w-20 md:self-start md:rounded-xl md:border md:shadow-sm"}`}
+            // A flat, full-height ink column from md (#1836 D1). The rail is
+            // never a card; below md it is not rendered (the phone menu is).
+            className={`hms-rail hidden shrink-0 flex-col bg-(--sidebar-rail) md:flex md:h-full ${navigationOpen ? "absolute inset-y-0 left-0 z-40 w-52 shadow-xl md:relative md:inset-auto md:shadow-none" : "w-16 md:w-20"}`}
           >
             <div className={`flex h-16 items-center ${navigationOpen ? "px-4" : "justify-center"}`}>
               <GuardedLink
                 href="/dashboard"
                 aria-label="Helivanta home"
-                className="flex h-9 items-center gap-2 rounded-lg text-lg font-semibold text-sidebar-primary"
+                className="flex h-9 items-center gap-2 rounded-lg text-lg font-semibold text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--sidebar-ring)"
               >
-                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                  <BrandLogo key={branding.logo_url} branding={branding} compact />
+                {/* The platform's own mark; a tenant logo is designed for a
+                    light surface and goes in the header row (#1836 D1). #1835
+                    replaces this icon with the generated mark. */}
+                <span className="flex h-9 w-9 items-center justify-center">
+                  <HeartPulse className="size-6" aria-hidden="true" />
                 </span>
                 {navigationOpen && (
                   <span className="text-sm text-sidebar-foreground">Helivanta</span>
@@ -719,7 +721,7 @@ export function HmsShell({
                 aria-label={navigationOpen ? "Collapse navigation" : "Expand navigation"}
                 title={navigationOpen ? "Collapse navigation" : "Expand navigation"}
                 onClick={() => setNavigationOpen(!navigationOpen)}
-                className={`flex h-9 w-9 items-center justify-center rounded-lg text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--hms-accent) ${navigationOpen ? "ml-2" : ""}`}
+                className={`flex h-9 w-9 items-center justify-center rounded-lg text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--sidebar-ring) ${navigationOpen ? "ml-2" : ""}`}
               >
                 {navigationOpen ? (
                   <ChevronsLeft className="size-4" aria-hidden="true" />

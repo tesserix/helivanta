@@ -84,6 +84,23 @@
   border-color: var(--sidebar-border) !important;
 }
 
+/* The current zone on the ink rail and in the phone menu (#1836 D1): a fixed
+   3px bar at the link's left edge, never the tenant accent, which is not
+   guaranteed to show on ink. */
+.hms-current {
+  position: relative;
+}
+.hms-current::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.625rem;
+  bottom: 0.625rem;
+  width: 3px;
+  border-radius: 0 2px 2px 0;
+  background: var(--sidebar-primary);
+}
+
 /* Stored chrome layout from the first paint (#1091 D7). The server renders the
    default (navigation collapsed); CHROME_INIT_SCRIPT stamps the
    stored values on <html> before paint and HmsShell keeps them in step, so

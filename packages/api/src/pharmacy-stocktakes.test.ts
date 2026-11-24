@@ -509,3 +509,21 @@ it.each([
   expect(() => stocktakeKey(invalid, take)).toThrow();
   expect(fetch).not.toHaveBeenCalled();
 });
+
+it.each([true, false, null])(
+  "preserves the server's source condition %s without changing historical state or version",
+  async (source_invalidated) => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(json({ ...receipt, source_invalidated })));
+    const result = await readStocktake(scope, take);
+    expect(result.source_invalidated).toBe(source_invalidated);
+    expect(result.state).toBe(receipt.state);
+    expect(result.version).toBe(receipt.version);
+  },
+);
+it("rejects a coerced source-condition flag before treating retained evidence as active work", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue(json({ ...receipt, source_invalidated: "false" })),
+  );
+  await expect(readStocktake(scope, take)).rejects.toThrow();
+});

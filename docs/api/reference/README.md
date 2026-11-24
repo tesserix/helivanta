@@ -507,6 +507,7 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | GET | `/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/allocations` | `public` | true | false |
 | GET | `/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/lines/:line/stock-choices/:stock/locations` | `public` | true | false |
 | GET | `/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/lines/:line/stock-choices` | `public` | true | false |
+| GET | `/v1/pharmacy/hospitals/:hospital/departments/:department/stocktake-department-choices` | `public` | true | false |
 | GET | `/v1/pharmacy/hospitals/:hospital/departments/:department/stocktake-outlet-choices` | `public` | true | false |
 | GET | `/v1/pharmacy/hospitals/:hospital/staff-binding-outlet-choices` | `pharmacy.staff_binding.read` | true | false |
 | GET | `/v1/pharmacy/insights` | `pharmacy.dispense.read` | false | false |

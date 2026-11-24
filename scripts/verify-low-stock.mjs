@@ -1,4 +1,4 @@
-import { chromium, expect } from "@playwright/test";
+import { chromium, expect, request } from "@playwright/test";
 
 let material = "";
 for await (const chunk of process.stdin) material += chunk;
@@ -6,7 +6,7 @@ const fixture = JSON.parse(material);
 const browser = await chromium.launch({ headless: true });
 const contexts = [];
 const writes = [];
-const apiContext = await browser.request.newContext();
+const apiContext = await request.newContext();
 const root = `/v1/pharmacy/pharmacies/${fixture.pharmacy}/outlets/${fixture.outlet}`;
 const levelRoot = `${root}/catalogue/products/${fixture.product}`;
 let lostSave = false;

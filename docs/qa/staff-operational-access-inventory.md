@@ -317,3 +317,19 @@ rollback. This evidence does not promote the inventory to a runtime-ready marker
 close parent-plan consumer gaps or authorize production activation. All 15
 inventory-tool tests, regeneration, normal source checking and JSON formatting
 checks pass. The existing source-drift test remains in force and was not weakened.
+
+## Narrow low-stock source review — 24 November 2026
+
+Four existing reorder/list reviews retain their permissions, exact outlet grants,
+version/actor checks and outstanding Staff governance obligations. Their refreshed
+pins cover committed disclosure audit and the additional narrow read registrations.
+The three new choices/reload/count reads are classified as `mixed` for independent
+and hospital-owned inventory administration. They verify the tenant, exact outlet
+reader grant and stock-read permission; configuration still additionally requires
+catalogue-write and editor access. The count reuses the owner's availability
+projection. Audit failure discloses no result.
+
+`pharmacy_low_stock` owns availability for this slice. This source classification
+activates no operating Staff role, employment cutoff, dispensing, stock movement,
+automatic order or live release. Focused gateway/browser, capacity, protected
+checks and deployed acceptance remain separate evidence.

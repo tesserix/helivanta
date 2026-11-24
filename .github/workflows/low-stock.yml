@@ -17,7 +17,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: low-stock-${{ github.ref }}
+  group: low-stock-${{ github.ref }}-${{ github.event_name }}
   cancel-in-progress: true
 jobs:
   owner:

@@ -127,3 +127,29 @@ of the result. Prove old/new visibility and unchanged write/purpose policies on
 a hosted scratch database, retain before/after actual-role plans, rerun both
 ownership regressions and the original 500 ms gate. Production application of
 this named migration requires explicit approval before the signed release.
+
+The first optimized actual-role plan (diagnostic run `45387796878`) reduced the
+catalogue scan from 571 ms to 41 ms, but count/first-page execution remained
+1.830/1.840 s. The batch scan repeated the PL/pgSQL lot lookup through 10,000
+product loops; each visible lot re-entered its owner/RLS read. The gate is still
+unmet, so this candidate must not be enabled.
+
+Extend the same unapplied migration with a relational lot-reason projection and
+an all-product sellable-bucket projection. Keep the expiry/MRP/safety priority
+in exactly one owner SQL CASE. The existing scalar lot function delegates to
+that projection and retains its missing-lot/null-day exceptions. The existing
+product-specific sellable function delegates to the generalized projection and
+keeps its signature, ordering, supplier holds and arithmetic. No client-supplied
+evidence can authorize a lot: projections load the actual scoped batch and
+incident rows under invoker RLS. A null observation day raises; it cannot yield
+fabricated available stock.
+
+The low-stock source aggregates the generalized canonical buckets once for the
+outlet and left-joins product totals; zero-batch products still mean zero
+availability. This removes repeated per-product/lot owner reads without copying
+rules, persisting stock/counts or weakening authority. Test old scalar and new
+bulk parity across expiry/MRP/incident combinations, invisible lots, null day,
+quarantine, reservations and date boundaries; run the existing block-rule and
+availability regressions alongside migration/owner/browser/capacity acceptance.
+Production approval must explicitly include these SQL function delegations as
+well as the equivalent read-policy optimization.

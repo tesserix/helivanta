@@ -39,3 +39,13 @@ Observed candidate evidence as of 24 November:
   passed; generated build artifacts were removed. No local app/DB/container ran.
 - Performance, migration acceptance, exact-head protected checks, normal merge,
   signed release, Console activation and deployed acceptance remain pending.
+
+8. **Remaining measured cost (pending acceptance).** First policy optimization
+   reduced the catalogue scan to 41 ms but count/page plans remained 1.830/1.840 s.
+   The same unapplied migration now centralizes relational lot reasons and bulk
+   canonical buckets; legacy functions delegate with compatible signatures,
+   null-day/missing-lot behavior, rule priority, holds and arithmetic. The warning
+   source aggregates once per outlet. Run all affected pharmacy regressions,
+   explicit bulk/product/blocked-lot parity and the unchanged capacity gate.
+   Enable nothing until these pass; production approval must include the
+   function delegations as well as policy evaluation.

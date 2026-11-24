@@ -1154,7 +1154,13 @@ without batches are included. A unit change before any batch exists invalidates
 the old-unit configuration; the editor identifies it and requires a new save.
 Inventory already freezes product identity after a batch exists.
 
-Availability reuses `pharmacy_sellable_buckets`, as the stock balance does:
+Availability aggregates `pharmacy_sellable_product_buckets` once per outlet.
+The existing `pharmacy_sellable_buckets` signature delegates to that same
+projection for product-specific callers, retaining product isolation and FEFO
+ordering. The scalar lot rule delegates to `pharmacy_lot_block_reasons`, which
+retains one expiry/MRP/incident CASE over actual scoped owner rows. Null-day and
+missing-lot scalar exceptions remain. The stock balance and alert therefore
+continue to use the same rules:
 sellable locations, MRP present, expiry strictly after outlet-local today, no
 safety incident, and live supplier holds subtracted. It is not a dispensing
 permission; product classification, licences, tax and sale checks still apply.
@@ -1169,7 +1175,9 @@ inside the guarded owner transaction. Audit failure returns 503
 `0071_pharmacy_low_stock_scope_read` makes the unchanged legacy outlet-grant
 read predicate statement-local on five tables, retaining row boundaries, all
 write/purpose policies and alternative read branches. Production application
-requires explicit approval after hosted visibility and capacity acceptance.
+requires explicit approval after hosted visibility, canonical lot/bucket
+consumer regression and capacity acceptance. No stock or financial rows are
+rewritten; legacy function signatures and guard behavior remain retained.
 
 [Operator guide](../../guides/pharmacy-low-stock.md) ·
 [Design and release gates](../../superpowers/specs/2026-11-20-outlet-low-stock.md)

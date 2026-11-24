@@ -6907,7 +6907,7 @@
         },
         {
           "id": "0071_pharmacy_low_stock_scope_read",
-          "sql_sha256": "b8d6feea9f5b0875493c5678c7fc2eff422fb7e90882e870e908c31390fb72fb",
+          "sql_sha256": "125f262a47617ceb734f0aa4881da1111396ccecfbf579f706bf2c1ae4b1e3ed",
           "creates_tables": []
         }
       ]

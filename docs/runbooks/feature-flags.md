@@ -360,10 +360,15 @@ for catalogue products, reorder levels, stock batches, movements and locations.
 It retains exact row tenant/outlet checks and evaluates the existing current
 outlet grant once per statement. It does not cache authority between requests.
 No write, alternate read, restrictive purpose or policy-role clause is replaced.
+The same unapplied migration also centralizes relational lot-reason and
+all-product sellable-bucket calculation. Existing scalar/product functions
+delegate to those owner projections with the same signatures, rule priorities,
+hold arithmetic and exceptions. Approval must explicitly include these function
+delegations because existing sales, balance and supplier guards call them.
 
 Before production application, retain the exact-head hosted predecessor/new
 visibility tests, write/purpose metadata checks, denial/revocation, both-owner
-browser acceptance and original 10,000-product p99 ≤500 ms evidence. Obtain
+browser acceptance, affected pharmacy/lot/bucket consumer regressions and original 10,000-product p99 ≤500 ms evidence. Obtain
 explicit approval naming this migration and the signed release commit. Capture
 the five current policies' expressions, roles and purpose-integrity result in
 protected operational evidence before release; no credentials or private data

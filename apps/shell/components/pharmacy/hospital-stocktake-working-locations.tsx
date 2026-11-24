@@ -4,6 +4,8 @@ import { useState } from "react";
 import { Button } from "@tesserix/web";
 import {
   listHospitalStocktakeOutlets,
+  listHospitalStocktakeDepartments,
+  hospitalStocktakeDepartmentsKey,
   hospitalStocktakeOutletsKey,
   usePagedQuery,
   type StocktakeWorkerScope,
@@ -80,7 +82,7 @@ export function HospitalStocktakeLocations({
         />
       </Panel>
       {assignment && (
-        <HospitalOutlets
+        <HospitalDepartments
           key={JSON.stringify([
             assignment.id,
             assignment.snapshot_version,
@@ -94,7 +96,7 @@ export function HospitalStocktakeLocations({
     </>
   );
 }
-function HospitalOutlets({
+function HospitalDepartments({
   scope,
   assignment,
   released,
@@ -110,12 +112,117 @@ function HospitalOutlets({
     hospitalId: assignment.hospital_id,
     departmentId: assignment.department_id,
   };
+  const departments = usePagedQuery(
+    [
+      ...hospitalStocktakeDepartmentsKey(account),
+      assignment.id,
+      assignment.snapshot_version,
+      assignment.authority_epoch,
+    ],
+    (cursor, signal) => listHospitalStocktakeDepartments(account, cursor, signal),
+    { retry: false, gcTime: 0 },
+  );
+  if (departments.error)
+    return (
+      <RequestFailure
+        message="Current working departments could not be verified."
+        error={departments.error}
+        retry={departments.retry}
+      />
+    );
+  if (departments.isPending || departments.isRefreshing)
+    return <p role="status">Checking current working departments…</p>;
+  const rootOnly =
+    !departments.hasMore &&
+    departments.items.length === 1 &&
+    departments.items[0]?.department_id === assignment.department_id;
+  const department =
+    departments.items.find((item) => item.department_id === selected) ??
+    (rootOnly ? departments.items[0] : undefined);
+  return (
+    <>
+      <Panel aria-label="Hospital working departments">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="font-semibold">Working department</h2>
+          <RefreshButton
+            refresh={() => (department ? leave(departments.retry) : departments.retry())}
+            error={departments.error}
+            busy={departments.isRefreshing}
+          >
+            Refresh working departments
+          </RefreshButton>
+        </div>
+        {departments.items.length === 0 && (
+          <p className="mt-3 text-sm">
+            {departments.hasMore
+              ? "No current working department on this page. Continue to check further departments."
+              : "No current working department is available."}
+          </p>
+        )}
+        <ul className="mt-3 space-y-2">
+          {departments.items.map((item) => (
+            <li key={item.department_id}>
+              <Button
+                className="h-auto min-h-10 w-full justify-start whitespace-normal text-left"
+                variant="outline"
+                aria-pressed={department?.department_id === item.department_id}
+                onClick={() => {
+                  if (department?.department_id !== item.department_id)
+                    leave(() => setSelected(item.department_id));
+                }}
+              >
+                {item.department_name} · {item.department_code}
+              </Button>
+            </li>
+          ))}
+        </ul>
+        <LoadMore
+          hasMore={departments.hasMore}
+          isLoading={departments.isFetchingMore}
+          onClick={departments.loadMore}
+          label="Load more working departments"
+        />
+      </Panel>
+      {department && (
+        <HospitalOutlets
+          key={JSON.stringify([department.department_id, department.department_revision_id])}
+          scope={scope}
+          assignment={assignment}
+          departmentId={department.department_id}
+          departmentRevision={department.department_revision_id}
+          released={released}
+        />
+      )}
+    </>
+  );
+}
+function HospitalOutlets({
+  scope,
+  assignment,
+  departmentId,
+  departmentRevision,
+  released,
+}: {
+  scope: StocktakeWorkerScope;
+  assignment: HospitalStocktakeScopeChoice;
+  departmentId: string;
+  departmentRevision: string;
+  released: boolean;
+}) {
+  const leave = useConfirmLeave();
+  const [selected, setSelected] = useState<string | null>(null);
+  const account = {
+    ...scope,
+    hospitalId: assignment.hospital_id,
+    departmentId,
+  };
   const outlets = usePagedQuery(
     [
       ...hospitalStocktakeOutletsKey(account),
       assignment.id,
       assignment.snapshot_version,
       assignment.authority_epoch,
+      departmentRevision,
     ],
     (cursor, signal) => listHospitalStocktakeOutlets(account, cursor, signal),
     { retry: false, gcTime: 0 },

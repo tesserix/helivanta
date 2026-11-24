@@ -15,6 +15,7 @@ on:
             browser,
             hospital-browser,
             hospital-source,
+            hospital-capacity,
             hospital-schema,
             merge-regressions,
             capacity-only,
@@ -291,7 +292,7 @@ jobs:
             ${{ runner.temp }}/stocktake-web.log
           retention-days: 7
   hospital-stocktake-source:
-    if: inputs.suite == 'hospital-source'
+    if: inputs.suite == 'hospital-source' || inputs.suite == 'hospital-capacity'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     defaults:
@@ -314,4 +315,6 @@ jobs:
           go test -race -count=1 -timeout=5m ./internal/modules/iam -run '^(TestHospitalStocktake|TestEveryOwnerTemplateHasAnExplicitReleaseFamily|TestMigrationIDIsPhaseScoped)'
           go test -race -count=1 -timeout=5m ./internal/modules/workforce -run '^TestHospitalStocktakeActor'
       - name: Actual reviewed hospital employment and department assignment
+        env:
+          HELIVANTA_HOSPITAL_STOCKTAKE_CAPACITY: ${{ inputs.suite == 'hospital-capacity' && '1' || '' }}
         run: go test -race -v -count=1 -failfast -timeout=35m ./internal/globalapi -run '^TestPreEmploymentPersonReviewPreservesInactiveJoiner$'

@@ -3682,6 +3682,15 @@
         },
         {
           "method": "GET",
+          "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/stocktake-department-choices",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/stocktake-outlet-choices",
           "permission": "public",
           "authentication_required": true,
@@ -6856,6 +6865,11 @@
               ]
             }
           ]
+        },
+        {
+          "id": "0069_pharmacy_stocktake_latest_observations",
+          "sql_sha256": "70278cc2a9eb710ba5a5b9e2044a3392392fa257248b32990ec34ac93d23c3a5",
+          "creates_tables": []
         }
       ]
     },

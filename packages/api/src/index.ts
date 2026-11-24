@@ -284,6 +284,8 @@ export {
 } from "./stocktake-worker-locations";
 export {
   listHospitalStocktakeScopes,
+  listHospitalStocktakeDepartments,
+  hospitalStocktakeDepartmentsKey,
   listHospitalStocktakeOutlets,
   hospitalStocktakeScopesKey,
   hospitalStocktakeOutletsKey,

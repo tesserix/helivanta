@@ -205,3 +205,57 @@ it.each(["listHospitalStocktakeScopes", "listHospitalStocktakeOutlets"])(
     expect(fetch).not.toHaveBeenCalled();
   },
 );
+
+const departmentChoice = {
+  owner_tenant_id: account.tenantId,
+  hospital_id: scope.hospitalId,
+  scope_department_id: scope.departmentId,
+  department_id: outlet.outlet_id,
+  department_revision_id: outlet.department_revision_id,
+  department_name: "TEST Child pharmacy unit",
+  department_code: "TEST-CHILD",
+};
+it("discovers named descendant departments through Global API with account preconditions", async () => {
+  const fetch = vi.fn().mockResolvedValue(Response.json(page([departmentChoice])));
+  vi.stubGlobal("fetch", fetch);
+  expect((await client("listHospitalStocktakeDepartments")(scope)).data).toEqual([
+    departmentChoice,
+  ]);
+  expect(fetch.mock.calls[0]?.[0]).toBe(
+    `/api/v1/pharmacy/hospitals/${scope.hospitalId}/departments/${scope.departmentId}/stocktake-department-choices?limit=20`,
+  );
+  const options = fetch.mock.calls[0]?.[1] as RequestInit;
+  expect(options.cache).toBe("no-store");
+  expect(new Headers(options.headers).get("X-Helivanta-Expected-Subject")).toBe(account.subject);
+});
+it.each([
+  { ...departmentChoice, owner_tenant_id: scope.hospitalId },
+  { ...departmentChoice, hospital_id: outlet.pharmacy_id },
+  { ...departmentChoice, scope_department_id: outlet.outlet_id },
+  { ...departmentChoice, staff_id: assignment.id },
+])("rejects an unverified descendant projection before displaying names", async (bad) => {
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json(page([bad]))));
+  await expect(client("listHospitalStocktakeDepartments")(scope)).rejects.toThrow();
+});
+it("keeps descendant cache keys separate by account and assignment root", () => {
+  expect(api).toHaveProperty("hospitalStocktakeDepartmentsKey");
+  const key = Reflect.get(api, "hospitalStocktakeDepartmentsKey") as (
+    value: typeof scope,
+  ) => readonly unknown[];
+  expect(key(scope)).not.toEqual(key({ ...scope, subject: "TEST-other" }));
+  expect(key(scope)).not.toEqual(key({ ...scope, departmentId: outlet.outlet_id }));
+});
+it("rejects duplicate descendant choices and non-progressing cursors", async () => {
+  const fetch = vi
+    .fn()
+    .mockResolvedValueOnce(Response.json(page([departmentChoice, departmentChoice])))
+    .mockResolvedValueOnce(Response.json(page([], "TEST-next")))
+    .mockResolvedValueOnce(Response.json(page([], "TEST-next")));
+  vi.stubGlobal("fetch", fetch);
+  await expect(client("listHospitalStocktakeDepartments")(scope)).rejects.toThrow();
+  const first = await client("listHospitalStocktakeDepartments")(scope);
+  expect(first.page.next_cursor).toBe("TEST-next");
+  await expect(
+    client("listHospitalStocktakeDepartments")(scope, first.page.next_cursor),
+  ).rejects.toThrow();
+});

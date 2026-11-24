@@ -445,6 +445,42 @@
         "type": "string",
         "enum": ["IN"]
       }
+    ],
+    "HospitalStocktakeDepartmentChoice": [
+      {
+        "name": "owner_tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "hospital_id",
+        "type": "uuid"
+      },
+      {
+        "name": "scope_department_id",
+        "type": "uuid"
+      },
+      {
+        "name": "department_id",
+        "type": "uuid"
+      },
+      {
+        "name": "department_revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "department_name",
+        "type": "string",
+        "min": 1,
+        "max": 200,
+        "format": "text"
+      },
+      {
+        "name": "department_code",
+        "type": "string",
+        "min": 1,
+        "max": 40,
+        "format": "text"
+      }
     ]
   },
   "subject": "helivanta.in.pharmacy.staff_department_binding_changed.v1",

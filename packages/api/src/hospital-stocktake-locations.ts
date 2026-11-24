@@ -2,7 +2,10 @@ import { z } from "zod";
 import { apiFetch } from "./client";
 import { membershipRequestOptions } from "./membership-commands";
 import { HospitalStocktakeScopeChoiceContract } from "./staff-access-contract";
-import { HospitalStocktakeOutletChoiceContract } from "./pharmacy-staff-binding-contract";
+import {
+  HospitalStocktakeDepartmentChoiceContract,
+  HospitalStocktakeOutletChoiceContract,
+} from "./pharmacy-staff-binding-contract";
 import { staffAccessTemplates } from "./staff-access-templates";
 import type { StocktakeWorkerScope } from "./stocktake-worker-locations";
 
@@ -21,6 +24,10 @@ const scopesPage = z.object({
   data: z.array(HospitalStocktakeScopeChoiceContract).max(20),
   page: continuation,
 });
+const departmentsPage = z.object({
+  data: z.array(HospitalStocktakeDepartmentChoiceContract).max(20),
+  page: continuation,
+});
 const outletsPage = z.object({
   data: z.array(HospitalStocktakeOutletChoiceContract).max(20),
   page: continuation,
@@ -36,6 +43,17 @@ export function hospitalStocktakeOutletsKey(scope: HospitalStocktakeOutletScope)
     "pharmacy",
     scope.tenantId,
     "hospital-stocktake-outlets",
+    scope.subject,
+    id.parse(scope.hospitalId),
+    id.parse(scope.departmentId),
+  ] as const;
+}
+export function hospitalStocktakeDepartmentsKey(scope: HospitalStocktakeOutletScope) {
+  membershipRequestOptions(scope);
+  return [
+    "pharmacy",
+    scope.tenantId,
+    "hospital-stocktake-departments",
     scope.subject,
     id.parse(scope.hospitalId),
     id.parse(scope.departmentId),
@@ -118,6 +136,34 @@ export async function listHospitalStocktakeOutlets(
     new Intl.DateTimeFormat("en-IN", { timeZone: item.time_zone }).format(0);
     bindings.add(item.binding_id);
     outlets.add(item.outlet_id);
+  }
+  return result;
+}
+
+export async function listHospitalStocktakeDepartments(
+  scope: HospitalStocktakeOutletScope,
+  cursor?: string | null,
+  signal?: AbortSignal,
+) {
+  signal?.throwIfAborted();
+  hospitalStocktakeDepartmentsKey(scope);
+  const result = departmentsPage.parse(
+    await apiFetch<unknown>(
+      `/pharmacy/hospitals/${scope.hospitalId}/departments/${scope.departmentId}/stocktake-department-choices?${query(cursor)}`,
+      { ...membershipRequestOptions(scope), signal, cache: "no-store" },
+    ),
+  );
+  validContinuation(result.page, cursor);
+  const seen = new Set<string>();
+  for (const item of result.data) {
+    if (
+      item.owner_tenant_id !== scope.tenantId ||
+      item.hospital_id !== scope.hospitalId ||
+      item.scope_department_id !== scope.departmentId ||
+      seen.has(item.department_id)
+    )
+      throw new Error("The current hospital working department could not be verified.");
+    seen.add(item.department_id);
   }
   return result;
 }

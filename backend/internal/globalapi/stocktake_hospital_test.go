@@ -17,6 +17,7 @@ func assertHospitalStocktakeWorkflow(t *testing.T, db *tenantdb.DB, call func(*t
 	pharmacy, outlet := v7(), v7()
 	pharmacyBase := "/v1/pharmacy/pharmacies/" + pharmacy
 	call(t, "PUT", pharmacyBase, owner, map[string]any{"code": "SYN-HOSPITAL-STOCKTAKE", "name": "Synthetic hospital stocktake pharmacy", "ownership_type": "hospital_owned"}, 200)
+	call(t, "PUT", pharmacyBase, owner, map[string]any{"code": "SYN-HOSPITAL-STOCKTAKE", "name": "Synthetic hospital stocktake pharmacy", "ownership_type": "independent"}, 409)
 	base := pharmacyBase + "/outlets/" + outlet
 	call(t, "PUT", base, owner, map[string]any{"code": "SYN-HOSPITAL-COUNT", "name": "Synthetic hospital counting outlet", "country_code": "IN", "timezone": "Asia/Kolkata"}, 200)
 	for _, subject := range []string{owner, counter, reviewer} {
@@ -37,6 +38,7 @@ func assertHospitalStocktakeWorkflow(t *testing.T, db *tenantdb.DB, call func(*t
 	for _, subject := range []string{counter, reviewer} {
 		call(t, "DELETE", base+"/access/"+subject, owner, nil, 200)
 	}
+	childDepartment, childRevision := assertHospitalStocktakeDepartmentChoices(t, db, call, hospital, department, revision, owner, counter, reviewer)
 	survivingChoices := assertHospitalStocktakeOutletDiscovery(t, call, hospital, department, revision, pharmacy, outlet, owner, counter, reviewer, approved["binding"].(map[string]any))
 	root := "/v1/pharmacy/hospitals/" + hospital + "/departments/" + department + "/pharmacies/" + pharmacy + "/outlets/" + outlet + "/stocktakes"
 	take := v7()
@@ -105,6 +107,8 @@ func assertHospitalStocktakeWorkflow(t *testing.T, db *tenantdb.DB, call func(*t
 	if browser != nil {
 		browser(pharmacy, outlet)
 	}
+	assertHospitalStocktakeChildWorkflow(t, db, call, hospital, childDepartment, childRevision, pharmacy, owner, counter, reviewer)
+	assertHospitalStocktakeCapacity(t, db, call, root, pharmacy, outlet, product, quarantine, owner, counter, reviewer)
 	call(t, "PUT", base+"/access/"+reviewer, owner, map[string]any{"level": "editor"}, 200)
 	bindingRecord := approved["binding"].(map[string]any)
 	call(t, "POST", binding+"/commands", reviewer, map[string]any{"id": v7(), "operation": "end", "expected_version": bindingRecord["version"], "reason": "Synthetic source withdrawal after completed physical count"}, 200)

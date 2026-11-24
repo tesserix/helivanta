@@ -16,13 +16,24 @@ func (d developmentTransport) RoundTrip(*http.Request) (*http.Response, error) {
 
 // DevelopmentFixture preserves full regression coverage only with the existing
 // explicit synthetic identity fixture; production issuer configuration is refused.
-func DevelopmentFixture(environment, issuer, enabled string) (*Service, error) {
+func DevelopmentFixture(environment, issuer, enabled string, capabilities ...string) (*Service, error) {
 	if environment != "dev" || issuer != "http://auth.tesserix.localhost:20080" || enabled != "true" {
 		return nil, errors.New("release fixture requires the explicit local synthetic identity environment")
 	}
+	selected := map[string]bool{}
+	for _, key := range capabilities {
+		known := false
+		for _, definition := range definitions {
+			known = known || definition.Key == key
+		}
+		if !known {
+			return nil, errors.New("unknown development release capability")
+		}
+		selected[key] = true
+	}
 	features := map[string]any{}
 	for _, definition := range definitions {
-		features[flagPrefix+definition.Key] = map[string]bool{"defaultValue": true}
+		features[flagPrefix+definition.Key] = map[string]bool{"defaultValue": len(capabilities) == 0 || selected[definition.Key]}
 	}
 	body, err := json.Marshal(map[string]any{"features": features})
 	if err != nil {

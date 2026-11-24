@@ -230,6 +230,13 @@ export const ZONES: Zone[] = [
       },
       {
         section: "Inventory",
+        label: "Low stock",
+        href: "/pharmacy/low-stock",
+        icon: Boxes,
+        permission: "pharmacy.stock.read",
+      },
+      {
+        section: "Inventory",
         label: "Stock across outlets",
         href: "/pharmacy/stock-overview",
         icon: Warehouse,

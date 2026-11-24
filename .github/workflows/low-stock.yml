@@ -3,11 +3,11 @@ on:
   workflow_dispatch:
   pull_request:
     paths:
-      - 'backend/internal/modules/pharmacy/reorder*'
-      - 'backend/internal/release/**'
-      - 'contracts/pharmacy.json'
-      - 'contracts/release-capabilities.json'
-      - '.github/workflows/low-stock.yml'
+      - "backend/internal/modules/pharmacy/reorder*"
+      - "backend/internal/release/**"
+      - "contracts/pharmacy.json"
+      - "contracts/release-capabilities.json"
+      - ".github/workflows/low-stock.yml"
 permissions:
   contents: read
 concurrency:
@@ -30,3 +30,20 @@ jobs:
           cache: false
       - name: Reorder owner semantics and narrow projections
         run: go test -race -v -count=1 -timeout 20m ./internal/modules/pharmacy -run '^TestReorder'
+  capacity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      GOTOOLCHAIN: local
+      HELIVANTA_LOW_STOCK_CAPACITY: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5
+        with:
+          go-version-file: backend/go.mod
+          cache: false
+      - name: Ten thousand configurations under both owners
+        run: go test -v -count=1 -timeout 30m ./internal/modules/pharmacy -run '^TestLowStockCapacityAtTenThousandProducts$'

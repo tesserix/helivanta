@@ -176,7 +176,14 @@ function LevelChooser({ scope }: { scope: PharmacyScope }) {
           />
         </>
       )}
-      {product && <LevelEditor key={product.id} scope={scope} product={product} />}
+      {product && (
+        <LevelEditor
+          key={product.id}
+          scope={scope}
+          product={product}
+          unavailable={Boolean(products.error)}
+        />
+      )}
     </Panel>
   );
 }
@@ -184,9 +191,11 @@ function LevelChooser({ scope }: { scope: PharmacyScope }) {
 function LevelEditor({
   scope,
   product,
+  unavailable,
 }: {
   scope: PharmacyScope;
   product: PharmacyReorderProduct;
+  unavailable: boolean;
 }) {
   const level = useQuery({
     queryKey: pharmacyKey(scope, "reorder-level", product.id),
@@ -217,7 +226,7 @@ function LevelEditor({
         scope={scope}
         product={product}
         current={level.data}
-        unavailable={Boolean(level.error)}
+        unavailable={unavailable || Boolean(level.error)}
       />
     </>
   );

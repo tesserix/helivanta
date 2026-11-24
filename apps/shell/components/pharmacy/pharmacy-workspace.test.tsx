@@ -192,6 +192,32 @@ function mockPharmacy(
   return fetcher;
 }
 
+it("shows a scoped low-stock overview and warnings to a reader without opening the general catalogue", async () => {
+  const base = mockPharmacy("reader").getMockImplementation()!;
+  const fetch = vi.fn(async (url: string, init?: RequestInit) => {
+    if (url.endsWith("/stock/low-products/overview"))
+      return new Response(
+        JSON.stringify({
+          outlet_id: outlet,
+          low_stock: 3,
+          observed_at: "2026-11-20T00:00:00Z",
+          local_date: "2026-11-20",
+          time_zone: "Asia/Kolkata",
+        }),
+      );
+    return base(url, init);
+  });
+  vi.stubGlobal("fetch", fetch);
+  renderWorkspace("low-stock");
+  const overview = await screen.findByRole("region", { name: "Low-stock overview" });
+  expect(
+    await within(overview).findByRole("link", { name: /Low-stock products/ }),
+  ).toHaveTextContent("3");
+  expect(await screen.findByText(/No low-stock warnings/)).toBeVisible();
+  expect(screen.queryByRole("region", { name: "Configure reorder level" })).not.toBeInTheDocument();
+  expect(fetch.mock.calls.some(([url]) => url.includes("/catalogue/products"))).toBe(false);
+});
+
 it("lets outlet readers recover stocktake outcomes without access-management permission", async () => {
   const scope = {
     tenantId: "11111111-1111-1111-1111-111111111111",

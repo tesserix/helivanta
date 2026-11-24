@@ -43,9 +43,11 @@ unit and reservation rules. It is not a total inferred from a partial page.
 
 Expose a named Low stock workspace using the existing pharmacy/outlet selection
 and reader/editor access guard. Show its count in a bounded outlet overview and
-link to the matching warning list. The released setup landing can show this
-outlet summary only when the feature and stock-read authority are available.
-The general Reports overview retains its existing gates and low-stock parity.
+link to the matching warning list. Keep Setup dedicated to outlet/access
+management under its existing page contract; the Low stock workspace contains
+the released outlet overview. The general Reports overview retains its existing
+gates and low-stock parity. Broad Stock additionally depends on Low stock so
+its legacy count/list cannot bypass withdrawal of the narrow capability.
 No raw identifiers appear as product, account or outlet labels. Scope changes and
 failed reads hide stale private data; incomplete pages retain continuation.
 

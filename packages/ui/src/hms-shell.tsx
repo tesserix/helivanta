@@ -12,7 +12,7 @@ import {
   type ReactNode,
 } from "react";
 import { usePathname } from "next/navigation";
-import { ChevronsLeft, ChevronsRight, HeartPulse, Menu, X } from "lucide-react";
+import { ChevronsLeft, ChevronsRight, Menu, X } from "lucide-react";
 import {
   ApiError,
   useApiQuery,
@@ -32,6 +32,7 @@ import { GuardedLink, NavigationGuardProvider } from "./navigation-guard";
 import { ZONES, visibleZones, activeZone, activePage, railName, type Zone } from "./zones";
 import { AccountPresentationsProvider } from "./account-identity";
 import { BrandLogo, TesserixFooter } from "./branding";
+import { HelivantaMark } from "./brand-mark.generated";
 import { BrandThemeContext } from "./brand-theme";
 import {
   endZitadelSession,
@@ -670,11 +671,11 @@ export function HmsShell({
                 aria-label="Helivanta home"
                 className="flex h-9 items-center gap-2 rounded-lg text-lg font-semibold text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--sidebar-ring)"
               >
-                {/* The platform's own mark; a tenant logo is designed for a
-                    light surface and goes in the header row (#1836 D1). #1835
-                    replaces this icon with the generated mark. */}
+                {/* The platform's own mark, alone (#1835 D4); a tenant logo is
+                    designed for a light surface and goes in the header row
+                    (#1836 D1). */}
                 <span className="flex h-9 w-9 items-center justify-center">
-                  <HeartPulse className="size-6" aria-hidden="true" />
+                  <HelivantaMark onInk className="size-7" />
                 </span>
                 {navigationOpen && (
                   <span className="text-sm text-sidebar-foreground">Helivanta</span>

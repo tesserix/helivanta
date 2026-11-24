@@ -54,6 +54,7 @@ it("is cool white, blue-black ink and ultramarine (#1834)", () => {
   expect(root["--foreground"]).toBe("#0b1324");
   expect(root["--primary"]).toBe("#0b1324");
   expect(root["--hms-accent"]).toBe("#2b4ee6");
+  expect(root["--hms-accent-on-ink"]).toBe("#7aa0ff");
 });
 
 // Primary actions are ink under every tenant theme; a theme recolours the
@@ -97,6 +98,8 @@ const PAIRS: [fg: string, bg: string, min: number][] = [
   ["--sidebar-foreground", "--sidebar-accent", BODY],
   ["--sidebar-primary", "--sidebar-rail", UI],
   ["--sidebar-ring", "--sidebar-rail", UI],
+  // The mark's pulse on ink (#1835 D6): the canvas accent is 2.2:1 there.
+  ["--hms-accent-on-ink", "--foreground", BODY],
   ["--hms-good", "--card", BODY],
   ["--hms-warn", "--card", BODY],
   ["--hms-crit", "--card", BODY],

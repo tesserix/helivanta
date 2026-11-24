@@ -54,6 +54,9 @@
   --hms-accent: #2b4ee6 !important;
   --hms-accent-strong: #1f3ab8 !important;
   --hms-accent-dim: #e4eaff !important;
+  /* The mark's pulse on ink (#1835 D6); fixed, since the platform mark is
+     not a tenant's. #2b4ee6 on ink is 2.2:1 and disappears. */
+  --hms-accent-on-ink: #7aa0ff !important;
   --hms-good: #0f7a4f !important;
   --hms-warn: #a85503 !important;
   --hms-crit: #c93b3b !important;
@@ -212,10 +215,6 @@ select:autofill {
 }
 .login-story .text-muted-foreground {
   color: color-mix(in srgb, var(--sidebar-foreground) 70%, transparent);
-}
-/* The heart fallback tile is ink and would vanish on the ink panel. */
-.login-story .bg-primary {
-  background: var(--sidebar-accent);
 }
 .login-content {
   --auth-accent: var(--hms-accent);

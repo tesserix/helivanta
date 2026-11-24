@@ -114,7 +114,7 @@ function ZoneLink({
       title={zone.label}
       aria-label={railName(zone)}
       aria-current={active ? "page" : undefined}
-      className={`flex items-center rounded-lg transition-colors ${expanded ? "h-11 w-full gap-3 px-3" : "h-11 w-11 justify-center md:h-auto md:w-16 md:flex-col md:gap-1 md:py-2"} ${
+      className={`flex items-center rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--sidebar-ring) ${expanded ? "h-11 w-full gap-3 px-3" : "h-11 w-11 justify-center md:h-auto md:w-16 md:flex-col md:gap-1 md:py-2"} ${
         active
           ? "hms-current bg-sidebar-accent text-sidebar-accent-foreground"
           : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
@@ -180,7 +180,7 @@ function PhoneMenu({
           href={z.href}
           onClick={onClose}
           aria-current={active ? "page" : undefined}
-          className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+          className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--sidebar-ring) ${
             active
               ? "hms-current bg-sidebar-accent text-sidebar-accent-foreground"
               : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
@@ -207,7 +207,7 @@ function PhoneMenu({
                     href={pageLink.href}
                     onClick={onClose}
                     aria-current={pageLink.href === currentHref ? "page" : undefined}
-                    className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                    className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--sidebar-ring) ${
                       pageLink.href === currentHref
                         ? "bg-sidebar-accent text-sidebar-foreground"
                         : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
@@ -246,7 +246,7 @@ function PhoneMenu({
             type="button"
             onClick={dismiss}
             aria-label="Close menu"
-            className="flex h-9 w-9 items-center justify-center rounded-lg text-sidebar-foreground/70 hover:bg-sidebar-accent/50"
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-sidebar-foreground/70 hover:bg-sidebar-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--sidebar-ring)"
           >
             <X className="h-5 w-5" aria-hidden="true" />
           </button>
@@ -752,7 +752,7 @@ export function HmsShell({
           <div className="flex min-w-0 flex-1 flex-col">
             <header className="z-30 shrink-0 border-b border-border bg-background">
               <div className="flex min-h-16 flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
-                <div className="flex items-center gap-2">
+                <div className="flex min-w-0 items-center gap-2">
                   <button
                     ref={menuButtonRef}
                     type="button"
@@ -769,14 +769,14 @@ export function HmsShell({
                       never off screen. */}
                   <span
                     data-testid="tenant-name"
-                    className="truncate text-sm font-medium text-muted-foreground"
+                    className="min-w-0 truncate text-sm font-medium text-muted-foreground"
                   >
                     {branding.display_name}
                   </span>
                   <span aria-hidden="true" className="text-sm text-border">
                     /
                   </span>
-                  <h1 className="text-xl font-semibold text-foreground">
+                  <h1 className="shrink-0 text-xl font-semibold text-foreground">
                     {hasPagePanel ? (currentPage?.label ?? zone.label) : zone.label}
                   </h1>
                 </div>
@@ -792,7 +792,7 @@ export function HmsShell({
                 A single-page zone has none: it would repeat the rail's one link
                 (#1255 spec D4). */}
               {hasPagePanel && (
-                <aside className="hms-page-panel hidden shrink-0 flex-col overflow-hidden border-r border-border md:static md:flex md:h-full md:w-56">
+                <aside className="hms-page-panel hidden shrink-0 flex-col overflow-hidden border-r border-border md:flex md:h-full md:w-56">
                   <nav
                     aria-label={zone.label}
                     className="flex w-56 min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-3 py-4"

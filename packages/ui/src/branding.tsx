@@ -27,13 +27,17 @@ export function TesserixFooter() {
 export function BrandLogo({
   branding,
   compact = false,
+  onInk = false,
 }: {
   branding: Branding;
   compact?: boolean;
+  // A tenant logo is drawn for a light surface; on ink it sits on a card chip
+  // so a dark logo stays visible (#1836 D5).
+  onInk?: boolean;
 }) {
   const [failed, setFailed] = useState(false);
-  if (branding.logo_url && !failed)
-    return (
+  if (branding.logo_url && !failed) {
+    const logo = (
       // eslint-disable-next-line @next/next/no-img-element -- Load tenant images only in the browser; never proxy user URLs through an optimizer.
       <img
         src={branding.logo_url}
@@ -43,16 +47,18 @@ export function BrandLogo({
         className={compact ? "h-8 w-8 object-contain" : "h-10 max-w-36 object-contain"}
       />
     );
+    return onInk ? <span className="shrink-0 rounded-lg bg-card p-1.5">{logo}</span> : logo;
+  }
   return (
     <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
       <HeartPulse className="h-5 w-5" aria-hidden="true" />
     </span>
   );
 }
-export function BrandMark({ branding }: { branding: Branding }) {
+export function BrandMark({ branding, onInk = false }: { branding: Branding; onInk?: boolean }) {
   return (
     <span className="inline-flex min-w-0 items-center gap-3">
-      <BrandLogo key={branding.logo_url} branding={branding} />
+      <BrandLogo key={branding.logo_url} branding={branding} onInk={onInk} />
       <span className="min-w-0 text-lg font-semibold tracking-tight [overflow-wrap:anywhere]">
         {branding.display_name}
       </span>
@@ -85,10 +91,10 @@ export function LoginSurface({
         aria-label={`${branding.display_name} home`}
         className={`rounded-lg focus-visible:outline-2 focus-visible:outline-offset-4 ${onInk ? "focus-visible:outline-(--sidebar-ring)" : "focus-visible:outline-ring"}`}
       >
-        <BrandMark branding={branding} />
+        <BrandMark branding={branding} onInk={onInk} />
       </Link>
     ) : (
-      <BrandMark branding={branding} />
+      <BrandMark branding={branding} onInk={onInk} />
     );
   return (
     <div

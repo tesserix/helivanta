@@ -141,3 +141,26 @@ it("keeps the platform's centred entry page without a panel", () => {
   expect(container.querySelector("aside.login-story")).toBeNull();
   expect(container.querySelector("header")!.className.split(/\s+/)).not.toContain("lg:hidden");
 });
+
+// A tenant logo is drawn for a light surface; on the ink panel it sits on a
+// card chip so a dark logo stays visible (#1836 review).
+it("sets a tenant logo on a light chip inside the ink panel", () => {
+  const { container } = render(
+    <LoginSurface
+      branding={{
+        ...DEFAULT_BRANDING,
+        display_name: "YES HOSPITAL",
+        logo_url: "https://example.test/logo.png",
+        login_layout: "split",
+      }}
+      entry
+    >
+      <h1>Sign in</h1>
+    </LoginSurface>,
+  );
+  const panel = container.querySelector("aside.login-story") as HTMLElement;
+  const logo = within(panel).getByRole("img", { name: "YES HOSPITAL logo" });
+  expect(logo.parentElement!.className.split(/\s+/)).toContain("bg-card");
+  const header = container.querySelector("header") as HTMLElement;
+  expect(within(header).getByRole("img").parentElement!.className).not.toContain("bg-card");
+});

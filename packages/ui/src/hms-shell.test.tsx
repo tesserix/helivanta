@@ -1446,6 +1446,12 @@ describe("flat chrome (#1836)", () => {
     expect(screen.getByRole("banner").firstElementChild!.className.split(/\s+/)).toContain(
       "flex-wrap",
     );
+    // The name gives way, never the page title: the left group and the name can
+    // shrink, the title cannot (#1836 review).
+    const name = screen.getByTestId("tenant-name");
+    expect(name.className.split(/\s+/)).toContain("min-w-0");
+    expect(name.parentElement!.className.split(/\s+/)).toContain("min-w-0");
+    expect(screen.getByRole("heading", { level: 1 }).className.split(/\s+/)).toContain("shrink-0");
   });
 
   it("rings the rail's controls in the rail focus colour", async () => {
@@ -1453,5 +1459,21 @@ describe("flat chrome (#1836)", () => {
     const collapse = screen.getByRole("button", { name: /(Expand|Collapse) navigation/ });
     expect(collapse.className).toContain("focus-visible:ring-(--sidebar-ring)");
     expect(collapse.className).not.toMatch(/hms-accent/);
+    const rail = screen.getByRole("navigation", { name: "Zones" });
+    for (const link of within(rail).getAllByRole("link"))
+      expect(link.className).toContain("focus-visible:ring-(--sidebar-ring)");
+  });
+
+  it("rings the phone menu's controls in the rail focus colour", async () => {
+    await renderShell({ theme: "indigo" }, "/pharmacy/stock");
+    fireEvent.click(screen.getByRole("button", { name: "Open menu" }));
+    const menu = screen.getByRole("navigation", { name: "Menu" });
+    const controls = [
+      ...within(menu).getAllByRole("link"),
+      screen.getByRole("button", { name: "Close menu" }),
+    ];
+    expect(controls.length).toBeGreaterThan(2);
+    for (const control of controls)
+      expect(control.className).toContain("focus-visible:ring-(--sidebar-ring)");
   });
 });

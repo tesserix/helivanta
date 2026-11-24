@@ -1,5 +1,7 @@
 SET LOCAL lock_timeout='5s';
 SET LOCAL statement_timeout='60s';
+LOCK TABLE pharmacy_catalogue_products,pharmacy_reorder_levels,pharmacy_stock_batches,
+ pharmacy_stock_movements,pharmacy_stock_locations IN SHARE ROW EXCLUSIVE MODE;
 
 -- Preserve the row boundary; only make its unchanged grant lookup an InitPlan.
 DO $migration$
@@ -8,14 +10,38 @@ DECLARE
  prior text;
  prior_check text;
  replacement text;
+ before_state jsonb;
+ after_state jsonb;
+ before_policies jsonb;
+ after_policies jsonb;
+ body text;
+ intact boolean;
  old_call text := 'pharmacy_outlet_allowed(tenant_id, outlet_id, false)';
  new_call text := $predicate$(tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid
  AND outlet_id=NULLIF(current_setting('app.pharmacy_outlet',true),'')::uuid
  AND (SELECT pharmacy_outlet_allowed(NULLIF(current_setting('app.tenant_id',true),'')::uuid,
  NULLIF(current_setting('app.pharmacy_outlet',true),'')::uuid,false)))$predicate$;
 BEGIN
- IF NOT pharmacy_operating_choice_integrity() THEN
-  RAISE EXCEPTION 'existing pharmacy purpose policies changed' USING ERRCODE='23514';
+ IF NOT EXISTS(SELECT 1 FROM pg_proc WHERE oid=to_regprocedure('pharmacy_stocktake_hospital_integrity()')
+  AND NOT prosecdef AND NOT proleakproof AND provolatile='s'AND proconfig IS NULL
+  AND prolang=(SELECT oid FROM pg_language WHERE lanname='sql'))THEN
+  RAISE EXCEPTION 'hospital source seal properties changed' USING ERRCODE='23514';
+ END IF;
+ SELECT pharmacy_stocktake_hospital_integrity(),pharmacy_stocktake_hospital_support_state()
+ INTO intact,before_state;
+ IF intact IS DISTINCT FROM true OR pharmacy_operating_choice_integrity()IS DISTINCT FROM true THEN
+  RAISE EXCEPTION 'low-stock planning requires unchanged source authority' USING ERRCODE='23514';
+ END IF;
+ SELECT prosrc INTO STRICT body FROM pg_proc WHERE oid=to_regprocedure('pharmacy_stocktake_hospital_integrity()');
+ IF body IS DISTINCT FROM format('SELECT COALESCE(pharmacy_operating_choice_integrity()AND pharmacy_stocktake_source_recovery_integrity()AND pharmacy_stocktake_hospital_support_state()=%L::jsonb,false)',before_state::text)THEN
+  RAISE EXCEPTION 'hospital source seal predecessor changed' USING ERRCODE='23514';
+ END IF;
+ SELECT prosrc INTO STRICT body FROM pg_proc WHERE oid=to_regprocedure('pharmacy_stocktake_hospital_choice_integrity()');
+ IF body IS DISTINCT FROM format('SELECT COALESCE(pharmacy_operating_choice_support()AND pharmacy_stocktake_hospital_choice_state()=%L::jsonb,false)',pharmacy_stocktake_hospital_choice_state()::text)THEN
+  RAISE EXCEPTION 'hospital choice structure changed' USING ERRCODE='23514';
+ END IF;
+ IF(SELECT count(*)FROM jsonb_array_elements(before_state->'policies')entry WHERE entry->>0='pharmacy_stock_movements'AND entry->>1='tenant_isolation')<>1 THEN
+  RAISE EXCEPTION 'expected one movement policy in source seal' USING ERRCODE='23514';
  END IF;
  FOREACH relation IN ARRAY ARRAY['pharmacy_catalogue_products'::regclass,'pharmacy_reorder_levels'::regclass,
  'pharmacy_stock_batches'::regclass,'pharmacy_stock_movements'::regclass,'pharmacy_stock_locations'::regclass]
@@ -31,9 +57,21 @@ BEGIN
    RAISE EXCEPTION 'outlet write policy changed on %',relation USING ERRCODE='23514';
   END IF;
  END LOOP;
- IF NOT pharmacy_operating_choice_integrity() THEN
+ IF pharmacy_operating_choice_integrity()IS DISTINCT FROM true THEN
   RAISE EXCEPTION 'pharmacy purpose policies changed' USING ERRCODE='23514';
  END IF;
+ SELECT pharmacy_stocktake_hospital_support_state()INTO after_state;
+ SELECT jsonb_agg(CASE WHEN entry->>0='pharmacy_stock_movements'AND entry->>1='tenant_isolation'
+  THEN jsonb_set(entry,'{5}',to_jsonb('controlled-low-stock-read'::text))ELSE entry END ORDER BY ordinal)
+ INTO before_policies FROM jsonb_array_elements(before_state->'policies')WITH ORDINALITY items(entry,ordinal);
+ SELECT jsonb_agg(CASE WHEN entry->>0='pharmacy_stock_movements'AND entry->>1='tenant_isolation'
+  THEN jsonb_set(entry,'{5}',to_jsonb('controlled-low-stock-read'::text))ELSE entry END ORDER BY ordinal)
+ INTO after_policies FROM jsonb_array_elements(after_state->'policies')WITH ORDINALITY items(entry,ordinal);
+ IF jsonb_set(before_state,'{policies}',before_policies)IS DISTINCT FROM jsonb_set(after_state,'{policies}',after_policies)THEN
+  RAISE EXCEPTION 'unrelated hospital source authority changed' USING ERRCODE='23514';
+ END IF;
+ -- Re-pin the exact new clause only after the complete remaining source matches.
+ EXECUTE format('CREATE OR REPLACE FUNCTION pharmacy_stocktake_hospital_integrity()RETURNS boolean LANGUAGE sql STABLE AS %L',format('SELECT COALESCE(pharmacy_operating_choice_integrity()AND pharmacy_stocktake_source_recovery_integrity()AND pharmacy_stocktake_hospital_support_state()=%L::jsonb,false)',after_state::text));
 END $migration$;
 
 -- Refuse a different safety rule rather than silently replacing it.
@@ -95,7 +133,7 @@ LANGUAGE sql STABLE AS $$
 $$;
 
 DO $$BEGIN
- IF NOT pharmacy_operating_choice_integrity() THEN
-  RAISE EXCEPTION 'pharmacy purpose policies changed' USING ERRCODE='23514';
+ IF pharmacy_operating_choice_integrity()IS DISTINCT FROM true OR pharmacy_stocktake_hospital_integrity()IS DISTINCT FROM true THEN
+  RAISE EXCEPTION 'pharmacy source authority changed' USING ERRCODE='23514';
  END IF;
 END $$;

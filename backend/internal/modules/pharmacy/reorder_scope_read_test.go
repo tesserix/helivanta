@@ -29,13 +29,15 @@ func (m priorLowStockReadModule) Migrations() []tenantdb.Migration {
 }
 
 type lowStockPolicy struct {
-	TableName  string
-	PolicyName string
-	Qual       string
-	WriteCheck string
-	Roles      string
-	Permissive bool
-	Command    string
+	TableName        string
+	PolicyName       string
+	Qual             string
+	WriteCheck       string
+	Roles            string
+	Permissive       bool
+	Command          string
+	RowSecurity      bool
+	ForceRowSecurity bool
 }
 
 func TestReorderReadPolicyMigrationPreservesVisibilityAndWrites(t *testing.T) {
@@ -71,7 +73,7 @@ func TestReorderReadPolicyMigrationPreservesVisibilityAndWrites(t *testing.T) {
 				var result []lowStockPolicy
 				require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
 					return tx.Raw(`SELECT c.relname table_name,p.polname policy_name,COALESCE(pg_get_expr(p.polqual,p.polrelid),'') qual,
-      COALESCE(pg_get_expr(p.polwithcheck,p.polrelid),'') write_check,p.polroles::text roles,p.polpermissive permissive,p.polcmd::text command
+      COALESCE(pg_get_expr(p.polwithcheck,p.polrelid),'') write_check,p.polroles::text roles,p.polpermissive permissive,p.polcmd::text command,c.relrowsecurity row_security,c.relforcerowsecurity force_row_security
       FROM pg_policy p JOIN pg_class c ON c.oid=p.polrelid JOIN pg_namespace n ON n.oid=c.relnamespace
       WHERE n.nspname=current_schema() AND (c.relname IN ? OR c.relname IN ('pharmacy_organizations','pharmacy_outlets')) ORDER BY c.relname,p.polname`, targets).Scan(&result).Error
 				}))
@@ -122,6 +124,8 @@ func TestReorderReadPolicyMigrationPreservesVisibilityAndWrites(t *testing.T) {
 			require.Equal(t, len(beforePolicies), len(afterPolicies))
 			changed := 0
 			for i, before := range beforePolicies {
+				require.True(t, before.RowSecurity)
+				require.True(t, before.ForceRowSecurity)
 				after := afterPolicies[i]
 				isTarget := false
 				for _, table := range targets {
@@ -139,7 +143,7 @@ func TestReorderReadPolicyMigrationPreservesVisibilityAndWrites(t *testing.T) {
 			require.Equal(t, beforeVisibility, visibility())
 			require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
 				var intact bool
-				if err := tx.Raw("SELECT pharmacy_operating_choice_integrity()").Scan(&intact).Error; err != nil {
+				if err := tx.Raw("SELECT pharmacy_operating_choice_integrity()AND pharmacy_stocktake_source_recovery_integrity()AND pharmacy_stocktake_hospital_integrity()AND pharmacy_stocktake_hospital_choice_integrity()").Scan(&intact).Error; err != nil {
 					return err
 				}
 				require.True(t, intact)
@@ -157,6 +161,39 @@ func TestReorderReadPolicyMigrationPreservesVisibilityAndWrites(t *testing.T) {
 			require.True(t, strings.Contains(string(level.Level), `"minimum_units":2`))
 			require.Equal(t, 200, do(r, "DELETE", root+"/outlets/"+pharmaOutlet+"/access/user-reader", "editor", "").Code)
 			require.Equal(t, 404, do(r, "GET", productPath(product)+"/reorder-level", "reader", "").Code)
+		})
+	}
+}
+
+func TestReorderReadMigrationRefusesUnrelatedSourceDrift(t *testing.T) {
+	for _, tc := range []struct{ name, sql string }{
+		{"hospital evidence isolation", "ALTER TABLE pharmacy_stocktake_hospital_evidence DISABLE ROW LEVEL SECURITY"},
+		{"private choice restriction", "ALTER POLICY hospital_stocktake_choice_purpose ON pharmacy_catalogue_products USING(true)"},
+		{"source recovery uniqueness", "DROP INDEX pharmacy_staff_binding_current"},
+		{"source seal security", "ALTER FUNCTION pharmacy_stocktake_hospital_integrity() SECURITY DEFINER"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			module := pharmacy.New()
+			migrations := module.Migrations()
+			migration := migrations[len(migrations)-1]
+			_, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{Modules: []platform.Module{priorLowStockReadModule{module}}})
+			require.NoError(t, db.Migrate(t.Context(), []tenantdb.Migration{{ID: "test_low_stock_source_drift", SQL: tc.sql}}))
+			state := func() string {
+				t.Helper()
+				var state string
+				require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+					return tx.Raw(`SELECT jsonb_build_object('hospital',pharmacy_stocktake_hospital_support_state(),'choices',pharmacy_stocktake_hospital_choice_state(),
+      'qual',(SELECT pg_get_expr(polqual,polrelid)FROM pg_policy WHERE polrelid='pharmacy_catalogue_products'::regclass AND polname='tenant_isolation'),
+      'bulk',to_regprocedure('pharmacy_sellable_product_buckets(uuid,uuid,uuid,date)')IS NOT NULL,
+ 'recovery',pharmacy_stocktake_source_recovery_integrity(),
+ 'guard',(SELECT jsonb_build_array(prosrc,prosecdef,provolatile,proconfig)FROM pg_proc WHERE oid=to_regprocedure('pharmacy_stocktake_hospital_integrity()')))::text`).Scan(&state).Error
+				}))
+				return state
+			}
+			before := state()
+			err := db.Migrate(t.Context(), []tenantdb.Migration{migration})
+			require.Error(t, err, "a migration must never bless an unrelated predecessor change")
+			require.Equal(t, before, state(), "refusal must not leave partial policy, function or seal updates")
 		})
 	}
 }

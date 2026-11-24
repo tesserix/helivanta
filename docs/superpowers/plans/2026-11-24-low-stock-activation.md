@@ -49,3 +49,13 @@ Observed candidate evidence as of 24 November:
    explicit bulk/product/blocked-lot parity and the unchanged capacity gate.
    Enable nothing until these pass; production approval must include the
    function delegations as well as policy evaluation.
+
+9. **Wider gate corrections (pending acceptance).** On 0347e7ff, browser and
+   bulk/product/rule-parity tests pass. Count p99 is 373/377 ms, but pages
+   933/942 ms still fail. Use a materialized query-local keyed numeric aggregate
+   to remove the observed 9.5-million-row nested-loop rescan; preserve 500 ms.
+   Full pharmacy and compound-admission regressions detected the hospital
+   stocktake seal's old movement-policy fingerprint. Validate the exact previous
+   seals/choice structure, compare all unrelated metadata, then re-pin the one
+   controlled read-clause change. Prove unrelated evidence, choice, index and
+   guard-property drift is refused atomically; retain all runtime restrictions.

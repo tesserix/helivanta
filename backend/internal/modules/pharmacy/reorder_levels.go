@@ -187,12 +187,23 @@ type lowStockProduct struct {
 func (p lowStockProduct) PageKey() (time.Time, uuid.UUID) { return p.CreatedAt, p.ID }
 
 func lowStockSource(tx *gorm.DB, tenant string, outlet uuid.UUID, observed time.Time) *gorm.DB {
-	return tx.Table("pharmacy_catalogue_products p").Select(`p.id,p.outlet_id,p.created_at,p.sku,p.brand_name,p.unit_of_issue,r.minimum_units,
- COALESCE(available.units,0)::text AS available_units,? AS observed_at,to_char(timezone(o.timezone,?::timestamptz)::date,'YYYY-MM-DD') AS local_date,o.timezone AS time_zone`, observed.UTC().Format(time.RFC3339Nano), observed).
-		Joins("JOIN LATERAL (SELECT minimum_units,unit_of_issue FROM pharmacy_reorder_levels WHERE tenant_id=p.tenant_id AND outlet_id=p.outlet_id AND product_id=p.id ORDER BY version DESC LIMIT 1) r ON true").
-		Joins("JOIN pharmacy_outlets o ON o.tenant_id=p.tenant_id AND o.id=p.outlet_id").
-		Joins("LEFT JOIN (SELECT product_id,SUM(on_hand::numeric) AS units FROM pharmacy_sellable_product_buckets(?,?,NULL,timezone((SELECT timezone FROM pharmacy_outlets WHERE tenant_id=? AND id=?),?::timestamptz)::date) GROUP BY product_id) available ON available.product_id=p.id", tenant, outlet, tenant, outlet, observed).
-		Where("p.tenant_id=? AND p.outlet_id=? AND p.status='active' AND r.minimum_units IS NOT NULL AND r.unit_of_issue=p.unit_of_issue AND COALESCE(available.units,0)<=r.minimum_units", tenant, outlet)
+	return tx.Raw(`WITH available AS MATERIALIZED(
+ SELECT COALESCE(jsonb_object_agg(product_id::text,units),'{}'::jsonb) AS by_product
+ FROM(SELECT product_id,SUM(on_hand::numeric) AS units
+ FROM pharmacy_sellable_product_buckets(?,?,NULL,
+ timezone((SELECT timezone FROM pharmacy_outlets WHERE tenant_id=? AND id=?),?::timestamptz)::date)
+ GROUP BY product_id)totals)
+ SELECT p.id,p.outlet_id,p.created_at,p.sku,p.brand_name,p.unit_of_issue,r.minimum_units,
+ COALESCE((available.by_product->>p.id::text)::numeric,0)::text AS available_units,
+ ? AS observed_at,to_char(timezone(o.timezone,?::timestamptz)::date,'YYYY-MM-DD') AS local_date,o.timezone AS time_zone
+ FROM pharmacy_catalogue_products p
+ JOIN LATERAL(SELECT minimum_units,unit_of_issue FROM pharmacy_reorder_levels
+ WHERE tenant_id=p.tenant_id AND outlet_id=p.outlet_id AND product_id=p.id ORDER BY version DESC LIMIT 1)r ON true
+ JOIN pharmacy_outlets o ON o.tenant_id=p.tenant_id AND o.id=p.outlet_id
+ CROSS JOIN available
+ WHERE p.tenant_id=? AND p.outlet_id=? AND p.status='active' AND r.minimum_units IS NOT NULL
+ AND r.unit_of_issue=p.unit_of_issue AND COALESCE((available.by_product->>p.id::text)::numeric,0)<=r.minimum_units`,
+		tenant, outlet, tenant, outlet, observed, observed.UTC().Format(time.RFC3339Nano), observed, tenant, outlet)
 }
 
 func (h *catalogueHandlers) listLowStock(c *gin.Context, params pagination.Params) ([]lowStockProduct, error) {

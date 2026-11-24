@@ -365,6 +365,10 @@ all-product sellable-bucket calculation. Existing scalar/product functions
 delegate to those owner projections with the same signatures, rule priorities,
 hold arithmetic and exceptions. Approval must explicitly include these function
 delegations because existing sales, balance and supplier guards call them.
+It also validates and re-pins the existing hospital-stocktake source seal for
+the one controlled movement-read clause; every other source field and the
+runtime choice/TRUNCATE restriction remain guarded. Unrelated predecessor drift
+refuses the migration before any authority can be re-sealed.
 
 Before production application, retain the exact-head hosted predecessor/new
 visibility tests, write/purpose metadata checks, denial/revocation, both-owner

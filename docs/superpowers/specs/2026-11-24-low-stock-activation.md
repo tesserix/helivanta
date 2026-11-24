@@ -153,3 +153,23 @@ quarantine, reservations and date boundaries; run the existing block-rule and
 availability regressions alongside migration/owner/browser/capacity acceptance.
 Production approval must explicitly include these SQL function delegations as
 well as the equivalent read-policy optimization.
+
+The first set-based gate passed the count (p99 373/377 ms) but failed pages
+(933/942 ms). EXPLAIN showed 9,499,500 rows removed by a nested-loop join because
+RLS cardinality was underestimated. Materialize one query-local JSONB aggregate
+of canonical per-product numeric totals and use keyed lookups, keeping numeric
+precision and zero only for genuinely absent buckets. This is transient query
+work at the modeled 10,000-product scale, not a persistent projection or shared
+authority cache. It avoids the many-to-many rescan without disabling planner
+features or loosening the target. Keep owner timestamps, keyset pages and count
+semantics unchanged; retain the actual post-change plan and capacity evidence.
+
+The complete owner suite also detected the hospital-stocktake source seal pinning
+the old movement read expression. Before any rewrite, require the existing
+hospital/source-recovery seal, exact sealed-body format and choice structure to
+match current owner metadata. Hold the target-table DDL locks, compare complete
+before/after hospital support state with only the controlled movement USING
+field normalized, then re-pin its exact new state with every existing predicate.
+Reject unrelated table/choice/index/guard-property drift and preserve rollback
+atomicity. The runtime TRUNCATE restriction remains unchanged; the migration
+owner compares the sealed choice structure rather than bypassing that guard.

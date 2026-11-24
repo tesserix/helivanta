@@ -9,7 +9,9 @@ import "./globals.css";
 
 export const metadata: Metadata = { title: "Helivanta" };
 
-// The UI face (#1834 spec D4). Committed OFL files, never a build-time fetch:
+// The UI face (#1834 spec D4). The variable goes on <html>: Tailwind writes
+// --font-sans on :root, so --font-plex must exist there or it resolves to
+// nothing and the page falls back to the system face. Committed OFL files, never a build-time fetch:
 // CI and the image build must not depend on a font host being reachable. One
 // file per weight, each subset to Latin, Latin Extended and currency (₹).
 const plex = localFont({
@@ -30,8 +32,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const nonce = (await headers()).get("x-nonce");
   if (!nonce) throw new Error("missing CSP nonce: middleware did not run");
   return (
-    <html lang="en" data-theme="default" suppressHydrationWarning>
-      <body className={plex.variable}>
+    <html lang="en" data-theme="default" className={plex.variable} suppressHydrationWarning>
+      <body>
         {/* Must run before paint: stamps the chrome's stored panel and
             navigation state on <html> (#1091 D7) so a collapsed panel is never
             drawn open first. CHROME_INIT_SCRIPT is a static, package-authored

@@ -69,11 +69,22 @@ for (const { theme, accent } of palettes) {
       );
       await action.focus();
       await expect(action).toHaveCSS("outline-style", "solid");
-      // The tenant brand is on the focused field, not the button.
+      // The tenant brand is on the focused field's ring, not the button. The
+      // auth input sets its border inline, so the visible focus state is the
+      // 3px box-shadow ring in the accent; compare it with the same ring
+      // computed by the browser for this theme's accent.
       await loginName.focus();
-      await expect(loginName, "focused field carries the tenant accent").toHaveCSS(
-        "border-color",
-        accent,
+      const ring = await page.evaluate((colour) => {
+        const probe = document.createElement("div");
+        probe.style.boxShadow = `0 0 0 3px color-mix(in srgb, ${colour} 24%, transparent)`;
+        document.body.append(probe);
+        const value = getComputedStyle(probe).boxShadow;
+        probe.remove();
+        return value;
+      }, accent);
+      await expect(loginName, "focused field rings in the tenant accent").toHaveCSS(
+        "box-shadow",
+        ring,
       );
 
       await page.setViewportSize({ width: 390, height: 844 });

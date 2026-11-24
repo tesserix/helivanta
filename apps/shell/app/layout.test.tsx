@@ -40,10 +40,11 @@ it("emits no theme script", async () => {
   expect(html).toContain('data-theme="default"');
 });
 
-// The UI face is exposed as a variable on <body>; Tailwind's font-sans reads
-// it (#1834 spec D4).
-it("puts the UI face on the body as a variable", async () => {
+// The UI face variable sits on <html>, where Tailwind resolves --font-sans
+// (#1834 spec D4). The rendered face itself is asserted in
+// e2e/tests/typography.spec.ts; this only pins where the variable lives.
+it("puts the UI face variable on the root element", async () => {
   requestHeaders.current = new Headers({ "x-nonce": "n1" });
   const html = renderToStaticMarkup(await RootLayout({ children: null }));
-  expect(html).toMatch(/<body[^>]*class="[^"]*font-plex-var[^"]*"/);
+  expect(html).toMatch(/<html[^>]*class="[^"]*font-plex-var[^"]*"/);
 });

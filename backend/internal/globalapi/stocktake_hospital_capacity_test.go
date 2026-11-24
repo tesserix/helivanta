@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -46,16 +47,47 @@ func assertHospitalStocktakeCapacity(t *testing.T, db *tenantdb.DB, call func(*t
 	}
 	ownerTx(func(tx *gorm.DB) error {
 		// Report bounded error metadata, never SQL text or statement arguments.
+		before := func(query *gorm.DB) { query.Statement.Settings.Store("test:hospital_capacity_started", time.Now()) }
 		callback := func(query *gorm.DB) {
+			stage := "frame"
+			for _, name := range []string{"pharmacy_stocktake_differences", "pharmacy_stock_movements", "pharmacy_stocktake_adjustments", "pharmacy_stocktake_commands", "pharmacy_stocktake_hospital_evidence", "pharmacy_stocktake_counts", "pharmacy_stocktake_lines", "pharmacy_stocktakes", "audit_events", "outbox_events", "pharmacy_stocktake_hospital_integrity"} {
+				if strings.Contains(query.Statement.SQL.String(), name) {
+					stage = name
+					break
+				}
+			}
+			var elapsed time.Duration
+			if started, ok := query.Statement.Settings.Load("test:hospital_capacity_started"); ok {
+				elapsed = time.Since(started.(time.Time))
+			}
+			if elapsed > 100*time.Millisecond {
+				t.Logf("hospital capacity stage=%s elapsed=%s", stage, elapsed)
+			}
 			if query.Error == nil {
 				return
 			}
 			var pg *pgconn.PgError
 			if errors.As(query.Error, &pg) {
-				t.Logf("hospital capacity SQL failure: state=%s constraint=%s", pg.Code, pg.ConstraintName)
+				t.Logf("hospital capacity SQL failure: stage=%s state=%s constraint=%s", stage, pg.Code, pg.ConstraintName)
 			} else {
-				t.Logf("hospital capacity query failure: type=%T deadline=%t cancelled=%t", query.Error, errors.Is(query.Error, context.DeadlineExceeded), errors.Is(query.Error, context.Canceled))
+				t.Logf("hospital capacity query failure: stage=%s type=%T deadline=%t cancelled=%t", stage, query.Error, errors.Is(query.Error, context.DeadlineExceeded), errors.Is(query.Error, context.Canceled))
 			}
+		}
+
+		if err := tx.Callback().Create().Before("gorm:create").Register("test:hospital_capacity_started", before); err != nil {
+			return err
+		}
+		if err := tx.Callback().Raw().Before("gorm:raw").Register("test:hospital_capacity_started", before); err != nil {
+			return err
+		}
+		if err := tx.Callback().Query().Before("gorm:query").Register("test:hospital_capacity_started", before); err != nil {
+			return err
+		}
+		if err := tx.Callback().Row().Before("gorm:row").Register("test:hospital_capacity_started", before); err != nil {
+			return err
+		}
+		if err := tx.Callback().Row().After("gorm:row").Register("test:hospital_capacity_error", callback); err != nil {
+			return err
 		}
 		if err := tx.Callback().Create().After("gorm:create").Register("test:hospital_capacity_error", callback); err != nil {
 			return err
@@ -67,6 +99,12 @@ func assertHospitalStocktakeCapacity(t *testing.T, db *tenantdb.DB, call func(*t
 			return err
 		}
 		t.Cleanup(func() {
+			require.NoError(t, tx.Callback().Create().Remove("test:hospital_capacity_started"))
+			require.NoError(t, tx.Callback().Raw().Remove("test:hospital_capacity_started"))
+			require.NoError(t, tx.Callback().Query().Remove("test:hospital_capacity_started"))
+			require.NoError(t, tx.Callback().Row().Remove("test:hospital_capacity_started"))
+			require.NoError(t, tx.Callback().Row().Remove("test:hospital_capacity_error"))
+
 			require.NoError(t, tx.Callback().Create().Remove("test:hospital_capacity_error"))
 			require.NoError(t, tx.Callback().Raw().Remove("test:hospital_capacity_error"))
 			require.NoError(t, tx.Callback().Query().Remove("test:hospital_capacity_error"))

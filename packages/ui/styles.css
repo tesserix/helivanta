@@ -101,6 +101,23 @@
   background: var(--sidebar-primary);
 }
 
+/* The current page in the page panel, on the canvas (#1836 D3). Tenant-themed
+   on purpose: every tenant accent passes on the canvas, and #1834 D2 makes the
+   accent the colour of the current navigation item. */
+.hms-page-current {
+  position: relative;
+}
+.hms-page-current::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.5rem;
+  bottom: 0.5rem;
+  width: 3px;
+  border-radius: 0 2px 2px 0;
+  background: var(--hms-accent);
+}
+
 /* Stored chrome layout from the first paint (#1091 D7). The server renders the
    default (navigation collapsed); CHROME_INIT_SCRIPT stamps the
    stored values on <html> before paint and HmsShell keeps them in step, so

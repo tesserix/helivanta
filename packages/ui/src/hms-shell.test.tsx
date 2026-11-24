@@ -1413,6 +1413,41 @@ describe("flat chrome (#1836)", () => {
     expect(within(home).queryByRole("img")).toBeNull();
   });
 
+  it("draws the header as a row and the page panel as a column", async () => {
+    // A page these permissions reach, so the panel has a current page.
+    await renderShell({}, "/pharmacy/stock");
+    const header = screen.getByRole("banner");
+    const headerClasses = header.className.split(/\s+/);
+    for (const card of ["md:rounded-xl", "md:shadow-sm", "md:border"])
+      expect(headerClasses).not.toContain(card);
+    expect(headerClasses).toContain("border-b");
+    const panel = document.querySelector(".hms-page-panel")!;
+    expect(panel.className).not.toMatch(/md:rounded-xl|md:shadow-sm|md:self-start|sidebar/);
+    expect(panel.className).toContain("md:w-56");
+    const current = within(panel as HTMLElement)
+      .getAllByRole("link")
+      .find((link) => link.getAttribute("aria-current") === "page")!;
+    expect(current.className).toContain("hms-page-current");
+    expect(current.className).not.toMatch(/sidebar/);
+  });
+
+  it("shows the tenant logo in the header only when one is set", async () => {
+    const first = await renderShell({ logo_url: "" });
+    expect(within(screen.getByRole("banner")).queryByRole("img")).toBeNull();
+    first.unmount();
+    await renderShell({ logo_url: "https://example.test/logo.png" });
+    const logo = within(screen.getByRole("banner")).getByRole("img", { name: "YES HOSPITAL logo" });
+    fireEvent.error(logo);
+    expect(within(screen.getByRole("banner")).queryByRole("img")).toBeNull();
+  });
+
+  it("keeps a long hospital name from pushing the account menu off the row", async () => {
+    await renderShell({ display_name: "H".repeat(100), logo_url: "https://example.test/logo.png" });
+    expect(screen.getByRole("banner").firstElementChild!.className.split(/\s+/)).toContain(
+      "flex-wrap",
+    );
+  });
+
   it("rings the rail's controls in the rail focus colour", async () => {
     await renderShell({ theme: "indigo" });
     const collapse = screen.getByRole("button", { name: /(Expand|Collapse) navigation/ });

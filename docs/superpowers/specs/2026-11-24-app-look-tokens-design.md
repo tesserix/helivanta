@@ -143,7 +143,7 @@ pair is critical red on the muted surface at 4.55:1.
 | `--hms-good` / `--hms-warn` / `--hms-crit`  |                       | unchanged             | clinical status                                                                          |
 | `--hms-rose` / tint                         | `#c13b5e` / `#fbedf1` | unchanged             | chart                                                                                    |
 | `--hms-amber` / tint                        | `#92400e` / `#fbf3e4` | unchanged             | chart                                                                                    |
-| `--hms-violet` / tint                       | `#4f46e5` / `#eeeefb` | `#6b1a6e` / `#f7e9f9` | chart; moved off the accent's hue and darkened to separate from it in lightness (1.67:1) |
+| `--hms-violet` / tint                       | `#4f46e5` / `#eeeefb` | `#661565` / `#f7e9f9` | chart; moved off the accent's hue and darkened to separate in lightness from every theme accent (at least 1.68:1) |
 | `--hms-sky` / tint                          | `#1d5da8` / `#e7effa` | `#0e7490` / `#e3f3f8` | chart; moved off blue                                                                    |
 | `--hms-track`                               | `#e7ebf1`             | `#e3e8ef`             | progress track                                                                           |
 | `--hms-band`                                | `#f1f5f9`             | `#f0f4f8`             | home-page bands                                                                          |

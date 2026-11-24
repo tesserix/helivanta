@@ -64,9 +64,14 @@ it("canvas and card are near-identical for autofill", () => {
 });
 
 // Plum (IPD) and the accent (OPD) are the one chart pair in the same hue
-// family; they must still separate for a reader who cannot rely on hue.
-it("plum separates from the accent", () => {
-  expect(contrast(root["--hms-violet"], root["--hms-accent"])).toBeGreaterThanOrEqual(1.6);
+// family; they must still separate for a reader who cannot rely on hue. The
+// workspace sits inside a tenant theme, so OPD takes that theme's accent.
+it.each(["root", "teal", "blue", "indigo"])("plum separates from the %s accent", (scope) => {
+  const accent =
+    scope === "root"
+      ? root["--hms-accent"]
+      : tokensOf(`[data-brand-theme="${scope}"]`)["--hms-accent"];
+  expect(contrast(root["--hms-violet"], accent)).toBeGreaterThanOrEqual(1.6);
 });
 
 const PAIRS: [fg: string, bg: string, min: number][] = [

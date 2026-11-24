@@ -125,7 +125,11 @@ func (h *catalogueHandlers) putOperatingStocktake(c *gin.Context) {
 		saved, err := readStocktakeHeader(tx, p.TenantID, outlet, id)
 		if err == nil {
 			var retained int64
-			if err := tx.Table(use.evidenceTable()).Where("tenant_id=? AND outlet_id=? AND stocktake_id=? AND id=? AND kind='start' AND staff_id=? AND actor_subject=?", p.TenantID, outlet, id, id, use.staffID(), p.Subject).Count(&retained).Error; err != nil {
+			proof := tx.Table(use.evidenceTable()).Where("tenant_id=? AND outlet_id=? AND stocktake_id=? AND id=? AND kind='start' AND staff_id=? AND actor_subject=?", p.TenantID, outlet, id, id, use.staffID(), p.Subject)
+			if use.hospital != nil {
+				proof = proof.Where("hospital_id=? AND department_id=?", use.hospital.hospital, use.hospital.department)
+			}
+			if err := proof.Count(&retained).Error; err != nil {
 				return err
 			}
 			if saved.StartedBy != p.Subject || saved.IntentSHA256 != hash || retained != 1 {
@@ -138,6 +142,9 @@ func (h *catalogueHandlers) putOperatingStocktake(c *gin.Context) {
 			return err
 		}
 		if err := use.stocktakeEvidence(tx, id, "start", nil); err != nil {
+			return err
+		}
+		if err := h.invalidatePriorHospitalStocktake(tx, p, use, id); err != nil {
 			return err
 		}
 		if err := startStocktake(tx, p, outlet, id, in, hash); err != nil {

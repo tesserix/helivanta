@@ -171,6 +171,11 @@ func (u stocktakeWorkUse) stocktakeEvidence(tx *gorm.DB, take uuid.UUID, kind st
 	if u.hospital == nil {
 		return u.operatingStockUse.stocktakeEvidence(tx, take, kind, command)
 	}
+	if kind == "count" || kind == "submit" || kind == "cancel" || kind == "approve" || kind == "reject" {
+		if err := u.requireOriginalHospitalStocktakeSource(tx, take); err != nil {
+			return err
+		}
+	}
 	id, err := uuid.NewV7()
 	if err != nil {
 		return operatingAuditFailure{err}

@@ -62,7 +62,8 @@ const stocktakeHeaderColumns = stocktakeHeaderBaseColumns + `,'counting'::text s
 
 const stocktakeCurrentHeaderColumns = stocktakeHeaderBaseColumns + `,
  COALESCE((SELECT state FROM pharmacy_stocktake_commands c WHERE c.tenant_id=pharmacy_stocktakes.tenant_id AND c.outlet_id=pharmacy_stocktakes.outlet_id AND c.stocktake_id=pharmacy_stocktakes.id ORDER BY version DESC LIMIT 1),'counting') state,
- COALESCE((SELECT MAX(version) FROM pharmacy_stocktake_commands c WHERE c.tenant_id=pharmacy_stocktakes.tenant_id AND c.outlet_id=pharmacy_stocktakes.outlet_id AND c.stocktake_id=pharmacy_stocktakes.id),0) version`
+ COALESCE((SELECT MAX(version) FROM pharmacy_stocktake_commands c WHERE c.tenant_id=pharmacy_stocktakes.tenant_id AND c.outlet_id=pharmacy_stocktakes.outlet_id AND c.stocktake_id=pharmacy_stocktakes.id),0) version,
+ CASE WHEN authority_kind='hospital' THEN pharmacy_stocktake_source_invalidated(tenant_id,outlet_id,id)END source_invalidated`
 
 const stocktakeProgressJoin = `LEFT JOIN LATERAL(
  SELECT COUNT(*) counted_rows,COUNT(*)FILTER(WHERE observed.counted_units<>l.book_units) difference_rows,

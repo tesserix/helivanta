@@ -39,16 +39,16 @@
   --input: #c7cfdc !important;
   --ring: #2b4ee6 !important;
 
-  /* Sidebar — light rails */
-  --sidebar: #ffffff !important;
-  --sidebar-foreground: #0b1324 !important;
-  --sidebar-primary: #0b1324 !important;
-  --sidebar-primary-foreground: #ffffff !important;
-  --sidebar-accent: #e4eaff !important;
-  --sidebar-accent-foreground: #1f3ab8 !important;
-  --sidebar-border: #dfe4ec !important;
-  --sidebar-ring: #2b4ee6 !important;
-  --sidebar-rail: #ffffff !important;
+  /* Sidebar — the rail is ink (#1836); only packages/ui/src/hms-shell.tsx reads these. */
+  --sidebar: #0b1324 !important;
+  --sidebar-foreground: #f6f8fb !important;
+  --sidebar-primary: #7aa0ff !important;
+  --sidebar-primary-foreground: #0b1324 !important;
+  --sidebar-accent: #1a2645 !important;
+  --sidebar-accent-foreground: #ffffff !important;
+  --sidebar-border: #1a2645 !important;
+  --sidebar-ring: #7aa0ff !important;
+  --sidebar-rail: #0b1324 !important;
 
   /* Helivanta semantic tokens */
   --hms-accent: #2b4ee6 !important;

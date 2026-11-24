@@ -39,6 +39,7 @@ func assertHospitalStocktakeSourceRecovery(t *testing.T, db *tenantdb.DB, call f
 					call(t, "DELETE", base+"/access/"+subject, owner, nil, 200)
 				}
 			}
+			access(owner, true)
 			bindingRoot := base + "/hospitals/" + hospital + "/staff-department-bindings/"
 			bind := func(department, revision string, replaces any, replacesVersion any) string {
 				id := v7()

@@ -13,7 +13,11 @@ func assertHospitalStocktakeDepartmentChoices(t *testing.T, call func(*testing.T
 	child, childRevision, sibling := v7(), v7(), v7()
 	departmentRoot := "/v1/organization/hospitals/" + hospital + "/departments/"
 	input := func(code, name string, parent any) map[string]any {
-		return map[string]any{"expected_version": 0, "code": code, "name": name, "kind": "department", "parent_id": parent, "status": "active", "reason": "TEST inherited stocktake department selection"}
+		kind := "department"
+		if parent != nil {
+			kind = "sub_unit"
+		}
+		return map[string]any{"expected_version": 0, "code": code, "name": name, "kind": kind, "parent_id": parent, "status": "active", "reason": "TEST inherited stocktake department selection"}
 	}
 	call(t, "PUT", departmentRoot+child+"/revisions/"+childRevision, owner, input("TEST-COUNT-CHILD", "TEST Inherited counting department", department), 200)
 	call(t, "PUT", departmentRoot+sibling+"/revisions/"+v7(), owner, input("TEST-COUNT-FOREIGN", "TEST Unrelated counting department", nil), 200)

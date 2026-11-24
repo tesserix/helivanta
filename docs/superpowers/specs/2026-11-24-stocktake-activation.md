@@ -111,3 +111,26 @@ RLS, bounded exact outlet coordinates, held current counter/source evidence,
 original/replacement foreign keys, disclosure/write audit and existing private
 choice-purpose restrictions. An invalid or oversized new start rolls back the
 invalidation with it. Duplicate/replayed starts cannot duplicate invalidation.
+
+## Migration and rollback
+
+Migrations 0069/0070 are forward-only expansions and owner-function/policy
+replacements. They create no customer stock movements and backfill no clinical or
+financial data. Historical `started_xact` values remain null; only a genuinely
+new replacement can satisfy the same-transaction guard. Migration preflight
+refuses drift, with bounded lock/statement timeouts. Runtime source seals fail
+closed after unexpected metadata changes.
+
+Deploy the compatible application through Kargo with eligibility still false,
+verify the running revision and schema, then activate the reviewed catalogue and
+Console value. The transaction-local read marker is optional: old binaries retain
+the previous access predicate. Old adjustment writes retain their verified
+per-row timestamp lookup; new writes still pass statement validation. The source
+command trigger independently rejects adoption by an older binary.
+
+If acceptance fails, disable new work through Console and retain original command
+recovery. Do not delete invalidations, old counts, adjustments or audit records,
+or reverse migration 0070 after accepted writes. A code rollback must preserve the
+new source command guards and retained history. Restoring older performance is
+not evidence that the release budgets still pass. Any destructive restoration or
+ownership reconciliation needs its own reviewed, explicitly approved procedure.

@@ -1,22 +1,24 @@
 # Outlet low-stock warnings
 
-Availability: this feature is part of the `pharmacy_stock` release capability,
-which depends on `pharmacy_catalogue`. It remains unavailable until those
-capabilities have completed their release checks and are enabled through
-[Console feature management](../runbooks/feature-flags.md). A source merge or
-passing unit test is not evidence that it is available in a tenant. The overview
-card additionally follows the existing Reports visibility gate, which depends
-on Stock.
+Availability: the dedicated `pharmacy_low_stock` capability depends on
+`pharmacy_setup`. It has its own release checks and
+[Console feature management](../runbooks/feature-flags.md#outlet-low-stock-warnings).
+General Catalogue, Stock and Reports are not prerequisites for this workspace.
+Release eligibility, deployed policy and Console availability must agree before
+it can be used; a source merge alone does not activate it.
 
-1. Select the pharmacy and outlet in PharmaConnect. Open **Stock → Low stock**.
-2. An outlet editor with catalogue-read, catalogue-write and stock-read permission can select an
+1. In PharmaConnect, open **Inventory → Low stock** and select the named pharmacy
+   and outlet. **Outlet stock alerts** shows the exact low-stock product count
+   and observation time. Its link opens the same scoped warning list.
+2. An outlet editor with catalogue-write and stock-read permission can select an
    active product under **Configure reorder level**. Readers can view warnings.
 3. Enable the warning and enter a whole-number minimum in the displayed issue
    unit. Zero means warn when none is available. Save the reorder level.
 4. Products whose available quantity is at or below the minimum appear in the
    list. Products with no batches can appear with zero. The overview's
    **Low-stock products** link opens this same scoped view. Use **Refresh low-stock
-   warnings** to update availability after stock changes elsewhere.
+   overview** and **Refresh low-stock warnings** to update the observations after
+   stock changes elsewhere. Count and list are separately observed requests.
 5. To stop a warning, select the product, clear **Enable low-stock warning**, and
    save. The previous configuration remains in accountable history.
 
@@ -35,3 +37,9 @@ save cannot be confirmed, keep the form open and choose **Check saved result**.
 Only an authoritative not-found response offers **Retry original change**, which
 uses the same command and input. A request failure is never shown as an empty
 stock list. Switching away from an unsaved change asks for confirmation.
+
+Temporary read failures hide the previous count/list rather than reporting zero.
+Use **Try again** for a temporary failure. If access has been revoked, the view
+shows an access message with no retry or editing controls. Ask an authorized
+administrator to review the exact outlet assignment; changing a feature flag
+does not grant access.

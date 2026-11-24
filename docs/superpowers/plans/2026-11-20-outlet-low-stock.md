@@ -16,7 +16,9 @@
    where required; verify signed Kargo rollout, enabled prerequisites and browser
    behavior before closing the issue. Continue #1686 only after #1685 acceptance.
 
-Status: owner API, configuration migration, generated contracts, SDK, UI and tests
-implemented. Local input, API (1,503), shell (2,171) and consumer tests pass. Local
-Go build/vet/lint and configured Next build pass. Hosted database/E2E, review
-and release acceptance are pending; #1685 remains open.
+Status: the original implementation merged in #1761 and deployed on 2026-11-20.
+It remained unavailable behind broad Catalogue/Stock release locks. Continue
+with the [narrow activation plan](2026-11-24-low-stock-activation.md); its focused
+owner, gateway, built-browser, capacity and deployed acceptance gates determine
+#1685 completion. This plan's original test totals are historical, not evidence
+that the new release candidate is accepted.

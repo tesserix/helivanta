@@ -322,3 +322,32 @@ restoration result. Keep real contacts and credentials in private evidence.
 Distinguish hosted CI, live browser and backend checks. Do not call a workflow
 accepted while independent review, recipient verification, scope denial or
 recovery checks remain unexecuted.
+
+## Outlet low-stock warnings
+
+`helivanta.release.pharmacy_low_stock` depends only on `pharmacy_setup`, which
+requires `team_accounts`. Its workflow is **PharmaConnect → Inventory → Low
+stock** (`/pharmacy/low-stock`). It provides an exact outlet count, warning list
+and accountable product/outlet minimum editor. Readers need stock-read permission
+and the exact outlet reader grant; editors additionally need catalogue-write and
+the outlet editor grant. The same checks apply to hospital-owned and independent
+pharmacies. This flag grants neither stock movement nor dispensing authority.
+
+1. Check #1685 acceptance evidence and the deployed application policy version
+   against the canonical contract and chart catalogue. Keep this feature release
+   locked until owner, Global API, built-browser and 10,000-product gates pass.
+2. Deploy the eligible signed revision through the normal Release/Kargo flow.
+3. Let the chart-owned scheduled catalogue sync create the definition disabled.
+   Review it in Console; preserve all other desired feature values.
+4. Enable only **Low stock** with a release reference using the procedure above.
+5. Refresh Helivanta, choose an authorized test outlet and check the count, named
+   list, zero/equality threshold, saved minimum and reload. Verify reader write
+   denial and inaccessible-scope refusal. Never enable broad Stock/Catalogue to
+   prepare fixtures or bypass identity review.
+6. Verify a later scheduled catalogue sync preserves its acknowledged desired
+   value. Record actual release, command and browser evidence in #1685.
+
+Disabling Low stock hides the workspace and denies its APIs. Broad Stock also
+depends on it, preventing legacy list/count exposure if Stock is enabled later.
+Configuration history remains retained. General Catalogue, Reports, receiving,
+ordering and financial capabilities remain governed by their own release gates.

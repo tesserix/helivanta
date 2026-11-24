@@ -45,7 +45,7 @@ func (h *catalogueHandlers) invalidatePriorHospitalStocktake(tx *gorm.DB, p auth
 		return nil
 	}
 	if len(active) != 1 {
-		return errStocktakeChanged
+		return authz.ErrScopedAuthorizationUnavailable
 	}
 	var original struct{ BindingID uuid.UUID }
 	if err := tx.Table("pharmacy_stocktake_hospital_evidence").Select("binding_id").Where("tenant_id=? AND outlet_id=? AND stocktake_id=? AND id=? AND kind='start'", p.TenantID, use.outlet, active[0].ID, active[0].ID).Take(&original).Error; err != nil {
@@ -57,6 +57,5 @@ func (h *catalogueHandlers) invalidatePriorHospitalStocktake(tx *gorm.DB, p auth
 	if err := tx.Exec(`INSERT INTO pharmacy_stocktake_source_invalidations(tenant_id,outlet_id,stocktake_id,replacement_stocktake_id,original_binding_id,replacement_binding_id,actor_subject)VALUES(?,?,?,?,?,?,?)`, p.TenantID, use.outlet, active[0].ID, replacement, original.BindingID, use.hospital.binding, p.Subject).Error; err != nil {
 		return err
 	}
-	return h.audit(tx, p, "pharmacy.stocktake.source_invalidated", "pharmacy_stocktakes", active[0].ID,
-		map[string]any{"binding_id": original.BindingID}, map[string]any{"replacement_binding_id": use.hospital.binding, "replacement_stocktake_id": replacement})
+	return nil
 }

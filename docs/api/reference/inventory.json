@@ -6873,7 +6873,7 @@
         },
         {
           "id": "0070_pharmacy_stocktake_source_recovery",
-          "sql_sha256": "0e53df4223d2a6f4a1227b62c4a59d1ecc6afb0dd7d2012182911b30a6c526eb",
+          "sql_sha256": "b4222a70be1d9b0017a441405b24803f7832602e0bba466f4039b7b231626d24",
           "creates_tables": [
             "pharmacy_stocktake_source_invalidations"
           ]

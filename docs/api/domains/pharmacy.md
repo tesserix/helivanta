@@ -2198,6 +2198,13 @@ Completed counts are never invalidated. Old receipt recovery retains its origina
 hospital/department restriction; retirement transfers no recovery authority to a
 new department.
 
+Reviewed correction inserts validate their immutable snapshot line, approved
+location, batch, units, actor, reason and command reference through the existing
+complete statement validator. Their location check runs there once per batch;
+other movement purposes retain the original per-row location guard. The per-row
+quantity/reservation lock and checks remain in force for every movement. An
+unlinked reviewed correction is rejected on quarantine and sellable locations.
+
 Source-recovery acceptance, current capacity/protected checks and both-model live
 verification remain activation gates; these candidate migrations are not a live
 rollout approval.

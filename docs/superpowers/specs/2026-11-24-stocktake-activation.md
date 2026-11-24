@@ -134,3 +134,14 @@ or reverse migration 0070 after accepted writes. A code rollback must preserve t
 new source command guards and retained history. Restoring older performance is
 not evidence that the release budgets still pass. Any destructive restoration or
 ownership reconciliation needs its own reviewed, explicitly approved procedure.
+
+The combined recovery/capacity run exposed a remaining movement-insert deadline
+(45334430486), despite successful source recovery. Reviewed corrections already
+have a full statement validator matching their immutable line and approved
+location, units, batch, actor, reason and command reference. Migration 0070 routes
+only current reviewed corrections through that complete location validation,
+retaining per-row location guards for every other purpose and all per-row
+quantity/reservation locks and bounds. The sellable unlinked-correction test was
+observed reaching the old row guard in 45337096105; current validation must prove
+both location types reach the complete movement-evidence refusal and preserve
+supplier reservations. Capacity must be remeasured before activation.

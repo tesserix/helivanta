@@ -27,6 +27,11 @@ func assertHospitalStocktakeDepartmentChoices(t *testing.T, db *tenantdb.DB, cal
 		call(t, "PUT", departmentRoot+child+"/revisions/"+v7(), owner, retired, 200)
 	})
 	call(t, "PUT", departmentRoot+sibling+"/revisions/"+v7(), owner, input("TEST-COUNT-FOREIGN", "TEST Unrelated counting department", nil), 200)
+	t.Cleanup(func() {
+		retired := input("TEST-COUNT-FOREIGN", "TEST Unrelated counting department", nil)
+		retired["expected_version"], retired["status"] = 1, "retired"
+		call(t, "PUT", departmentRoot+sibling+"/revisions/"+v7(), owner, retired, 200)
+	})
 	endpoint := "/v1/pharmacy/hospitals/" + hospital + "/departments/" + department + "/stocktake-department-choices"
 	for _, actor := range []string{counter, reviewer} {
 		seen := map[string]bool{}

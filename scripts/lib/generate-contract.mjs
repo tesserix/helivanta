@@ -78,7 +78,13 @@ export async function generateContract(moduleName) {
       go += `${pascal(field.name)} ${goType} \`${tags.join(" ")}\`\n`;
       let schema =
         names[base] ??
-        (base === "uuid" ? "identifier" : base === "string" ? "z.string()" : "z.number().int()");
+        (base === "uuid"
+          ? "identifier"
+          : base === "string"
+            ? "z.string()"
+            : base === "bool"
+              ? "z.boolean()"
+              : "z.number().int()");
       if (field.uuid_any)
         schema =
           'z.string().guid().refine(value=>value!=="00000000-0000-0000-0000-000000000000","Choose a valid hospital reference.")';

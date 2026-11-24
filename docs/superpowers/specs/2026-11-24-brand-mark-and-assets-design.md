@@ -119,24 +119,56 @@ written by hand:
 - `icon-192.png`, `icon-512.png` and `maskable-icon-512.png` served from
   `apps/shell/public/` for the manifest.
 
-`BrandLogo` in `packages/ui/src/branding.tsx` renders the mark inline (an
-SVG component, not an `<img>`) when a tenant has no logo, in `currentColor`
-for the bars so it follows the rail's ink or white, with the pulse on the
-accent token. The home page nav uses the same component with the wordmark
-beside it. The `HeartPulse` import goes.
+`BrandLogo` in `packages/ui/src/branding.tsx` renders the mark inline when a
+tenant has no logo. The component is generated: `generate.mjs` emits
+`packages/ui/src/brand-mark.generated.tsx` from the same geometry (bars in
+`currentColor`, pulse in `var(--hms-accent)` by default or
+`var(--hms-accent-on-ink)` when an `onInk` prop is set), so there is one
+source for the shape and D7's staleness check covers the TSX too. The tiles
+around the icon today (the rail's `bg-primary` square in `hms-shell.tsx`,
+the home nav's `bg-(--hms-accent)` square) go: the mark sits directly on the
+surface, ink on the canvas and white on the ink rail, which is also what
+#1836's rail expects. A new token `--hms-accent-on-ink: #7aa0ff` is declared
+in `packages/ui/styles.css` (8.0:1 on `#0b1324`) and asserted in
+`contrast.test.ts` against `--foreground`; it is the only token this change
+adds. The `HeartPulse` import goes.
+
+The home page nav shows the mark with "helivanta" set as text in the page's
+Anek face (weight 700, tracking −0.03 em), not the outlined path; the
+outlines are for images, where no font is available. The sign-in header
+keeps `BrandMark` as it is: the mark and `display_name` as text, which under
+the platform brand reads "Helivanta" and under a tenant reads the hospital's
+name. No discriminator between "platform" and "tenant without a logo" is
+needed, because the surfaces that show the wordmark lockup (home nav, rail
+head, social image) are platform-owned by construction.
+
+`apps/shell/app/layout.tsx` metadata gains `metadataBase: new
+URL("https://helivanta.app")` so the OpenGraph image URL is absolute. The
+origin is a constant, the same one baked into the social image and recorded
+in the rebrand spec (#863) as the deployed origin; it moves to an environment
+variable only if a second public origin ever exists. Dev previews emit the
+production URL in their link previews, which is acceptable for metadata.
+
+`manifest.webmanifest` carries icons and colours only: `display: "browser"`,
+`start_url: "/"`. Installable standalone mode is not tested against the OIDC
+redirect flow on iOS and is out of scope; the generator emits `browser` and
+the manifest's purpose here is the home-screen icon set. The new public asset
+paths are added to `middleware.ts`'s unauthenticated allowlist, since a
+manifest fetch carries no cookies and would otherwise redirect to `/login`.
 
 ### D7 Staleness is a CI failure
 
-`brand/generate.mjs` is run in the web CI job and `git diff --exit-code
-brand/ apps/shell/app/icon.svg apps/shell/app/favicon.ico
-apps/shell/app/apple-icon.png apps/shell/app/opengraph-image.png
-apps/shell/public/icon-*.png apps/shell/public/maskable-icon-512.png` must
-be clean. `outlines.json` is committed and not regenerated in CI, because
-that step needs a Python toolchain the job does not have; a change to the
-wordmark text or weight regenerates it locally as the README says. PNG output
-must be byte-stable for this to work: the generator sets a fixed sharp
-density and compression and no timestamps, and the check is proven by
-running it twice.
+`brand/generate.mjs --check` runs in the web CI job after install. Text
+outputs (every SVG, `manifest.webmanifest`, `brand-mark.generated.tsx`) are
+compared byte for byte against the committed files. Raster outputs (every
+PNG and the PNGs inside `favicon.ico`) are compared as decoded pixels, not
+bytes: the committed files were rasterised on macOS and CI runs on Linux,
+and libvips or zlib may pack identical pixels differently. A pixel
+difference or a text difference fails the job and names the file.
+`outlines.json` is committed and not regenerated in CI, because that step
+needs a Python toolchain the job does not have; a change to the wordmark
+text or weight regenerates it locally as the README says. The check is
+proven by editing one hue in `generate.mjs` without regenerating.
 
 ### D8 CSP and sizes
 

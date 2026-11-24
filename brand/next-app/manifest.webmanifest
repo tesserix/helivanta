@@ -2,7 +2,7 @@
   "name": "Helivanta",
   "short_name": "Helivanta",
   "start_url": "/",
-  "display": "standalone",
+  "display": "browser",
   "background_color": "#f6f8fb",
   "theme_color": "#0b1324",
   "icons": [

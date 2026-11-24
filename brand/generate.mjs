@@ -210,7 +210,9 @@ write(
       name: "Helivanta",
       short_name: "Helivanta",
       start_url: "/",
-      display: "standalone",
+      // Icons only. Standalone mode is untested against the OIDC redirect
+      // flow on iOS, so the manifest does not make the app installable yet.
+      display: "browser",
       background_color: CANVAS,
       theme_color: INK,
       icons: [

@@ -23,7 +23,7 @@
 
 ## Review Focus
 
-1. **A tenant theme on sign-in.** After D2 the submit button is ink under every theme, so a tenant whose accent is dark could lose every visible trace of their brand. Pinned in Task 5: the focused field's ring and the split-layout story panel carry the theme's accent and tint.
+1. **A tenant theme on sign-in.** After D2 the submit button is ink under every theme, so a tenant whose accent is dark could lose every visible trace of their brand. Pinned in Task 5: the focused field's ring carries the theme's accent. The story panel's tint is deliberately not asserted, because #1836 turns that panel ink.
 2. **Autofilled inputs.** The autofill override paints `var(--background)` behind autofilled text; with the canvas now `#f6f8fb` and cards white, an autofilled field on a white card shows a faint tinted box. Pinned in Task 2: `--background` on `--card` is asserted below 1.1:1 so the difference is invisible, and the comment in styles.css records it.
 3. **Chart series after the hue move.** The dashboard's OPD series reads `--hms-accent` and IPD reads `--hms-violet`; a reader with deuteranopia must still tell plum from ultramarine. Pinned in Task 2: `--hms-violet` against `--hms-accent` is asserted at 2:1 or more in lightness-independent terms (the pair's contrast ratio), the one chart pair that shares a hue family.
 4. **Font fallback before hydration and on a slow network.** `next/font` with `display: "swap"` shows the system face first; a layout shift on dense tables is the visible cost. Pinned in Task 1: the font is loaded with `display: "swap"` and `adjustFontFallback` left on (the default), and the layout test asserts the variable class is on `<body>`.
@@ -320,7 +320,7 @@ git push
 - Modify: `e2e/tests/login-appearance.spec.ts`
 
 **Interfaces:**
-- Consumes: Task 2's values. Button `rgb(11, 19, 36)` under every theme. Accents: teal `rgb(14, 107, 99)`, blue `rgb(29, 93, 168)`, indigo `rgb(83, 82, 166)`. Dims: teal `rgb(217, 238, 234)`, blue `rgb(231, 239, 250)`, indigo `rgb(238, 237, 249)`.
+- Consumes: Task 2's values. Button `rgb(11, 19, 36)` under every theme. Accents: teal `rgb(14, 107, 99)`, blue `rgb(29, 93, 168)`, indigo `rgb(83, 82, 166)`.
 
 - [ ] **Step 1: Rewrite the palette table and the assertions**
 
@@ -329,9 +329,9 @@ Replace the `palettes` constant with:
 ```ts
 const INK = "rgb(11, 19, 36)";
 const palettes = [
-  { theme: "teal", accent: "rgb(14, 107, 99)", dim: "rgb(217, 238, 234)" },
-  { theme: "blue", accent: "rgb(29, 93, 168)", dim: "rgb(231, 239, 250)" },
-  { theme: "indigo", accent: "rgb(83, 82, 166)", dim: "rgb(238, 237, 249)" },
+  { theme: "teal", accent: "rgb(14, 107, 99)" },
+  { theme: "blue", accent: "rgb(29, 93, 168)" },
+  { theme: "indigo", accent: "rgb(83, 82, 166)" },
 ] as const;
 ```
 
@@ -345,14 +345,9 @@ const ring = await loginName.evaluate((el) => {
   return `${s.outlineColor} ${s.boxShadow} ${s.borderColor}`;
 });
 expect(ring, "focused field carries the tenant accent").toContain(accent);
-if (layout === "split") {
-  const story = page.locator(".login-story");
-  await expect(story).toBeVisible();
-  expect(await story.evaluate((el) => getComputedStyle(el).backgroundImage)).toContain(dim);
-}
 ```
 
-`.login-story` is `display: none` below `lg`, so the split assertion runs before the viewport is set to 390 wide; keep it above the `setViewportSize` call.
+The story panel's tint is not asserted: #1836 turns that panel ink, and this spec must survive that change unedited.
 
 - [ ] **Step 2: Lint and type-check the e2e workspace**
 

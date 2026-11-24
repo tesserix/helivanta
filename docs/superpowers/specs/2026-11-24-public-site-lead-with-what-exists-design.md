@@ -93,19 +93,23 @@ to the roadmap page under the heading "What comes next". The chapter
 numbering on the home page runs 1 to 4; the roadmap page has its own
 sequence, since it is its own story.
 
-### D2 Screenshots replace diagrams where the feature exists
+### D2 Screenshots replace diagrams where the feature exists (second half, #1838)
 
-Chapters 1 to 4 each get one screenshot of the real screen the chapter
-describes, taken from the seeded QA workspace after #1834 and #1836: the
-hospital overview, the OPD visit list, the counter sale with a Schedule H1
-line blocked, and the audit trail. The animated boards (`CareBoard`,
+This decision ships separately as #1838, after #1834, #1836 and the
+catalogue refresh, so the structural change in D1 and D3 to D8 does not wait.
+Chapters 1 to 4 each get one screenshot of a shipped screen: chapter 1 the
+hospital overview (`/dashboard`), chapter 2 the OPD visit list
+(`/medicore/opd`), chapter 3 the pharmacy sales register (`/pharmacy/sales`,
+the one trail of tablets and payments that exists today), chapter 4 the
+stock overview (`/pharmacy/stock-overview`). There is no audit-trail screen
+and no ward board yet, so neither is shot. The animated boards (`CareBoard`,
 `PatientJourney`, `AuditTrail`, `StockWatch`) stay as the interactive
-element beneath the screenshot where the chapter has one; the screenshot
-leads. Images are `next/image`, sized, `priority` only on the first,
-`loading="lazy"` on the rest, stored under `apps/shell/public/screens/` at
-2× the rendered width and no wider than 1600 px, as WebP. A one-line caption
-under each names the screen and the date it was taken, so a stale screenshot
-is visible as stale.
+element beneath the screenshot; the screenshot leads. Images are
+`next/image`, sized, `priority` only on the first, `loading="lazy"` on the
+rest, stored under `apps/shell/public/screens/` at 2× the rendered width and
+no wider than 1600 px, as WebP. A one-line caption under each names the
+screen and the date it was taken, so a stale screenshot is visible as stale.
+Until #1838 lands, each chapter shows its board as today.
 
 ### D3 The platform grid shows what exists; the rest is on the roadmap
 
@@ -121,15 +125,22 @@ every module with every status, exactly as the home page does today, and the
 
 The three placeholder cards and their sentence move to the roadmap page as
 they are. The home page's `#trust` anchor and nav link go; the nav gains a
-"Roadmap" link in its place. The footer gains the same link.
+"Roadmap" link in its place. The public pages also gain a short links row
+above `TesserixFooter` (Roadmap, Trust, Emergency help) rendered by
+`page.tsx` and the roadmap page themselves. `TesserixFooter` is shared with
+the workspace chrome (`hms-shell.tsx`) and does not change; a signed-in
+clinician never sees a roadmap link.
 
 ### D5 The close
 
 The reviews placeholder section is removed. The last section is a plain
-close: a two-line heading in the same voice as the hero, the primary action
-("Start your workspace"), and a secondary link to the existing contact flow
-(`2026-10-26-contact-chat-design.md`) labelled "Talk to us". No background
-band, no gradient; the canvas, the heading, two controls.
+close: a two-line heading in the same voice as the hero and the primary
+action ("Start your workspace"). The contact flow
+(`2026-10-26-contact-chat-design.md`, #1355) is not built yet, and a
+"Talk to us" that leads nowhere would be the placeholder this document
+removes elsewhere, so the secondary control is added by #1355 when it lands,
+not stubbed here. No background band, no gradient; the canvas, the heading,
+one control.
 
 ### D6 Template devices
 
@@ -143,6 +154,26 @@ The nav's `HeartPulse` in a grey square becomes `BrandLogo` with the wordmark
 beside it, as #1835 D6 arranges, once that lands. If this change lands
 first, the nav keeps the current icon and the swap is part of #1835.
 
+### D9 The content inventory spans both pages
+
+`landing-content.test.tsx` and `landing-content.fixture.json` freeze every
+string on `/` (`2026-10-28-home-story-chapters.md` D6: no existing string may
+disappear). Moving chapter 5, the trust section and the grid's planned rows
+to `/roadmap` keeps every one of those strings in the product; the inventory
+is extended to render both pages and assert the union, so the guarantee
+becomes "no string disappears from the public site". The reviews
+placeholder's strings do disappear, deliberately; the home-story-chapters
+spec gets a note under D6 recording that this document supersedes it for the
+reviews section and widens the inventory to two pages.
+
+### D10 Catalogue truth is a prerequisite for screenshots, not for this change
+
+The catalogue describes Pharmacy sales and returns as planned while the
+routes ship. D3's filter alone would put a screenshot of a sale beside a row
+saying sales are planned, so the catalogue refresh is its own issue and
+blocks #1838. D3 ships now with the catalogue as it is; the filter is on
+status, and corrected statuses flow through without further change.
+
 ### D8 Honesty stays visible
 
 The roadmap page is linked from the nav, the footer, the platform section and
@@ -155,7 +186,11 @@ it is.
 - Whether `/roadmap` is a route under `apps/shell/app/roadmap/` with its own
   `page.tsx` reusing the landing components, or a second export from the
   landing module. A route is expected; it needs no permission since it is
-  public, and it gets the same `.home-slate` wrapper and Anek font.
+  public, and it gets the same `.home-slate` wrapper and Anek font. It is
+  added to `middleware.ts`'s public allowlist and to `hmsPublicPages` in
+  `apps/shell/eslint.config.mjs`.
+- The sectors section's left-border callout is treated like the "Today:"
+  ones (D6).
 - The capture process for screenshots (viewport, scale, which QA tenant),
   documented in a comment beside the images' import.
 - Exact section ids on the roadmap page.

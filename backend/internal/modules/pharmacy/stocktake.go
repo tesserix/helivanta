@@ -312,7 +312,9 @@ func startStocktake(tx *gorm.DB, p authn.Principal, outlet, id uuid.UUID, in Sto
 		ProductCount int64
 		Body         json.RawMessage
 	}
-	if err := tx.Raw(stocktakeSnapshotQuery, p.TenantID, outlet, in.Selection == "all", stocktakeUUIDArray(in.ProductIds)).Scan(&capture).Error; err != nil {
+	if err := withNativeStocktakeSnapshot(tx, func() error {
+		return tx.Raw(stocktakeSnapshotQuery, p.TenantID, outlet, in.Selection == "all", stocktakeUUIDArray(in.ProductIds)).Scan(&capture).Error
+	}); err != nil {
 		return err
 	}
 	if in.Selection == "selected" && capture.ProductCount != int64(len(in.ProductIds)) {

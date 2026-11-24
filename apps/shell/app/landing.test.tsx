@@ -154,5 +154,7 @@ it("shows the Helivanta mark and word in the nav", () => {
   const home = screen.getByRole("link", { name: "Helivanta home" });
   expect(home.querySelector("svg path")!.getAttribute("stroke")).toBe("var(--hms-accent)");
   expect(home.textContent).toBe("helivanta");
+  // The word is set in Anek through the stylesheet, like the headlines.
+  expect(within(home).getByText("helivanta").className).toContain("home-wordmark");
   expect(home.querySelector(".rounded-xl")).toBeNull();
 });

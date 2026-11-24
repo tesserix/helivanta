@@ -174,7 +174,7 @@ export default function LandingPage() {
             {/* The lockup (#1835 D3): mark, then the word in the page's Anek face;
                 the outlined wordmark is for images, where no font is loaded. */}
             <HelivantaMark className="size-8" />
-            <span className="font-[family-name:var(--font-anek)]">helivanta</span>
+            <span className="home-wordmark">helivanta</span>
           </Link>
           <div className="hidden items-center gap-7 text-sm text-muted-foreground lg:flex">
             <a href="#how" className="hover:text-foreground">

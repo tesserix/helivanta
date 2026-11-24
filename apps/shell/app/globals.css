@@ -55,9 +55,9 @@
   color-scheme: light;
 }
 
-/* The public page keeps Anek for its headlines only; body text is the shared
-   UI face from the root layout (#1834 spec D4). */
-.home-slate :is(h1, h2, h3) {
+/* The public page keeps Anek for its headlines and the nav's wordmark (#1835
+   D6); body text is the shared UI face from the root layout (#1834 spec D4). */
+.home-slate :is(h1, h2, h3, .home-wordmark) {
   font-family: var(--font-anek), var(--font-sans);
 }
 

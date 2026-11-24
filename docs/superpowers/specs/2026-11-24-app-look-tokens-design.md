@@ -113,43 +113,43 @@ These would make the slice a failure even if it looked right:
 Every value below was checked for contrast on 2026-11-24. The lowest body
 pair is critical red on the muted surface at 4.55:1.
 
-| Token                                       | Today                 | New                   | Role                                                                                     |
-| ------------------------------------------- | --------------------- | --------------------- | ---------------------------------------------------------------------------------------- |
-| `--background`                              | `#f8fafc`             | `#f6f8fb`             | canvas                                                                                   |
-| `--foreground`                              | `#0f172a`             | `#0b1324`             | ink                                                                                      |
-| `--card`, `--popover`                       | `#ffffff`             | `#ffffff`             | surfaces                                                                                 |
-| `--card-foreground`, `--popover-foreground` | `#0f172a`             | `#0b1324`             |                                                                                          |
-| `--primary`                                 | `#334155`             | `#0b1324`             | filled buttons                                                                           |
-| `--primary-foreground`                      | `#ffffff`             | `#ffffff`             |                                                                                          |
-| `--secondary`, `--muted`                    | `#f1f5f9`             | `#f0f4f8`             | quiet surfaces                                                                           |
-| `--secondary-foreground`                    | `#334155`             | `#0b1324`             |                                                                                          |
-| `--muted-foreground`                        | `#475569`             | `#4e5a6e`             | secondary text                                                                           |
-| `--accent`                                  | `#e2e8f0`             | `#e4eaff`             | selected / hover tint                                                                    |
-| `--accent-foreground`                       | `#1e293b`             | `#1f3ab8`             | text on the tint                                                                         |
-| `--destructive`                             | `#c93b3b`             | `#c93b3b`             | unchanged                                                                                |
-| `--border`                                  | `#cbd5e1`             | `#dfe4ec`             | hairlines                                                                                |
-| `--input`                                   | `#cbd5e1`             | `#c7cfdc`             | field borders                                                                            |
-| `--ring`                                    | `#334155`             | `#2b4ee6`             | focus                                                                                    |
-| `--sidebar`, `--sidebar-rail`               | `#f1f5f9`, `#ffffff`  | `#ffffff`             | rail card (slice 2 makes it ink)                                                         |
-| `--sidebar-foreground`                      | `#0f172a`             | `#0b1324`             |                                                                                          |
-| `--sidebar-primary`                         | `#334155`             | `#0b1324`             |                                                                                          |
-| `--sidebar-accent`                          | `#e2e8f0`             | `#e4eaff`             | current item                                                                             |
-| `--sidebar-accent-foreground`               | `#0f172a`             | `#1f3ab8`             |                                                                                          |
-| `--sidebar-border`                          | `#cbd5e1`             | `#dfe4ec`             |                                                                                          |
-| `--sidebar-ring`                            | `#334155`             | `#2b4ee6`             |                                                                                          |
-| `--hms-accent`                              | `#334155`             | `#2b4ee6`             | links, selection                                                                         |
-| `--hms-accent-strong`                       | `#1e293b`             | `#1f3ab8`             | link hover, text on tint                                                                 |
-| `--hms-accent-dim`                          | `#e2e8f0`             | `#e4eaff`             | selection tint                                                                           |
-| `--hms-good` / `--hms-warn` / `--hms-crit`  |                       | unchanged             | clinical status                                                                          |
-| `--hms-rose` / tint                         | `#c13b5e` / `#fbedf1` | unchanged             | chart                                                                                    |
-| `--hms-amber` / tint                        | `#92400e` / `#fbf3e4` | unchanged             | chart                                                                                    |
+| Token                                       | Today                 | New                   | Role                                                                                                              |
+| ------------------------------------------- | --------------------- | --------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `--background`                              | `#f8fafc`             | `#f6f8fb`             | canvas                                                                                                            |
+| `--foreground`                              | `#0f172a`             | `#0b1324`             | ink                                                                                                               |
+| `--card`, `--popover`                       | `#ffffff`             | `#ffffff`             | surfaces                                                                                                          |
+| `--card-foreground`, `--popover-foreground` | `#0f172a`             | `#0b1324`             |                                                                                                                   |
+| `--primary`                                 | `#334155`             | `#0b1324`             | filled buttons                                                                                                    |
+| `--primary-foreground`                      | `#ffffff`             | `#ffffff`             |                                                                                                                   |
+| `--secondary`, `--muted`                    | `#f1f5f9`             | `#f0f4f8`             | quiet surfaces                                                                                                    |
+| `--secondary-foreground`                    | `#334155`             | `#0b1324`             |                                                                                                                   |
+| `--muted-foreground`                        | `#475569`             | `#4e5a6e`             | secondary text                                                                                                    |
+| `--accent`                                  | `#e2e8f0`             | `#e4eaff`             | selected / hover tint                                                                                             |
+| `--accent-foreground`                       | `#1e293b`             | `#1f3ab8`             | text on the tint                                                                                                  |
+| `--destructive`                             | `#c93b3b`             | `#c93b3b`             | unchanged                                                                                                         |
+| `--border`                                  | `#cbd5e1`             | `#dfe4ec`             | hairlines                                                                                                         |
+| `--input`                                   | `#cbd5e1`             | `#c7cfdc`             | field borders                                                                                                     |
+| `--ring`                                    | `#334155`             | `#2b4ee6`             | focus                                                                                                             |
+| `--sidebar`, `--sidebar-rail`               | `#f1f5f9`, `#ffffff`  | `#ffffff`             | rail card (slice 2 makes it ink)                                                                                  |
+| `--sidebar-foreground`                      | `#0f172a`             | `#0b1324`             |                                                                                                                   |
+| `--sidebar-primary`                         | `#334155`             | `#0b1324`             |                                                                                                                   |
+| `--sidebar-accent`                          | `#e2e8f0`             | `#e4eaff`             | current item                                                                                                      |
+| `--sidebar-accent-foreground`               | `#0f172a`             | `#1f3ab8`             |                                                                                                                   |
+| `--sidebar-border`                          | `#cbd5e1`             | `#dfe4ec`             |                                                                                                                   |
+| `--sidebar-ring`                            | `#334155`             | `#2b4ee6`             |                                                                                                                   |
+| `--hms-accent`                              | `#334155`             | `#2b4ee6`             | links, selection                                                                                                  |
+| `--hms-accent-strong`                       | `#1e293b`             | `#1f3ab8`             | link hover, text on tint                                                                                          |
+| `--hms-accent-dim`                          | `#e2e8f0`             | `#e4eaff`             | selection tint                                                                                                    |
+| `--hms-good` / `--hms-warn` / `--hms-crit`  |                       | unchanged             | clinical status                                                                                                   |
+| `--hms-rose` / tint                         | `#c13b5e` / `#fbedf1` | unchanged             | chart                                                                                                             |
+| `--hms-amber` / tint                        | `#92400e` / `#fbf3e4` | unchanged             | chart                                                                                                             |
 | `--hms-violet` / tint                       | `#4f46e5` / `#eeeefb` | `#661565` / `#f7e9f9` | chart; moved off the accent's hue and darkened to separate in lightness from every theme accent (at least 1.68:1) |
-| `--hms-sky` / tint                          | `#1d5da8` / `#e7effa` | `#0e7490` / `#e3f3f8` | chart; moved off blue                                                                    |
-| `--hms-track`                               | `#e7ebf1`             | `#e3e8ef`             | progress track                                                                           |
-| `--hms-band`                                | `#f1f5f9`             | `#f0f4f8`             | home-page bands                                                                          |
-| `--hms-band-ink`                            | `#0f172a`             | `#0b1324`             |                                                                                          |
-| `--hms-band-muted`, `--hms-band-line`       | `#475569`             | `#4e5a6e`             |                                                                                          |
-| `--hms-shadow`                              | `#334155`             | `#0b1324`             |                                                                                          |
+| `--hms-sky` / tint                          | `#1d5da8` / `#e7effa` | `#0e7490` / `#e3f3f8` | chart; moved off blue                                                                                             |
+| `--hms-track`                               | `#e7ebf1`             | `#e3e8ef`             | progress track                                                                                                    |
+| `--hms-band`                                | `#f1f5f9`             | `#f0f4f8`             | home-page bands                                                                                                   |
+| `--hms-band-ink`                            | `#0f172a`             | `#0b1324`             |                                                                                                                   |
+| `--hms-band-muted`, `--hms-band-line`       | `#475569`             | `#4e5a6e`             |                                                                                                                   |
+| `--hms-shadow`                              | `#334155`             | `#0b1324`             |                                                                                                                   |
 
 Why these: the canvas is a cool white rather than pure white so cards still
 read as surfaces; the ink is blue-black rather than grey-black so the page has

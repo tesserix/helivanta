@@ -131,6 +131,14 @@ BEGIN
  RETURN NEW;
 END $$;
 
+-- Reviewed correction rows already have complete statement-level proof of the
+-- immutable line, approved destination, units, actor and source reference.
+-- Keep per-row location checks for all other stock operations.
+DROP TRIGGER pharmacy_stock_movement_location_guard ON pharmacy_stock_movements;
+CREATE TRIGGER pharmacy_stock_movement_location_guard BEFORE INSERT ON pharmacy_stock_movements
+ FOR EACH ROW WHEN(NEW.kind IS DISTINCT FROM 'correction'OR COALESCE(current_setting('app.pharmacy_stock_permission',true),'')IS DISTINCT FROM 'pharmacy.stocktake.review')
+ EXECUTE FUNCTION pharmacy_stock_movement_location_guard();
+
 DO $integrity$
 DECLARE policies text;functions text;policy_count bigint;
 BEGIN

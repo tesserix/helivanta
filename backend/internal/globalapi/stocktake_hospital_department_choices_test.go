@@ -6,9 +6,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/tesserix/helivanta/internal/testutil"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
-func assertHospitalStocktakeDepartmentChoices(t *testing.T, call func(*testing.T, string, string, string, any, int) map[string]any, hospital, department, revision, owner, counter, reviewer string) {
+func assertHospitalStocktakeDepartmentChoices(t *testing.T, db *tenantdb.DB, call func(*testing.T, string, string, string, any, int) map[string]any, hospital, department, revision, owner, counter, reviewer string) {
 	t.Helper()
 	child, childRevision, sibling := v7(), v7(), v7()
 	departmentRoot := "/v1/organization/hospitals/" + hospital + "/departments/"
@@ -20,6 +21,11 @@ func assertHospitalStocktakeDepartmentChoices(t *testing.T, call func(*testing.T
 		return map[string]any{"expected_version": 0, "code": code, "name": name, "kind": kind, "parent_id": parent, "status": "active", "reason": "TEST inherited stocktake department selection"}
 	}
 	call(t, "PUT", departmentRoot+child+"/revisions/"+childRevision, owner, input("TEST-COUNT-CHILD", "TEST Inherited counting department", department), 200)
+	t.Cleanup(func() {
+		retired := input("TEST-COUNT-CHILD", "TEST Inherited counting department", department)
+		retired["expected_version"], retired["status"] = 1, "retired"
+		call(t, "PUT", departmentRoot+child+"/revisions/"+v7(), owner, retired, 200)
+	})
 	call(t, "PUT", departmentRoot+sibling+"/revisions/"+v7(), owner, input("TEST-COUNT-FOREIGN", "TEST Unrelated counting department", nil), 200)
 	endpoint := "/v1/pharmacy/hospitals/" + hospital + "/departments/" + department + "/stocktake-department-choices"
 	for _, actor := range []string{counter, reviewer} {
@@ -66,7 +72,15 @@ func assertHospitalStocktakeDepartmentChoices(t *testing.T, call func(*testing.T
 		}
 		require.Len(t, seen, 2)
 	}
+
+	require.NoError(t, db.Migrate(t.Context(), []tenantdb.Migration{{ID: "test_stocktake_department_disclosure_failure", SQL: `ALTER TABLE audit_events ADD CONSTRAINT test_stocktake_department_disclosure_failure CHECK(action<>'organization.stocktake_departments.read')NOT VALID;`}}))
+	failed := call(t, "GET", endpoint, counter, nil, 503)
+	require.NotContains(t, failed, "data")
+	require.NoError(t, db.Migrate(t.Context(), []tenantdb.Migration{{ID: "test_stocktake_department_disclosure_restore", SQL: `ALTER TABLE audit_events DROP CONSTRAINT test_stocktake_department_disclosure_failure;`}}))
+	require.Len(t, call(t, "GET", endpoint, counter, nil, 200)["data"].([]any), 2)
 	call(t, "GET", endpoint, owner, nil, 404)
 	call(t, "GET", endpoint+"?include_retired=true", counter, nil, 400)
+	call(t, "GET", endpoint+"?limit=21", counter, nil, 400)
+	call(t, "GET", endpoint+"?limit=1&limit=2", counter, nil, 400)
 	call(t, "GET", "/v1/pharmacy/hospitals/"+hospital+"/departments/"+sibling+"/stocktake-department-choices", counter, nil, 404)
 }

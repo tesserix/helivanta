@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "policy_version": "2026-11-24.hospital-stocktake-outlet-choices.v1",
+  "policy_version": "2026-11-24.hospital-stocktake-departments.v1",
   "capabilities": [
     {
       "key": "onboarding",
@@ -6061,6 +6061,11 @@
     {
       "method": "GET",
       "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/stocktake-outlet-choices",
+      "capability": "baseline"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/stocktake-department-choices",
       "capability": "baseline"
     }
   ],

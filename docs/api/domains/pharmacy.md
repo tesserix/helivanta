@@ -2158,18 +2158,30 @@ on return. Dedicated integrity snapshots cover the projection policies and owner
 functions; migration **0068_pharmacy_stocktake_hospital_choice_index** adds the
 concurrent bounded-page index. No live migration or production rollout is implied.
 
-This is exact-department discovery. Inherited ancestor grants still require a
-separate authorized descendant-department selection before exposing a worker UI
-for that hierarchy; this endpoint does not invent Organization-owned hierarchy
-projections. Hierarchy coverage, binding/source replacement recovery, hospital
-browser/capacity and live acceptance remain release gates.
+The candidate descendant collection at
+`GET /v1/pharmacy/hospitals/:hospital/departments/:department/stocktake-department-choices`
+uses the requested assignment department as its root. Under current read/source
+grants, reviewed Staff and a held Organization structure lock, Organization
+projects only current departments within that root: tenant/hospital/root references,
+department/revision references, name and code. Pharmacy never queries Organization
+tables. Pages use the same private account/hospital/root cursor and maximum of 20;
+no governance permission, private Staff data or stock is disclosed. A failed
+owner projection or disclosure audit returns 503 without a partial page; no
+current operational assignment is hidden as 404. Unsupported query fields,
+repeated values and reused foreign cursors return 400. This baseline collection
+supports retained recovery; it does not enable new stocktake work.
+
+Binding/source replacement recovery, hospital maximum posting capacity and live
+acceptance remain release gates.
 
 ### Hospital worker workspace — development candidate
 
 `/pharmacy/working-stocktakes` loads current hospital department assignments and
 independent pharmacy duties through their separate Global API projections. A
-hospital worker chooses a named hospital/department/role, then an approved named
-pharmacy/outlet. Internal account and resource IDs are not display labels.
+hospital worker chooses a named hospital/department/role, then a named working
+department within that assignment and an approved named pharmacy/outlet. A sole
+root department can be selected automatically; descendant choices require an
+explicit selection. Internal account and resource IDs are not display labels.
 Only one authority/location is selected at a time. Assignment version/epoch and
 binding version/department revision isolate component and cache contexts; a
 withdrawn or unverifiable selection removes its work view.

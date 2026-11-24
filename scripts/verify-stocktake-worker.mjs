@@ -85,6 +85,28 @@ try {
           exact: true,
         })
         .click();
+      const departmentsResponse = await page
+        .context()
+        .request.get(
+          `${fixture.gateway_url}/v1/pharmacy/hospitals/${fixture.hospital}/departments/${fixture.department}/stocktake-department-choices?limit=20`,
+          {
+            headers: {
+              authorization: `Bearer ${fixture.accounts[actor].token}`,
+              "X-Helivanta-Expected-Tenant": fixture.tenant_id,
+              "X-Helivanta-Expected-Subject": fixture.accounts[actor].subject,
+            },
+          },
+        );
+      expect(departmentsResponse.ok()).toBe(true);
+      const departments = await departmentsResponse.json();
+      const department = departments.data.find((item) => item.department_id === fixture.department);
+      expect(department).toBeTruthy();
+      await page
+        .getByRole("button", {
+          name: `${department.department_name} · ${department.department_code}`,
+          exact: true,
+        })
+        .click();
       await page.getByRole("button", { name: fixture.outlet_name, exact: true }).click();
     } else {
       await page.getByRole("button", { name: /TEST Independent Pharmacy.*TEST-RX-MAIN/ }).click();

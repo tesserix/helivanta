@@ -17,6 +17,7 @@ func assertHospitalStocktakeWorkflow(t *testing.T, db *tenantdb.DB, call func(*t
 	pharmacy, outlet := v7(), v7()
 	pharmacyBase := "/v1/pharmacy/pharmacies/" + pharmacy
 	call(t, "PUT", pharmacyBase, owner, map[string]any{"code": "SYN-HOSPITAL-STOCKTAKE", "name": "Synthetic hospital stocktake pharmacy", "ownership_type": "hospital_owned"}, 200)
+	call(t, "PUT", pharmacyBase, owner, map[string]any{"code": "SYN-HOSPITAL-STOCKTAKE", "name": "Synthetic hospital stocktake pharmacy", "ownership_type": "independent"}, 409)
 	base := pharmacyBase + "/outlets/" + outlet
 	call(t, "PUT", base, owner, map[string]any{"code": "SYN-HOSPITAL-COUNT", "name": "Synthetic hospital counting outlet", "country_code": "IN", "timezone": "Asia/Kolkata"}, 200)
 	for _, subject := range []string{owner, counter, reviewer} {
@@ -37,7 +38,7 @@ func assertHospitalStocktakeWorkflow(t *testing.T, db *tenantdb.DB, call func(*t
 	for _, subject := range []string{counter, reviewer} {
 		call(t, "DELETE", base+"/access/"+subject, owner, nil, 200)
 	}
-	assertHospitalStocktakeDepartmentChoices(t, call, hospital, department, revision, owner, counter, reviewer)
+	assertHospitalStocktakeDepartmentChoices(t, db, call, hospital, department, revision, owner, counter, reviewer)
 	survivingChoices := assertHospitalStocktakeOutletDiscovery(t, call, hospital, department, revision, pharmacy, outlet, owner, counter, reviewer, approved["binding"].(map[string]any))
 	root := "/v1/pharmacy/hospitals/" + hospital + "/departments/" + department + "/pharmacies/" + pharmacy + "/outlets/" + outlet + "/stocktakes"
 	take := v7()

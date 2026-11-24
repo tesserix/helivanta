@@ -133,3 +133,23 @@ func TestReadOneOutletMatchesTheOutletsList(t *testing.T) {
 	require.Equal(t, 403, do(r, "GET", root+pharmaOutlet, "denied", "").Code)
 	require.Equal(t, 401, do(r, "GET", root+pharmaOutlet, "unknown", "").Code)
 }
+
+func TestStocktakeHospitalOwnershipCannotBeMutated(t *testing.T) {
+	r, db := catalogueHarness(t)
+	for _, ownership := range []string{"independent", "chain", "hospital_owned"} {
+		id := uuid.Must(uuid.NewV7()).String()
+		root := "/v1/pharmacy/pharmacies/" + id
+		input := fmt.Sprintf(`{"code":"TEST-%s","name":"TEST immutable stock owner","ownership_type":%q}`, strings.ToUpper(ownership), ownership)
+		require.Equal(t, 200, do(r, "PUT", root, "editor", input).Code)
+		next := "hospital_owned"
+		if ownership == next {
+			next = "independent"
+		}
+		changed := strings.Replace(input, `"ownership_type":`+fmt.Sprintf("%q", ownership), `"ownership_type":`+fmt.Sprintf("%q", next), 1)
+		require.Equal(t, 409, do(r, "PUT", root, "editor", changed).Code)
+		require.Error(t, catalogueTx(t, db, func(tx *gorm.DB) error {
+			return tx.Exec(`UPDATE pharmacy_organizations SET ownership_type=? WHERE id=?`, next, id).Error
+		}))
+		require.Equal(t, 200, do(r, "PUT", root, "editor", input).Code)
+	}
+}

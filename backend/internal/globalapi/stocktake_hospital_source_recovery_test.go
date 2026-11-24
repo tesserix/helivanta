@@ -114,7 +114,11 @@ func assertHospitalStocktakeSourceRecovery(t *testing.T, db *tenantdb.DB, call f
 			retained := call(t, "GET", oldUnderCurrent, counter, nil, 200)
 			require.Equal(t, true, retained["source_invalidated"])
 			require.EqualValues(t, oldVersion, retained["version"])
-			require.Equal(t, counted, call(t, "GET", oldUnderCurrent+"/counts/"+countCommand, counter, nil, 200))
+			if scenario == "retire" {
+				call(t, "GET", oldUnderCurrent+"/counts/"+countCommand, counter, nil, 404)
+			} else {
+				require.Equal(t, counted, call(t, "GET", oldUnderCurrent+"/counts/"+countCommand, counter, nil, 200))
+			}
 			call(t, "PUT", fresh+"/cancellations/"+v7(), counter, map[string]any{"expected_version": 0, "decision": "cancel", "reason": "TEST finish new-source recovery fixture"}, 200)
 			require.NoError(t, db.WithTenant(tenantdb.WithActor(t.Context(), owner), testutil.TenantA, func(tx *gorm.DB) error {
 				if err := tx.Exec(`SELECT set_config('app.pharmacy_id',?,true),set_config('app.pharmacy_outlet',?,true),set_config('app.pharmacy_subject',?,true)`, pharmacy, outlet, owner).Error; err != nil {

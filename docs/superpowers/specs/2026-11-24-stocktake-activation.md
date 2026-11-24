@@ -70,3 +70,44 @@ Verify UI and Global API for actual hospital and independent QA accounts,
 including wrong tenant/scope, counter versus reviewer, uncertain commands and
 retained recovery on flag withdrawal. Record release/flag commands and restore
 any temporary test state. Provider desired=true alone is not app acceptance.
+
+## Source recovery decision
+
+Recovery remains within Pharmacy and its existing guarded command transaction.
+A new start first has to establish current IAM counter/source grants, reviewed
+Staff, current Organization ancestry/revision, the current hospital-owned outlet
+and independently approved binding. An existing active count with the same
+binding snapshot continues to block a second count.
+
+When a different current approved binding replaces the original source, the
+unique approved-binding-per-outlet index proves the original binding cannot
+still be approved. Append a source-invalidation record for the old unfinished
+count in the same transaction as a successful new start. Pin the index shape,
+validity and uniqueness in the recovery integrity check. Do not invalidate from
+an unknown source, an unapproved replacement, a Staff departure, a release flag
+change or a submitted/posted ledger action. A completed count is never invalidated.
+Invalidating metadata posts no movement and invents no counter or reviewer
+command. It retains original quantities, versions, actors and receipts.
+
+The old header/list reports `source_invalidated: true` while preserving its
+original command state/version. The UI labels the retained source change and
+withholds counting, submission, approval and cancellation on that old record.
+New writes must match the original binding/version/revision even before another
+start records invalidation; original command recovery retains its existing
+current-account, Staff and source restrictions. A retired department does not
+transfer its old command-recovery authority into a replacement department.
+
+Department revision/retirement first makes the old binding unusable through the
+existing Organization reference guard. The independently reviewed replacement
+binding must reference a current revision; then a valid start can invalidate the
+old unfinished count and take a fresh snapshot. End-and-recreate and atomic
+binding replacement follow the same path. There is no event delivery window in
+which an old source authorizes new work, and no asynchronous cleanup dependency.
+
+Only the original start's internal source references are needed for this
+recovery. They remain inside the Pharmacy owner and are not an API projection of
+Staff identity or a reusable permission. The new append-only table uses forced
+RLS, bounded exact outlet coordinates, held current counter/source evidence,
+original/replacement foreign keys, disclosure/write audit and existing private
+choice-purpose restrictions. An invalid or oversized new start rolls back the
+invalidation with it. Duplicate/replayed starts cannot duplicate invalidation.

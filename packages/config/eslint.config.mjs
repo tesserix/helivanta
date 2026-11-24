@@ -58,6 +58,13 @@ const DESIGN_SYNTAX = [
     message:
       "Use SelectControl or FormSelectField from @helivanta/ui (@tesserix/web Select), not a native <select>.",
   },
+  // @tesserix/web's Input paints Tailwind green for `valid`, outside the
+  // tokens and beside the clinical good colour (#1834 spec D5).
+  {
+    selector: "JSXOpeningElement[name.name='Input'] > JSXAttribute[name.name='valid']",
+    message:
+      "Input's valid prop paints a non-token green beside the clinical good colour; show success with text or a status badge (#1834 spec D5).",
+  },
 ];
 
 // The landing page's marketing type reads as a template inside a working tool

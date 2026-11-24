@@ -96,13 +96,15 @@ func TestStocktakePreservesSupplierReservations(t *testing.T) {
 		require.EqualValues(t, 60, held, "reviewed corrections must see holds without legacy outlet access")
 		return nil
 	}))
-	err = reviewPurpose(func(tx *gorm.DB) error {
-		return tx.Exec(`INSERT INTO pharmacy_stock_movements(tenant_id,outlet_id,id,location_id,batch_id,kind,quantity_units,reason,source_reference,actor_subject)
- VALUES(?,?,?,?,?,'correction',1,'TEST reject general correction','TEST-unlinked-reviewed-correction','user-reviewed-stock-only')`, order.OwnerTenantID, fixture.location, uuid.Must(uuid.NewV7()), fixture.quarantine, fixture.stock).Error
-	})
-	var refusal *pgconn.PgError
-	require.ErrorAs(t, err, &refusal)
-	require.Equal(t, "pharmacy_stocktake_movement", refusal.ConstraintName)
+	for _, location := range []uuid.UUID{fixture.quarantine, *fixture.bucket} {
+		err = reviewPurpose(func(tx *gorm.DB) error {
+			return tx.Exec(`INSERT INTO pharmacy_stock_movements(tenant_id,outlet_id,id,location_id,batch_id,kind,quantity_units,reason,source_reference,actor_subject)
+ VALUES(?,?,?,?,?,'correction',1,'TEST reject general correction','TEST-unlinked-reviewed-correction','user-reviewed-stock-only')`, order.OwnerTenantID, fixture.location, uuid.Must(uuid.NewV7()), location, fixture.stock).Error
+		})
+		var refusal *pgconn.PgError
+		require.ErrorAs(t, err, &refusal)
+		require.Equal(t, "pharmacy_stocktake_movement", refusal.ConstraintName, "reviewed rows must pass complete statement-level movement evidence")
+	}
 	call("PUT", path+"/decisions/"+uuid.Must(uuid.NewV7()).String(), "owner", `{"decision":"submit","expected_version":1,"reason":"TEST all shelves counted"}`, 200)
 	approvalPath := path + "/decisions/" + uuid.Must(uuid.NewV7()).String()
 	approval := `{"decision":"approve","expected_version":2,"extra_units_disposition":"no_extra_units","reason":"TEST independent reservation check"}`

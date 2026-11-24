@@ -110,6 +110,15 @@ func assertHospitalStocktakeSourceRecovery(t *testing.T, db *tenantdb.DB, call f
 				require.Equal(t, "source_changed", denied["error"])
 			}
 			fresh := workRoot(targetDepartment) + "/" + v7()
+			if scenario == "end" {
+				invalid := map[string]any{"selection": "all", "product_ids": []string{}, "quarantine_location_id": v7(), "reason": "TEST failed replacement must preserve old evidence"}
+				call(t, "PUT", fresh, counter, invalid, 404)
+				call(t, "GET", fresh, counter, nil, 404)
+				require.NoError(t, db.Migrate(t.Context(), []tenantdb.Migration{{ID: "test_stocktake_recovery_audit_failure", SQL: `ALTER TABLE audit_events ADD CONSTRAINT test_stocktake_recovery_audit_failure CHECK(action<>'pharmacy.stocktake.source_invalidated')NOT VALID;`}}))
+				call(t, "PUT", fresh, counter, start, 503)
+				require.NoError(t, db.Migrate(t.Context(), []tenantdb.Migration{{ID: "test_stocktake_recovery_audit_restore", SQL: `ALTER TABLE audit_events DROP CONSTRAINT test_stocktake_recovery_audit_failure;`}}))
+				call(t, "GET", fresh, counter, nil, 404)
+			}
 			started := call(t, "PUT", fresh, counter, start, 200)
 			require.Equal(t, started, call(t, "PUT", fresh, counter, start, 200))
 			retained := call(t, "GET", oldUnderCurrent, counter, nil, 200)
@@ -125,6 +134,11 @@ func assertHospitalStocktakeSourceRecovery(t *testing.T, db *tenantdb.DB, call f
 				if err := tx.Exec(`SELECT set_config('app.pharmacy_id',?,true),set_config('app.pharmacy_outlet',?,true),set_config('app.pharmacy_subject',?,true)`, pharmacy, outlet, owner).Error; err != nil {
 					return err
 				}
+				var auditCount int64
+				if err := tx.Table("audit_events").Where("tenant_id=? AND resource_id=? AND action='pharmacy.stocktake.source_invalidated'", testutil.TenantA, oldID).Count(&auditCount).Error; err != nil {
+					return err
+				}
+				require.EqualValues(t, 1, auditCount, "failed starts roll back invalidation and successful retries audit once")
 				var result struct{ Units, Corrections int64 }
 				if err := tx.Raw(`SELECT COALESCE(sum(quantity_units),0)units,count(*)FILTER(WHERE kind='correction')corrections FROM pharmacy_stock_movements WHERE tenant_id=? AND outlet_id=?`, testutil.TenantA, outlet).Scan(&result).Error; err != nil {
 					return err

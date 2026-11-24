@@ -128,6 +128,11 @@ describe("AuthCallbackPage", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Your sign-in took too long. Sign in again.",
     );
+    // A session already in this browser must not answer the retry (#1820 slice 2 D2).
+    expect(screen.getByRole("link", { name: "Sign in again" })).toHaveAttribute(
+      "href",
+      "/login?again=1",
+    );
     expect(fetchMock).not.toHaveBeenCalled();
     expect(replace).not.toHaveBeenCalled();
     vi.unstubAllGlobals();
@@ -166,6 +171,10 @@ describe("AuthCallbackPage", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Sign-in didn't finish. Sign in again.",
     );
+    expect(screen.getByRole("link", { name: "Sign in again" })).toHaveAttribute(
+      "href",
+      "/login?again=1",
+    );
     expect(fetchMock).not.toHaveBeenCalled();
     expect(replace).not.toHaveBeenCalled();
     vi.unstubAllGlobals();
@@ -190,7 +199,42 @@ describe("AuthCallbackPage", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "no accessible hospital for this account",
     );
+    expect(screen.getByRole("link", { name: "Sign in again" })).toHaveAttribute(
+      "href",
+      "/login?again=1",
+    );
     expect(replace).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+
+  // #1820 slice 2 D1: the workspace this flow's own state named, never memory.
+  it.each([
+    [
+      "11111111-1111-4111-8111-111111111111",
+      "/login?workspace=11111111-1111-4111-8111-111111111111&start=1",
+    ],
+    ["11111111-1111-4111-8111-11111111111A", "/login?again=1"],
+  ])("sends a refused workspace sign-in back to its workspace (%s)", async (tenantId, href) => {
+    signinRedirectCallback.mockResolvedValue({
+      id_token: "real-id-token",
+      state: { purpose: "workspace-login", tenantId },
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 404,
+        json: async () => ({
+          error: "not_found",
+          message: "no accessible hospital for this account",
+        }),
+      }),
+    );
+
+    render(<AuthCallbackPage />);
+
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Sign in again" })).toHaveAttribute("href", href);
     vi.unstubAllGlobals();
   });
 

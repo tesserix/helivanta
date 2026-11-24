@@ -5,7 +5,7 @@ const tenant = "11111111-1111-4111-8111-111111111111";
 // accent instead (#1834 spec D2). "teal" is the stored default and carries the
 // platform accent. The story panel's tint is deliberately not asserted: #1836
 // turns that panel ink.
-const INK = "rgb(51, 65, 85)"; // RED proof: the old slate; corrected in the next commit
+const INK = "rgb(11, 19, 36)";
 const palettes = [
   { theme: "teal", accent: "rgb(43, 78, 230)" },
   { theme: "blue", accent: "rgb(29, 93, 168)" },

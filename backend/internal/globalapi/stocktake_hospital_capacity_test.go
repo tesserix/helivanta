@@ -1,6 +1,8 @@
 package globalapi
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -9,6 +11,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/require"
 	"github.com/tesserix/helivanta/internal/testutil"
 	"github.com/tesserix/helivanta/pkg/tenantdb"
@@ -41,6 +44,35 @@ func assertHospitalStocktakeCapacity(t *testing.T, db *tenantdb.DB, call func(*t
  SELECT ?,?,('019a2b21-1000-7000-8000-'||lpad(i::text,12,'0'))::uuid,?,('019a2b20-1000-7000-8000-'||lpad(i::text,12,'0'))::uuid,'receipt',10,'TEST hospital capacity fixture','TEST-hospital-capacity:'||i,? FROM generate_series(?::integer,?::integer)i`, testutil.TenantA, outlet, quarantine, owner, first, last).Error
 		})
 	}
+	ownerTx(func(tx *gorm.DB) error {
+		// Report bounded error metadata, never SQL text or statement arguments.
+		callback := func(query *gorm.DB) {
+			if query.Error == nil {
+				return
+			}
+			var pg *pgconn.PgError
+			if errors.As(query.Error, &pg) {
+				t.Logf("hospital capacity SQL failure: state=%s constraint=%s", pg.Code, pg.ConstraintName)
+			} else {
+				t.Logf("hospital capacity query failure: type=%T deadline=%t cancelled=%t", query.Error, errors.Is(query.Error, context.DeadlineExceeded), errors.Is(query.Error, context.Canceled))
+			}
+		}
+		if err := tx.Callback().Create().After("gorm:create").Register("test:hospital_capacity_error", callback); err != nil {
+			return err
+		}
+		if err := tx.Callback().Raw().After("gorm:raw").Register("test:hospital_capacity_error", callback); err != nil {
+			return err
+		}
+		if err := tx.Callback().Query().After("gorm:query").Register("test:hospital_capacity_error", callback); err != nil {
+			return err
+		}
+		t.Cleanup(func() {
+			require.NoError(t, tx.Callback().Create().Remove("test:hospital_capacity_error"))
+			require.NoError(t, tx.Callback().Raw().Remove("test:hospital_capacity_error"))
+			require.NoError(t, tx.Callback().Query().Remove("test:hospital_capacity_error"))
+		})
+		return nil
+	})
 	// The real workflow already has one 32-unit bucket; bulk fixture loading adds only capacity data.
 	seed(1, 9999)
 	require.NoError(t, db.Migrate(t.Context(), []tenantdb.Migration{{ID: "test_hospital_stocktake_capacity_statistics", SQL: "ANALYZE pharmacy_stock_batches; ANALYZE pharmacy_stock_movements;"}}))

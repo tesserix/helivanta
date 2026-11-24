@@ -157,6 +157,12 @@ func assertHospitalStocktakeCapacity(t *testing.T, db *tenantdb.DB, call func(*t
 	require.EqualValues(t, 500, posted["adjustment_count"])
 	require.Equal(t, posted, call(t, "PUT", decision, reviewer, approval, 200))
 	require.Equal(t, posted, call(t, "GET", decision, reviewer, nil, 200))
+	header := measure("10000-observation status", func() map[string]any { return call(t, "GET", path, reviewer, nil, 200) })
+	require.Equal(t, "posted", header["state"])
+	require.EqualValues(t, 10000, header["counted_rows"])
+	require.EqualValues(t, 500, header["difference_rows"])
+	require.EqualValues(t, 0, header["positive_difference_rows"])
+
 	require.Equal(t, originalReceipt, call(t, "PUT", originalPath, counter, originalInput, 200))
 	require.Equal(t, originalReceipt, call(t, "GET", originalPath, counter, nil, 200))
 	ownerTx(func(tx *gorm.DB) error {

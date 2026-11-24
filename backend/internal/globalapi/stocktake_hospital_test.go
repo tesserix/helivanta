@@ -108,6 +108,7 @@ func assertHospitalStocktakeWorkflow(t *testing.T, db *tenantdb.DB, call func(*t
 		browser(pharmacy, outlet)
 	}
 	assertHospitalStocktakeChildWorkflow(t, db, call, hospital, childDepartment, childRevision, pharmacy, owner, counter, reviewer)
+	assertHospitalStocktakeSourceRecovery(t, db, call, hospital, department, revision, pharmacy, owner, counter, reviewer)
 	assertHospitalStocktakeCapacity(t, db, call, root, pharmacy, outlet, product, quarantine, owner, counter, reviewer)
 	call(t, "PUT", base+"/access/"+reviewer, owner, map[string]any{"level": "editor"}, 200)
 	bindingRecord := approved["binding"].(map[string]any)

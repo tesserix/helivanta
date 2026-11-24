@@ -270,6 +270,7 @@ export function StocktakeDetail({
         );
       })}
       {canConfigure &&
+        !sourceInvalidated &&
         ((canCount && (take.state === "counting" || take.state === "submitted")) ||
           (canReview &&
             take.state === "submitted" &&

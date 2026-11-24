@@ -1112,7 +1112,10 @@ All paths below start at
 `/v1/pharmacy/pharmacies/{pharmacy}/outlets/{outlet}`. Each request verifies the
 current principal, tenant, pharmacy and outlet grant. GET requires
 `pharmacy.stock.read`; PUT also requires `pharmacy.catalogue.write` and an editor
-grant. A tenant or hospital affiliation does not replace that grant.
+grant. Workspace directory discovery and the existing current-user `/access`
+read retain catalogue-read permission. That grant-level read is bound to Setup;
+it discloses only the current caller’s reader/editor level and no catalogue data.
+A tenant or hospital affiliation does not replace that grant.
 
 | Method/path | Input and result |
 | --- | --- |

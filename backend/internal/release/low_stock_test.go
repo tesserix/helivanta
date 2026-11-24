@@ -12,6 +12,7 @@ import (
 func TestLowStockRoutesHaveAnIndependentReleaseBoundary(t *testing.T) {
 	const root = "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet"
 	for _, tc := range []struct{ method, path, capability string }{
+		{"GET", root + "/access", "pharmacy_setup"},
 		{"GET", root + "/catalogue/products/:id/reorder-level", "pharmacy_low_stock"},
 		{"GET", root + "/catalogue/products/:id/reorder-levels/:command", "pharmacy_low_stock"},
 		{"PUT", root + "/catalogue/products/:id/reorder-levels/:command", "pharmacy_low_stock"},

@@ -1036,6 +1036,7 @@ describe("expandable navigation", () => {
       "Dispensing",
       "Past dispenses",
       "Inventory",
+      "Low stock",
       "Stock across outlets",
       "Stock on hand",
       "Receiving",

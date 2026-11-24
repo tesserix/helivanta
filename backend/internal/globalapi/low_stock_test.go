@@ -116,6 +116,9 @@ func TestLowStockThroughGlobalAPI(t *testing.T) {
 			}
 			require.ElementsMatch(t, []string{"team_accounts", "pharmacy_setup", "pharmacy_low_stock"}, enabled)
 			product := f.root + "/catalogue/products/" + f.product
+			require.JSONEq(t, `{"level":"editor"}`, f.call("GET", f.root+"/access", "owner", "", 200).Body.String())
+			require.JSONEq(t, `{"level":"reader"}`, f.call("GET", f.root+"/access", "reader", "", 200).Body.String())
+			f.call("GET", f.root+"/access", "outsider", "", 404)
 			f.call("GET", f.root+"/catalogue/products", "owner", "", 404)
 			f.call("PUT", product, "owner", receiverProduct, 404)
 			f.call("GET", f.root+"/stock/movements", "owner", "", 404)

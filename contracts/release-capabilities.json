@@ -2333,7 +2333,7 @@
     {
       "method": "GET",
       "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/access",
-      "capability": "pharmacy_catalogue"
+      "capability": "pharmacy_setup"
     },
     {
       "method": "GET",

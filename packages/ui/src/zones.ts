@@ -36,6 +36,7 @@ import {
   Network,
   ShoppingCart,
   PackagePlus,
+  PackageMinus,
   Truck,
   Palette,
   CreditCard,
@@ -232,7 +233,7 @@ export const ZONES: Zone[] = [
         section: "Inventory",
         label: "Low stock",
         href: "/pharmacy/low-stock",
-        icon: Boxes,
+        icon: PackageMinus,
         permission: "pharmacy.stock.read",
       },
       {

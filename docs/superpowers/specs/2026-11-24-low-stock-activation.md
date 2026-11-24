@@ -42,7 +42,11 @@ The overview count reuses lowStockSource and its observation time, local date,
 unit and reservation rules. It is not a total inferred from a partial page.
 
 Expose a named Low stock workspace using the existing pharmacy/outlet selection
-and reader/editor access guard. Show its count in a bounded outlet overview and
+and reader/editor access guard. The existing current-user `/access` read is
+foundational Setup metadata, not a Catalogue feature; bind it to `pharmacy_setup`
+while retaining catalogue-read permission and the exact current outlet grant.
+Workspace discovery therefore needs catalogue-read in addition to stock-read;
+the minimum APIs retain their narrower existing permissions. Show its count in a bounded outlet overview and
 link to the matching warning list. Keep Setup dedicated to outlet/access
 management under its existing page contract; the Low stock workspace contains
 the released outlet overview. The general Reports overview retains its existing

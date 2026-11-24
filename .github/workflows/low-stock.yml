@@ -10,17 +10,19 @@ on:
       - "apps/shell/components/pharmacy/pharmacy-workspace*"
       - "apps/shell/app/(workspace)/pharmacy/low-stock/**"
       - "packages/api/src/pharmacy-reorder*"
+      - "packages/ui/src/zones*"
+      - "packages/ui/src/hms-shell.test.tsx"
       - "scripts/verify-low-stock.mjs"
       - "contracts/pharmacy.json"
       - "contracts/release-capabilities.json"
       - ".github/workflows/low-stock.yml"
 permissions:
   contents: read
-concurrency:
-  group: low-stock-${{ github.ref }}-${{ github.event_name }}
-  cancel-in-progress: true
 jobs:
   owner:
+    concurrency:
+      group: low-stock-owner-${{ github.ref }}
+      cancel-in-progress: true
     runs-on: ubuntu-latest
     timeout-minutes: 25
     defaults:
@@ -41,6 +43,9 @@ jobs:
       - name: Single-result and paginated contract boundaries
         run: go test -count=1 ./internal/archtest -run '^TestEveryCollectionGETIsPaginated$'
   capacity:
+    concurrency:
+      group: low-stock-capacity-${{ github.ref }}-${{ github.sha }}
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 35
     defaults:
@@ -58,6 +63,9 @@ jobs:
       - name: Ten thousand configurations under both owners
         run: go test -v -count=1 -timeout 30m ./internal/modules/pharmacy -run '^TestLowStockCapacityAtTenThousandProducts$'
   browser:
+    concurrency:
+      group: low-stock-browser-${{ github.ref }}
+      cancel-in-progress: true
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -75,6 +83,7 @@ jobs:
       - name: Low-stock SDK and UI regression tests
         run: |
           pnpm --filter @helivanta/api exec vitest run src/pharmacy-reorder.test.ts src/pharmacy-reorder-client.test.ts
+          pnpm --filter @helivanta/ui exec vitest run src/zones.test.ts src/hms-shell.test.tsx
           pnpm --filter @helivanta/shell exec vitest run components/pharmacy/low-stock-panel.test.tsx components/pharmacy/low-stock-overview.test.tsx components/pharmacy/pharmacy-workspace.test.tsx
       - name: Affected API and shell type checks
         run: |

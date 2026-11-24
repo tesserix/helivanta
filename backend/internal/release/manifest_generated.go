@@ -462,7 +462,7 @@ var routeCapabilities = map[string]string{"POST /v1/workforce/hospitals/:hospita
 	"GET /v1/pharmacy/pharmacies/:pharmacy/outlets":                                                                                  "pharmacy_setup",
 	"GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet":                                                                          "pharmacy_setup",
 	"PUT /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet":                                                                          "pharmacy_setup",
-	"GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/access":                                                                   "pharmacy_catalogue",
+	"GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/access":                                                                   "pharmacy_setup",
 	"GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/access-grants":                                                            "pharmacy_setup",
 	"DELETE /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/access/:subject":                                                       "pharmacy_setup",
 	"PUT /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/access/:subject":                                                          "pharmacy_setup",

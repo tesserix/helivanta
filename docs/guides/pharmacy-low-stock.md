@@ -10,8 +10,8 @@ it can be used; a source merge alone does not activate it.
 1. In PharmaConnect, open **Inventory → Low stock** and select the named pharmacy
    and outlet. **Outlet stock alerts** shows the exact low-stock product count
    and observation time. Its link opens the same scoped warning list.
-2. An outlet editor with catalogue-write and stock-read permission can select an
-   active product under **Configure reorder level**. Readers can view warnings.
+2. An outlet editor with catalogue-read, catalogue-write and stock-read permission can select an
+   active product under **Configure reorder level**. Readers with catalogue-read and stock-read can discover their outlets and view warnings.
 3. Enable the warning and enter a whole-number minimum in the displayed issue
    unit. Zero means warn when none is available. Save the reorder level.
 4. Products whose available quantity is at or below the minimum appear in the

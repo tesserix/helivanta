@@ -329,7 +329,8 @@ recovery checks remain unexecuted.
 requires `team_accounts`. Its workflow is **PharmaConnect → Inventory → Low
 stock** (`/pharmacy/low-stock`). It provides an exact outlet count, warning list
 and accountable product/outlet minimum editor. Readers need stock-read permission
-and the exact outlet reader grant; editors additionally need catalogue-write and
+and the exact outlet reader grant; workspace discovery also needs catalogue-read.
+Editors additionally need catalogue-write and
 the outlet editor grant. The same checks apply to hospital-owned and independent
 pharmacies. This flag grants neither stock movement nor dispensing authority.
 

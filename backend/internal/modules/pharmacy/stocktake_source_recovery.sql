@@ -23,10 +23,12 @@ CREATE FUNCTION pharmacy_stocktake_source_recovery_integrity()RETURNS boolean LA
 $$;
 DO $$BEGIN IF pharmacy_stocktake_source_recovery_integrity()IS DISTINCT FROM true THEN RAISE EXCEPTION 'stocktake recovery requires a unique current binding per outlet';END IF;END $$;
 
+ALTER TABLE pharmacy_stocktakes ADD COLUMN started_xact xid8;
+
 CREATE TABLE pharmacy_stocktake_source_invalidations(
  tenant_id uuid NOT NULL,outlet_id uuid NOT NULL,stocktake_id uuid NOT NULL,replacement_stocktake_id uuid NOT NULL,
  original_binding_id uuid NOT NULL,replacement_binding_id uuid NOT NULL,
- actor_subject text NOT NULL CHECK(length(actor_subject)BETWEEN 1 AND 512),created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+ actor_subject text NOT NULL CHECK(length(actor_subject)BETWEEN 1 AND 200),posted_xact xid8 NOT NULL DEFAULT pg_current_xact_id(),created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
  PRIMARY KEY(tenant_id,outlet_id,stocktake_id),
  CHECK(stocktake_id<>replacement_stocktake_id AND original_binding_id<>replacement_binding_id),
  FOREIGN KEY(tenant_id,outlet_id,stocktake_id)REFERENCES pharmacy_stocktakes(tenant_id,outlet_id,id)DEFERRABLE INITIALLY DEFERRED,
@@ -52,7 +54,7 @@ ALTER POLICY tenant_isolation ON pharmacy_stocktake_hospital_evidence
 CREATE FUNCTION pharmacy_stocktake_source_invalidation_guard()RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
  IF TG_OP<>'INSERT' THEN RAISE EXCEPTION 'source invalidation is append only' USING ERRCODE='23514',CONSTRAINT='pharmacy_stocktake_source_history';END IF;
- IF pharmacy_stocktake_source_recovery_integrity()IS DISTINCT FROM true OR NOT EXISTS(
+ IF NEW.posted_xact<>pg_current_xact_id()OR pharmacy_stocktake_source_recovery_integrity()IS DISTINCT FROM true OR NOT EXISTS(
   SELECT 1 FROM pharmacy_stocktake_hospital_evidence original JOIN pharmacy_stocktake_hospital_evidence replacement
    ON replacement.tenant_id=original.tenant_id AND replacement.outlet_id=original.outlet_id
   JOIN pharmacy_stocktakes s ON s.tenant_id=original.tenant_id AND s.outlet_id=original.outlet_id AND s.id=original.stocktake_id
@@ -66,6 +68,17 @@ BEGIN
  RETURN NEW;
 END $$;
 CREATE TRIGGER pharmacy_stocktake_source_invalidation_guard BEFORE INSERT OR UPDATE OR DELETE ON pharmacy_stocktake_source_invalidations FOR EACH ROW EXECUTE FUNCTION pharmacy_stocktake_source_invalidation_guard();
+CREATE TRIGGER pharmacy_stocktake_source_history_immutable BEFORE TRUNCATE ON pharmacy_stocktake_source_invalidations FOR EACH STATEMENT EXECUTE FUNCTION pharmacy_catalogue_immutable();
+CREATE FUNCTION pharmacy_stocktake_source_commit_guard()RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+ IF NOT EXISTS(SELECT 1 FROM pharmacy_stocktakes replacement WHERE replacement.tenant_id=NEW.tenant_id AND replacement.outlet_id=NEW.outlet_id AND replacement.id=NEW.replacement_stocktake_id
+  AND replacement.authority_kind='hospital'AND replacement.sealed AND replacement.actor_subject=NEW.actor_subject AND replacement.started_xact=NEW.posted_xact)THEN
+  RAISE EXCEPTION 'source recovery requires a new sealed count in the same command' USING ERRCODE='23514',CONSTRAINT='pharmacy_stocktake_source_commit';
+ END IF;
+ RETURN NULL;
+END $$;
+CREATE CONSTRAINT TRIGGER pharmacy_stocktake_source_commit_guard AFTER INSERT ON pharmacy_stocktake_source_invalidations DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION pharmacy_stocktake_source_commit_guard();
+
 
 CREATE FUNCTION pharmacy_stocktake_source_invalidated(t uuid,o uuid,s uuid)RETURNS boolean LANGUAGE sql STABLE AS $$
  SELECT COALESCE((SELECT take.authority_kind='hospital'AND take.sealed
@@ -91,6 +104,7 @@ CREATE TRIGGER pharmacy_stocktake_source_command_guard BEFORE INSERT ON pharmacy
 
 CREATE OR REPLACE FUNCTION pharmacy_stocktake_start_guard()RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
+ NEW.started_xact:=pg_current_xact_id();
  IF NEW.actor_subject IS DISTINCT FROM NULLIF(current_setting('app.pharmacy_subject',true),'') OR NEW.sealed THEN
   RAISE EXCEPTION 'stocktake actor or seal changed' USING ERRCODE='23514',CONSTRAINT='pharmacy_stocktake_identity';
  END IF;

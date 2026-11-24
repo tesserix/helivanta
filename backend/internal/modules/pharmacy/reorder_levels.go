@@ -61,6 +61,9 @@ func reorderRoutes(s *platform.Router, h *catalogueHandlers) {
 	s.GET("/catalogue/products/:id/reorder-levels/:command", PermStockRead, h.getReorderReceipt)
 	s.PUT("/catalogue/products/:id/reorder-levels/:command", PermCatalogueWrite, h.putReorderLevel)
 	platform.ListRoute(s, "/stock/low-products", PermStockRead, h.listLowStock)
+	platform.ListRoute(s, "/catalogue/reorder-products", PermStockRead, h.listReorderProducts)
+	s.GET("/catalogue/reorder-products/:id", PermStockRead, h.getReorderProduct)
+	s.GET("/stock/low-products/overview", PermStockRead, h.getLowStockOverview)
 }
 
 func (h *catalogueHandlers) getReorderLevel(c *gin.Context)   { h.readReorderLevel(c, false) }
@@ -97,16 +100,16 @@ func (h *catalogueHandlers) readReorderLevel(c *gin.Context, receipt bool) {
 		var row reorderLevel
 		if err := q.First(&row).Error; err != nil {
 			if !receipt && errors.Is(err, gorm.ErrRecordNotFound) {
-				return nil
+				return lowStockReadAudit(c, tx, p, "reorder_level", product, "record_read")
 			}
 			return err
 		}
 		value := row.receipt()
 		result = &value
-		return nil
+		return lowStockReadAudit(c, tx, p, "reorder_level", row.ID, "record_read")
 	})
 	if err != nil {
-		catalogueError(c, err)
+		lowStockError(c, err)
 		return
 	}
 	if receipt {
@@ -154,7 +157,7 @@ func (h *catalogueHandlers) putReorderLevel(c *gin.Context) {
 			if result.ProductID != product || result.ExpectedVersion != *in.ExpectedVersion || result.ProductVersion != *in.ProductVersion || result.ActorSubject != p.Subject || !sameMinimum {
 				return errCatalogueVersion
 			}
-			return nil
+			return lowStockReadAudit(c, tx, p, "reorder_level", command, "command_recovered")
 		}
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
 			return err
@@ -170,7 +173,7 @@ func (h *catalogueHandlers) putReorderLevel(c *gin.Context) {
 		return tx.Omit("CreatedAt").Clauses(clause.Returning{}).Create(&result).Error
 	})
 	if err != nil {
-		catalogueError(c, err)
+		lowStockError(c, err)
 		return
 	}
 	respond.OK(c, result.receipt())
@@ -197,11 +200,8 @@ func (h *catalogueHandlers) listLowStock(c *gin.Context, params pagination.Param
 	if !ok {
 		return nil, nil
 	}
-	for key, values := range c.Request.URL.Query() {
-		if (key != "limit" && key != "cursor") || len(values) != 1 || values[0] == "" {
-			respond.Error(c, 400, "invalid_request", "only limit and cursor are supported")
-			return nil, nil
-		}
+	if !reorderReadQuery(c, true) {
+		return nil, nil
 	}
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
 	defer cancel()
@@ -214,10 +214,13 @@ func (h *catalogueHandlers) listLowStock(c *gin.Context, params pagination.Param
 		if err := tx.Raw("SELECT clock_timestamp()").Scan(&observed).Error; err != nil {
 			return err
 		}
-		return tenantdb.ApplyKeyset(tx, params).Table("(?) low_stock", lowStockSource(tx, p.TenantID, outlet, observed)).Find(&rows).Error
+		if err := tenantdb.ApplyKeyset(tx, params).Table("(?) low_stock", lowStockSource(tx, p.TenantID, outlet, observed)).Find(&rows).Error; err != nil {
+			return err
+		}
+		return lowStockReadAudit(c, tx, p, "low_stock", outlet, "list_read")
 	})
 	if err != nil {
-		catalogueError(c, err)
+		lowStockError(c, err)
 	}
 	return rows, nil
 }

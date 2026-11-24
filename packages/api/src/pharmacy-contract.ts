@@ -712,6 +712,30 @@ export const pharmacyLowStockProductSchema = z
   })
   .strict();
 
+export const pharmacyReorderProductSchema = z
+  .object({
+    id: identifier,
+    outlet_id: identifier,
+    sku: z.string().min(1).max(40),
+    brand_name: z.string().min(1).max(200),
+    unit_of_issue: z.string().min(1).max(40),
+    version: z.number().int().min(1).max(9007199254740991),
+    status: z.enum(["active", "discontinued", "withdrawn"]),
+  })
+  .strict();
+
+export const pharmacyLowStockOverviewSchema = z
+  .object({
+    outlet_id: identifier,
+    low_stock: z.number().int().min(0).max(9007199254740991),
+    observed_at: z
+      .string()
+      .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
+    local_date: z.string().date("Use a full valid date."),
+    time_zone: z.string().min(1).max(64),
+  })
+  .strict();
+
 export const pharmacyLicenceFieldsSchema = z
   .object({
     licence_kind: z.enum(["retail", "wholesale"]),

@@ -1,10 +1,12 @@
 package pharmacy_test
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
 func TestReorderNarrowProductChoicesAndOverview(t *testing.T) {
@@ -55,6 +57,40 @@ func TestReorderNarrowProductChoicesAndOverview(t *testing.T) {
 		require.Equal(t, 401, do(r, "GET", outletPath(path), "unknown", "").Code)
 		require.Equal(t, 400, do(r, "GET", outletPath(path)+"?tenant_id=forged", "editor", "").Code)
 	}
+}
+
+func TestReorderDisclosureRequiresCommittedAudit(t *testing.T) {
+	r, db := catalogueHarness(t)
+	grantCatalogue(t, r, "user-editor", "editor")
+	product, _, _ := stockFixture(t, r)
+	level := setReorder(t, r, product, "0", 0)
+	require.NoError(t, db.Migrate(t.Context(), []tenantdb.Migration{{ID: "test_reorder_disclosure_fault", SQL: `
+CREATE FUNCTION test_reorder_disclosure_fault() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+ IF NEW.resource_type LIKE 'pharmacy_low_stock%' OR NEW.resource_type='pharmacy_reorder_level' THEN
+  RAISE EXCEPTION 'synthetic private disclosure evidence unavailable';
+ END IF;
+ RETURN NEW;
+END $$;
+CREATE TRIGGER test_reorder_disclosure_fault BEFORE INSERT ON audit_events FOR EACH ROW EXECUTE FUNCTION test_reorder_disclosure_fault();`}}))
+	defer func() {
+		require.NoError(t, db.Migrate(context.WithoutCancel(t.Context()), []tenantdb.Migration{{ID: "test_reorder_disclosure_restore", SQL: `DROP TRIGGER test_reorder_disclosure_fault ON audit_events;DROP FUNCTION test_reorder_disclosure_fault();`}}))
+	}()
+	for _, path := range []string{
+		"/catalogue/reorder-products", "/catalogue/reorder-products/" + product,
+		"/stock/low-products", "/stock/low-products/overview",
+		"/catalogue/products/" + product + "/reorder-level",
+		"/catalogue/products/" + product + "/reorder-levels/" + level.ID,
+	} {
+		result := do(r, "GET", outletPath(path), "editor", "")
+		require.Equal(t, 503, result.Code, result.Body.String())
+		require.NotContains(t, result.Body.String(), product)
+		require.NotContains(t, result.Body.String(), "synthetic private")
+		require.NotContains(t, result.Body.String(), "minimum_units")
+	}
+	replay := do(r, "PUT", productPath(product)+"/reorder-levels/"+level.ID, "editor", reorderBody("0", 0, level.ProductVersion))
+	require.Equal(t, 503, replay.Code, replay.Body.String())
+	require.NotContains(t, replay.Body.String(), "minimum_units")
 }
 
 func mapKeys(value map[string]any) []string {

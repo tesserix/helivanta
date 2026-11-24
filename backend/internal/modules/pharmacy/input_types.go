@@ -544,6 +544,24 @@ type LowStockProduct struct {
 	TimeZone       string    `json:"time_zone" binding:"required,min=1,max=64"`
 }
 
+type ReorderProduct struct {
+	ID          uuid.UUID `json:"id" binding:"required"`
+	OutletID    uuid.UUID `json:"outlet_id" binding:"required"`
+	SKU         string    `json:"sku" binding:"required,min=1,max=40"`
+	BrandName   string    `json:"brand_name" binding:"required,min=1,max=200"`
+	UnitOfIssue string    `json:"unit_of_issue" binding:"required,min=1,max=40"`
+	Version     int64     `json:"version" binding:"min=1,max=9007199254740991"`
+	Status      string    `json:"status" binding:"required,oneof=active discontinued withdrawn"`
+}
+
+type LowStockOverview struct {
+	OutletID   uuid.UUID `json:"outlet_id" binding:"required"`
+	LowStock   int64     `json:"low_stock" binding:"min=0,max=9007199254740991"`
+	ObservedAt string    `json:"observed_at"`
+	LocalDate  string    `json:"local_date"`
+	TimeZone   string    `json:"time_zone" binding:"required,min=1,max=64"`
+}
+
 type LicenceFields struct {
 	LicenceKind            string `json:"licence_kind" binding:"required,oneof=retail wholesale"`
 	FormLabel              string `json:"form_label" binding:"required,min=1,max=40"`

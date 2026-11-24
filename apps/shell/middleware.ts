@@ -33,6 +33,14 @@ const ISSUER_ORIGIN = new URL(process.env.NEXT_PUBLIC_ZITADEL_ISSUER_URL ?? "").
 // credentials" on every login attempt before this exemption existed
 // (login was calling the very route that is supposed to hand out the
 // credential middleware was demanding).
+const BRAND_FILES = new Set([
+  "/apple-icon.png",
+  "/opengraph-image.png",
+  "/manifest.webmanifest",
+  "/icon-192.png",
+  "/icon-512.png",
+  "/maskable-icon-512.png",
+]);
 const PUBLIC_PATHS = ["/login", "/api/auth", "/api/v1/auth/login", "/api/v1/auth/branding/"];
 
 export function middleware(req: NextRequest) {
@@ -80,6 +88,9 @@ export function middleware(req: NextRequest) {
       "/api/v1/auth/staff-setup/resend",
     ].includes(pathname) ||
     pathname === "/icon.svg" ||
+    // The brand file set (#1835 D6): a browser fetches the manifest and icons
+    // without the session cookie. Exact paths only.
+    BRAND_FILES.has(pathname) ||
     pathname === "/ambulance" ||
     pathname === "/api/emergency/access" ||
     // Violations happen on /login before any session exists (spec D6).

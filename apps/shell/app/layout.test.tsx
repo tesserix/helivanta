@@ -7,6 +7,10 @@ vi.mock("@/components/application-providers", () => ({
   ApplicationProviders: ({ children }: { children: React.ReactNode }) => children,
 }));
 vi.mock("@/components/session-renewal", () => ({ SessionRenewal: () => null }));
+// next/font is a build-time transform that throws when called outside Next.
+vi.mock("next/font/local", () => ({
+  default: () => ({ className: "font-plex-class", variable: "font-plex-var" }),
+}));
 
 import RootLayout from "./layout";
 
@@ -34,4 +38,12 @@ it("emits no theme script", async () => {
   expect(html).not.toContain("hms.theme");
   expect(html).not.toContain("prefers-color-scheme");
   expect(html).toContain('data-theme="default"');
+});
+
+// The UI face is exposed as a variable on <body>; Tailwind's font-sans reads
+// it (#1834 spec D4).
+it("puts the UI face on the body as a variable", async () => {
+  requestHeaders.current = new Headers({ "x-nonce": "n1" });
+  const html = renderToStaticMarkup(await RootLayout({ children: null }));
+  expect(html).toMatch(/<body[^>]*class="[^"]*font-plex-var[^"]*"/);
 });

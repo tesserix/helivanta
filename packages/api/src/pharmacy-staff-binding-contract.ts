@@ -243,6 +243,31 @@ export const HospitalStocktakeOutletChoiceContract = z
   .strict();
 export type HospitalStocktakeOutletChoice = z.infer<typeof HospitalStocktakeOutletChoiceContract>;
 
+export const HospitalStocktakeDepartmentChoiceContract = z
+  .object({
+    owner_tenant_id: identifier,
+    hospital_id: identifier,
+    scope_department_id: identifier,
+    department_id: identifier,
+    department_revision_id: identifier,
+    department_name: z
+      .string()
+      .trim()
+      .min(1)
+      .max(200)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    department_code: z
+      .string()
+      .trim()
+      .min(1)
+      .max(40)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+  })
+  .strict();
+export type HospitalStocktakeDepartmentChoice = z.infer<
+  typeof HospitalStocktakeDepartmentChoiceContract
+>;
+
 export const StaffDepartmentBindingChangedDataContract = z
   .object({
     pharmacy_id: identifier,

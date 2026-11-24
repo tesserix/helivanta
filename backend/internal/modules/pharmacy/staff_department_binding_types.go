@@ -110,3 +110,13 @@ type HospitalStocktakeOutletChoice struct {
 	TimeZone             string    `json:"time_zone"`
 	CountryCode          string    `json:"country_code"`
 }
+
+type HospitalStocktakeDepartmentChoice struct {
+	OwnerTenantID        uuid.UUID `json:"owner_tenant_id"`
+	HospitalID           uuid.UUID `json:"hospital_id"`
+	ScopeDepartmentID    uuid.UUID `json:"scope_department_id"`
+	DepartmentID         uuid.UUID `json:"department_id"`
+	DepartmentRevisionID uuid.UUID `json:"department_revision_id"`
+	DepartmentName       string    `json:"department_name"`
+	DepartmentCode       string    `json:"department_code"`
+}

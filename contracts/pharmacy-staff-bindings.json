@@ -45,7 +45,12 @@
       {
         "name": "operation",
         "type": "string",
-        "enum": ["approve", "reject", "withdraw", "end"]
+        "enum": [
+          "approve",
+          "reject",
+          "withdraw",
+          "end"
+        ]
       },
       {
         "name": "reason",
@@ -108,7 +113,13 @@
       {
         "name": "status",
         "type": "string",
-        "enum": ["pending", "approved", "rejected", "withdrawn", "ended"]
+        "enum": [
+          "pending",
+          "approved",
+          "rejected",
+          "withdrawn",
+          "ended"
+        ]
       },
       {
         "name": "version",
@@ -176,7 +187,11 @@
       {
         "name": "source_state",
         "type": "string",
-        "enum": ["current", "changed", "not_applicable"]
+        "enum": [
+          "current",
+          "changed",
+          "not_applicable"
+        ]
       }
     ],
     "StaffBindingAuthorizationObservation": [
@@ -225,7 +240,13 @@
       {
         "name": "operation",
         "type": "string",
-        "enum": ["propose", "approve", "reject", "withdraw", "end"]
+        "enum": [
+          "propose",
+          "approve",
+          "reject",
+          "withdraw",
+          "end"
+        ]
       },
       {
         "name": "expected_version",
@@ -306,7 +327,14 @@
       {
         "name": "action",
         "type": "string",
-        "enum": ["read", "propose", "approve", "reject", "withdraw", "end"]
+        "enum": [
+          "read",
+          "propose",
+          "approve",
+          "reject",
+          "withdraw",
+          "end"
+        ]
       },
       {
         "name": "command_id",
@@ -327,7 +355,11 @@
       {
         "name": "source_state",
         "type": "string",
-        "enum": ["current", "changed", "not_applicable"],
+        "enum": [
+          "current",
+          "changed",
+          "not_applicable"
+        ],
         "pointer": true,
         "nullable": true
       },
@@ -443,7 +475,45 @@
       {
         "name": "country_code",
         "type": "string",
-        "enum": ["IN"]
+        "enum": [
+          "IN"
+        ]
+      }
+    ],
+    "HospitalStocktakeDepartmentChoice": [
+      {
+        "name": "owner_tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "hospital_id",
+        "type": "uuid"
+      },
+      {
+        "name": "scope_department_id",
+        "type": "uuid"
+      },
+      {
+        "name": "department_id",
+        "type": "uuid"
+      },
+      {
+        "name": "department_revision_id",
+        "type": "uuid"
+      },
+      {
+        "name": "department_name",
+        "type": "string",
+        "min": 1,
+        "max": 200,
+        "format": "text"
+      },
+      {
+        "name": "department_code",
+        "type": "string",
+        "min": 1,
+        "max": 40,
+        "format": "text"
       }
     ]
   },
@@ -479,7 +549,13 @@
       {
         "name": "status",
         "type": "string",
-        "enum": ["pending", "approved", "rejected", "withdrawn", "ended"]
+        "enum": [
+          "pending",
+          "approved",
+          "rejected",
+          "withdrawn",
+          "ended"
+        ]
       },
       {
         "name": "replaced_binding_id",

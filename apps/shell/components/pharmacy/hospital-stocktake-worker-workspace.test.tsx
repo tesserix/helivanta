@@ -78,6 +78,20 @@ it("chooses a named hospital role and approved outlet through filtered pages wit
             ? page([assignment])
             : page([], "TEST-scope-next"),
       );
+    if (path.endsWith("/stocktake-department-choices"))
+      return Response.json(
+        page([
+          {
+            owner_tenant_id: account.tenantId,
+            hospital_id: assignment.hospital_id,
+            scope_department_id: assignment.department_id,
+            department_id: assignment.department_id,
+            department_revision_id: outlet.department_revision_id,
+            department_name: assignment.department_name,
+            department_code: "TEST-PHARMACY",
+          },
+        ]),
+      );
     if (path.endsWith("/stocktake-outlet-choices"))
       return Response.json(url.includes("cursor=") ? page([outlet]) : page([], "TEST-outlet-next"));
     if (path === root) return Response.json(page([]));
@@ -153,6 +167,20 @@ it("does not show names from an outlet projection belonging to another tenant", 
     if (path === "/api/v1/iam/me/pharmacy-stocktake-locations") return Response.json(page([]));
     if (path === "/api/v1/iam/me/hospital-pharmacy-stocktake-scopes")
       return Response.json(page([assignment]));
+    if (path.endsWith("/stocktake-department-choices"))
+      return Response.json(
+        page([
+          {
+            owner_tenant_id: account.tenantId,
+            hospital_id: assignment.hospital_id,
+            scope_department_id: assignment.department_id,
+            department_id: assignment.department_id,
+            department_revision_id: outlet.department_revision_id,
+            department_name: assignment.department_name,
+            department_code: "TEST-PHARMACY",
+          },
+        ]),
+      );
     if (path.endsWith("/stocktake-outlet-choices"))
       return Response.json(page([{ ...outlet, owner_tenant_id: assignment.hospital_id }]));
     throw new Error("Unexpected TEST hospital worker request");
@@ -218,6 +246,20 @@ it.each(["reader", "counter", "reviewer"] as const)(
       if (path === "/api/v1/iam/me/pharmacy-stocktake-locations") return Response.json(page([]));
       if (path === "/api/v1/iam/me/hospital-pharmacy-stocktake-scopes")
         return Response.json(page([current]));
+      if (path.endsWith("/stocktake-department-choices"))
+        return Response.json(
+          page([
+            {
+              owner_tenant_id: account.tenantId,
+              hospital_id: assignment.hospital_id,
+              scope_department_id: assignment.department_id,
+              department_id: assignment.department_id,
+              department_revision_id: outlet.department_revision_id,
+              department_name: assignment.department_name,
+              department_code: "TEST-PHARMACY",
+            },
+          ]),
+        );
       if (path.endsWith("/stocktake-outlet-choices")) return Response.json(page([outlet]));
       if (path === root) return Response.json(page([]));
       if (path === `${root}/quarantine-choices`)
@@ -292,3 +334,73 @@ it.each(["reader", "counter", "reviewer"] as const)(
     ).toBe(false);
   },
 );
+
+it("requires an explicit named child selection and sends subsequent work to that child", async () => {
+  const child = "019a55c0-1111-7111-8111-111111111199";
+  const childRoot = root.replace(assignment.department_id, child);
+  const fetch = vi.fn(async (url: string) => {
+    const path = new URL(url, "https://stocktake.test").pathname;
+    if (path === "/api/v1/iam/me/permissions")
+      return Response.json({ data: [], tenant_id: account.tenantId, subject: account.subject });
+    if (path === "/api/v1/workspace/release-capabilities")
+      return Response.json(releaseSnapshotForTest(account, ["team_accounts", "pharmacy_setup"]));
+    if (path === "/api/v1/iam/me/pharmacy-stocktake-locations") return Response.json(page([]));
+    if (path === "/api/v1/iam/me/hospital-pharmacy-stocktake-scopes")
+      return Response.json(page([assignment]));
+    if (path.endsWith("/stocktake-department-choices"))
+      return Response.json(
+        page([
+          {
+            owner_tenant_id: account.tenantId,
+            hospital_id: assignment.hospital_id,
+            scope_department_id: assignment.department_id,
+            department_id: assignment.department_id,
+            department_revision_id: outlet.department_revision_id,
+            department_name: assignment.department_name,
+            department_code: "TEST-ROOT",
+          },
+          {
+            owner_tenant_id: account.tenantId,
+            hospital_id: assignment.hospital_id,
+            scope_department_id: assignment.department_id,
+            department_id: child,
+            department_revision_id: outlet.department_revision_id,
+            department_name: "TEST Child counting unit",
+            department_code: "TEST-CHILD",
+          },
+        ]),
+      );
+    if (path.includes(`/departments/${child}/`) && path.endsWith("/stocktake-outlet-choices"))
+      return Response.json(page([{ ...outlet, department_id: child }]));
+    if (path === childRoot) return Response.json(page([]));
+    throw new Error("Unexpected TEST inherited department request");
+  });
+  vi.stubGlobal("fetch", fetch);
+  const { user } = render();
+  await user.click(
+    await screen.findByRole("button", {
+      name: "TEST Hospital · TEST Pharmacy department · Hospital pharmacy stocktake counter",
+    }),
+  );
+  await screen.findByRole("button", { name: "TEST Child counting unit · TEST-CHILD" });
+  expect(fetch.mock.calls.some(([url]) => url.includes("stocktake-outlet-choices"))).toBe(false);
+  await user.click(screen.getByRole("button", { name: "TEST Child counting unit · TEST-CHILD" }));
+  await user.click(
+    await screen.findByRole("button", {
+      name: "TEST Hospital pharmacy · TEST Main outlet · TEST-MAIN",
+    }),
+  );
+  await waitFor(() =>
+    expect(
+      fetch.mock.calls.some(
+        ([url]) => new URL(url, "https://stocktake.test").pathname === childRoot,
+      ),
+    ).toBe(true),
+  );
+  expect(
+    fetch.mock.calls.some(([url]) =>
+      url.includes(`/departments/${assignment.department_id}/stocktake-outlet-choices`),
+    ),
+  ).toBe(false);
+  expect(document.body.textContent).not.toContain(child);
+});

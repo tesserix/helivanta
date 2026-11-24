@@ -218,7 +218,9 @@ const departmentChoice = {
 it("discovers named descendant departments through Global API with account preconditions", async () => {
   const fetch = vi.fn().mockResolvedValue(Response.json(page([departmentChoice])));
   vi.stubGlobal("fetch", fetch);
-  expect((await client("listHospitalStocktakeDepartments")(scope)).data).toEqual([departmentChoice]);
+  expect((await client("listHospitalStocktakeDepartments")(scope)).data).toEqual([
+    departmentChoice,
+  ]);
   expect(fetch.mock.calls[0]?.[0]).toBe(
     `/api/v1/pharmacy/hospitals/${scope.hospitalId}/departments/${scope.departmentId}/stocktake-department-choices?limit=20`,
   );
@@ -237,12 +239,15 @@ it.each([
 });
 it("keeps descendant cache keys separate by account and assignment root", () => {
   expect(api).toHaveProperty("hospitalStocktakeDepartmentsKey");
-  const key = Reflect.get(api, "hospitalStocktakeDepartmentsKey") as (value: typeof scope) => readonly unknown[];
+  const key = Reflect.get(api, "hospitalStocktakeDepartmentsKey") as (
+    value: typeof scope,
+  ) => readonly unknown[];
   expect(key(scope)).not.toEqual(key({ ...scope, subject: "TEST-other" }));
   expect(key(scope)).not.toEqual(key({ ...scope, departmentId: outlet.outlet_id }));
 });
 it("rejects duplicate descendant choices and non-progressing cursors", async () => {
-  const fetch = vi.fn()
+  const fetch = vi
+    .fn()
     .mockResolvedValueOnce(Response.json(page([departmentChoice, departmentChoice])))
     .mockResolvedValueOnce(Response.json(page([], "TEST-next")))
     .mockResolvedValueOnce(Response.json(page([], "TEST-next")));
@@ -250,5 +255,7 @@ it("rejects duplicate descendant choices and non-progressing cursors", async () 
   await expect(client("listHospitalStocktakeDepartments")(scope)).rejects.toThrow();
   const first = await client("listHospitalStocktakeDepartments")(scope);
   expect(first.page.next_cursor).toBe("TEST-next");
-  await expect(client("listHospitalStocktakeDepartments")(scope, first.page.next_cursor)).rejects.toThrow();
+  await expect(
+    client("listHospitalStocktakeDepartments")(scope, first.page.next_cursor),
+  ).rejects.toThrow();
 });

@@ -1112,7 +1112,13 @@ against every module's migrations applied together (section 3).
 and fails if any package under `internal/modules/*`, `pkg/*`,
 `internal/platform`, or `internal/platform/*` reports below
 `COVERAGE_FLOOR` (default 70%). It is not a repo-wide floor — packages
-outside that list (e.g. `cmd/api`) are not gated.
+outside that list (e.g. `cmd/api`) are not gated. CI runs the same gate in
+three shards (`coverage-gate.sh run <shard> 3 <dir>`) and checks the floor
+once over their merged results (`coverage-gate.sh check <dir>`), which also
+fails if any package was tested twice or not at all (#1832). A pull request
+whose changes are all under `apps/`, `packages/`, `e2e/` or `docs/` (or the
+root pnpm/turbo files) skips the Go jobs; the required `go` check still
+reports (`scripts/ci/go-inputs-changed.sh`).
 
 Commands, all run from `backend/` unless using the `make` wrapper from
 repo root:

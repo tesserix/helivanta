@@ -42,8 +42,10 @@ func TestSecond(t *testing.T) {
 EOF
 }
 
+run_gate() { bash "$gate"; }
+
 expect_pass() {
-  if ! bash "$gate" >"$fixture/output" 2>&1; then
+  if ! run_gate >"$fixture/output" 2>&1; then
     cat "$fixture/output"
     echo "FAIL: $1"
     exit 1
@@ -52,7 +54,7 @@ expect_pass() {
 }
 
 expect_fail() {
-  if bash "$gate" >"$fixture/output" 2>&1; then
+  if run_gate >"$fixture/output" 2>&1; then
     cat "$fixture/output"
     echo "FAIL: $1 unexpectedly passed"
     exit 1
@@ -123,3 +125,37 @@ package untested
 func Value() int { return 1 }
 EOF
 expect_fail 'an unimported gated package cannot disappear from the gate' 'no test files'
+
+# CI shards (#1832): each runner tests part of the module and one check judges
+# the merged evidence. The fixture's two packages carry no weight, so shard 1
+# takes internal/integration and shard 2 the owner package.
+shards() {
+  rm -rf "$fixture/shards"
+  for shard in 1 2; do
+    bash "$gate" run "$shard" 2 "$fixture/shards/$shard" || return 1
+  done
+  bash "$gate" check "$fixture/shards"
+}
+run_gate() { shards; }
+
+new_fixture
+expect_pass 'shards merge cross-package execution from another runner'
+if [ "$(cat "$fixture/shards/1/packages")" != github.com/tesserix/helivanta/internal/integration ]; then
+  echo 'FAIL: the owner package and its cross-package test did not run on separate shards'
+  exit 1
+fi
+
+run_gate() {
+  rm -rf "$fixture/shards"
+  bash "$gate" run 1 2 "$fixture/shards/1" && bash "$gate" check "$fixture/shards"
+}
+expect_fail 'a shard that did not report fails the merged check' 'did not test every package exactly once'
+
+run_gate() { bash "$gate" run 3 2 "$fixture/shards/3"; }
+expect_fail 'a shard outside the total is refused' 'usage:'
+
+run_gate() { shards; }
+cat >>internal/modules/sample/sample_test.go <<'EOF'
+func TestBroken(t *testing.T) { t.Fatal("synthetic shard regression") }
+EOF
+expect_fail 'a failing test fails its shard' 'synthetic shard regression'

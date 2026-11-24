@@ -9,7 +9,7 @@ import (
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
-func assertHospitalStocktakeDepartmentChoices(t *testing.T, db *tenantdb.DB, call func(*testing.T, string, string, string, any, int) map[string]any, hospital, department, revision, owner, counter, reviewer string) {
+func assertHospitalStocktakeDepartmentChoices(t *testing.T, db *tenantdb.DB, call func(*testing.T, string, string, string, any, int) map[string]any, hospital, department, revision, owner, counter, reviewer string) (string, string) {
 	t.Helper()
 	child, childRevision, sibling := v7(), v7(), v7()
 	departmentRoot := "/v1/organization/hospitals/" + hospital + "/departments/"
@@ -83,4 +83,5 @@ func assertHospitalStocktakeDepartmentChoices(t *testing.T, db *tenantdb.DB, cal
 	call(t, "GET", endpoint+"?limit=21", counter, nil, 400)
 	call(t, "GET", endpoint+"?limit=1&limit=2", counter, nil, 400)
 	call(t, "GET", "/v1/pharmacy/hospitals/"+hospital+"/departments/"+sibling+"/stocktake-department-choices", counter, nil, 404)
+	return child, childRevision
 }

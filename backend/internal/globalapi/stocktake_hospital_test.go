@@ -38,7 +38,7 @@ func assertHospitalStocktakeWorkflow(t *testing.T, db *tenantdb.DB, call func(*t
 	for _, subject := range []string{counter, reviewer} {
 		call(t, "DELETE", base+"/access/"+subject, owner, nil, 200)
 	}
-	assertHospitalStocktakeDepartmentChoices(t, db, call, hospital, department, revision, owner, counter, reviewer)
+	childDepartment, childRevision := assertHospitalStocktakeDepartmentChoices(t, db, call, hospital, department, revision, owner, counter, reviewer)
 	survivingChoices := assertHospitalStocktakeOutletDiscovery(t, call, hospital, department, revision, pharmacy, outlet, owner, counter, reviewer, approved["binding"].(map[string]any))
 	root := "/v1/pharmacy/hospitals/" + hospital + "/departments/" + department + "/pharmacies/" + pharmacy + "/outlets/" + outlet + "/stocktakes"
 	take := v7()
@@ -107,6 +107,7 @@ func assertHospitalStocktakeWorkflow(t *testing.T, db *tenantdb.DB, call func(*t
 	if browser != nil {
 		browser(pharmacy, outlet)
 	}
+	assertHospitalStocktakeChildWorkflow(t, db, call, hospital, childDepartment, childRevision, pharmacy, owner, counter, reviewer)
 	assertHospitalStocktakeCapacity(t, db, call, root, pharmacy, outlet, product, quarantine, owner, counter, reviewer)
 	call(t, "PUT", base+"/access/"+reviewer, owner, map[string]any{"level": "editor"}, 200)
 	bindingRecord := approved["binding"].(map[string]any)

@@ -84,3 +84,27 @@ func TestStocktakeRegisterSectionsRetainDeclaredClasses(t *testing.T) {
 		})
 	}
 }
+
+func TestStocktakeHospitalSourceRegisterRetainsInvalidation(t *testing.T) {
+	invalidated := true
+	zero, shortage := int64(0), int64(-10)
+	header := Stocktake{StocktakeSummary: StocktakeSummary{Number: 2, State: "counting", Version: 1, SourceInvalidated: &invalidated}}
+	rows := []stocktakeRegisterRow{{StocktakeLine: StocktakeLine{BookUnits: 10, CountedUnits: &zero, DifferenceUnits: &shortage, NdpsStatus: "unknown"}}}
+	encoded, err := encodeStocktakeCSV(header, rows)
+	require.NoError(t, err)
+	parsed, err := csv.NewReader(strings.NewReader(string(encoded))).ReadAll()
+	require.NoError(t, err)
+	require.Len(t, parsed, 2)
+	require.Contains(t, parsed[0], "source_invalidated")
+	fields := map[string]string{}
+	for i, name := range parsed[0] {
+		fields[name] = parsed[1][i]
+	}
+	require.Equal(t, "true", fields["source_invalidated"])
+	require.Equal(t, "counting", fields["stocktake_state"])
+	require.Equal(t, "1", fields["stocktake_version"])
+	require.Equal(t, "10", fields["book_units"])
+	require.Equal(t, "0", fields["counted_units"])
+	require.Equal(t, "-10", fields["difference_units"])
+	require.Empty(t, fields["adjustment_units"])
+}

@@ -1,0 +1,138 @@
+name: Low-stock acceptance
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "backend/internal/modules/pharmacy/reorder*"
+      - "backend/internal/modules/pharmacy/low_stock_scope_read.sql"
+      - "backend/internal/modules/pharmacy/module.go"
+      - "backend/internal/modules/pharmacy/export_test.go"
+      - "backend/internal/release/**"
+      - "backend/internal/globalapi/low_stock*"
+      - "apps/shell/components/pharmacy/low-stock*"
+      - "apps/shell/components/pharmacy/pharmacy-workspace*"
+      - "apps/shell/app/(workspace)/pharmacy/low-stock/**"
+      - "packages/api/src/pharmacy-reorder*"
+      - "packages/ui/src/zones*"
+      - "packages/ui/src/hms-shell.test.tsx"
+      - "scripts/verify-low-stock.mjs"
+      - "contracts/pharmacy.json"
+      - "contracts/release-capabilities.json"
+      - ".github/workflows/low-stock.yml"
+permissions:
+  contents: read
+jobs:
+  owner:
+    concurrency:
+      group: low-stock-owner-${{ github.ref }}
+      cancel-in-progress: true
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      GOTOOLCHAIN: local
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5
+        with:
+          go-version-file: backend/go.mod
+          cache: false
+      - name: Affected pharmacy regressions and canonical bucket consumers
+        run: go test -race -v -count=1 -timeout 75m ./internal/modules/pharmacy
+      - name: Narrow admission and object authority through Global API
+        run: go test -race -v -count=1 -timeout 8m ./internal/globalapi -run '^TestLowStockThroughGlobalAPI$'
+      - name: Single-result and paginated contract boundaries
+        run: go test -count=1 ./internal/archtest -run '^TestEveryCollectionGETIsPaginated$'
+  capacity:
+    concurrency:
+      group: low-stock-capacity-${{ github.ref }}-${{ github.sha }}
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      GOTOOLCHAIN: local
+      HELIVANTA_LOW_STOCK_CAPACITY: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5
+        with:
+          go-version-file: backend/go.mod
+          cache: false
+      - name: Ten thousand configurations under both owners
+        run: go test -v -count=1 -timeout 30m ./internal/modules/pharmacy -run '^TestLowStockCapacityAtTenThousandProducts$'
+  browser:
+    concurrency:
+      group: low-stock-browser-${{ github.ref }}
+      cancel-in-progress: true
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5
+        with:
+          go-version-file: backend/go.mod
+          cache: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm --filter @helivanta/shell... install --frozen-lockfile
+      - name: Low-stock SDK and UI regression tests
+        run: |
+          pnpm --filter @helivanta/api exec vitest run src/pharmacy-reorder.test.ts src/pharmacy-reorder-client.test.ts
+          pnpm --filter @helivanta/ui exec vitest run src/zones.test.ts src/hms-shell.test.tsx
+          pnpm --filter @helivanta/shell exec vitest run components/pharmacy/low-stock-panel.test.tsx components/pharmacy/low-stock-overview.test.tsx components/pharmacy/pharmacy-workspace.test.tsx
+      - name: Affected API and shell type checks
+        run: |
+          pnpm --filter @helivanta/api exec tsc --noEmit --incremental false
+          pnpm --filter @helivanta/shell exec tsc --noEmit --incremental false
+      - name: Build affected shell
+        run: pnpm --filter @helivanta/shell build
+        env:
+          API_URL: http://127.0.0.1:8081
+          NEXT_PUBLIC_ZITADEL_CLIENT_ID: ci-build-client-id
+          NEXT_PUBLIC_ZITADEL_ISSUER_URL: http://auth.tesserix.localhost:20080
+      - name: Install acceptance browser
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Both owners through built UI and real Global API
+        env:
+          HOSTNAME: 127.0.0.1
+          PORT: "4344"
+          API_URL: http://127.0.0.1:8081
+          HELIVANTA_LOW_STOCK_BROWSER_URL: http://127.0.0.1:4344
+        run: |
+          set -euo pipefail
+          standalone=apps/shell/.next/standalone/apps/shell
+          mkdir -p "$standalone/.next/static"
+          cp -R apps/shell/.next/static/. "$standalone/.next/static/"
+          if [ -d apps/shell/public ]; then
+            mkdir -p "$standalone/public"
+            cp -R apps/shell/public/. "$standalone/public/"
+          fi
+          node "$standalone/server.js" > "$RUNNER_TEMP/low-stock-web.log" 2>&1 &
+          web_pid=$!
+          trap 'kill "$web_pid" 2>/dev/null || true' EXIT
+          for _ in $(seq 1 30); do
+            kill -0 "$web_pid"
+            if curl --fail --silent --max-time 2 "$HELIVANTA_LOW_STOCK_BROWSER_URL/login" > /dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          curl --fail --silent --max-time 2 "$HELIVANTA_LOW_STOCK_BROWSER_URL/login" > /dev/null
+          go -C backend test -tags lowstockbrowser -race -v -count=1 -timeout=8m ./internal/globalapi -run '^TestLowStockBuiltBrowser$'
+      - name: Retain browser acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: low-stock-browser
+          path: |
+            /tmp/helivanta-low-stock-*.png
+            ${{ runner.temp }}/low-stock-web.log
+          retention-days: 7

@@ -179,7 +179,7 @@ func TestOnlyTheBlockRuleReadsSafetyIncidents(t *testing.T) {
 		}
 		return tx.Raw(`SELECT proname FROM pg_proc WHERE pronamespace=current_schema()::regnamespace AND proname LIKE 'pharmacy\_%' AND prosrc LIKE '%Asia/Kolkata%' ORDER BY proname`).Scan(&fixedZone).Error
 	}))
-	require.Equal(t, []string{"pharmacy_lot_block_reason"}, readers)
+	require.Equal(t, []string{"pharmacy_lot_block_reasons"}, readers)
 	require.Empty(t, fixedZone)
 }
 

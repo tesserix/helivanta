@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "policy_version": "2026-11-24.pharmacy-stocktake.v1",
+  "policy_version": "2026-11-24.pharmacy-low-stock.v1",
   "capabilities": [
     {
       "key": "onboarding",
@@ -61,7 +61,7 @@
     {
       "key": "pharmacy_stock",
       "owner": "pharmacy",
-      "dependencies": ["pharmacy_catalogue"],
+      "dependencies": ["pharmacy_catalogue", "pharmacy_low_stock"],
       "eligible": false,
       "review_after": "2027-02-16"
     },
@@ -171,6 +171,13 @@
     },
     {
       "key": "pharmacy_stocktake",
+      "owner": "pharmacy",
+      "dependencies": ["pharmacy_setup"],
+      "eligible": true,
+      "review_after": "2027-02-16"
+    },
+    {
+      "key": "pharmacy_low_stock",
       "owner": "pharmacy",
       "dependencies": ["pharmacy_setup"],
       "eligible": true,
@@ -2326,7 +2333,7 @@
     {
       "method": "GET",
       "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/access",
-      "capability": "pharmacy_catalogue"
+      "capability": "pharmacy_setup"
     },
     {
       "method": "GET",
@@ -5636,22 +5643,22 @@
     {
       "method": "GET",
       "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/reorder-level",
-      "capability": "pharmacy_stock"
+      "capability": "pharmacy_low_stock"
     },
     {
       "method": "GET",
       "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/reorder-levels/:command",
-      "capability": "pharmacy_stock"
+      "capability": "pharmacy_low_stock"
     },
     {
       "method": "PUT",
       "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/reorder-levels/:command",
-      "capability": "pharmacy_stock"
+      "capability": "pharmacy_low_stock"
     },
     {
       "method": "GET",
       "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/low-products",
-      "capability": "pharmacy_stock"
+      "capability": "pharmacy_low_stock"
     },
     {
       "method": "PUT",
@@ -6067,6 +6074,21 @@
       "method": "GET",
       "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/stocktake-department-choices",
       "capability": "baseline"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/low-products/overview",
+      "capability": "pharmacy_low_stock"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/reorder-products",
+      "capability": "pharmacy_low_stock"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/reorder-products/:id",
+      "capability": "pharmacy_low_stock"
     }
   ],
   "pages": [
@@ -6365,6 +6387,10 @@
     {
       "path": "/pharmacy/working-stocktakes",
       "capability": "pharmacy_setup"
+    },
+    {
+      "path": "/pharmacy/low-stock",
+      "capability": "pharmacy_low_stock"
     }
   ],
   "panels": [
@@ -6527,6 +6553,10 @@
     {
       "key": "staff.assignments.pharmacy_stocktake",
       "capability": "pharmacy_stocktake"
+    },
+    {
+      "key": "pharmacy.low_stock.overview",
+      "capability": "pharmacy_low_stock"
     }
   ],
   "models": {

@@ -7,17 +7,79 @@ import {
   pharmacyOverviewStockSchema,
   pharmacyReorderLevelInputSchema,
   pharmacyReorderLevelReceiptSchema,
+  pharmacyReorderProductSchema,
+  pharmacyLowStockOverviewSchema,
 } from "./pharmacy-contract";
 
 export type PharmacyOverviewStock = z.infer<typeof pharmacyOverviewStockSchema>;
 export type PharmacyReorderLevelInput = z.infer<typeof pharmacyReorderLevelInputSchema>;
 export type PharmacyReorderLevelReceipt = z.infer<typeof pharmacyReorderLevelReceiptSchema>;
 export type PharmacyLowStockProduct = z.infer<typeof pharmacyLowStockProductSchema>;
+export type PharmacyReorderProduct = z.infer<typeof pharmacyReorderProductSchema>;
+export type PharmacyLowStockOverview = z.infer<typeof pharmacyLowStockOverviewSchema>;
 const id = z.string().guid();
 const pageSchema = z.object({
   data: z.array(pharmacyLowStockProductSchema).max(200),
   page: z.object({ next_cursor: z.string().nullable(), has_more: z.boolean() }),
 });
+const productsPageSchema = pageSchema.extend({
+  data: z.array(pharmacyReorderProductSchema).max(200),
+});
+
+export async function fetchReorderProductsPage(
+  scope: PharmacyScope,
+  cursor: string | null,
+  signal?: AbortSignal,
+): Promise<Page<PharmacyReorderProduct>> {
+  const query = new URLSearchParams();
+  if (cursor) query.set("cursor", cursor);
+  const page = productsPageSchema.parse(
+    await apiFetch(
+      `${pharmacyRoot(scope)}/catalogue/reorder-products?${query}`,
+      request(scope, signal),
+    ),
+  );
+  if (page.data.some((row) => row.outlet_id !== scope.outletId || row.status !== "active"))
+    throw new Error("Reorder products do not match this active outlet selection.");
+  if (
+    new Set(page.data.map((row) => row.id)).size !== page.data.length ||
+    page.page.has_more !== Boolean(page.page.next_cursor) ||
+    (cursor !== null && page.page.next_cursor === cursor)
+  )
+    throw new Error("Reorder products have an invalid continuation.");
+  return page;
+}
+
+export async function readReorderProduct(
+  scope: PharmacyScope,
+  product: string,
+  signal?: AbortSignal,
+) {
+  const row = pharmacyReorderProductSchema.parse(
+    await apiFetch(
+      `${pharmacyRoot(scope)}/catalogue/reorder-products/${id.parse(product)}`,
+      request(scope, signal),
+    ),
+  );
+  if (row.id !== product || row.outlet_id !== scope.outletId)
+    throw new Error("The product does not match this outlet.");
+  return row;
+}
+
+export async function readLowStockOverview(scope: PharmacyScope, signal?: AbortSignal) {
+  const row = pharmacyLowStockOverviewSchema.parse(
+    await apiFetch(`${pharmacyRoot(scope)}/stock/low-products/overview`, request(scope, signal)),
+  );
+  if (row.outlet_id !== scope.outletId)
+    throw new Error("The low-stock count does not match this outlet.");
+  if (
+    new Intl.DateTimeFormat("en-CA", { timeZone: row.time_zone }).format(
+      new Date(row.observed_at),
+    ) !== row.local_date
+  )
+    throw new Error("The low-stock observation date could not be verified.");
+  return row;
+}
 function request(scope: PharmacyScope, signal?: AbortSignal): RequestInit {
   const timeout = AbortSignal.timeout(15000);
   return {

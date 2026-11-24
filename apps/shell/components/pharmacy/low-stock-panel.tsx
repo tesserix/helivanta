@@ -6,23 +6,21 @@ import { z } from "zod";
 import { Button, Input } from "@tesserix/web";
 import {
   ApiError,
-  apiFetch,
-  pharmacyProductFieldsSchema,
   formatZonedDateTime,
   fetchLowStockPage,
+  fetchReorderProductsPage,
+  readReorderProduct,
   newPharmacyId,
   pharmacyKey,
-  pharmacyRoot,
   pharmacyReorderLevelInputSchema,
   readReorderLevel,
   readReorderReceipt,
   saveReorderLevel,
-  useApiPagedQuery,
   usePagedQuery,
   type PharmacyReorderLevelInput,
   type PharmacyReorderLevelReceipt,
   type PharmacyScope,
-  type PharmacyProduct,
+  type PharmacyReorderProduct,
 } from "@helivanta/api";
 import {
   Field,
@@ -128,11 +126,10 @@ export function LowStockPanel({
 }
 
 function LevelChooser({ scope }: { scope: PharmacyScope }) {
-  const products = useApiPagedQuery<PharmacyProduct>(
-    pharmacyKey(scope, "reorder-products"),
-    `${pharmacyRoot(scope)}/catalogue/products`,
+  const products = usePagedQuery(pharmacyKey(scope, "reorder-products"), (cursor, signal) =>
+    fetchReorderProductsPage(scope, cursor, signal),
   );
-  const [selection, setSelection] = useState<PharmacyProduct | null>(null);
+  const [selection, setSelection] = useState<PharmacyReorderProduct | null>(null);
   const selected = selection?.id ?? "";
   const leave = useConfirmLeave();
   const product = products.items.find((item) => item.id === selected) ?? selection;
@@ -179,12 +176,27 @@ function LevelChooser({ scope }: { scope: PharmacyScope }) {
           />
         </>
       )}
-      {product && <LevelEditor key={product.id} scope={scope} product={product} />}
+      {product && (
+        <LevelEditor
+          key={product.id}
+          scope={scope}
+          product={product}
+          unavailable={Boolean(products.error)}
+        />
+      )}
     </Panel>
   );
 }
 
-function LevelEditor({ scope, product }: { scope: PharmacyScope; product: PharmacyProduct }) {
+function LevelEditor({
+  scope,
+  product,
+  unavailable,
+}: {
+  scope: PharmacyScope;
+  product: PharmacyReorderProduct;
+  unavailable: boolean;
+}) {
   const level = useQuery({
     queryKey: pharmacyKey(scope, "reorder-level", product.id),
     queryFn: ({ signal }) => readReorderLevel(scope, product.id, signal),
@@ -214,7 +226,7 @@ function LevelEditor({ scope, product }: { scope: PharmacyScope; product: Pharma
         scope={scope}
         product={product}
         current={level.data}
-        unavailable={Boolean(level.error)}
+        unavailable={unavailable || Boolean(level.error)}
       />
     </>
   );
@@ -246,7 +258,7 @@ function LevelForm({
   unavailable,
 }: {
   scope: PharmacyScope;
-  product: PharmacyProduct;
+  product: PharmacyReorderProduct;
   current: PharmacyReorderLevelReceipt | null;
   unavailable: boolean;
 }) {
@@ -308,29 +320,11 @@ function LevelForm({
   const reload = useMutation({
     mutationFn: async () => {
       const [fresh, latest] = await Promise.all([
-        apiFetch<PharmacyProduct>(`${pharmacyRoot(scope)}/catalogue/products/${product.id}`, {
-          headers: { "X-Helivanta-Expected-Tenant": scope.tenantId },
-          signal: AbortSignal.timeout(15000),
-          cache: "no-store",
-        }),
+        readReorderProduct(scope, product.id),
         readReorderLevel(scope, product.id),
       ]);
-      const fields = pharmacyProductFieldsSchema
-        .pick({ brand_name: true, unit_of_issue: true })
-        .strip()
-        .parse(fresh);
-      if (
-        fresh.id !== product.id ||
-        fresh.outlet_id !== scope.outletId ||
-        !Number.isSafeInteger(fresh.version) ||
-        fresh.version < 1
-      )
-        throw new Error(
-          "The product does not match this outlet. Reload the workspace before editing.",
-        );
-      const active =
-        latest?.unit_of_issue === fields.unit_of_issue && latest.minimum_units !== null;
-      setBasis({ product: { ...fresh, ...fields }, current: latest });
+      const active = latest?.unit_of_issue === fresh.unit_of_issue && latest.minimum_units !== null;
+      setBasis({ product: fresh, current: latest });
       form.reset({ enabled: active, minimum: active ? String(latest.minimum_units) : "" });
       setAttempt(null);
       setNotFound(false);

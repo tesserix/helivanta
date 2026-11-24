@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-const PolicyVersion = "2026-11-24.pharmacy-stocktake.v1"
+const PolicyVersion = "2026-11-24.pharmacy-low-stock.v1"
 
 var definitions = []Definition{{Key: "onboarding", Eligible: true, Dependencies: []string{}},
 	{Key: "team_accounts", Eligible: true, Dependencies: []string{}},
@@ -16,7 +16,7 @@ var definitions = []Definition{{Key: "onboarding", Eligible: true, Dependencies:
 	{Key: "pharmacy_setup", Eligible: true, Dependencies: []string{"team_accounts"}},
 	{Key: "pharmacy_staff", Eligible: true, Dependencies: []string{"staff_core", "pharmacy_setup"}},
 	{Key: "pharmacy_catalogue", Eligible: false, Dependencies: []string{"pharmacy_setup"}},
-	{Key: "pharmacy_stock", Eligible: false, Dependencies: []string{"pharmacy_catalogue"}},
+	{Key: "pharmacy_stock", Eligible: false, Dependencies: []string{"pharmacy_catalogue", "pharmacy_low_stock"}},
 	{Key: "pharmacy_prescriptions", Eligible: false, Dependencies: []string{"pharmacy_staff"}},
 	{Key: "pharmacy_returns", Eligible: false, Dependencies: []string{"pharmacy_stock"}},
 	{Key: "pharmacy_reports", Eligible: false, Dependencies: []string{"pharmacy_stock"}},
@@ -31,7 +31,8 @@ var definitions = []Definition{{Key: "onboarding", Eligible: true, Dependencies:
 	{Key: "emergency", Eligible: false, Dependencies: []string{}},
 	{Key: "billing_workspace", Eligible: false, Dependencies: []string{}},
 	{Key: "unreleased", Eligible: false, Dependencies: []string{}},
-	{Key: "pharmacy_stocktake", Eligible: true, Dependencies: []string{"pharmacy_setup"}}}
+	{Key: "pharmacy_stocktake", Eligible: true, Dependencies: []string{"pharmacy_setup"}},
+	{Key: "pharmacy_low_stock", Eligible: true, Dependencies: []string{"pharmacy_setup"}}}
 var routeCapabilities = map[string]string{"POST /v1/workforce/hospitals/:hospital/staff/:id/mfa-recoveries/:command/cancel": "baseline",
 	"POST /v1/workforce/pharmacies/:pharmacy/staff/:id/mfa-recoveries/:command/cancel": "baseline",
 	"POST /v1/workforce/suppliers/:supplier/staff/:id/mfa-recoveries/:command/cancel":  "baseline",
@@ -461,7 +462,7 @@ var routeCapabilities = map[string]string{"POST /v1/workforce/hospitals/:hospita
 	"GET /v1/pharmacy/pharmacies/:pharmacy/outlets":                                                                                  "pharmacy_setup",
 	"GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet":                                                                          "pharmacy_setup",
 	"PUT /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet":                                                                          "pharmacy_setup",
-	"GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/access":                                                                   "pharmacy_catalogue",
+	"GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/access":                                                                   "pharmacy_setup",
 	"GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/access-grants":                                                            "pharmacy_setup",
 	"DELETE /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/access/:subject":                                                       "pharmacy_setup",
 	"PUT /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/access/:subject":                                                          "pharmacy_setup",
@@ -1123,10 +1124,10 @@ var routeCapabilities = map[string]string{"POST /v1/workforce/hospitals/:hospita
 	"POST /v1/auth/password-recovery/cancel":                                                                                                         "baseline",
 	"GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/drugmaster":                                                                     "pharmacy_catalogue",
 	"PUT /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/from-drugmaster":                                                   "pharmacy_catalogue",
-	"GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/reorder-level":                                                     "pharmacy_stock",
-	"GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/reorder-levels/:command":                                           "pharmacy_stock",
-	"PUT /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/reorder-levels/:command":                                           "pharmacy_stock",
-	"GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/low-products":                                                                       "pharmacy_stock",
+	"GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/reorder-level":                                                     "pharmacy_low_stock",
+	"GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/reorder-levels/:command":                                           "pharmacy_low_stock",
+	"PUT /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/reorder-levels/:command":                                           "pharmacy_low_stock",
+	"GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/low-products":                                                                       "pharmacy_low_stock",
 	"PUT /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/stocktakes/:stocktake":                                                              "pharmacy_stock",
 	"GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/stocktakes/:stocktake":                                                              "baseline",
 	"GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/stocktakes":                                                                         "baseline",
@@ -1209,7 +1210,10 @@ var routeCapabilities = map[string]string{"POST /v1/workforce/hospitals/:hospita
 	"GET /v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes/quarantine-choices":                "pharmacy_stocktake",
 	"GET /v1/iam/me/hospital-pharmacy-stocktake-scopes":                                                                                              "baseline",
 	"GET /v1/pharmacy/hospitals/:hospital/departments/:department/stocktake-outlet-choices":                                                          "baseline",
-	"GET /v1/pharmacy/hospitals/:hospital/departments/:department/stocktake-department-choices":                                                      "baseline"}
+	"GET /v1/pharmacy/hospitals/:hospital/departments/:department/stocktake-department-choices":                                                      "baseline",
+	"GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/low-products/overview":                                                              "pharmacy_low_stock",
+	"GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/reorder-products":                                                               "pharmacy_low_stock",
+	"GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/reorder-products/:id":                                                           "pharmacy_low_stock"}
 var internalRouteCapabilities = map[string]string{"POST /v1/supply/internal/trading-source/check": "baseline",
 	"POST /v1/supply/internal/relationship/check": "baseline",
 	"POST /internal/v1/mediconnect/current-claim": "baseline",

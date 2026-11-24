@@ -1,5 +1,11 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { fetchLowStockPage, saveReorderLevel } from "./pharmacy-reorder";
+import {
+  fetchLowStockPage,
+  fetchReorderProductsPage,
+  readLowStockOverview,
+  readReorderProduct,
+  saveReorderLevel,
+} from "./pharmacy-reorder";
 
 const scope = {
   tenantId: "0199e000-0000-7000-8000-0000000000aa",
@@ -20,6 +26,45 @@ const receipt = {
 };
 const json = (body: unknown) => new Response(JSON.stringify(body), { status: 200 });
 afterEach(() => vi.unstubAllGlobals());
+it("reads narrow reorder products and rejects a foreign outlet projection", async () => {
+  const row = {
+    id: product,
+    outlet_id: scope.outletId,
+    sku: "TEST",
+    brand_name: "TEST Product",
+    unit_of_issue: "tablet",
+    version: 1,
+    status: "active",
+  };
+  const fetch = vi
+    .fn()
+    .mockResolvedValueOnce(json({ data: [row], page: { has_more: false, next_cursor: null } }))
+    .mockResolvedValueOnce(json(row))
+    .mockResolvedValueOnce(json({ ...row, outlet_id: command }));
+  vi.stubGlobal("fetch", fetch);
+  expect((await fetchReorderProductsPage(scope, null)).data).toEqual([row]);
+  expect(await readReorderProduct(scope, product)).toEqual(row);
+  await expect(readReorderProduct(scope, product)).rejects.toThrow(/outlet/i);
+  expect(fetch.mock.calls[0]?.[0]).toContain("/catalogue/reorder-products?");
+});
+it("reads an observed low-stock count without admitting another outlet or an invented zero", async () => {
+  const summary = {
+    outlet_id: scope.outletId,
+    low_stock: 3,
+    observed_at: "2026-11-20T00:00:00Z",
+    local_date: "2026-11-20",
+    time_zone: "Asia/Kolkata",
+  };
+  const fetch = vi
+    .fn()
+    .mockResolvedValueOnce(json(summary))
+    .mockResolvedValueOnce(json({ ...summary, outlet_id: command }))
+    .mockResolvedValueOnce(json({ ...summary, low_stock: null }));
+  vi.stubGlobal("fetch", fetch);
+  expect(await readLowStockOverview(scope)).toEqual(summary);
+  await expect(readLowStockOverview(scope)).rejects.toThrow(/outlet/i);
+  await expect(readLowStockOverview(scope)).rejects.toThrow();
+});
 it("pins the command and scope and rejects a receipt for another product", async () => {
   const fetch = vi
     .fn()

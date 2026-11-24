@@ -33,6 +33,20 @@ function renderPanel(configure = false) {
     </NavigationGuardProvider>,
   );
 }
+it("configures a minimum through the narrow product choices while the general catalogue is locked", async () => {
+  const fetch = vi.fn(async (url: string) => {
+    if (url.includes("/catalogue/reorder-products")) return json(page([product]));
+    if (url.endsWith("/reorder-level")) return json({ level: null });
+    if (url.includes("/stock/low-products")) return json(page([]));
+    return json({ error: "feature_unavailable" }, 404);
+  });
+  vi.stubGlobal("fetch", fetch);
+  const { user } = renderPanel(true);
+  await user.click(await screen.findByRole("combobox", { name: "Product" }));
+  await user.click(await screen.findByRole("option", { name: "TEST Medicine · TEST-MED" }));
+  expect(await screen.findByRole("textbox", { name: "Minimum (capsule)" })).toBeVisible();
+  expect(fetch.mock.calls.some(([url]) => url.includes("/catalogue/reorder-products"))).toBe(true);
+});
 it("keeps unavailable stock distinct from an empty list and never fetches configuration for a reader", async () => {
   const fetch = vi.fn().mockResolvedValue(json({ error: "unavailable" }, 503));
   vi.stubGlobal("fetch", fetch);
@@ -41,6 +55,35 @@ it("keeps unavailable stock distinct from an empty list and never fetches config
   expect(screen.queryByText(/No low-stock warnings/)).not.toBeInTheDocument();
   expect(screen.queryByRole("region", { name: "Configure reorder level" })).not.toBeInTheDocument();
   expect(fetch.mock.calls.every(([url]) => String(url).includes("/stock/low-products"))).toBe(true);
+});
+it("hides an editing baseline when its product projection becomes unavailable and retains the draft for recovery", async () => {
+  let available = true;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      if (url.includes("/catalogue/reorder-products"))
+        return available ? json(page([product])) : json({ error: "unavailable" }, 503);
+      if (url.endsWith("/reorder-level")) return json({ level: null });
+      return json(page([]));
+    }),
+  );
+  const { user } = renderPanel(true);
+  await user.click(await screen.findByRole("combobox", { name: "Product" }));
+  await user.click(await screen.findByRole("option", { name: "TEST Medicine · TEST-MED" }));
+  await user.click(await screen.findByRole("checkbox", { name: "Enable low-stock warning" }));
+  await user.type(screen.getByRole("textbox", { name: "Minimum (capsule)" }), "9");
+  available = false;
+  await act(async () => {
+    focusManager.setFocused(false);
+    focusManager.setFocused(true);
+  });
+  expect(await screen.findByText("Products could not be loaded.")).toBeVisible();
+  expect(screen.queryByRole("textbox", { name: "Minimum (capsule)" })).not.toBeInTheDocument();
+  available = true;
+  await user.click(screen.getByRole("button", { name: "Try again" }));
+  await waitFor(() =>
+    expect(screen.getByRole("textbox", { name: "Minimum (capsule)" })).toHaveValue("9"),
+  );
 });
 it("distinguishes unconfigured products from a zero-availability warning", async () => {
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue(json(page([]))));
@@ -75,8 +118,9 @@ it("recovers an uncertain committed save by the original command, without a seco
         levelReads++;
         return json({ level: latest });
       }
-      if (url.endsWith(`/catalogue/products/${product.id}`)) return json(product);
-      if (url.includes("/catalogue/products")) return json(page(productOnPage ? [product] : []));
+      if (url.endsWith(`/catalogue/reorder-products/${product.id}`)) return json(product);
+      if (url.includes("/catalogue/reorder-products"))
+        return json(page(productOnPage ? [product] : []));
       if (url.includes("/stock/low-products"))
         return json(
           page(

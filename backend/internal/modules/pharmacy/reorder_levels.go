@@ -61,6 +61,9 @@ func reorderRoutes(s *platform.Router, h *catalogueHandlers) {
 	s.GET("/catalogue/products/:id/reorder-levels/:command", PermStockRead, h.getReorderReceipt)
 	s.PUT("/catalogue/products/:id/reorder-levels/:command", PermCatalogueWrite, h.putReorderLevel)
 	platform.ListRoute(s, "/stock/low-products", PermStockRead, h.listLowStock)
+	platform.ListRoute(s, "/catalogue/reorder-products", PermStockRead, h.listReorderProducts)
+	s.GET("/catalogue/reorder-products/:id", PermStockRead, h.getReorderProduct)
+	s.GET("/stock/low-products/overview", PermStockRead, h.getLowStockOverview)
 }
 
 func (h *catalogueHandlers) getReorderLevel(c *gin.Context)   { h.readReorderLevel(c, false) }
@@ -97,16 +100,16 @@ func (h *catalogueHandlers) readReorderLevel(c *gin.Context, receipt bool) {
 		var row reorderLevel
 		if err := q.First(&row).Error; err != nil {
 			if !receipt && errors.Is(err, gorm.ErrRecordNotFound) {
-				return nil
+				return lowStockReadAudit(c, tx, p, "reorder_level", product, "record_read")
 			}
 			return err
 		}
 		value := row.receipt()
 		result = &value
-		return nil
+		return lowStockReadAudit(c, tx, p, "reorder_level", row.ID, "record_read")
 	})
 	if err != nil {
-		catalogueError(c, err)
+		lowStockError(c, err)
 		return
 	}
 	if receipt {
@@ -154,7 +157,7 @@ func (h *catalogueHandlers) putReorderLevel(c *gin.Context) {
 			if result.ProductID != product || result.ExpectedVersion != *in.ExpectedVersion || result.ProductVersion != *in.ProductVersion || result.ActorSubject != p.Subject || !sameMinimum {
 				return errCatalogueVersion
 			}
-			return nil
+			return lowStockReadAudit(c, tx, p, "reorder_level", command, "command_recovered")
 		}
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
 			return err
@@ -170,7 +173,7 @@ func (h *catalogueHandlers) putReorderLevel(c *gin.Context) {
 		return tx.Omit("CreatedAt").Clauses(clause.Returning{}).Create(&result).Error
 	})
 	if err != nil {
-		catalogueError(c, err)
+		lowStockError(c, err)
 		return
 	}
 	respond.OK(c, result.receipt())
@@ -184,12 +187,22 @@ type lowStockProduct struct {
 func (p lowStockProduct) PageKey() (time.Time, uuid.UUID) { return p.CreatedAt, p.ID }
 
 func lowStockSource(tx *gorm.DB, tenant string, outlet uuid.UUID, observed time.Time) *gorm.DB {
-	return tx.Table("pharmacy_catalogue_products p").Select(`p.id,p.outlet_id,p.created_at,p.sku,p.brand_name,p.unit_of_issue,r.minimum_units,
- available.units::text AS available_units,? AS observed_at,to_char(timezone(o.timezone,?::timestamptz)::date,'YYYY-MM-DD') AS local_date,o.timezone AS time_zone`, observed.UTC().Format(time.RFC3339Nano), observed).
-		Joins("JOIN LATERAL (SELECT minimum_units,unit_of_issue FROM pharmacy_reorder_levels WHERE tenant_id=p.tenant_id AND outlet_id=p.outlet_id AND product_id=p.id ORDER BY version DESC LIMIT 1) r ON true").
-		Joins("JOIN pharmacy_outlets o ON o.tenant_id=p.tenant_id AND o.id=p.outlet_id").
-		Joins("CROSS JOIN LATERAL (SELECT COALESCE(SUM(on_hand::numeric),0) AS units FROM pharmacy_sellable_buckets(p.tenant_id,p.outlet_id,p.id,timezone(o.timezone,?::timestamptz)::date)) available", observed).
-		Where("p.tenant_id=? AND p.outlet_id=? AND p.status='active' AND r.minimum_units IS NOT NULL AND r.unit_of_issue=p.unit_of_issue AND available.units<=r.minimum_units", tenant, outlet)
+	return tx.Raw(`WITH available AS MATERIALIZED(
+ SELECT COALESCE(jsonb_object_agg(product_id::text,units),'{}'::jsonb) AS by_product
+ FROM(SELECT product_id,SUM(on_hand::numeric) AS units
+ FROM pharmacy_sellable_product_buckets(?,?,NULL,
+ timezone((SELECT timezone FROM pharmacy_outlets WHERE tenant_id=? AND id=?),?::timestamptz)::date)
+ GROUP BY product_id)totals)
+ SELECT p.id,p.outlet_id,p.created_at,p.sku,p.brand_name,p.unit_of_issue,r.minimum_units,
+ COALESCE(((SELECT by_product FROM available)->>p.id::text)::numeric,0)::text AS available_units,
+ ? AS observed_at,to_char(timezone(o.timezone,?::timestamptz)::date,'YYYY-MM-DD') AS local_date,o.timezone AS time_zone
+ FROM pharmacy_catalogue_products p
+ JOIN LATERAL(SELECT minimum_units,unit_of_issue FROM pharmacy_reorder_levels
+ WHERE tenant_id=p.tenant_id AND outlet_id=p.outlet_id AND product_id=p.id ORDER BY version DESC LIMIT 1)r ON true
+ JOIN pharmacy_outlets o ON o.tenant_id=p.tenant_id AND o.id=p.outlet_id
+ WHERE p.tenant_id=? AND p.outlet_id=? AND p.status='active' AND r.minimum_units IS NOT NULL
+ AND r.unit_of_issue=p.unit_of_issue AND COALESCE(((SELECT by_product FROM available)->>p.id::text)::numeric,0)<=r.minimum_units`,
+		tenant, outlet, tenant, outlet, observed, observed.UTC().Format(time.RFC3339Nano), observed, tenant, outlet)
 }
 
 func (h *catalogueHandlers) listLowStock(c *gin.Context, params pagination.Params) ([]lowStockProduct, error) {
@@ -197,11 +210,8 @@ func (h *catalogueHandlers) listLowStock(c *gin.Context, params pagination.Param
 	if !ok {
 		return nil, nil
 	}
-	for key, values := range c.Request.URL.Query() {
-		if (key != "limit" && key != "cursor") || len(values) != 1 || values[0] == "" {
-			respond.Error(c, 400, "invalid_request", "only limit and cursor are supported")
-			return nil, nil
-		}
+	if !reorderReadQuery(c, true) {
+		return nil, nil
 	}
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
 	defer cancel()
@@ -214,10 +224,13 @@ func (h *catalogueHandlers) listLowStock(c *gin.Context, params pagination.Param
 		if err := tx.Raw("SELECT clock_timestamp()").Scan(&observed).Error; err != nil {
 			return err
 		}
-		return tenantdb.ApplyKeyset(tx, params).Table("(?) low_stock", lowStockSource(tx, p.TenantID, outlet, observed)).Find(&rows).Error
+		if err := tenantdb.ApplyKeyset(tx, params).Table("(?) low_stock", lowStockSource(tx, p.TenantID, outlet, observed)).Find(&rows).Error; err != nil {
+			return err
+		}
+		return lowStockReadAudit(c, tx, p, "low_stock", outlet, "list_read")
 	})
 	if err != nil {
-		catalogueError(c, err)
+		lowStockError(c, err)
 	}
 	return rows, nil
 }

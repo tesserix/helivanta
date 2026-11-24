@@ -1,5 +1,10 @@
 # Outlet low-stock warnings — #1685
 
+The original storage/availability implementation shipped in #1761. Its broad
+release gates did not expose the workflow. The [activation design](2026-11-24-low-stock-activation.md)
+supersedes the broad-gate UI/release discussion below and adds audited narrow
+projections; remaining activation acceptance is tracked in #1685.
+
 ## Owner, scope and decision
 
 PharmaConnect owns reorder levels and reads its existing stock ledger. Clients

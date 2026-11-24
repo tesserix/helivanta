@@ -322,3 +322,65 @@ restoration result. Keep real contacts and credentials in private evidence.
 Distinguish hosted CI, live browser and backend checks. Do not call a workflow
 accepted while independent review, recipient verification, scope denial or
 recovery checks remain unexecuted.
+
+## Outlet low-stock warnings
+
+`helivanta.release.pharmacy_low_stock` depends only on `pharmacy_setup`, which
+requires `team_accounts`. Its workflow is **PharmaConnect → Inventory → Low
+stock** (`/pharmacy/low-stock`). It provides an exact outlet count, warning list
+and accountable product/outlet minimum editor. Readers need stock-read permission
+and the exact outlet reader grant; workspace discovery also needs catalogue-read.
+Editors additionally need catalogue-write and
+the outlet editor grant. The same checks apply to hospital-owned and independent
+pharmacies. This flag grants neither stock movement nor dispensing authority.
+
+1. Check #1685 acceptance evidence and the deployed application policy version
+   against the canonical contract and chart catalogue. Keep this feature release
+   locked until owner, Global API, built-browser and 10,000-product gates pass.
+2. Deploy the eligible signed revision through the normal Release/Kargo flow.
+3. Let the chart-owned scheduled catalogue sync create the definition disabled.
+   Review it in Console; preserve all other desired feature values.
+4. Enable only **Low stock** with a release reference using the procedure above.
+5. Refresh Helivanta, choose an authorized test outlet and check the count, named
+   list, zero/equality threshold, saved minimum and reload. Verify reader write
+   denial and inaccessible-scope refusal. Never enable broad Stock/Catalogue to
+   prepare fixtures or bypass identity review.
+6. Verify a later scheduled catalogue sync preserves its acknowledged desired
+   value. Record actual release, command and browser evidence in #1685.
+
+Disabling Low stock hides the workspace and denies its APIs. Broad Stock also
+depends on it, preventing legacy list/count exposure if Stock is enabled later.
+Configuration history remains retained. General Catalogue, Reports, receiving,
+ordering and financial capabilities remain governed by their own release gates.
+
+### Low-stock read-policy migration gate
+
+`0071_pharmacy_low_stock_scope_read` is a forward-only read-policy optimization
+for catalogue products, reorder levels, stock batches, movements and locations.
+It retains exact row tenant/outlet checks and evaluates the existing current
+outlet grant once per statement. It does not cache authority between requests.
+No write, alternate read, restrictive purpose or policy-role clause is replaced.
+The same unapplied migration also centralizes relational lot-reason and
+all-product sellable-bucket calculation. Existing scalar/product functions
+delegate to those owner projections with the same signatures, rule priorities,
+hold arithmetic and exceptions. Approval must explicitly include these function
+delegations because existing sales, balance and supplier guards call them.
+It also validates and re-pins the existing hospital-stocktake source seal for
+the one controlled movement-read clause; every other source field and the
+runtime choice/TRUNCATE restriction remain guarded. Unrelated predecessor drift
+refuses the migration before any authority can be re-sealed.
+
+Before production application, retain the exact-head hosted predecessor/new
+visibility tests, write/purpose metadata checks, denial/revocation, both-owner
+browser acceptance, affected pharmacy/lot/bucket consumer regressions and original 10,000-product p99 ≤500 ms evidence. Obtain
+explicit approval naming this migration and the signed release commit. Capture
+the five current policies' expressions, roles and purpose-integrity result in
+protected operational evidence before release; no credentials or private data
+belong in the public repository.
+
+The migration refuses an unexpected predecessor and uses five-second lock and
+60-second statement limits. If it refuses or times out, investigate the exact
+policy discrepancy; do not weaken its guard or edit an applied migration. It has
+no automatic down migration. Rolling back an application image leaves the
+compatible policy optimization in place; reverting the policy requires a new
+reviewed forward migration with separately approved production application.

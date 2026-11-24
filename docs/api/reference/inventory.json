@@ -4718,6 +4718,24 @@
           "counted": false
         },
         {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/reorder-products/:id",
+          "permission": "pharmacy.stock.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/reorder-products",
+          "permission": "pharmacy.stock.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
           "method": "POST",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/counter-payments/:id/cancel",
           "permission": "pharmacy.sale.create",
@@ -5429,6 +5447,15 @@
           "authentication_required": true,
           "membership_required": true,
           "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/low-products/overview",
+          "permission": "pharmacy.stock.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
           "counted": false
         },
         {
@@ -6877,6 +6904,11 @@
           "creates_tables": [
             "pharmacy_stocktake_source_invalidations"
           ]
+        },
+        {
+          "id": "0071_pharmacy_low_stock_scope_read",
+          "sql_sha256": "4fb9f81488ffa98a510742100f911f2cd56d480ef78656897b4250c1a791c930",
+          "creates_tables": []
         }
       ]
     },

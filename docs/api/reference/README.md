@@ -622,6 +622,8 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id` | `pharmacy.catalogue.write` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/counted` | `pharmacy.catalogue.read` | true | true |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products` | `pharmacy.catalogue.read` | true | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/reorder-products/:id` | `pharmacy.stock.read` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/reorder-products` | `pharmacy.stock.read` | true | false |
 | POST | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/counter-payments/:id/cancel` | `pharmacy.sale.create` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/counter-payments/:id/refund` | `pharmacy.sale.return` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/counter-payments/:id/refund` | `pharmacy.sale.return` | false | false |
@@ -700,6 +702,7 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/holds/:hold` | `pharmacy.stock.quarantine` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/locations/:id` | `pharmacy.stock.receive` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/locations` | `pharmacy.stock.read` | true | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/low-products/overview` | `pharmacy.stock.read` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/low-products` | `pharmacy.stock.read` | true | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/movements/:id` | `pharmacy.stock.receive` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/movements` | `pharmacy.stock.read` | true | false |

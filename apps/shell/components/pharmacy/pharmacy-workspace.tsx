@@ -35,6 +35,8 @@ import { BusinessProfilePanel } from "../organization/business-profile";
 import { PharmacyRegistrySetup } from "./pharmacy-registry-setup";
 import { StockOverview } from "./stock-overview";
 import { StockWorkspace } from "./stock-workspace";
+import { LowStockPanel } from "./low-stock-panel";
+import { LowStockOverview } from "./low-stock-overview";
 import { StocktakeContinuations } from "./stocktake-continuations";
 import { BatchSafety } from "./batch-safety";
 import { OutletsSetup } from "./outlets-setup";
@@ -61,6 +63,7 @@ type PharmacyView =
   | "stocktake-recovery"
   | "stock-overview"
   | "stock"
+  | "low-stock"
   | "supplier-orders"
   | "receiving"
   | "safety"
@@ -81,6 +84,7 @@ const DESCRIPTIONS: Record<PharmacyView, string> = {
   "stocktake-recovery": "Inspect retained count outcomes or cancel unfinished work at this outlet.",
   "stock-overview": "Stock, expiry and recorded purchase value across your accessible outlets.",
   stock: "What each outlet holds, by product and batch, with reconciliation and export.",
+  "low-stock": "Available stock at or below its minimum, with accountable reorder settings.",
   "supplier-orders":
     "Accept supplier orders, reserve eligible stock and record attributable dispatches.",
   receiving: "Register manufacturer lots, receive them into quarantine and record movements.",
@@ -439,7 +443,20 @@ function OutletPharmacy({
         ) : (
           <p>You do not have permission to read stock.</p>
         )
-      ) : view === "setup" ? null : view === "overview" ? (
+      ) : view === "setup" ? null : view === "low-stock" ? (
+        can("pharmacy.stock.read") ? (
+          <div className="space-y-5">
+            <LowStockOverview scope={scope} />
+            <LowStockPanel
+              key={subject}
+              scope={scope}
+              canConfigure={access.data?.level === "editor" && can("pharmacy.catalogue.write")}
+            />
+          </div>
+        ) : (
+          <p>You do not have permission to read stock.</p>
+        )
+      ) : view === "overview" ? (
         <OverviewTiles scope={scope} outlet={outlet} />
       ) : view === "counter" ? (
         <div className="space-y-6">

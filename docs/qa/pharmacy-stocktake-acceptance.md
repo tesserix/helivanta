@@ -31,6 +31,49 @@ statutory register or authorise dispensing, disposal, tax or financial postings.
   Maharashtra/Odisha as applicable to the actual fixture. Country/state selection
   does not create a controlled-drug policy or licence.
 
+## Reviewed Staff workflow
+
+The current worker entry is **Pharmacy → My stocktakes** at
+`/pharmacy/working-stocktakes`; it needs `pharmacy_setup` and current worker
+discovery. New work, snapshot lines and CSV export additionally need the separate
+`pharmacy_stocktake` release. Do not turn on general Stock/Catalogue as a workaround.
+The legacy Stock page below remains a separate regression path.
+
+For hospital-owned work, select the named hospital department assignment, a
+current working department within its authorized descendants, and a named approved
+outlet. Verify the actual department stocktake read/count/review grant, separate
+Workforce stocktake actor-use grant, current reviewed Staff/employment and approved
+binding at its current Organization revision. Ownership alone must yield no
+operational choice. For independent work, select the separate reviewed pharmacy
+duty and outlet under its actual employer. No synthetic hospital or hospital grant
+substitutes for that employer. Separate actual counter and reviewer Staff remain
+necessary for both models.
+
+Repeat the count, response-loss recovery, independent review, register and ledger
+assertions below through each model's Global API routes. Verify another tenant and
+an unassigned sibling department/outlet remain denied; a permitted descendant
+uses that child's binding and coordinates. Record actual sign-in separately from
+hosted fixture authentication.
+
+### Changed hospital source
+
+For an authorized synthetic count, test binding end/replacement and department
+revision/retirement through normal owner APIs. The old source must stop admitting
+new commands immediately; a current replacement must receive `409 source_changed`
+when trying to adopt the old count. Independently approve the replacement binding
+and start a fresh count instead. Verify:
+
+- The old unfinished count shows `source_invalidated: true` without changing its
+  state, version, observations or original receipts; its editing/review controls
+  are absent, and the CSV retains the same condition.
+- The replacement takes a fresh snapshot. Replaying that start creates neither a
+  duplicate count nor a duplicate invalidation audit. No movement or adjustment
+  results from invalidation, and completed counts retain their ledger.
+- A retired department's receipt does not become recoverable from its replacement.
+  Original source/actor restrictions remain enforced.
+- Hosted fault tests prove invalid replacement starts and unavailable audit writes
+  roll back both invalidation and replacement. Do not inject these faults live.
+
 ## Main workflow
 
 1. Open Pharmacy → Stock → Stocktakes in the intended named outlet. Start an

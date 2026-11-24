@@ -6870,6 +6870,13 @@
           "id": "0069_pharmacy_stocktake_latest_observations",
           "sql_sha256": "70278cc2a9eb710ba5a5b9e2044a3392392fa257248b32990ec34ac93d23c3a5",
           "creates_tables": []
+        },
+        {
+          "id": "0070_pharmacy_stocktake_source_recovery",
+          "sql_sha256": "b4222a70be1d9b0017a441405b24803f7832602e0bba466f4039b7b231626d24",
+          "creates_tables": [
+            "pharmacy_stocktake_source_invalidations"
+          ]
         }
       ]
     },

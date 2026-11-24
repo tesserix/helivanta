@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-const PolicyVersion = "2026-11-24.hospital-stocktake-departments.v1"
+const PolicyVersion = "2026-11-24.pharmacy-stocktake.v1"
 
 var definitions = []Definition{{Key: "onboarding", Eligible: true, Dependencies: []string{}},
 	{Key: "team_accounts", Eligible: true, Dependencies: []string{}},
@@ -31,7 +31,7 @@ var definitions = []Definition{{Key: "onboarding", Eligible: true, Dependencies:
 	{Key: "emergency", Eligible: false, Dependencies: []string{}},
 	{Key: "billing_workspace", Eligible: false, Dependencies: []string{}},
 	{Key: "unreleased", Eligible: false, Dependencies: []string{}},
-	{Key: "pharmacy_stocktake", Eligible: false, Dependencies: []string{"pharmacy_setup"}}}
+	{Key: "pharmacy_stocktake", Eligible: true, Dependencies: []string{"pharmacy_setup"}}}
 var routeCapabilities = map[string]string{"POST /v1/workforce/hospitals/:hospital/staff/:id/mfa-recoveries/:command/cancel": "baseline",
 	"POST /v1/workforce/pharmacies/:pharmacy/staff/:id/mfa-recoveries/:command/cancel": "baseline",
 	"POST /v1/workforce/suppliers/:supplier/staff/:id/mfa-recoveries/:command/cancel":  "baseline",

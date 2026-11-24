@@ -312,3 +312,37 @@ it("does not offer physical entry or counter decisions to a review-only duty", a
     screen.queryByRole("button", { name: "Review or close stocktake" }),
   ).not.toBeInTheDocument();
 });
+
+it.each(["counting", "submitted"])(
+  "retains %s evidence while withholding work after its source changes",
+  async (state) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url.includes("account-presentations"))
+          return json({
+            tenant_id: scope.tenantId,
+            actor_subject: scope.subject,
+            data: [{ subject: actor, available: false, name: null, email: null, roles: [] }],
+          });
+        if (url.includes("/lines"))
+          return json({ data: [line], page: { next_cursor: null, has_more: false } });
+        return json({
+          ...header,
+          state,
+          source_invalidated: true,
+          review_relationship: "independent",
+        });
+      }),
+    );
+    panel(true);
+    expect(await screen.findByText("Source changed — retained evidence only.")).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "Record count · TEST-ZERO" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Review or close stocktake" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("Stocktake 1")).toBeVisible();
+  },
+);

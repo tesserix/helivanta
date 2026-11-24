@@ -469,6 +469,7 @@ type StocktakeSummary struct {
 	SnapshotRows         int64       `json:"snapshot_rows" binding:"min=0,max=10000"`
 	State                string      `json:"state" binding:"required,oneof=counting submitted posted rejected cancelled"`
 	Version              int64       `json:"version" binding:"min=0,max=9007199254740991"`
+	SourceInvalidated    *bool       `json:"source_invalidated" binding:"omitempty"`
 }
 
 type Stocktake struct {

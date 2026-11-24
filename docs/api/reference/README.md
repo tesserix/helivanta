@@ -840,6 +840,7 @@ Migration table declarations:
 - `0065_pharmacy_stocktake_operating`: `pharmacy_stocktake_operating_evidence`.
 - `0066_pharmacy_stocktake_hospital`: `pharmacy_stocktake_hospital_evidence`.
 - `0068_pharmacy_stocktake_hospital_choice_index`: concurrent index `pharmacy_stocktake_hospital_choice_page` on `pharmacy_staff_department_bindings (tenant_id, hospital_id, department_id, status, created_at DESC, id DESC)`.
+- `0070_pharmacy_stocktake_source_recovery`: `pharmacy_stocktake_source_invalidations`.
 
 ## payments
 

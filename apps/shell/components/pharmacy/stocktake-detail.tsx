@@ -98,14 +98,18 @@ export function StocktakeDetail({
     );
   if (!take) return <p role="status">Loading stocktake…</p>;
   const unavailable = header.isFetching || lines.isRefreshing;
-  const editable = canConfigure && canCount && take.state === "counting" && !unavailable;
+  const sourceInvalidated = take.source_invalidated === true;
+  const editable =
+    canConfigure && canCount && take.state === "counting" && !unavailable && !sourceInvalidated;
   return (
     <div className="flex flex-col gap-5">
       <Panel aria-label={`Stocktake ${take.number}`}>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="font-semibold">Stocktake {take.number}</h2>
-            <p className="text-sm">{states[take.state]}</p>
+            <p className="text-sm">
+              {sourceInvalidated ? "Source changed — retained evidence only." : states[take.state]}
+            </p>
           </div>
           <Button
             variant="outline"
@@ -115,6 +119,12 @@ export function StocktakeDetail({
             Refresh stocktake
           </Button>
         </div>
+        {sourceInvalidated && (
+          <p className="mt-3 text-sm">
+            This count belongs to a previous approved binding. Its evidence is retained; start a new
+            count under the current binding.
+          </p>
+        )}
         <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
           <div>
             <dt className="text-muted-foreground">Started by</dt>
@@ -175,7 +185,9 @@ export function StocktakeDetail({
                     <th className="p-2">Physical count</th>
                     <th className="p-2">Difference</th>
                     <th className="p-2">Counted by</th>
-                    {canConfigure && canCount && <th className="p-2">Entry</th>}
+                    {canConfigure && canCount && !sourceInvalidated && (
+                      <th className="p-2">Entry</th>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
@@ -208,7 +220,7 @@ export function StocktakeDetail({
                           "Not recorded"
                         )}
                       </td>
-                      {canConfigure && canCount && (
+                      {canConfigure && canCount && !sourceInvalidated && (
                         <td className="p-2">
                           <Button
                             variant="outline"
@@ -258,6 +270,7 @@ export function StocktakeDetail({
         );
       })}
       {canConfigure &&
+        !sourceInvalidated &&
         ((canCount && (take.state === "counting" || take.state === "submitted")) ||
           (canReview &&
             take.state === "submitted" &&

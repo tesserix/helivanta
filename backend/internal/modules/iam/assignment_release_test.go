@@ -1,6 +1,7 @@
 package iam
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -61,24 +62,38 @@ func TestOperatingTemplateReleaseClassifiesEveryDeclaredDuty(t *testing.T) {
 	}
 }
 
-func TestHospitalStocktakeAssignmentsRemainLockedWhenProviderEnablesThem(t *testing.T) {
-	policy, err := release.New(release.Config{URL: "https://synthetic-release.invalid", ClientKey: "sdk-test", Client: &http.Client{Transport: assignmentReleaseTransport(func(*http.Request) (*http.Response, error) {
-		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(`{"features":{"helivanta.release.team_accounts":{"defaultValue":true},"helivanta.release.pharmacy_setup":{"defaultValue":true},"helivanta.release.pharmacy_stocktake":{"defaultValue":true}}}`)), Header: http.Header{}}, nil
-	})}})
-	require.NoError(t, err)
-	require.NoError(t, policy.Refresh(t.Context()))
-	enabled, err := policy.AssignmentEnabled(t.Context(), uuid.MustParse("11111111-1111-4111-8111-111111111111"), "synthetic-owner", "pharmacy_stocktake")
-	require.NoError(t, err)
-	require.False(t, enabled, "provider desired state cannot release unfinished hospital stocktakes")
+func TestHospitalStocktakeAssignmentsFollowProviderAndPrerequisites(t *testing.T) {
+	for _, test := range []struct {
+		name                            string
+		team, setup, stocktake, enabled bool
+	}{
+		{"enabled", true, true, true, true},
+		{"stocktake disabled", true, true, false, false},
+		{"setup disabled", true, false, true, false},
+		{"accounts disabled", false, true, true, false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			payload := fmt.Sprintf(`{"features":{"helivanta.release.team_accounts":{"defaultValue":%t},"helivanta.release.pharmacy_setup":{"defaultValue":%t},"helivanta.release.pharmacy_stocktake":{"defaultValue":%t}}}`, test.team, test.setup, test.stocktake)
+			policy, err := release.New(release.Config{URL: "https://synthetic-release.invalid", ClientKey: "sdk-test", Client: &http.Client{Transport: assignmentReleaseTransport(func(*http.Request) (*http.Response, error) {
+				return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(payload)), Header: http.Header{}}, nil
+			})}})
+			require.NoError(t, err)
+			require.NoError(t, policy.Refresh(t.Context()))
+			enabled, err := policy.AssignmentEnabled(t.Context(), uuid.MustParse("11111111-1111-4111-8111-111111111111"), "synthetic-owner", "pharmacy_stocktake")
+			require.NoError(t, err)
+			require.Equal(t, test.enabled, enabled)
+		})
+	}
 }
 
-func TestOperatingTemplateReleaseFailsClosedForLockedOrUnknownDuty(t *testing.T) {
+func TestOperatingTemplateReleaseFailsClosedForDisabledOrUnknownDuty(t *testing.T) {
 	principal := authn.Principal{TenantID: "11111111-1111-4111-8111-111111111111", Subject: "synthetic-owner"}
 	h := &operatingHandlers{}
 	require.NoError(t, h.templateAvailability(t.Context(), principal, "pharmacy.inventory_receiver.v1"))
 	require.ErrorIs(t, h.templateAvailability(t.Context(), principal, "pharmacy.stocktake_counter.v1"), authz.ErrScopedAuthorizationUnavailable)
+	available := false
 	policy, err := release.New(release.Config{URL: "https://synthetic-release.invalid", ClientKey: "sdk-test", Client: &http.Client{Transport: assignmentReleaseTransport(func(*http.Request) (*http.Response, error) {
-		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(`{"features":{"helivanta.release.team_accounts":{"defaultValue":true},"helivanta.release.pharmacy_setup":{"defaultValue":true},"helivanta.release.pharmacy_stocktake":{"defaultValue":true}}}`)), Header: http.Header{}}, nil
+		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(fmt.Sprintf(`{"features":{"helivanta.release.team_accounts":{"defaultValue":true},"helivanta.release.pharmacy_setup":{"defaultValue":true},"helivanta.release.pharmacy_stocktake":{"defaultValue":%t}}}`, available))), Header: http.Header{}}, nil
 	})}})
 	require.NoError(t, err)
 	require.NoError(t, policy.Refresh(t.Context()))
@@ -88,6 +103,12 @@ func TestOperatingTemplateReleaseFailsClosedForLockedOrUnknownDuty(t *testing.T)
 	}
 	require.ErrorIs(t, h.templateAvailability(t.Context(), principal, "pharmacy.unknown_future_duty.v1"), authz.ErrScopedAuthorizationUnavailable)
 	require.NoError(t, h.templateAvailability(t.Context(), principal, "pharmacy.stock_fulfiller.v1"))
+	available = true
+	require.NoError(t, policy.Refresh(t.Context()))
+	for _, template := range []string{"pharmacy.stocktake_reader.v1", "pharmacy.stocktake_counter.v1", "pharmacy.stocktake_reviewer.v1"} {
+		require.NoError(t, h.templateAvailability(t.Context(), principal, template))
+	}
+	require.ErrorIs(t, h.templateAvailability(t.Context(), principal, "pharmacy.unknown_future_duty.v1"), authz.ErrScopedAuthorizationUnavailable)
 }
 
 func TestUnreleasedAssignmentListStopsBeforeDatabaseAccess(t *testing.T) {

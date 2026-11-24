@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "policy_version": "2026-11-24.hospital-stocktake-departments.v1",
+  "policy_version": "2026-11-24.pharmacy-stocktake.v1",
   "capabilities": [
     {
       "key": "onboarding",
@@ -173,7 +173,7 @@
       "key": "pharmacy_stocktake",
       "owner": "pharmacy",
       "dependencies": ["pharmacy_setup"],
-      "eligible": false,
+      "eligible": true,
       "review_after": "2027-02-16"
     }
   ],

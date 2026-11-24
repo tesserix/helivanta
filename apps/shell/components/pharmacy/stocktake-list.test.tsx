@@ -125,3 +125,26 @@ it("keeps the released worker's empty list visible without advertising creation 
   expect(screen.getByRole("heading", { name: "Stocktakes" })).toBeVisible();
   expect(screen.queryByRole("button", { name: "Start stocktake" })).not.toBeInTheDocument();
 });
+
+it("lets a current worker start fresh work while retaining an invalidated source record", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      if (url.includes("account-presentations"))
+        return json({
+          tenant_id: scope.tenantId,
+          actor_subject: scope.subject,
+          data: [{ subject: actor, available: false, name: null, email: null, roles: [] }],
+        });
+      return json(page([{ ...count, source_invalidated: true }]));
+    }),
+  );
+  const start = vi.fn();
+  const { user } = panel(start);
+  expect(await screen.findByText("Source changed")).toBeVisible();
+  const button = screen.getByRole("button", { name: "Start stocktake" });
+  expect(button).toBeEnabled();
+  await user.click(button);
+  expect(start).toHaveBeenCalledTimes(1);
+  expect(screen.getByRole("link", { name: "Open stocktake 1" })).toBeVisible();
+});

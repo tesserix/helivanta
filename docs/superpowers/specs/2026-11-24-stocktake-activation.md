@@ -50,9 +50,9 @@ and the actual ownership mutation contract. An old count cannot be silently
 adopted by a new binding or department revision. Revoke operational access
 immediately; preserve original quantities, actors, commands and adjustments.
 Changing a source must not leave an active count blocking the outlet forever.
-Cancellation of an invalidated unfinished count must never post stock movements
-or confer approval authority. Verify the existing mutation/event/retained-command
-contracts before implementing the specific cancellation mechanism. A completed
+Recovery of an invalidated unfinished count must never post stock movements
+or confer approval authority. The source recovery decision below uses append-only
+invalidation metadata and a fresh start; it invents no cancellation command. A completed
 count and its ledger are never erased or undone by source cleanup.
 
 ## Delivery and activation
@@ -61,8 +61,9 @@ First record actual hospital maximum-capacity evidence and inherited child
 selection tests, then source-change/recovery evidence. Keep the canonical
 `pharmacy_stocktake` eligibility false until those checks pass. Generate the
 canonical release outputs and contract/access inventories together. Merge only
-after focused hosted checks and protected CI pass; no local app/database,
-container/Colima or local build is required by this workflow.
+after focused hosted checks and protected CI pass. Current repository instructions
+also require focused local builds and removal of their generated artifacts. No
+local application, database, container or Colima is started.
 
 Deploy through the owning GitOps/Kargo stage, verify the exact running images
 and migrations, then enable the reviewed Console flag and its prerequisites.
@@ -70,3 +71,101 @@ Verify UI and Global API for actual hospital and independent QA accounts,
 including wrong tenant/scope, counter versus reviewer, uncertain commands and
 retained recovery on flag withdrawal. Record release/flag commands and restore
 any temporary test state. Provider desired=true alone is not app acceptance.
+
+## Source recovery decision
+
+Recovery remains within Pharmacy and its existing guarded command transaction.
+A new start first has to establish current IAM counter/source grants, reviewed
+Staff, current Organization ancestry/revision, the current hospital-owned outlet
+and independently approved binding. An existing active count with the same
+binding snapshot continues to block a second count.
+
+When a different current approved binding replaces the original source, the
+unique approved-binding-per-outlet index proves the original binding cannot
+still be approved. Append a source-invalidation record for the old unfinished
+count in the same transaction as a successful new start. Pin the index shape,
+validity and uniqueness in the recovery integrity check. Do not invalidate from
+an unknown source, an unapproved replacement, a Staff departure, a release flag
+change or a submitted/posted ledger action. A completed count is never invalidated.
+Invalidating metadata posts no movement and invents no counter or reviewer
+command. It retains original quantities, versions, actors and receipts.
+
+The old header/list reports `source_invalidated: true` while preserving its
+original command state/version. The UI labels the retained source change and
+withholds counting, submission, approval and cancellation on that old record.
+New writes must match the original binding/version/revision even before another
+start records invalidation; original command recovery retains its existing
+current-account, Staff and source restrictions. A retired department does not
+transfer its old command-recovery authority into a replacement department.
+
+Department revision/retirement first makes the old binding unusable through the
+existing Organization reference guard. The independently reviewed replacement
+binding must reference a current revision; then a valid start can invalidate the
+old unfinished count and take a fresh snapshot. End-and-recreate and atomic
+binding replacement follow the same path. There is no event delivery window in
+which an old source authorizes new work, and no asynchronous cleanup dependency.
+
+Only the original start's internal source references are needed for this
+recovery. They remain inside the Pharmacy owner and are not an API projection of
+Staff identity or a reusable permission. The new append-only table uses forced
+RLS, bounded exact outlet coordinates, held current counter/source evidence,
+original/replacement foreign keys, disclosure/write audit and existing private
+choice-purpose restrictions. An invalid or oversized new start rolls back the
+invalidation with it. Duplicate/replayed starts cannot duplicate invalidation.
+
+## Migration and rollback
+
+Migrations 0069/0070 are forward-only expansions and owner-function/policy
+replacements. They create no customer stock movements and backfill no clinical or
+financial data. Historical `started_xact` values remain null; only a genuinely
+new replacement can satisfy the same-transaction guard. Migration preflight
+refuses drift, with bounded lock/statement timeouts. Runtime source seals fail
+closed after unexpected metadata changes.
+
+Deploy the compatible application through Kargo with the provider value still false,
+verify the running revision and schema, then activate the reviewed catalogue and
+Console value. The transaction-local read marker is optional: old binaries retain
+the previous access predicate. Old adjustment writes retain their verified
+per-row timestamp lookup; new writes still pass statement validation. The source
+command trigger independently rejects adoption by an older binary.
+
+If acceptance fails, disable new work through Console and retain original command
+recovery. Do not delete invalidations, old counts, adjustments or audit records,
+or reverse migration 0070 after accepted writes. A code rollback must preserve the
+new source command guards and retained history. Restoring older performance is
+not evidence that the release budgets still pass. Any destructive restoration or
+ownership reconciliation needs its own reviewed, explicitly approved procedure.
+
+The combined recovery/capacity run exposed a remaining movement-insert deadline
+(45334430486), despite successful source recovery. Reviewed corrections already
+have a full statement validator matching their immutable line and approved
+location, units, batch, actor, reason and command reference. Migration 0070 routes
+only current reviewed corrections through that complete location validation,
+retaining per-row location guards for every other purpose and all per-row
+quantity/reservation locks and bounds. The sellable unlinked-correction test was
+observed reaching the old row guard in 45337096105; current validation must prove
+both location types reach the complete movement-evidence refusal and preserve
+supplier reservations. Capacity must be remeasured before activation.
+
+## Release candidate evidence
+
+Source recovery passed **45334426067**, including binding end/replacement,
+department revision/retirement, failed-start/audit rollback and zero recovery
+movements. The corrected complete movement guards, supplier reservation
+conservation, migration/isolation regressions and generated inventories passed
+**45337519712**. The current built hospital browser passed **45338199508**.
+
+Combined hospital source/capacity **45337524268** passed at the unchanged limits:
+10,000-bucket start **4.9667 s**, page p99 **217.8 ms**, 500-adjustment posting
+**4.5136 s**, and the final 10,000-observation header **315.8 ms**. These are hosted
+measurements, not a production-load SLO claim. Independent/native capacity remains
+separate evidence (**45334492301**).
+
+Those focused gates permit candidate policy `2026-11-24.pharmacy-stocktake.v1`
+to mark only `pharmacy_stocktake` eligible. Protected CI must still pass on this
+final candidate before merge. The live provider flag stays disabled through
+rollout verification. Catalogue repair **tesserix-k8s#1720** is already merged;
+its scheduled job created one disabled definition and preserved 23 existing
+values. Synchronize the final candidate policy after its matching application
+revision is deployed. Console activation and both-model authenticated live
+acceptance remain pending; #1686 remains open.

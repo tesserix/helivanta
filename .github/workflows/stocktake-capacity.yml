@@ -98,6 +98,8 @@ jobs:
         run: >-
           go test -v -race -count=1 -timeout=5m ./internal/modules/pharmacy
           -run '^(TestHospitalStocktakeChoicesPreservePlatformScheduleReview|TestHelivanta.*|TestTheScheduleScreenShowsAHelivantaDecision|TestTheReviewerIsNotTheDeclarerOrCountersigner|TestADecidedLoweringCannotBeDecidedAgain|TestALaterRaiseWinsOverAnOldLowering|TestASaleFollowsAnApprovedLowering|TestStocktakeHospital.*)$'
+      - name: Stocktake posting conservation and reviewed statement guards
+        run: go test -race -count=1 -timeout=8m ./internal/globalapi -run '^(TestStocktakePreservesSupplierReservations|TestStocktakeThroughGlobalAPIPreservesScopeAndRegisterEvidence)$'
       - name: Billing final bill and deposit regression
         run: >-
           go test -v -race -count=1 -timeout=8m ./internal/modules/billing

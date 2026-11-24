@@ -45,7 +45,9 @@ export function StocktakeList({
   );
   const people = useAccountPresentations(counts.items.map((count) => count.started_by));
   const open = counts.items.some(
-    (count) => count.state === "counting" || count.state === "submitted",
+    (count) =>
+      count.source_invalidated !== true &&
+      (count.state === "counting" || count.state === "submitted"),
   );
   const root = `/pharmacy/stock?pharmacy=${encodeURIComponent(scope.pharmacyId)}&outlet=${encodeURIComponent(scope.outletId)}&view=counts`;
   if (retainedOnly && !counts.isPending && !counts.error && counts.items.length === 0) return null;
@@ -113,7 +115,11 @@ export function StocktakeList({
                 {counts.items.map((count) => (
                   <tr key={count.id} className="border-b">
                     <td className="p-2 font-medium">Stocktake {count.number}</td>
-                    <td className="p-2">{stateLabels[count.state]}</td>
+                    <td className="p-2">
+                      {count.source_invalidated === true
+                        ? "Source changed"
+                        : stateLabels[count.state]}
+                    </td>
                     <td className="p-2">
                       <AccountName subject={count.started_by} />
                       {people.get(count.started_by)?.available && (

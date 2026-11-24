@@ -24,7 +24,7 @@ The hierarchy is tenant → pharmacy organization → outlet, with optional hosp
 
 The [runtime reference](../reference/README.md#pharmacy) lists every implemented path. The outlet root is `/v1/pharmacy/pharmacies/{pharmacy}/outlets/{outlet}`. Organization/outlet administration and the legacy `/medications`/`dispenses` surfaces are separate route families; do not equate the legacy dispense task with the outlet stock ledger.
 
-## Hospital stocktake assignment preparation — development candidate
+## Hospital stocktake assignment preparation — release candidate
 
 Canonical `staff-access.json` now declares department-only
 `pharmacy.department_stocktake_reader.v1`, `.department_stocktake_counter.v1`
@@ -39,20 +39,21 @@ employment and source checks remain necessary.
 family through the existing authenticated assignment administration and bounded
 pagination contract. The SDK sends account preconditions and uses no-store reads.
 Generic proposal/decision/history contracts retain their current semantics.
-The family panel and list bind to `pharmacy_stocktake`, still compiled ineligible;
-provider desired state cannot release it. Candidate forward IAM migration
+The family panel and list bind to `pharmacy_stocktake`, compiled eligible in this
+release candidate. A matching deployed revision and explicit Console activation
+are still required for production availability. Candidate forward IAM migration
 `0056_iam_pharmacy_stocktake_templates` preserves all historical template SQL.
 
 Workforce's separate callback guard consumes only the exact held department
 stocktake actor-use grant, current digital Staff link and effective employment
 generation, with retained source audit and downstream rollback. No legacy role
-establishes that source basis. The actual hospital count/participant-history
-consumer, named working-location UI, complete hospital acceptance and live
-rollout remain unfinished. These templates and the list alone do not authorize
+establishes that source basis. The hospital count/participant-history consumer and named working-location UI
+are implemented and have hosted browser/source/capacity evidence. Protected CI,
+live rollout and authenticated both-model acceptance remain required. These templates and the list alone do not authorize
 hospital stock movements or establish a deployed workflow. See the
 [hospital delivery plan](../../superpowers/plans/2026-11-23-hospital-stocktake-authority.md).
 
-## Reviewed operating stocktakes — unreleased development slice
+## Reviewed operating stocktakes — release candidate
 
 The independent/chain route root is
 `/v1/pharmacy/pharmacies/{pharmacy}/operating-locations/{outlet}/stocktakes`.
@@ -69,7 +70,7 @@ Both use bounded keyset pagination (maximum 200), bind cursors to actor/outlet
 and filters, require current exact-outlet stocktake read authority, and commit
 stocktake provenance and read audit before releasing names. They confer no
 receiving, catalogue or stock-editing permission. New writes, choices, lines and CSV
-bind to the compiled-ineligible `pharmacy_stocktake` capability. Retained header,
+bind to the separate `pharmacy_stocktake` capability, eligible in this candidate. Retained header,
 paged list, exact original count/decision receipts and the dedicated cancellation
 route are baseline continuations. They remain subject to current IAM duty,
 Workforce Staff/link, exact pharmacy/outlet and attributable audit checks even
@@ -83,8 +84,8 @@ null authority is refused before traffic or cache use. Reviewed cache keys and
 reference-only browser recovery queues are separated by authority, tenant,
 account, pharmacy and outlet. Switching scope clears previously confirmed
 recovery results until they are checked under the new scope. This selector grants
-no server authority. No new operational page
-or production availability is established by their registration.
+no server authority. The named My stocktakes workspace consumes these routes; registration alone
+establishes neither production availability nor operational authority.
 
 IAM must consume an acknowledged current independent duty for
 `pharmacy.stocktake.count`, `pharmacy.stocktake.review` or
@@ -106,10 +107,9 @@ holds a legacy editor grant.
 Legacy and actual reviewed-duty capacity are separate acceptance gates. Clean
 run 45075494219 passed both, together with core source/command, corruption,
 rollback, dependency-failure and IAM admission regression. Header/list/register
-and Staff-aware participation reads also passed focused acceptance. Hospital
-department admission/capacity, operational SDK/UI,
-full modern reservation/concurrency evidence and both-model browser/live
-acceptance remain open in #1686. See the
+and Staff-aware participation reads also passed focused acceptance. Hospital department admission, source recovery, capacity and the built browser
+are covered by hosted evidence below. Final protected checks, Kargo rollout and
+both-model authenticated live acceptance remain open in #1686. See the
 [reviewed authority proposal](../../superpowers/specs/2026-11-23-reviewed-stocktake-authority.md).
 
 Reviewed independent count-entry development follows the same scoped route root:
@@ -125,12 +125,12 @@ Forward candidate migration0065 adds an immutable header authority discriminator
 existing rows remain legacy; reviewed starts are marked only under held authority.
 Legacy editor commands cannot modify reviewed counts, and reviewed count commands
 cannot adopt legacy history or invent historical Staff evidence. Count receipts
-require retained reviewed provenance. These routes remain compiled ineligible;
+require retained reviewed provenance. These routes remain release gated;
 the first hosted count-entry test failed with the expected missing route (run
 45058843484). Hosted run 45059958549 passed the count-entry implementation and
 rollback/cutoff/legacy-boundary checks. Submission and independent approval/posting
-are implemented in the unreleased candidate described below. Hospital authority,
-operational UI and live acceptance remain unfinished.
+are implemented in this release candidate. Hospital authority and operational UI
+have hosted evidence below; live acceptance remains pending.
 
 Reviewed commands use `PUT/GET /{stocktake}/decisions/{command}`. Submit and
 cancel require current `.stocktake.count`; approve and reject require current
@@ -177,8 +177,8 @@ capacity checks remain mandatory. Snapshot inserts now use at most 2,000 rows
 and stay below PostgreSQL's bind-parameter limit, reducing repeated statement
 checks while preserving atomic validation and rollback.
 
-PR #1818 merged the unreleased backend foundation. Compiled eligibility stays
-false. PR #1822 merged withdrawal-safe continuations and explicit reviewed SDK routing.
+PR #1818 merged the backend foundation. The current candidate makes only the
+separate reviewed stocktake capability eligible after hosted acceptance. PR #1822 merged withdrawal-safe continuations and explicit reviewed SDK routing.
 The #1823 candidate consolidates named current-duty discovery, product/quarantine
 choices, the worker command UI and personal dashboard navigation. Hosted reviewed
 API tests cover product selection/frozen quantities, native supplier holds and
@@ -2084,13 +2084,15 @@ authority models. Out-of-scope/hidden structure returns 404, changed structure
 returns 409 `source_changed`, and unavailable authorization returns 503. Existing
 verified tenant/account preconditions remain in force.
 
-New-work/lines/export routes remain `pharmacy_stocktake` gated and compiled
-ineligible. Header/list/original command receipts and cancellation retain baseline
+New-work/lines/export routes remain `pharmacy_stocktake` gated and are eligible
+in this release candidate; the provider definition remains disabled until
+explicit Console activation. Header/list/original command receipts and cancellation retain baseline
 classification with full current authority. This is candidate code, not deployed
 hospital release acceptance. Real hospital command integration passed in hosted
 runs 45197016258 and 45224688258, including current named scope/outlet discovery.
-Binding-change recovery, hierarchy coverage, hospital browser/capacity and live
-verification remain tracked in the
+Binding-change recovery, hierarchy coverage and hospital browser/capacity have
+hosted evidence in the activation specification. Live verification remains
+tracked in the
 [hospital delivery plan](../../superpowers/plans/2026-11-23-hospital-stocktake-authority.md).
 
 Hospital candidate commands also verify the Pharmacy owner schema seal inside the
@@ -2171,8 +2173,43 @@ current operational assignment is hidden as 404. Unsupported query fields,
 repeated values and reused foreign cursors return 400. This baseline collection
 supports retained recovery; it does not enable new stocktake work.
 
-Binding/source replacement recovery, hospital maximum posting capacity and live
-acceptance remain release gates.
+Candidate migration **0069_pharmacy_stocktake_latest_observations** materializes
+latest count observations once and shares the immutable approval timestamp across
+adjustment batches. The existing statement validator still verifies actor,
+transaction, quantities, destination and timestamp. A transaction-local snapshot
+read frame evaluates the existing native outlet predicate on held tenant/outlet
+coordinates once per statement, preserving the other policy clauses, reviewed
+source checks and every write check. No reader receives write access.
+
+Candidate migration **0070_pharmacy_stocktake_source_recovery** preserves the
+original hospital/department/binding/version/revision of a count. A new write on
+an old snapshot returns `409 source_changed` after replacement, even if the
+replacement independently authorizes new work. Header/list responses add the
+optional boolean `source_invalidated`; CSV appends the same column. State,
+version and quantities retain their original meaning. The UI labels invalidated
+unfinished counts and withholds editing and review controls.
+
+A fresh start under a different current, independently approved binding can
+append an invalidation for the old unfinished count. Its replacement must be
+newly sealed by the same actor in the same transaction. A unique current-binding
+index, exact current counter/source authority, original/replacement foreign keys,
+forced RLS and an append-only audit guard that transition. Failed starts and
+failed audits roll back together. Replays cannot create another invalidation.
+This metadata creates no movement, correction, cancellation or review decision.
+Completed counts are never invalidated. Old receipt recovery retains its original
+hospital/department restriction; retirement transfers no recovery authority to a
+new department.
+
+Reviewed correction inserts validate their immutable snapshot line, approved
+location, batch, units, actor, reason and command reference through the existing
+complete statement validator. Their location check runs there once per batch;
+other movement purposes retain the original per-row location guard. The per-row
+quantity/reservation lock and checks remain in force for every movement. An
+unlinked reviewed correction is rejected on quarantine and sellable locations.
+
+Source-recovery acceptance, current capacity/protected checks and both-model live
+verification remain activation gates; these candidate migrations are not a live
+rollout approval.
 
 ### Hospital worker workspace — development candidate
 
@@ -2192,4 +2229,5 @@ same start, count, review and retained-recovery components with explicit authori
 coordinates. Release unavailability removes new work while retaining authorized
 outcome checks. The dashboard advertises current work from either model,
 including filtered pages with continuation, without fetching outlet or stock
-records. This UI remains unreleased while the acceptance gates above are open.
+records. This UI is compiled eligible in the release candidate; protected checks,
+matching deployment and Console activation are still required.

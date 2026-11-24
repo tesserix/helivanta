@@ -617,6 +617,7 @@ export const pharmacyStocktakeSummarySchema = z
     snapshot_rows: z.number().int().min(0).max(10000),
     state: z.enum(["counting", "submitted", "posted", "rejected", "cancelled"]),
     version: z.number().int().min(0).max(9007199254740991),
+    source_invalidated: z.boolean().nullable().optional(),
   })
   .strict();
 

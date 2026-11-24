@@ -1,7 +1,9 @@
 SET LOCAL lock_timeout='5s';
 SET LOCAL statement_timeout='60s';
+-- The migration owner has DDL privileges; runtime choice support also rejects TRUNCATE privilege.
+-- Keep that runtime seal unchanged and verify the role-neutral source seals here.
 DO $$BEGIN
- IF pharmacy_stocktake_hospital_integrity()IS DISTINCT FROM true OR pharmacy_stocktake_hospital_choice_integrity()IS DISTINCT FROM true THEN
+ IF pharmacy_stocktake_hospital_integrity()IS DISTINCT FROM true OR pharmacy_operating_choice_integrity()IS DISTINCT FROM true THEN
   RAISE EXCEPTION 'stocktake observation planning requires unchanged owner authority';
  END IF;
 END $$;

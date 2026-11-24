@@ -159,8 +159,8 @@ Controls:
 
 The emailed-code flow stays, reachable from a "Find my accounts by email" link
 under the card and from recovery (#425). The chooser it reaches is unchanged.
-A remembered workspace keeps starting a scoped request, which skips the
-candidate lookup entirely; the lookup is for devices with no hint.
+Only a workspace link starts a scoped request. A remembered workspace no longer
+does ([#1820](2026-11-24-no-sign-in-routing-by-memory-design.md)).
 
 ### D8 — What the frontend does not do
 

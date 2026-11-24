@@ -282,11 +282,13 @@ describe("LoginPage", () => {
         scope: `openid profile email urn:zitadel:iam:org:id:helivanta-${tenant}`,
       }),
     );
-    // Remembered before the round trip, so a start-again landing offers one click.
-    expect(window.localStorage.getItem("helivanta.login.workspace.v1")).toContain(tenant);
+    // The link pins this sign-in only; nothing routes the next one (#1820 spec D2).
+    expect(window.localStorage.getItem("helivanta.login.workspace.v1")).toBeNull();
   });
 
-  it("reopens a remembered account with its branding and no mailbox code", async () => {
+  // #1820 spec D1: a workspace an earlier version stored sent the next person
+  // to the previous person's workspace. Only the URL pins a sign-in now.
+  it("starts an unscoped sign-in even when an earlier version remembered a workspace", async () => {
     const tenant = "11111111-1111-4111-8111-111111111111";
     window.localStorage.setItem(
       "helivanta.login.workspace.v1",
@@ -295,13 +297,9 @@ describe("LoginPage", () => {
     signinRedirect.mockResolvedValue(undefined);
     renderWithProviders(<LoginPage />);
     await waitFor(() => expect(signinRedirect).toHaveBeenCalledTimes(1));
-    expect(signinRedirect).toHaveBeenCalledWith(
-      expect.objectContaining({
-        scope: `openid profile email urn:zitadel:iam:org:id:helivanta-${tenant}`,
-      }),
-    );
-    expect(signinRedirect.mock.calls[0][0]).not.toHaveProperty("login_hint");
-    expect(window.sessionStorage.getItem("helivanta.login.branding-tenant")).toBe(tenant);
+    expect(signinRedirect.mock.calls[0][0]).not.toHaveProperty("scope");
+    expect(signinRedirect.mock.calls[0][0]).toMatchObject({ state: { purpose: "email-login" } });
+    expect(window.sessionStorage.getItem("helivanta.login.branding-tenant")).toBeNull();
   });
 
   // The session check and the redirect start are one pending card: the same
@@ -845,6 +843,42 @@ describe("LoginPage", () => {
         ).toEqual({ enabled: true, username: "b-owner@example.test", organization: pinned });
       },
     );
+
+    // #1820 spec D3/D4: the checkbox saves the name against the pinned
+    // workspace, and a pinned card can be left for the unscoped card.
+    it("keeps the pinned workspace when the remember checkbox changes, and can be left", async () => {
+      const pinned = "helivanta-11111111-1111-4111-8111-111111111111";
+      window.localStorage.setItem(
+        "helivanta.login.remembered-username",
+        JSON.stringify({ enabled: true, username: "owner@example.test", organization: pinned }),
+      );
+      stubAuthFlow({
+        authRequest: () =>
+          jsonResponse(200, {
+            id: AUTH_REQUEST_ID,
+            client_id: "helivanta-web",
+            redirect_uri: "http://localhost:4301/api/auth/callback",
+            scope: ["openid", "profile", "email", `urn:zitadel:iam:org:id:${pinned}`],
+            policies: {
+              allow_password: true,
+              second_factors: ["totp"],
+              ignore_unknown_usernames: false,
+            },
+          }),
+      });
+      const { user } = renderWithProviders(<LoginPage />);
+      expect(await screen.findByLabelText("Email or username")).toHaveValue("owner@example.test");
+      const remember = screen.getByRole("checkbox", { name: "Remember my username" });
+      await user.click(remember);
+      await user.click(remember);
+      expect(
+        JSON.parse(window.localStorage.getItem("helivanta.login.remembered-username")!),
+      ).toEqual({ enabled: true, username: "owner@example.test", organization: pinned });
+      expect(
+        screen.getByRole("link", { name: "Not your workspace? Sign in with your email" }),
+      ).toHaveAttribute("href", "/login");
+      expect(screen.queryByRole("link", { name: "Find my accounts by email" })).toBeNull();
+    });
 
     // Repo-wide: native browser validation is banned (docs/standards/
     // frontend.md §4), so every Helivanta form must disable it explicitly. This

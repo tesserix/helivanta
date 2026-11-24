@@ -50,19 +50,14 @@ revocation tests, remembered-name reload and opt-out, storage failures, and
 autofill without React change events. Short-duration idle/renewal E2E fixtures
 retain explicit overrides to exercise timeout handling quickly.
 
-A returning browser keeps a tenant UUID routing hint for up to 30 days under
-`helivanta.login.workspace.v1`, written when an account is chosen at sign-in
-(discovery choice or workspace-link button), after successful session exchange,
-and on an authenticated current-account profile response (#1750; 48 hours
-before it). “Sign in to your previous
-account” starts the existing native password and configured MFA flow without
-repeating mailbox discovery. It stores no password, token, email or account list
-and grants no access. “Use another account” clears the hint and restores
-email-proven account discovery. Invalid, expired or unavailable storage falls
-back to discovery. The hint remains untrusted UUID-validated routing input;
-credentials and server-side membership checks still apply. “Switch account” also clears
-the routing hint after successful server sign-out so the account chooser starts
-fresh; a failed sign-out retains both the current account and its hint.
+A browser does not remember which workspace it signed in to (#1820, superseding
+the 30-day `helivanta.login.workspace.v1` hint of #1750). Only a workspace link
+pins a sign-in. Anything else starts the unscoped card, where the API resolves
+the account from the email after the password and shows the chooser when one
+password opens several. A remembered workspace had sent the next person on a
+shared terminal to the previous person's workspace, where every attempt was
+refused as an unknown account. A value left by an earlier version is never read.
+See [sign-in never routes by memory](../superpowers/specs/2026-11-24-no-sign-in-routing-by-memory-design.md).
 
 Authenticator MFA remains required when the identity provider requires it.
 A valid session renews without another email or authenticator code. Expiry,

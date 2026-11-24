@@ -1,8 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { login, specAdmin } from "./support/login";
 
-// Switching forgets the remembered account and ends the session, so the
-// landing offers a fresh sign-in (whose card asks which account when one
+// Switching ends the session, so the landing offers a fresh sign-in (whose card asks which account when one
 // password opens several, #1751 D3) and the emailed-code finder.
 test("switch account ends the source session and returns to a fresh sign-in", async ({ page }) => {
   await login(page, specAdmin());

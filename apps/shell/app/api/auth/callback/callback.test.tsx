@@ -250,7 +250,7 @@ describe("AuthCallbackPage", () => {
   );
 
   // #1751 spec D4: the single card names no tenant; the API takes the
-  // subject's only binding, and the browser remembers it for next time.
+  // subject's only binding.
   it("opens the account an email login resolved without naming a tenant", async () => {
     const tenantId = "11111111-1111-4111-8111-111111111111";
     signinRedirectCallback.mockResolvedValue({
@@ -269,7 +269,8 @@ describe("AuthCallbackPage", () => {
       "/api/v1/auth/login",
       expect.objectContaining({ body: JSON.stringify({ id_token: "native-email-proof" }) }),
     );
-    expect(window.localStorage.getItem("helivanta.login.workspace.v1")).toContain(tenantId);
+    // Nothing routes the next sign-in by memory (#1820 spec D2).
+    expect(window.localStorage.getItem("helivanta.login.workspace.v1")).toBeNull();
     vi.unstubAllGlobals();
   });
 

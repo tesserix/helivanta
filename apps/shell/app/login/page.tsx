@@ -33,11 +33,7 @@ import {
 import { getUserManager } from "@/lib/oidc";
 import { AccountDiscovery } from "@/components/account-discovery";
 import { MfaCodeForm } from "@/components/mfa-code-form";
-import {
-  readRememberedWorkspace,
-  rememberWorkspace,
-  workspaceSigninScope,
-} from "@/lib/workspace-signin";
+import { workspaceSigninScope } from "@/lib/workspace-signin";
 import { RenewalFailedError, renewSession, type RenewalResult } from "@/lib/renew";
 import {
   changePassword,
@@ -520,8 +516,8 @@ function CredentialForm({
   authRequestId: string;
   policies: AuthPoliciesInfo;
   loginHint?: string;
-  // The organisation the auth request names (a workspace link or a
-  // remembered account), if any. Unscoped, the API resolves the account from
+  // The organisation the auth request names (a workspace link or a chosen
+  // account), if any. Unscoped, the API resolves the account from
   // the email after the password (#1751 spec D1).
   organization?: string;
   onResult: (result: PasswordCheckResult, currentPassword: string) => void;
@@ -677,20 +673,19 @@ function CredentialForm({
             onChange={(event) => {
               const enabled = event.target.checked;
               setRememberUsername(enabled);
-              saveRememberedUsername(enabled, values.loginName);
+              saveRememberedUsername(enabled, values.loginName, organization);
             }}
           />
           Remember my username
         </label>
 
-        {scoped ? null : (
-          <Link
-            href={FIND_ACCOUNTS_HREF}
-            className="mt-2 block text-sm text-muted-foreground underline underline-offset-4"
-          >
-            Find my accounts by email
-          </Link>
-        )}
+        {/* A pinned card can be left (#1820 spec D3): plain /login is unscoped. */}
+        <Link
+          href={scoped ? "/login" : FIND_ACCOUNTS_HREF}
+          className="mt-2 block text-sm text-muted-foreground underline underline-offset-4"
+        >
+          {scoped ? "Not your workspace? Sign in with your email" : "Find my accounts by email"}
+        </Link>
 
         <p className="mt-6 text-center text-xs text-muted-foreground">
           Need access? Contact your organisation&apos;s administrator.
@@ -1236,14 +1231,11 @@ function RedirectLanding({
       // Here it is cheap and worth it: this is an explicit, deliberate
       // sign-in, and forcing re-authentication means a live Zitadel session
       // cannot silently answer for whoever is now at the keyboard.
-      // A workspace link names its organisation; otherwise the account this
-      // browser last used. With neither, the request is unscoped and the API
-      // finds the account from the email after the password (#1751 spec D1).
-      const tenant = workspace.trim() || readRememberedWorkspace() || "";
-      // Remembered before the round trip so a start-again landing offers this
-      // workspace again instead of email discovery.
-      if (tenant) rememberWorkspace(tenant);
-      if (tenant && !workspace) retainLoginBrandingTenant(tenant);
+      // Only a workspace link pins the request. Anything else is unscoped and
+      // the API finds the account from the email after the password (#1751
+      // spec D1): a workspace remembered by this browser sent the next person
+      // to the previous person's workspace (#1820 spec D1).
+      const tenant = workspace.trim();
       await getUserManager().signinRedirect({
         prompt: "login",
         ...(tenant

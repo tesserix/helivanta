@@ -44,7 +44,7 @@ describe("Account discovery", () => {
     await user.click(screen.getByRole("button", { name: "Verify email" }));
     await waitFor(() => expect(redirect).toHaveBeenCalledWith(tenant, "owner@example.test"));
     // Remembered at selection, so a start-again landing offers it without another code.
-    expect(window.localStorage.getItem("helivanta.login.workspace.v1")).toContain(tenant);
+    expect(window.localStorage.getItem("helivanta.login.workspace.v1")).toBeNull();
   });
   it("shows business names for separate hospital and pharmacy accounts", async () => {
     stub([
@@ -59,7 +59,7 @@ describe("Account discovery", () => {
     await user.click(await screen.findByRole("button", { name: /Independent pharmacy/ }));
     expect(redirect).toHaveBeenCalledWith(other, "owner@example.test");
     expect(redirect).not.toHaveBeenCalledWith(tenant, expect.anything());
-    expect(window.localStorage.getItem("helivanta.login.workspace.v1")).toContain(other);
+    expect(window.localStorage.getItem("helivanta.login.workspace.v1")).toBeNull();
   });
   it("offers resend after expiry without starting a native login", async () => {
     stub([], 404);
@@ -87,40 +87,16 @@ it("explains an incomplete email code without exposing validation internals", as
   expect(redirect).not.toHaveBeenCalled();
 });
 
-it("opens a recently authenticated tenant without sending another mailbox code", async () => {
-  window.localStorage.setItem(
-    "helivanta.login.workspace.v1",
-    JSON.stringify({ tenantId: tenant, expiresAt: Date.now() + 48 * 60 * 60 * 1000 }),
-  );
-  stub([]);
-  const { user } = renderWithProviders(<AccountDiscovery onSelect={redirect} />);
-  await user.click(await screen.findByRole("button", { name: "Sign in to your previous account" }));
-  expect(redirect).toHaveBeenCalledWith(tenant, undefined);
-  expect(fetch).not.toHaveBeenCalled();
-});
-
-it("lets a returning user forget their routing choice and discover another account", async () => {
+// A workspace stored by an earlier version is never offered (#1820 spec D2).
+it("asks for the email even when an earlier version remembered a workspace", async () => {
   window.localStorage.setItem(
     "helivanta.login.workspace.v1",
     JSON.stringify({ tenantId: tenant, expiresAt: Date.now() + 60000 }),
   );
   stub([]);
-  const { user } = renderWithProviders(<AccountDiscovery onSelect={redirect} />);
-  await user.click(await screen.findByRole("button", { name: "Use another account" }));
-  expect(screen.getByLabelText("Email")).toBeInTheDocument();
-  expect(window.localStorage.getItem("helivanta.login.workspace.v1")).toBeNull();
-  expect(fetch).not.toHaveBeenCalled();
-});
-
-it.each([
-  JSON.stringify({ tenantId: tenant, expiresAt: Date.now() - 1 }),
-  JSON.stringify({ tenantId: "foreign-scope openid", expiresAt: Date.now() + 60000 }),
-  "broken-json",
-])("ignores expired or invalid remembered routing data: %s", async (value) => {
-  window.localStorage.setItem("helivanta.login.workspace.v1", value);
-  stub([]);
   renderWithProviders(<AccountDiscovery onSelect={redirect} />);
   expect(await screen.findByLabelText("Email")).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Sign in to your previous account" })).toBeNull();
+  expect(redirect).not.toHaveBeenCalled();
   expect(fetch).not.toHaveBeenCalled();
 });

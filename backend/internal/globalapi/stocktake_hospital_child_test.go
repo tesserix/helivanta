@@ -15,7 +15,7 @@ func assertHospitalStocktakeChildWorkflow(t *testing.T, db *tenantdb.DB, call fu
 	outlet, product, quarantine, batch := v7(), v7(), v7(), v7()
 	base := "/v1/pharmacy/pharmacies/" + pharmacy + "/outlets/" + outlet
 	call(t, "PUT", base, owner, map[string]any{"code": "TEST-CHILD-COUNT", "name": "TEST Child counting outlet", "country_code": "IN", "timezone": "Asia/Kolkata"}, 200)
-	for _, subject := range []string{counter, reviewer} {
+	for _, subject := range []string{owner, counter, reviewer} {
 		call(t, "PUT", base+"/access/"+subject, owner, map[string]any{"level": "editor"}, 200)
 	}
 	binding := base + "/hospitals/" + hospital + "/staff-department-bindings/" + v7()

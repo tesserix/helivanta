@@ -1,6 +1,6 @@
 "use client";
 import { useState, type ReactNode } from "react";
-import { Building2, FlaskConical, HeartPulse, Pill, UsersRound } from "lucide-react";
+import { HeartPulse } from "lucide-react";
 import Link from "next/link";
 import { type Branding } from "@helivanta/api";
 
@@ -27,13 +27,17 @@ export function TesserixFooter() {
 export function BrandLogo({
   branding,
   compact = false,
+  onInk = false,
 }: {
   branding: Branding;
   compact?: boolean;
+  // A tenant logo is drawn for a light surface; on ink it sits on a card chip
+  // so a dark logo stays visible (#1836 D5).
+  onInk?: boolean;
 }) {
   const [failed, setFailed] = useState(false);
-  if (branding.logo_url && !failed)
-    return (
+  if (branding.logo_url && !failed) {
+    const logo = (
       // eslint-disable-next-line @next/next/no-img-element -- Load tenant images only in the browser; never proxy user URLs through an optimizer.
       <img
         src={branding.logo_url}
@@ -43,16 +47,18 @@ export function BrandLogo({
         className={compact ? "h-8 w-8 object-contain" : "h-10 max-w-36 object-contain"}
       />
     );
+    return onInk ? <span className="shrink-0 rounded-lg bg-card p-1.5">{logo}</span> : logo;
+  }
   return (
     <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
       <HeartPulse className="h-5 w-5" aria-hidden="true" />
     </span>
   );
 }
-export function BrandMark({ branding }: { branding: Branding }) {
+export function BrandMark({ branding, onInk = false }: { branding: Branding; onInk?: boolean }) {
   return (
     <span className="inline-flex min-w-0 items-center gap-3">
-      <BrandLogo key={branding.logo_url} branding={branding} />
+      <BrandLogo key={branding.logo_url} branding={branding} onInk={onInk} />
       <span className="min-w-0 text-lg font-semibold tracking-tight [overflow-wrap:anywhere]">
         {branding.display_name}
       </span>
@@ -76,77 +82,59 @@ export function LoginSurface({
   children: ReactNode;
 }) {
   const story = entry && branding.login_layout === "split";
+  // On the ink panel the ring must be the rail's: the canvas ring is ultramarine,
+  // which does not show on ink (#1836 D5).
+  const mark = (onInk: boolean) =>
+    homeHref ? (
+      <Link
+        href={homeHref}
+        aria-label={`${branding.display_name} home`}
+        className={`rounded-lg focus-visible:outline-2 focus-visible:outline-offset-4 ${onInk ? "focus-visible:outline-(--sidebar-ring)" : "focus-visible:outline-ring"}`}
+      >
+        <BrandMark branding={branding} onInk={onInk} />
+      </Link>
+    ) : (
+      <BrandMark branding={branding} onInk={onInk} />
+    );
   return (
     <div
       data-theme="default"
       className="login-page flex min-h-svh flex-col bg-background text-foreground"
     >
       <div data-brand-theme={branding.theme} className="flex flex-1 flex-col">
-        <header className="mx-auto flex w-full max-w-[1440px] items-center justify-between gap-6 px-6 py-6 sm:px-10">
-          {homeHref ? (
-            <Link
-              href={homeHref}
-              aria-label={`${branding.display_name} home`}
-              className="rounded-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
-            >
-              <BrandMark branding={branding} />
-            </Link>
-          ) : (
-            <BrandMark branding={branding} />
-          )}
+        {/* With the ink panel the brand lives in the panel from lg, so it is on
+            screen once (#1836 D5); below lg the panel is hidden and this shows. */}
+        <header
+          className={`mx-auto flex w-full max-w-[1440px] items-center justify-between gap-6 px-6 py-6 sm:px-10 ${story ? "lg:hidden" : ""}`}
+        >
+          {mark(false)}
         </header>
-        <div className="mx-auto grid w-full max-w-[1440px] flex-1 gap-8 px-6 pb-8 sm:px-10 lg:grid-cols-2 lg:gap-12">
+        <div
+          className={`mx-auto grid w-full max-w-[1440px] flex-1 gap-8 px-6 pb-8 sm:px-10 lg:grid-cols-2 lg:gap-12 ${story ? "lg:max-w-none lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-0 lg:px-0 lg:pb-0" : ""}`}
+        >
           {story && (
-            <aside className="login-story relative hidden flex-col justify-center overflow-hidden rounded-xl p-10 lg:flex">
-              <h2 className="max-w-lg text-[clamp(2rem,3.4vw,3rem)] leading-[1.1] font-semibold tracking-tight">
-                A little less complexity.
-                <br />A lot more care.
-              </h2>
-              <p className="mt-5 max-w-sm text-base leading-relaxed text-muted-foreground">
-                {branding.welcome_text}
-              </p>
-              <div
-                className="relative my-8 rounded-lg border border-border bg-card p-6 shadow-sm"
-                aria-label="Connected hospital, pharmacy and laboratory teams"
-              >
-                <div className="flex items-center gap-3 border-b border-border pb-5">
-                  <span className="rounded-md bg-(--hms-accent-dim) p-3 text-(--hms-accent-strong)">
-                    <Building2 size={22} aria-hidden="true" />
-                  </span>
-                  <div>
-                    <p className="text-sm font-semibold">Your organisation</p>
-                    <p className="mt-1 text-xs text-muted-foreground">One connected workspace</p>
-                  </div>
-                </div>
-                <div className="mt-5 grid grid-cols-3 gap-3">
-                  {[
-                    { icon: UsersRound, label: "Care teams" },
-                    { icon: Pill, label: "Pharmacy" },
-                    { icon: FlaskConical, label: "Laboratory" },
-                  ].map(({ icon: Icon, label }) => (
-                    <div
-                      key={label}
-                      className="flex flex-col items-center gap-3 rounded-md bg-background px-2 py-5 text-center"
-                    >
-                      <Icon size={20} className="text-(--hms-accent-strong)" aria-hidden="true" />
-                      <span className="text-xs font-medium">{label}</span>
-                    </div>
-                  ))}
-                </div>
+            <aside className="login-story hidden min-h-svh flex-col justify-between gap-10 p-10 lg:flex xl:p-14">
+              {mark(true)}
+              <div>
+                <h2 className="max-w-lg text-[clamp(2rem,3.4vw,3rem)] leading-[1.1] font-semibold tracking-tight">
+                  A little less complexity.
+                  <br />A lot more care.
+                </h2>
+                <p className="mt-5 max-w-sm text-base leading-relaxed text-muted-foreground">
+                  {branding.welcome_text}
+                </p>
               </div>
-              <p className="text-xs leading-relaxed text-muted-foreground">
-                Built around your people. Personalised for your organisation.
-              </p>
             </aside>
           )}
-          <main
-            className={`flex min-w-0 flex-col items-center justify-center py-10 sm:py-14 ${story ? "" : "lg:col-span-2"}`}
-          >
-            <div className="login-content w-full max-w-[400px]">{children}</div>
-          </main>
+          <div className={`flex min-w-0 flex-col ${story ? "" : "lg:col-span-2"}`}>
+            <main className="flex flex-1 flex-col items-center justify-center py-10 sm:py-14">
+              <div className="login-content w-full max-w-[400px]">{children}</div>
+            </main>
+            {story && <TesserixFooter />}
+          </div>
         </div>
       </div>
-      {entry && <TesserixFooter />}
+      {entry && !story && <TesserixFooter />}
     </div>
   );
 }

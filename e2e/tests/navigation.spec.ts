@@ -256,9 +256,10 @@ test("the stored chrome is painted from the first frame on a hard load", async (
   ]);
 });
 
-// #1286 D1: the rail and the page panel float, sized to their items, not to
-// the window. Measured from the rendered boxes, not inferred from classes.
-test("the rail and the page panel are only as tall as their items", async ({ page }) => {
+// #1836 D1: the rail is a full-height ink column from the window's top-left
+// edge, and the current zone carries the fixed marker. Measured from the
+// rendered boxes and computed colour, not inferred from classes.
+test("the rail spans the window height from the top edge", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await login(page);
   await page
@@ -267,17 +268,19 @@ test("the rail and the page panel are only as tall as their items", async ({ pag
     .click();
   await expect(page.getByRole("navigation", { name: "PharmaConnect" })).toBeVisible();
 
-  for (const selector of ["aside.hms-rail", "aside.hms-page-panel"]) {
-    const box = await page.locator(selector).boundingBox();
-    expect(box, selector).not.toBeNull();
-    expect(box!.y, `${selector} touches the top edge`).toBeGreaterThan(0);
-    expect(box!.y + box!.height, `${selector} spans the window`).toBeLessThan(800);
-  }
+  const rail = (await page.locator("aside.hms-rail").boundingBox())!;
+  expect(rail.x, "rail starts at the left edge").toBeLessThan(1);
+  expect(rail.y, "rail starts at the top edge").toBeLessThan(1);
+  expect(rail.height, "rail spans the window").toBeGreaterThan(799);
+  await expect(page.locator("aside.hms-rail")).toHaveCSS("background-color", "rgb(11, 19, 36)");
+  await expect(
+    page.getByRole("navigation", { name: "Zones" }).locator('[aria-current="page"].hms-current'),
+  ).toHaveCount(1);
 });
 
-// #1286 D6: the header card starts at the rail's top and spans the panel and
-// the page; the panel sits below it rather than beside it.
-test("the header card runs from the rail across the panel, above it", async ({ page }) => {
+// #1836 D2, D3: the header row starts at the window top beside the rail; the
+// page panel is a column below it that reaches the window bottom.
+test("the header row and the page panel meet the rail edge to edge", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await login(page);
   await page
@@ -289,13 +292,15 @@ test("the header card runs from the rail across the panel, above it", async ({ p
   const rail = (await page.locator("aside.hms-rail").boundingBox())!;
   const header = (await page.getByRole("banner").boundingBox())!;
   const panel = (await page.locator("aside.hms-page-panel").boundingBox())!;
-  expect(Math.abs(header.y - rail.y), "header top meets the rail top").toBeLessThan(1);
-  expect(Math.abs(header.x - panel.x), "header starts where the panel does").toBeLessThan(1);
-  expect(header.x + header.width, "header reaches the window edge").toBeGreaterThan(1260);
-  expect(panel.y, "panel sits below the header").toBeGreaterThan(header.y + header.height);
+  const railEdge = rail.x + rail.width;
+  expect(header.y, "header at the window top").toBeLessThan(1);
+  expect(Math.abs(header.x - railEdge), "header starts at the rail edge").toBeLessThan(1);
+  expect(Math.abs(panel.x - railEdge), "panel starts at the rail edge").toBeLessThan(1);
+  expect(panel.y, "panel below the header").toBeGreaterThanOrEqual(header.y + header.height - 1);
+  expect(panel.y + panel.height, "panel reaches the window bottom").toBeGreaterThan(799);
 });
 
-// #1296: without a page panel the content starts at the header card's left
+// #1296: without a page panel the content starts at the header's left
 // edge rather than floating in the middle of the window. Measured on a wide
 // screen, where centring opens the gap.
 test("content lines up with the header on a page without a panel", async ({ page }) => {

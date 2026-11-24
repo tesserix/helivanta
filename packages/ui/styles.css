@@ -39,16 +39,16 @@
   --input: #c7cfdc !important;
   --ring: #2b4ee6 !important;
 
-  /* Sidebar — light rails */
-  --sidebar: #ffffff !important;
-  --sidebar-foreground: #0b1324 !important;
-  --sidebar-primary: #0b1324 !important;
-  --sidebar-primary-foreground: #ffffff !important;
-  --sidebar-accent: #e4eaff !important;
-  --sidebar-accent-foreground: #1f3ab8 !important;
-  --sidebar-border: #dfe4ec !important;
-  --sidebar-ring: #2b4ee6 !important;
-  --sidebar-rail: #ffffff !important;
+  /* Sidebar — the rail is ink (#1836); only packages/ui/src/hms-shell.tsx reads these. */
+  --sidebar: #0b1324 !important;
+  --sidebar-foreground: #f6f8fb !important;
+  --sidebar-primary: #7aa0ff !important;
+  --sidebar-primary-foreground: #0b1324 !important;
+  --sidebar-accent: #1a2645 !important;
+  --sidebar-accent-foreground: #ffffff !important;
+  --sidebar-border: #1a2645 !important;
+  --sidebar-ring: #7aa0ff !important;
+  --sidebar-rail: #0b1324 !important;
 
   /* Helivanta semantic tokens */
   --hms-accent: #2b4ee6 !important;
@@ -82,6 +82,40 @@
    class + !important wins over both. */
 .hms-sidebar-border {
   border-color: var(--sidebar-border) !important;
+}
+
+/* The current zone on the ink rail and in the phone menu (#1836 D1): a fixed
+   3px bar at the link's left edge, never the tenant accent, which is not
+   guaranteed to show on ink. */
+.hms-current {
+  position: relative;
+}
+.hms-current::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.625rem;
+  bottom: 0.625rem;
+  width: 3px;
+  border-radius: 0 2px 2px 0;
+  background: var(--sidebar-primary);
+}
+
+/* The current page in the page panel, on the canvas (#1836 D3). Tenant-themed
+   on purpose: every tenant accent passes on the canvas, and #1834 D2 makes the
+   accent the colour of the current navigation item. */
+.hms-page-current {
+  position: relative;
+}
+.hms-page-current::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.5rem;
+  bottom: 0.5rem;
+  width: 3px;
+  border-radius: 0 2px 2px 0;
+  background: var(--hms-accent);
 }
 
 /* Stored chrome layout from the first paint (#1091 D7). The server renders the
@@ -171,7 +205,17 @@ select:autofill {
   color-scheme: light;
 }
 .login-story {
-  background: linear-gradient(145deg, var(--hms-accent-dim), var(--card));
+  /* The ink panel on a split entry page (#1836 D5): the rail's surface, never
+     the tenant accent, which is not guaranteed to show on ink. */
+  background: var(--sidebar-rail);
+  color: var(--sidebar-foreground);
+}
+.login-story .text-muted-foreground {
+  color: color-mix(in srgb, var(--sidebar-foreground) 70%, transparent);
+}
+/* The heart fallback tile is ink and would vanish on the ink panel. */
+.login-story .bg-primary {
+  background: var(--sidebar-accent);
 }
 .login-content {
   --auth-accent: var(--hms-accent);

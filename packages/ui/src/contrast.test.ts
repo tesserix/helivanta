@@ -44,6 +44,11 @@ describe("contrast()", () => {
   });
 });
 
+it("the rail is ink (#1836)", () => {
+  expect(root["--sidebar-rail"]).toBe("#0b1324");
+  expect(root["--sidebar"]).toBe("#0b1324");
+});
+
 it("is cool white, blue-black ink and ultramarine (#1834)", () => {
   expect(root["--background"]).toBe("#f6f8fb");
   expect(root["--foreground"]).toBe("#0b1324");
@@ -86,6 +91,12 @@ const PAIRS: [fg: string, bg: string, min: number][] = [
   ["--destructive-foreground", "--destructive", BODY],
   ["--sidebar-foreground", "--sidebar", BODY],
   ["--sidebar-accent-foreground", "--sidebar-accent", BODY],
+  // The ink rail (#1836): text on the rail and on its hover fill, the fixed
+  // current-zone bar and the focus ring as UI components.
+  ["--sidebar-foreground", "--sidebar-rail", BODY],
+  ["--sidebar-foreground", "--sidebar-accent", BODY],
+  ["--sidebar-primary", "--sidebar-rail", UI],
+  ["--sidebar-ring", "--sidebar-rail", UI],
   ["--hms-good", "--card", BODY],
   ["--hms-warn", "--card", BODY],
   ["--hms-crit", "--card", BODY],
@@ -151,6 +162,11 @@ it.each([
   [
     "rail and panel links",
     blend(root["--sidebar-foreground"], 0.7, root["--sidebar"]),
+    root["--sidebar"],
+  ],
+  [
+    "rail section labels",
+    blend(root["--sidebar-foreground"], 0.6, root["--sidebar"]),
     root["--sidebar"],
   ],
 ])("%s pass AA", (_name, fg, bg) => {

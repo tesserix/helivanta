@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { expect, it } from "vitest";
 import { DEFAULT_BRANDING } from "@helivanta/api";
 import { BrandMark, LoginSurface } from "./branding";
@@ -46,7 +46,9 @@ it("preserves tenant welcome content in the split layout", () => {
     </LoginSurface>,
   );
   expect(screen.getByText("Welcome to our care team.")).toBeInTheDocument();
-  expect(screen.getByText("YES HOSPITAL")).toBeInTheDocument();
+  // The name is in the header below lg and in the ink panel from lg; CSS shows
+  // one of them (#1836 D5), so the DOM holds both.
+  expect(screen.getAllByText("YES HOSPITAL")).toHaveLength(2);
   expect(screen.getByRole("heading", { name: "Sign in" })).toBeInTheDocument();
 });
 
@@ -102,4 +104,63 @@ it("draws no eyebrow, accent headline or decorative icon tile", () => {
   expect(container.querySelector(".uppercase")).toBeNull();
   expect(container.querySelector("h2 [class*='hms-accent']")).toBeNull();
   expect(container.querySelector(".login-content > span")).toBeNull();
+});
+
+// #1836 D5: a split entry page is two full-height columns, the brand in an ink
+// panel on the left and the form on the canvas. The brand appears once.
+it("puts the brand in the ink panel on a split entry page, once", () => {
+  const { container } = render(
+    <LoginSurface
+      branding={{
+        ...DEFAULT_BRANDING,
+        display_name: "YES HOSPITAL",
+        welcome_text: "Welcome to our care team.",
+        login_layout: "split",
+      }}
+      entry
+    >
+      <h1>Sign in</h1>
+    </LoginSurface>,
+  );
+  const panel = container.querySelector("aside.login-story") as HTMLElement;
+  expect(within(panel).getAllByText("YES HOSPITAL").length).toBeGreaterThan(0);
+  expect(within(panel).getByText("Welcome to our care team.")).toBeInTheDocument();
+  expect(container.querySelector("header")!.className.split(/\s+/)).toContain("lg:hidden");
+  // The illustration card is gone: the panel carries the brand, not a diagram.
+  expect(panel.textContent).not.toMatch(/Care teams|Laboratory|Your organisation/);
+});
+
+// #1767: the platform keeps the centred entry page; only a tenant that chose
+// split gets the panel (#1836 D5 as amended).
+it("keeps the platform's centred entry page without a panel", () => {
+  const { container } = render(
+    <LoginSurface branding={DEFAULT_BRANDING} entry homeHref="/">
+      <h1>Sign in</h1>
+    </LoginSurface>,
+  );
+  expect(container.querySelector("aside.login-story")).toBeNull();
+  expect(container.querySelector("header")!.className.split(/\s+/)).not.toContain("lg:hidden");
+});
+
+// A tenant logo is drawn for a light surface; on the ink panel it sits on a
+// card chip so a dark logo stays visible (#1836 review).
+it("sets a tenant logo on a light chip inside the ink panel", () => {
+  const { container } = render(
+    <LoginSurface
+      branding={{
+        ...DEFAULT_BRANDING,
+        display_name: "YES HOSPITAL",
+        logo_url: "https://example.test/logo.png",
+        login_layout: "split",
+      }}
+      entry
+    >
+      <h1>Sign in</h1>
+    </LoginSurface>,
+  );
+  const panel = container.querySelector("aside.login-story") as HTMLElement;
+  const logo = within(panel).getByRole("img", { name: "YES HOSPITAL logo" });
+  expect(logo.parentElement!.className.split(/\s+/)).toContain("bg-card");
+  const header = container.querySelector("header") as HTMLElement;
+  expect(within(header).getByRole("img").parentElement!.className).not.toContain("bg-card");
 });

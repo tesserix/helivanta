@@ -2,7 +2,13 @@ import { useState } from "react";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { renderWithProviders } from "@helivanta/api/testing";
-import { PERMISSIONS_CACHE_KEY, RENEW_AT_KEY, storeRenewAt } from "@helivanta/api";
+import {
+  DEFAULT_BRANDING,
+  PERMISSIONS_CACHE_KEY,
+  RENEW_AT_KEY,
+  storeRenewAt,
+  type Branding,
+} from "@helivanta/api";
 import { HmsShell } from "./hms-shell";
 // These cases isolate chrome/session behavior. Release refusal and page mounting
 // are exercised with the real hook in hms-shell-release.test.tsx.
@@ -1331,5 +1337,144 @@ describe("phone menu", () => {
     const menu = screen.getByRole("dialog", { name: "Menu" });
     expect(within(menu).queryAllByRole("link")).toHaveLength(0);
     expect(within(menu).getAllByTestId("nav-placeholder").length).toBeGreaterThan(0);
+  });
+});
+
+// #1836: the chrome is flat. The rail is a full-height ink column whose current
+// zone carries a fixed marker, never the tenant accent, which is not
+// guaranteed to show on ink.
+describe("flat chrome (#1836)", () => {
+  const permissions = ["pharmacy.dispense.read", "pharmacy.stock.read"];
+
+  // Signed-in shell with this tenant's branding, at `path`. Resolves once the
+  // branding has loaded, so assertions see the tenant's values, not defaults.
+  async function renderShell(
+    overrides: Partial<Branding> = {},
+    path = "/dashboard",
+  ): Promise<ReturnType<typeof renderWithProviders>> {
+    const branding = { ...DEFAULT_BRANDING, display_name: "YES HOSPITAL", ...overrides };
+    seedCache(permissions);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) =>
+        url === "/api/v1/workspace/branding"
+          ? new Response(JSON.stringify(branding))
+          : new Response(
+              JSON.stringify({ data: permissions, subject: "doc", tenant_id: "tenant-a" }),
+            ),
+      ),
+    );
+    pathname.current = path;
+    const rendered = renderWithProviders(<HmsShell>content</HmsShell>);
+    await waitFor(() =>
+      expect(screen.getByTestId("tenant-name")).toHaveTextContent(branding.display_name),
+    );
+    return rendered;
+  }
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    window.localStorage.clear();
+  });
+
+  it("draws the rail flat and full height from md", async () => {
+    await renderShell();
+    const rail = document.querySelector("aside.hms-rail")!;
+    for (const card of ["md:m-2", "md:rounded-xl", "md:shadow-sm", "md:self-start", "md:border"])
+      expect(rail.className.split(/\s+/)).not.toContain(card);
+    expect(rail.className.split(/\s+/)).toContain("md:h-full");
+  });
+
+  it("marks the current zone with the fixed rail marker, never the tenant accent", async () => {
+    await renderShell({ theme: "indigo" }, "/pharmacy");
+    const current = screen
+      .getByRole("navigation", { name: "Zones" })
+      .querySelector('[aria-current="page"]')!;
+    expect(current.className).toContain("hms-current");
+    expect(current.className).not.toMatch(/hms-accent/);
+  });
+
+  it("marks the current zone the same way in the phone menu", async () => {
+    const { user } = await renderShell({ theme: "indigo" }, "/pharmacy");
+    await user.click(screen.getByRole("button", { name: "Open menu" }));
+    const current = within(screen.getByRole("dialog", { name: "Menu" }))
+      .getAllByRole("link")
+      .find(
+        (link) =>
+          link.getAttribute("aria-current") === "page" &&
+          /PharmaConnect/.test(link.textContent ?? ""),
+      )!;
+    expect(current.className).toContain("hms-current");
+    expect(current.className).not.toMatch(/hms-accent/);
+  });
+
+  it("puts the platform mark alone in the rail head", async () => {
+    await renderShell({ logo_url: "https://example.test/logo.png" });
+    const home = screen.getByRole("link", { name: "Helivanta home" });
+    expect(within(home).queryByRole("img")).toBeNull();
+  });
+
+  it("draws the header as a row and the page panel as a column", async () => {
+    // A page these permissions reach, so the panel has a current page.
+    await renderShell({}, "/pharmacy/stock");
+    const header = screen.getByRole("banner");
+    const headerClasses = header.className.split(/\s+/);
+    for (const card of ["md:rounded-xl", "md:shadow-sm", "md:border"])
+      expect(headerClasses).not.toContain(card);
+    expect(headerClasses).toContain("border-b");
+    const panel = document.querySelector(".hms-page-panel")!;
+    expect(panel.className).not.toMatch(/md:rounded-xl|md:shadow-sm|md:self-start|sidebar/);
+    expect(panel.className).toContain("md:w-56");
+    const current = within(panel as HTMLElement)
+      .getAllByRole("link")
+      .find((link) => link.getAttribute("aria-current") === "page")!;
+    expect(current.className).toContain("hms-page-current");
+    expect(current.className).not.toMatch(/sidebar/);
+  });
+
+  it("shows the tenant logo in the header only when one is set", async () => {
+    const first = await renderShell({ logo_url: "" });
+    expect(within(screen.getByRole("banner")).queryByRole("img")).toBeNull();
+    first.unmount();
+    await renderShell({ logo_url: "https://example.test/logo.png" });
+    const logo = within(screen.getByRole("banner")).getByRole("img", { name: "YES HOSPITAL logo" });
+    fireEvent.error(logo);
+    expect(within(screen.getByRole("banner")).queryByRole("img")).toBeNull();
+  });
+
+  it("keeps a long hospital name from pushing the account menu off the row", async () => {
+    await renderShell({ display_name: "H".repeat(100), logo_url: "https://example.test/logo.png" });
+    expect(screen.getByRole("banner").firstElementChild!.className.split(/\s+/)).toContain(
+      "flex-wrap",
+    );
+    // The name gives way, never the page title: the left group and the name can
+    // shrink, the title cannot (#1836 review).
+    const name = screen.getByTestId("tenant-name");
+    expect(name.className.split(/\s+/)).toContain("min-w-0");
+    expect(name.parentElement!.className.split(/\s+/)).toContain("min-w-0");
+    expect(screen.getByRole("heading", { level: 1 }).className.split(/\s+/)).toContain("shrink-0");
+  });
+
+  it("rings the rail's controls in the rail focus colour", async () => {
+    await renderShell({ theme: "indigo" });
+    const collapse = screen.getByRole("button", { name: /(Expand|Collapse) navigation/ });
+    expect(collapse.className).toContain("focus-visible:ring-(--sidebar-ring)");
+    expect(collapse.className).not.toMatch(/hms-accent/);
+    const rail = screen.getByRole("navigation", { name: "Zones" });
+    for (const link of within(rail).getAllByRole("link"))
+      expect(link.className).toContain("focus-visible:ring-(--sidebar-ring)");
+  });
+
+  it("rings the phone menu's controls in the rail focus colour", async () => {
+    await renderShell({ theme: "indigo" }, "/pharmacy/stock");
+    fireEvent.click(screen.getByRole("button", { name: "Open menu" }));
+    const menu = screen.getByRole("navigation", { name: "Menu" });
+    const controls = [
+      ...within(menu).getAllByRole("link"),
+      screen.getByRole("button", { name: "Close menu" }),
+    ];
+    expect(controls.length).toBeGreaterThan(2);
+    for (const control of controls)
+      expect(control.className).toContain("focus-visible:ring-(--sidebar-ring)");
   });
 });

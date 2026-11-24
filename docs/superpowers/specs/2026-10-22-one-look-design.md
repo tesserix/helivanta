@@ -1,5 +1,7 @@
 > Palette superseded on 2026-10-28: the approved theme-only change uses light slate (canvas `#f8fafc`, ink `#0f172a`, primary `#334155`) in the shared UI and homepage. The original layout, copy and animations remain unchanged. Historical sage values below describe the earlier decision. The home page's own `--home-*` tokens were removed later the same day; it reads the shared tokens (#542, `2026-10-28-shared-web-token-roles.md`).
 
+> Palette superseded again on 2026-11-24 by `2026-11-24-app-look-tokens-design.md` (#1834): cool white, blue-black ink, ultramarine accent, IBM Plex Sans in the app.
+
 # One look: the signed-in app takes the home page's design — design
 
 Issue: #1255 (child of #542 Design tokens & theming; resolves #1088)

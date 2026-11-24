@@ -1,3 +1,5 @@
+> Token values superseded on 2026-11-24 by `2026-11-24-app-look-tokens-design.md` (#1834); the roles and the one-source rule here stand.
+
 # One set of web colour tokens for the home page and the app — design
 
 Issue: #542 (web slice; follows #1255 one look and #1412 slate)

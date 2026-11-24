@@ -43,6 +43,17 @@ async function messages(code, options = { design: true }) {
 }
 
 describe("design rules", () => {
+  // @tesserix/web Input paints Tailwind green for `valid` (#1834 spec D5).
+  it("rejects Input's valid prop", async () => {
+    expect(await messages(`export const A = () => <Input valid />;`)).toEqual([
+      expect.stringMatching(/valid prop paints a non-token green/),
+    ]);
+    expect(await messages(`export const A = ({ ok }) => <Input valid={ok} />;`)).toEqual([
+      expect.stringMatching(/valid prop paints a non-token green/),
+    ]);
+    expect(await messages(`export const A = () => <Input aria-invalid />;`)).toEqual([]);
+  });
+
   it("rejects a raw Tailwind colour", async () => {
     expect(await messages(`export const A = () => <div className="p-2 bg-teal-600" />;`)).toEqual([
       expect.stringMatching(/design-token utility/),

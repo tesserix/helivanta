@@ -471,14 +471,19 @@ an unlayered class with `!important` — rather than reaching for a
 `!important` inline style or a one-off Tailwind arbitrary value, which
 won't win against the unlayered base rule either.
 
-### One look: light, slate, modern enterprise (#1255)
+### One look: light, one palette, modern enterprise (#1255, #1834)
 
-Design spec: `docs/superpowers/specs/2026-10-22-one-look-design.md`.
+Design specs: `docs/superpowers/specs/2026-10-22-one-look-design.md`; the
+palette and UI typeface since `2026-11-24-app-look-tokens-design.md`.
 
 - **Light only.** There is no dark theme, theme toggle or `dark:` utility.
   `packages/ui/src/light-only.test.ts` fails on any `data-theme="dark"` rule.
-- **One palette.** The public pages and the app read the same slate tokens in
-  `packages/ui/styles.css`. `packages/ui/src/contrast.test.ts` holds the
+- **One palette.** The public pages and the app read the same tokens in
+  `packages/ui/styles.css`: cool white canvas `#f6f8fb`, blue-black ink
+  `#0b1324`, ink primary actions, and one ultramarine accent `#2b4ee6` for
+  links, selection, focus and the current navigation item. Tenant themes
+  recolour that accent only. IBM Plex Sans is the UI face; Anek is the public
+  page's headline face only. `packages/ui/src/contrast.test.ts` holds the
   pairs it lists to WCAG 2.2 AA: text on each surface, status and destructive
   text on cards and tinted tiles, each category tint, each brand theme, and
   the blended chrome pairs (`/70` sidebar text, muted text on a hover fill).

@@ -1,15 +1,20 @@
 import { test, expect } from "@playwright/test";
 
 const tenant = "11111111-1111-4111-8111-111111111111";
+// Primary actions are ink under every tenant theme; the theme shows in the
+// accent instead (#1834 spec D2). "teal" is the stored default and carries the
+// platform accent. The story panel's tint is deliberately not asserted: #1836
+// turns that panel ink.
+const INK = "rgb(11, 19, 36)";
 const palettes = [
-  { theme: "teal", button: "rgb(51, 65, 85)" }, // the default brand, slate #334155
-  { theme: "blue", button: "rgb(29, 93, 168)" },
-  { theme: "indigo", button: "rgb(83, 82, 166)" },
+  { theme: "teal", accent: "rgb(43, 78, 230)" },
+  { theme: "blue", accent: "rgb(29, 93, 168)" },
+  { theme: "indigo", accent: "rgb(83, 82, 166)" },
 ] as const;
 
-for (const { theme, button: background } of palettes) {
+for (const { theme, accent } of palettes) {
   for (const layout of ["split", "centered"]) {
-    test(`${theme} ${layout} login has a distinct primary action during submission`, async ({
+    test(`${theme} ${layout} login has an ink primary action and shows the tenant accent`, async ({
       page,
     }) => {
       await page.route("**/api/v1/auth/branding/*", (route) =>
@@ -51,7 +56,7 @@ for (const { theme, button: background } of palettes) {
       await page.goto(`/login?authRequest=V2_appearance&tenant=${tenant}`);
       const action = page.getByRole("button", { name: "Sign in", exact: true });
       const loginName = page.getByLabel("Email or username");
-      await expect(action).toHaveCSS("background-color", background);
+      await expect(action).toHaveCSS("background-color", INK);
       await expect(action).toHaveCSS("color", "rgb(255, 255, 255)");
       await expect(action).toHaveCSS(
         "width",
@@ -64,6 +69,23 @@ for (const { theme, button: background } of palettes) {
       );
       await action.focus();
       await expect(action).toHaveCSS("outline-style", "solid");
+      // The tenant brand is on the focused field's ring, not the button. The
+      // auth input sets its border inline, so the visible focus state is the
+      // 3px box-shadow ring in the accent; compare it with the same ring
+      // computed by the browser for this theme's accent.
+      await loginName.focus();
+      const ring = await page.evaluate((colour) => {
+        const probe = document.createElement("div");
+        probe.style.boxShadow = `0 0 0 3px color-mix(in srgb, ${colour} 24%, transparent)`;
+        document.body.append(probe);
+        const value = getComputedStyle(probe).boxShadow;
+        probe.remove();
+        return value;
+      }, accent);
+      await expect(loginName, "focused field rings in the tenant accent").toHaveCSS(
+        "box-shadow",
+        ring,
+      );
 
       await page.setViewportSize({ width: 390, height: 844 });
       await expect(action).toHaveCSS(
@@ -80,7 +102,7 @@ for (const { theme, button: background } of palettes) {
       const busy = page.getByRole("button", { name: "Please wait…", exact: true });
       await expect(busy).toBeDisabled();
       await expect(busy).toHaveAttribute("aria-busy", "true");
-      await expect(busy).toHaveCSS("background-color", background);
+      await expect(busy).toHaveCSS("background-color", INK);
       await expect(busy).toHaveCSS("opacity", "1");
       expect(await busy.evaluate((el) => getComputedStyle(el, "::before").content)).toBe('""');
       await expect.poll(() => submissions).toBe(1);

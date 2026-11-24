@@ -22,10 +22,10 @@
 Hosted run [45405102721](https://github.com/tesserix/helivanta/actions/runs/45405102721)
 passed owner, real Global API, built-browser and capacity on `7c871c33`:
 
-| Ownership | Complete pages | Page p99 | Exact overview reads | Overview p99 |
-| --- | ---: | ---: | ---: | ---: |
-| Independent | 200 | 365.755 ms | 100 | 339.204 ms |
-| Hospital-owned | 200 | 352.775 ms | 100 | 337.058 ms |
+| Ownership      | Complete pages |   Page p99 | Exact overview reads | Overview p99 |
+| -------------- | -------------: | ---------: | -------------------: | -----------: |
+| Independent    |            200 | 365.755 ms |                  100 |   339.204 ms |
+| Hospital-owned |            200 | 352.775 ms |                  100 |   337.058 ms |
 
 Each outlet contained 10,000 configured products, 1,000 released buckets and
 9,000 zero-batch products created through owner APIs. Product identity/quantity,
@@ -49,22 +49,46 @@ No local app, database, container or Colima ran. The new provider-controlled
 eligibility regression was observed red before regeneration and green after it;
 the matching chart test likewise failed before catalogue sync and passed after.
 
-## Remaining delivery gates
+## Completed delivery
 
-1. Validate final eligibility/generated outputs and matching chart catalogue,
-   affected local builds/checks, and remove generated build artifacts.
-2. Push the stable final head and pass all required protected checks; merge
-   application PR #1842 normally. Keep the GitOps catalogue PR #1723 aligned.
-3. Publish signed main images. Capture the five live policies, roles, forced-RLS
-   and purpose/source integrity before release. Obtain explicit approval naming
-   migration 0071 (including function delegation/source-seal update) and the
-   signed release revision; run the normal reviewer-gated Release/Kargo flow.
-4. Verify migration completion, exact signed workload digests and readiness.
-   Merge/sync the matching chart catalogue in the release sequence. Enable only
-   Low stock through audited Console controls and verify a later scheduled sync
-   preserves the acknowledged desired value.
-5. Exercise the actual signed-in owner UI and Global API using authorized
-   synthetic existing products/outlets, including denial and recovery checks.
-   Record actual running revision and unexecuted cases explicitly.
-6. Update and close #1685 only after deployed acceptance. Automatic ordering stays
-   in #1144. Hosted fixtures do not prove live onboarding or Staff sign-in.
+1. Final eligibility/generated outputs, canonical catalogue/schema/reconciler
+   checks and affected local API/shell builds passed; generated outputs from the
+   builds were removed. No local applications, databases or Colima ran.
+2. All protected checks passed on `03f13955`, including three Go race/coverage
+   shards and their combined gate, full web checks/builds and full E2E. The final
+   [low-stock acceptance run](https://github.com/tesserix/helivanta/actions/runs/45409622996)
+   passed for both owners. Stocktake capacity and compound supplier/hospital Staff
+   admission regressions also passed. Application PR #1842 merged normally as
+   `95285c5b`; no admin bypass was used.
+3. Main image publication built, scanned and signed both images. Policy/role/RLS
+   and source-integrity metadata was captured before release. Explicit approval
+   named migration 0071, the signed revision, catalogue sync and flag activation.
+   The normal reviewer-gated
+   [Release/Kargo flow](https://github.com/tesserix/helivanta/actions/runs/45497399513)
+   completed, with migration 0071 applied at 22:11:08 UTC on 2026-11-24.
+4. All seven application deployments reached 2/2 readiness on the approved
+   digests, and the new Kargo Freight became Ready/Healthy/Verified. The live
+   before/after comparison retained 28 other policies and every unaffected field
+   in the five changed policies; forced RLS and purpose/source integrity passed.
+5. Catalogue PR tesserix/tesserix-k8s#1723 merged normally as `969f3055` and the
+   chart ConfigMap synchronized. The 22:20 scheduled job created one disabled
+   definition and preserved 24. Console confirmed activation of only Low stock
+   at 22:21; the 22:30 scheduled job preserved all 25, with no new definitions.
+   Console afterward confirmed nine enabled flags and 16 release-locked flags.
+6. The signed-in hospital owner exercised the live UI/Global API against one
+   labelled non-clinical QA fixture in an already-authorized outlet: minimum
+   `0` gave available `0`, one warning and count `1`; editing to `1` persisted
+   through reload; disabling removed the warning and returned the count to `0`,
+   also after navigation/reload. Backend evidence confirmed three append-only,
+   owner-attributed revisions/audit rows and no stock batches/movements. An
+   ungranted outlet and unreleased Catalogue remained inaccessible. Account and
+   scope labels showed names.
+
+See the [acceptance record](../specs/2026-11-24-low-stock-activation.md#production-acceptance--2026-11-24-utc)
+for evidence boundaries and fixture provenance. The QA fixture was created by
+an audited, scoped maintenance transaction because both QA outlets were empty;
+this does not prove live Catalogue product creation. Its warning is left disabled.
+Both-owner denial/recovery and stock-safety cases are proved by hosted acceptance,
+not by a second live tenant login. Staff onboarding, clinical authority and
+ordering (#1144) remain outside this issue. Issue #1685 closes only after this
+deployed evidence is recorded.

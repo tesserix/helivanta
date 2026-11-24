@@ -360,7 +360,7 @@ for catalogue products, reorder levels, stock batches, movements and locations.
 It retains exact row tenant/outlet checks and evaluates the existing current
 outlet grant once per statement. It does not cache authority between requests.
 No write, alternate read, restrictive purpose or policy-role clause is replaced.
-The same unapplied migration also centralizes relational lot-reason and
+The migration also centralizes relational lot-reason and
 all-product sellable-bucket calculation. Existing scalar/product functions
 delegate to those owner projections with the same signatures, rule priorities,
 hold arithmetic and exceptions. Approval must explicitly include these function
@@ -384,3 +384,27 @@ policy discrepancy; do not weaken its guard or edit an applied migration. It has
 no automatic down migration. Rolling back an application image leaves the
 compatible policy optimization in place; reverting the policy requires a new
 reviewed forward migration with separately approved production application.
+
+### Low-stock activation record — 2026-11-24 UTC
+
+Signed application revision `95285c5b` and migration 0071 were deployed through
+[Release/Kargo](https://github.com/tesserix/helivanta/actions/runs/45497399513)
+after explicit approval. The new Freight was Ready/Healthy/Verified and all seven
+application deployments were 2/2 ready at approved digests. Catalogue revision
+`969f3055` then synchronized through the chart-owning onboarding Application.
+
+The 22:20 scheduled reconciliation reported `created: 1`, `preserved: 24` for
+policy `2026-11-24.pharmacy-low-stock.v1`; the new definition was disabled.
+An audited Console command enabled only `helivanta.release.pharmacy_low_stock`
+at 22:21. The 22:30 scheduled reconciliation reported `created: 0`,
+`preserved: 25`, and a later Console refresh confirmed Low stock enabled with
+nine available features and all 16 unreleased features still locked.
+
+The two scheduled jobs during the release-first/old-ConfigMap interval failed
+the intended contract-parity check and changed no provider values. They were not
+replaced with an imperative provider edit. The approved chart ConfigMap sync
+restored normal scheduled reconciliation. See the
+[deployed acceptance record](../superpowers/specs/2026-11-24-low-stock-activation.md#production-acceptance--2026-11-24-utc)
+for the live owner save/edit/disable tests, audited QA-fixture provenance and
+separate hosted evidence for both ownership models. This record grants no roles
+and does not release Catalogue, Stock, Reports, ordering or financial workflows.

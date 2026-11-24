@@ -173,3 +173,13 @@ field normalized, then re-pin its exact new state with every existing predicate.
 Reject unrelated table/choice/index/guard-property drift and preserve rollback
 atomicity. The runtime TRUNCATE restriction remains unchanged; the migration
 owner compares the sealed choice structure rather than bypassing that guard.
+
+Repeated-page diagnostics on 96feb933 proved the remaining generic-plan rescan:
+page p99 occurred at page 7; the driver had 194 generic versus five custom page
+plans. At that actual cursor, custom execution was 285 ms and generic execution
+542 ms. The generic plan rescanned the one-row, large JSONB CTE 9,650 times.
+Read its value through uncorrelated scalar subqueries (InitPlans), retaining one
+materialized canonical aggregate per statement and at most two scalar reads.
+This prevents large tuple rescans under either plan without forcing a planner
+mode, changing authority, caching between requests or relaxing the 500 ms gate.
+Retain both custom/generic actual-role plan evidence after this correction.

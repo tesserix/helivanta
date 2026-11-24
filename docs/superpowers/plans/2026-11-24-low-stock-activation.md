@@ -59,3 +59,10 @@ Observed candidate evidence as of 24 November:
    seals/choice structure, compare all unrelated metadata, then re-pin the one
    controlled read-clause change. Prove unrelated evidence, choice, index and
    guard-property drift is refused atomically; retain all runtime restrictions.
+
+10. **Prepared-plan correction (pending acceptance).** Diagnostic 96feb933
+    recorded page p99 534 ms at page 7 (count 244 ms), 194 generic/five custom
+    page executions, and 285 ms custom versus 542 ms generic execution at that
+    cursor. Generic rescanned the materialized JSONB tuple 9,650 times. Use
+    uncorrelated scalar InitPlans to read that one statement-local aggregate
+    once per expression. Keep both models, all pages/counts and 500 ms unchanged.

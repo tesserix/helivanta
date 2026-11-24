@@ -205,7 +205,17 @@ select:autofill {
   color-scheme: light;
 }
 .login-story {
-  background: linear-gradient(145deg, var(--hms-accent-dim), var(--card));
+  /* The ink panel on a split entry page (#1836 D5): the rail's surface, never
+     the tenant accent, which is not guaranteed to show on ink. */
+  background: var(--sidebar-rail);
+  color: var(--sidebar-foreground);
+}
+.login-story .text-muted-foreground {
+  color: color-mix(in srgb, var(--sidebar-foreground) 70%, transparent);
+}
+/* The heart fallback tile is ink and would vanish on the ink panel. */
+.login-story .bg-primary {
+  background: var(--sidebar-accent);
 }
 .login-content {
   --auth-accent: var(--hms-accent);

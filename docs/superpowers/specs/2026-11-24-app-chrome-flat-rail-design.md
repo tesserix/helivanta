@@ -61,10 +61,10 @@ surface only; panels inside pages are slice 3 (#1256 to #1263).
 - The three cards are class strings on three elements in
   `packages/ui/src/hms-shell.tsx`: the rail `<aside class="hms-rail …">`
   (`md:m-2 md:max-h-[calc(100dvh-1rem)] md:self-start md:rounded-xl
-  md:border md:shadow-sm`), the `<header>` (`md:rounded-xl md:border
-  md:bg-(--sidebar-rail) md:shadow-sm`), and the page panel `<aside
-  class="hms-page-panel …">` (`md:mr-2 md:self-start md:rounded-xl md:border
-  md:shadow-sm`). The page's own card is the content wrapper below them.
+md:border md:shadow-sm`), the `<header>` (`md:rounded-xl md:border
+md:bg-(--sidebar-rail) md:shadow-sm`), and the page panel `<aside
+class="hms-page-panel …">` (`md:mr-2 md:self-start md:rounded-xl md:border
+md:shadow-sm`). The page's own card is the content wrapper below them.
 - `html[data-hms-navigation="open"] .hms-rail { width: 13rem }` in
   `packages/ui/styles.css` sizes the open rail before hydration (#1091 D7).
   The stored-chrome test expects `rail=208px panel=224px` from the first
@@ -83,7 +83,7 @@ surface only; panels inside pages are slice 3 (#1256 to #1263).
   the header's top meets the rail's. Both must be rewritten, not deleted.
 - `LoginSurface` in `packages/ui/src/branding.tsx` already has an `entry`
   prop and a `login-story` aside shown only when `branding.login_layout ===
-  "split"`; the ink panel replaces that aside's styling, not its placement.
+"split"`; the ink panel replaces that aside's styling, not its placement.
   `.login-story` reads `--hms-accent-dim` today.
 
 ## Decisions
@@ -95,16 +95,16 @@ no radius, no border, no shadow, background `--sidebar-rail`. Collapsed width
 stays `md:w-20` (the labels under icons need it); open width stays 13 rem.
 Rail tokens become:
 
-| Token | Slice 1 value | This slice |
-| --- | --- | --- |
-| `--sidebar`, `--sidebar-rail` | `#ffffff` | `#0b1324` |
-| `--sidebar-foreground` | `#0b1324` | `#f6f8fb` |
-| `--sidebar-primary` | `#0b1324` | `#7aa0ff` |
-| `--sidebar-primary-foreground` | `#ffffff` | `#0b1324` |
-| `--sidebar-accent` | `#e4eaff` | `#1a2645` |
-| `--sidebar-accent-foreground` | `#1f3ab8` | `#ffffff` |
-| `--sidebar-border` | `#dfe4ec` | `#1a2645` |
-| `--sidebar-ring` | `#2b4ee6` | `#7aa0ff` |
+| Token                          | Slice 1 value | This slice |
+| ------------------------------ | ------------- | ---------- |
+| `--sidebar`, `--sidebar-rail`  | `#ffffff`     | `#0b1324`  |
+| `--sidebar-foreground`         | `#0b1324`     | `#f6f8fb`  |
+| `--sidebar-primary`            | `#0b1324`     | `#7aa0ff`  |
+| `--sidebar-primary-foreground` | `#ffffff`     | `#0b1324`  |
+| `--sidebar-accent`             | `#e4eaff`     | `#1a2645`  |
+| `--sidebar-accent-foreground`  | `#1f3ab8`     | `#ffffff`  |
+| `--sidebar-border`             | `#dfe4ec`     | `#1a2645`  |
+| `--sidebar-ring`               | `#2b4ee6`     | `#7aa0ff`  |
 
 Muted rail items are `text-sidebar-foreground/70` as today; on `#0b1324` that
 blend is `#9aa7bf`, 7.6:1. The current zone gets `aria-current="page"` as
@@ -168,12 +168,11 @@ today. The tenant theme shows through the focus ring and links as #1834 D2
 arranged; the ink panel does not take the tenant accent, so a tenant's accent
 never has to pass contrast on ink.
 
-The platform brand shows the panel too: `DEFAULT_BRANDING.login_layout` in
-`packages/api/src/workspace.ts` and the matching Go default in
-`backend/internal/modules/workspace/module.go` change from `centered` to
-`split`. Both are defaults for a missing tenant row; stored tenant values are
-untouched and no migration follows. A tenant that chose `centered` keeps a
-centred page with no ink panel.
+The platform brand keeps the centred layout. #1767 decided that a workspace
+that never chose a layout gets the single card, and
+`backend/internal/modules/workspace/module_test.go` pins it. Tenants who
+choose `split` get the ink panel. Changing the platform default is a separate
+decision with its own issue; amended during implementation on 2026-11-25.
 
 Task screens (`entry` false) are unchanged: one centred card.
 
@@ -213,16 +212,14 @@ Run through GitHub Actions on the branch.
   is the window's top and its left edge meets the rail's right edge"; both
   are run once against the current chrome and fail before the change. The
   stored-chrome first-paint test passes unchanged (`rail=208px
-  panel=224px`). The no-reload-between-zones test passes unchanged.
+panel=224px`). The no-reload-between-zones test passes unchanged.
 - `dashboard-phone.spec` green. `login-appearance.spec` green unchanged:
   #1834's rewrite pins the tenant accent on the focused field's ring only,
   not on the story panel's tint, precisely so this slice can turn the panel
   ink without a second rewrite.
 - `branding.test.tsx`: the split entry layout renders the ink panel with the
-  lockup, welcome text and display name, and no page header at `lg`; the
-  centred layout renders no panel. `workspace.ts` and the Go default tests
-  assert `split`; `go run ./cmd/contractdocs -check` stays clean because no
-  contract shape changes, only a default.
+  brand and welcome text and hides the page header from `lg`; the platform's
+  centred layout renders no panel. No backend or contract change.
 - `smoke.spec.ts` selectors unchanged.
 - Screenshots on the PR: dashboard and a pharmacy page at 1280 and at 390
   wide, sign-in under the platform brand and under the `blue` tenant theme.

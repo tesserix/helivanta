@@ -1,19 +1,19 @@
 # Low-stock release activation — #1685
 
-Status: implemented and hosted acceptance passed; production release and live
-acceptance pending. This document activates no feature.
+Status: deployed and live hospital-owner acceptance verified on 2026-11-24 UTC.
+Availability remains controlled by Console; this document changes no flags.
 
-## Verified implementation and remaining work
+## Verified implementation and release boundary
 
-PR #1761 already owns append-only per-outlet/product minimum revisions, exact
+PR #1761 provided append-only per-outlet/product minimum revisions, exact
 actor/input-bound recovery, released/unexpired availability, zero-stock products,
-and the existing stock-list/overview parity tests. Its deployment does not expose
-those controls: general Stock, Catalogue and Reports remain release locked.
+and the existing stock-list/overview parity tests. That earlier deployment alone
+did not expose those controls; general Stock, Catalogue and Reports remain locked.
 
-Deliver the issue through a separate `pharmacy_low_stock` capability depending
-on `pharmacy_setup`. Do not activate unrelated product, stock-movement, dispensing,
-financial, supplier or ordering functionality. Keep eligibility false until the
-focused owner, gateway, built-browser and capacity gates pass.
+Delivery uses a separate `pharmacy_low_stock` capability depending on
+`pharmacy_setup`. It releases no unrelated product, stock-movement, dispensing,
+financial, supplier or ordering functionality. Eligibility became true only after
+the focused owner, gateway, built-browser and capacity gates passed.
 
 ## Owner and authorization
 
@@ -198,13 +198,69 @@ buckets and 9,000 products without batches, created through owner APIs. All 200
 pages returned exactly the expected products/quantities without duplicates or
 loss, and all 100 summary reads returned the exact count.
 
-| Ownership | Page p99 | Overview p99 | Custom plan | Generic plan |
-| --- | ---: | ---: | ---: | ---: |
-| Independent | 365.755 ms | 339.204 ms | 353.121 ms | 347.658 ms |
-| Hospital-owned | 352.775 ms | 337.058 ms | 349.628 ms | 343.789 ms |
+| Ownership      |   Page p99 | Overview p99 | Custom plan | Generic plan |
+| -------------- | ---------: | -----------: | ----------: | -----------: |
+| Independent    | 365.755 ms |   339.204 ms |  353.121 ms |   347.658 ms |
+| Hospital-owned | 352.775 ms |   337.058 ms |  349.628 ms |   343.789 ms |
 
-The original 500 ms target is unchanged. Canonical eligibility can now be true;
-the provider's desired flag still controls availability. Protected checks on the
-final release head, approved migration/signed rollout, matching chart catalogue,
-audited Console enablement and live owner acceptance remain delivery gates.
-Hosted synthetic acceptance does not prove live onboarding or Staff sign-in.
+The original 500 ms target is unchanged. These gates qualified canonical
+eligibility; the provider's desired flag still controls availability. Protected
+checks on the final release head, approved migration/signed rollout, matching
+chart catalogue, audited Console enablement and live owner acceptance were then
+completed as recorded below. Hosted synthetic acceptance does not prove live
+onboarding or Staff sign-in.
+
+## Production acceptance — 2026-11-24 UTC
+
+Application [PR #1842](https://github.com/tesserix/helivanta/pull/1842) merged as
+`95285c5b9ae2462100a08441da208c14814c8ca5` after all protected checks passed on
+`03f13955`, including all Go race/coverage shards, combined coverage (PharmaConnect
+82.3% against 70%), web checks/builds and all three E2E phases. The final
+[both-owner acceptance run](https://github.com/tesserix/helivanta/actions/runs/45409622996)
+also passed: page p99 354.949/349.231 ms and overview p99 342.050/336.306 ms
+(independent/hospital-owned), within the unchanged 500 ms budget.
+
+After explicit approval, the normal reviewer-gated
+[production Release](https://github.com/tesserix/helivanta/actions/runs/45497399513)
+verified signed images and advanced `release/prod`. Kargo promoted Freight
+`f2a6cd350b28ba60aa0d151b3f636fb38a0ce803`; its Stage became Ready, Healthy and
+Verified. All seven application deployments were 2/2 ready at the approved
+API/shell digests. Migration 0071 applied at 22:11:08 UTC. Comparing all 33 live
+policies before/after proved that only the five intended `tenant_isolation`
+read predicates changed; other policy fields, the remaining 28 policies and
+forced RLS were unchanged. Purpose, source-recovery and hospital-source integrity
+checks passed afterward.
+
+Catalogue [PR #1723](https://github.com/tesserix/tesserix-k8s/pull/1723) merged as
+`969f3055`. The chart ConfigMap reached that revision through onboarding Argo.
+The 22:20 scheduled reconciler created one disabled definition and preserved 24;
+audited Console activation enabled only Low stock at 22:21. The 22:30 scheduled
+run created zero and preserved all 25. A subsequent Console refresh confirmed
+nine available/enabled flags and all 16 unreleased capabilities still locked.
+During the release-first/catalogue-sync interval, the old catalogue deliberately
+failed the parity check without changing provider values.
+
+Live browser acceptance used the existing signed-in hospital owner and an
+already-authorized QA outlet. Both existing QA outlets had no catalogue entries,
+so one explicitly labelled non-clinical fixture (`QA-LOW-STOCK-1685`) was
+provisioned by a bounded maintenance transaction with database constraints,
+revision history and audit triggers retained. It remains pending regulatory
+review, has no drug master, stock batches or physical stock movements, and grants
+no access. This fixture provisioning is not evidence of live Catalogue API
+creation, dispensing, receiving or clinical authority.
+
+The owner then used the normal UI/Global API to save minimum zero, edit it to one,
+reload the saved warning, disable it and reload the cleared result. Available zero
+at minimum zero produced one warning and overview count one; disabling returned
+both to zero. Backend evidence confirmed versions 1/2/3, exact predecessor
+versions, three actor-attributed audit rows and the actor's existing outlet editor
+grant. The final fixture warning is disabled. UI account/pharmacy/outlet/product
+labels showed names. An ungranted QA outlet denied access, and direct Catalogue
+navigation remained unavailable after Low stock activation.
+
+Independent-owner writes, reader denial, grant revocation, lost-response recovery,
+stock-safety rules and complete 10,000-product pagination were verified in hosted
+owner/Global API/built-browser acceptance; this live session did not repeat an
+independent tenant login, Staff onboarding or every dependency-failure case.
+Automatic ordering remains #1144. Private tenant/user identifiers, operational
+captures and credentials are not committed here.

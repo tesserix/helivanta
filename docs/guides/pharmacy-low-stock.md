@@ -7,6 +7,12 @@ General Catalogue, Stock and Reports are not prerequisites for this workspace.
 Release eligibility, deployed policy and Console availability must agree before
 it can be used; a source merge alone does not activate it.
 
+The [deployed acceptance record](../superpowers/specs/2026-11-24-low-stock-activation.md#production-acceptance--2026-11-24-utc)
+identifies the verified release and test scope. This workspace configures existing
+active catalogue products; it does not create products or approve them for use.
+If no products are available at an outlet, catalogue provisioning remains the
+PharmaConnect catalogue owner's responsibility.
+
 1. In PharmaConnect, open **Inventory → Low stock** and select the named pharmacy
    and outlet. **Outlet stock alerts** shows the exact low-stock product count
    and observation time. Its link opens the same scoped warning list.

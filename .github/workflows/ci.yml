@@ -332,6 +332,8 @@ jobs:
         run: node scripts/generate-workforce-directory.mjs --check
       - name: Verify Workforce establishment contract
         run: node scripts/generate-workforce-establishments.mjs --check
+      - name: Verify brand assets
+        run: node brand/generate.mjs --check
       - name: Verify independent supplier receiving contracts
         run: |
           node scripts/generate-stock-products.mjs --check

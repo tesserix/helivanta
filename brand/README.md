@@ -1,6 +1,7 @@
 # Helivanta brand source
 
-Issue #1835. Everything under `svg/`, `png/` and `next-app/` is generated;
+Issue #1835. Everything under `svg/` and `png/`, and the app files listed
+below, is generated;
 edit `generate.mjs` (mark geometry, hues, lockup rule) or regenerate
 `outlines.json` and run the generator. Never hand-edit an output.
 
@@ -12,8 +13,9 @@ edit `generate.mjs` (mark geometry, hues, lockup rule) or regenerate
 python3 -m venv /tmp/fontenv && /tmp/fontenv/bin/pip install fonttools brotli uharfbuzz
 /tmp/fontenv/bin/python brand/outline.py apps/shell/app/fonts/anek-latin.woff2 brand/outlines.json
 
-# 2. Rasterise with the sharp already in the pnpm store (Next depends on it).
-node brand/generate.mjs "$(pnpm --filter @helivanta/shell exec node -p "require.resolve('sharp')")" brand
+# 2. Write every output. sharp is resolved through the shell's Next, so the
+#    brand needs no dependency of its own. CI runs the same with --check.
+node brand/generate.mjs
 ```
 
 ## What is here
@@ -25,9 +27,11 @@ node brand/generate.mjs "$(pnpm --filter @helivanta/shell exec node -p "require.
 - `png/` favicon 16/32/48 and `favicon.ico`, Apple touch 180, icons 192/512,
   maskable 512, product icons 512, product favicons 16/32, OpenGraph
   1200×630, lockup at 1200 wide.
-- `next-app/` the files Next's metadata conventions pick up by name, to copy
-  into `apps/shell/app/` when #1835 lands: `icon.svg`, `favicon.ico`,
-  `apple-icon.png`, `opengraph-image.png`, `manifest.webmanifest`.
+- In the app, written directly so the check covers what ships:
+  `apps/shell/app/` `icon.svg`, `favicon.ico`, `apple-icon.png`,
+  `opengraph-image.png`, `manifest.webmanifest` (Next's metadata file
+  conventions); `apps/shell/public/` the manifest's three icons; and
+  `packages/ui/src/brand-mark.generated.tsx`, the inline mark.
 
 ## Rules
 

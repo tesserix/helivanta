@@ -146,3 +146,13 @@ it("scopes Anek to the home page by variable, not by class", () => {
   expect(classes).toContain("font-site-var");
   expect(classes).not.toContain("font-site");
 });
+
+// #1835 D3/D6: the nav carries the mark and the word, nothing else: no tile
+// behind the mark and no trailing dot.
+it("shows the Helivanta mark and word in the nav", () => {
+  renderWithProviders(<LandingPage />);
+  const home = screen.getByRole("link", { name: "Helivanta home" });
+  expect(home.querySelector("svg path")!.getAttribute("stroke")).toBe("var(--hms-accent)");
+  expect(home.textContent).toBe("helivanta");
+  expect(home.querySelector(".rounded-xl")).toBeNull();
+});

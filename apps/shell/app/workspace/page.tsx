@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
-import { HeartPulse } from "lucide-react";
-import { Button, TesserixFooter } from "@helivanta/ui";
+import { Button, HelivantaMark, TesserixFooter } from "@helivanta/ui";
 import { pageWidth } from "../page-width";
 import { platformGroups } from "../platform-catalog";
 
@@ -27,15 +26,12 @@ export default function WorkspacePage() {
           <a
             href="/"
             aria-label="Helivanta home"
-            className="flex items-center gap-3 text-xl font-semibold tracking-tight"
+            className="flex items-center gap-3 text-xl font-bold tracking-[-0.03em]"
           >
-            <span
-              aria-hidden="true"
-              className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-2xl text-primary-foreground"
-            >
-              <HeartPulse size={20} aria-hidden="true" />
-            </span>
-            helivanta<span className="text-(--hms-accent)">.</span>
+            {/* The lockup (#1835 D3); this page loads no Anek, so the word is
+                set in the UI face. */}
+            <HelivantaMark className="size-8" />
+            helivanta
           </a>
           <div className="hidden items-center gap-7 text-sm md:flex">
             <a href="#platform" className="hover:underline">

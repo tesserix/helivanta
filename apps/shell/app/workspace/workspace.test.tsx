@@ -53,3 +53,13 @@ it("offers public emergency call access from the homepage", () => {
     "/ambulance",
   );
 });
+
+// #1835 D3/D6: the nav carries the mark and the word, nothing else: no tile
+// behind the mark and no trailing dot.
+it("shows the Helivanta mark and word in the nav", () => {
+  renderWithProviders(<WorkspacePage />);
+  const home = screen.getByRole("link", { name: "Helivanta home" });
+  expect(home.querySelector("svg path")!.getAttribute("stroke")).toBe("var(--hms-accent)");
+  expect(home.textContent).toBe("helivanta");
+  expect(home.querySelector(".rounded-xl")).toBeNull();
+});

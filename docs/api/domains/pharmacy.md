@@ -1165,8 +1165,11 @@ Different requests can differ when stock, reservations or configuration changes.
 
 Successful narrow reads and receipt replay retain disclosure audit evidence
 inside the guarded owner transaction. Audit failure returns 503
-`low_stock_evidence_unavailable` and discloses no result. No new storage or
-migration is introduced by this activation.
+`low_stock_evidence_unavailable` and discloses no result. No stock storage is copied. Forward migration
+`0071_pharmacy_low_stock_scope_read` makes the unchanged legacy outlet-grant
+read predicate statement-local on five tables, retaining row boundaries, all
+write/purpose policies and alternative read branches. Production application
+requires explicit approval after hosted visibility and capacity acceptance.
 
 [Operator guide](../../guides/pharmacy-low-stock.md) ·
 [Design and release gates](../../superpowers/specs/2026-11-20-outlet-low-stock.md)

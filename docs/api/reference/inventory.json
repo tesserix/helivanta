@@ -6904,6 +6904,11 @@
           "creates_tables": [
             "pharmacy_stocktake_source_invalidations"
           ]
+        },
+        {
+          "id": "0071_pharmacy_low_stock_scope_read",
+          "sql_sha256": "b8d6feea9f5b0875493c5678c7fc2eff422fb7e90882e870e908c31390fb72fb",
+          "creates_tables": []
         }
       ]
     },

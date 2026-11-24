@@ -99,3 +99,31 @@ new low-stock work through Console if acceptance fails; preserve configuration
 history and original receipts. No destructive migration or ownership change is
 planned. Existing public contracts remain compatible; only additive narrow reads
 and release classification change.
+
+## Measured read-policy optimization — 24 November 2026
+
+Hosted run `45381432835` failed the unchanged capacity gate: independent page
+p99 2.997 s and overview p99 3.223 s; the hospital case reached the same slow
+reads and the 30-minute test ceiling. Actual-role EXPLAIN from diagnostic run
+`45383663086` measured 2.789 s for the count and 2.874 s for the first page.
+The catalogue scan alone spent 571 ms; the plan repeated outlet-grant checks
+through 10,000 catalogue, latest-minimum and availability-loop rows.
+
+Use a forward migration to replace only the legacy single-outlet **read**
+predicate in the five participating tables (catalogue products, reorder levels,
+stock batches, stock movements and stock locations). The equivalent predicate
+keeps row tenant/outlet equality to the current transaction settings and calls
+the existing `pharmacy_outlet_allowed` with those same settings in an
+uncorrelated scalar SELECT. PostgreSQL can check the current explicit grant once
+per statement rather than once per row. The application still locks that grant
+before disclosure. This is statement-local evaluation, not a stored cache.
+
+Preserve all other policy branches, WITH CHECK expressions, restrictive purpose
+policies, policy roles and forced RLS. Refuse unexpected predecessor expressions.
+No SECURITY DEFINER function, bypass role, relaxed actor/tenant/outlet authority,
+materialized stock/count, duplicate availability rule or new index is introduced.
+The existing source query and canonical sellable-bucket function remain owners
+of the result. Prove old/new visibility and unchanged write/purpose policies on
+a hosted scratch database, retain before/after actual-role plans, rerun both
+ownership regressions and the original 500 ms gate. Production application of
+this named migration requires explicit approval before the signed release.

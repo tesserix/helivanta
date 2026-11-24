@@ -18,3 +18,24 @@
    through normal Release/Kargo. Sync the chart and enable only low stock through
    Console; verify scheduled preservation and authenticated browser acceptance.
 7. Update #1685 with exact evidence and close only when its acceptance is met.
+
+7. **Measured performance correction (pending hosted acceptance).** Run 45381432835
+   failed the original 500 ms gate (page p99 2.997 s, count 3.223 s); the hospital
+   case exhausted the overall test timeout. Diagnostic 45383663086 retains actual
+   EXPLAIN plans (count 2.789 s, first page 2.874 s). Migration 0071 preserves the
+   row tenant/outlet boundary and same grant function while evaluating that
+   statement-local grant in a scalar SELECT. Verify predecessor/new visibility,
+   unchanged writes/purposes/other read branches, unexpected-predecessor refusal,
+   both ownership regressions and unchanged capacity target. Request explicit
+   production migration approval only with concrete passing evidence.
+
+Observed candidate evidence as of 24 November:
+- Full local API 2,012, shell 2,378 and shared UI 333 tests passed.
+- Built-browser and Global API acceptance passed both ownership models on
+  `527dcfe4`, hosted run `45386011073` (before the read-policy migration).
+- The dedicated outlet-access read now belongs to Setup; an observed browser 404
+  and local release-classifier regression proved the prior Catalogue lock.
+- Local affected builds, Go vet/lint, generators, source-review and contract checks
+  passed; generated build artifacts were removed. No local app/DB/container ran.
+- Performance, migration acceptance, exact-head protected checks, normal merge,
+  signed release, Console activation and deployed acceptance remain pending.

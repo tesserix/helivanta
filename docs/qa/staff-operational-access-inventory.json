@@ -9562,7 +9562,7 @@
         "registration_sha256": "551e4dedf268abcab1d2c323eeae6f57d5db548e2dd821b631df03e5f454b152",
         "authority_kind": "hospital_operational",
         "resource_scope": "Verified tenant, pharmacy, outlet and scoped catalogue product; explicit current outlet grant.",
-        "rationale": "Source review for #1685: the registered stock-read or catalogue-write permission is followed by catalogueScope and transaction/outletAccess. Every read locks the current outlet grant; writes additionally require stock-read permission, an editor grant and the scoped product row. Receipts reauthorize and compare the original product, payload and actor; history, actor, version and product/unit constraints are enforced by the database. The list/count uses current available outlet stock only and creates no order. This classification records source behavior, not employment cutoff or deployment acceptance. Source rechecked for #1690 on 2026-11-21: catalogue.go only splits decodeCatalogue into decodeCatalogueWithin so the Tally ledger-map PUT can take a larger bounded body; existing callers keep the 32 KiB cap. Transaction, outletAccess, grants and this registration's recorded authority are unchanged. Source rechecked for #1686 retained participant history on 2026-11-23: catalogue.go only adds a private IndependentStaffHistoryGuard dependency field. catalogueRoutes, outletAccess and the legacy transaction body are unchanged; only the separate reviewed inventory constructor wires the optional guard, and new reviewed approval fails closed when it is unavailable. This review does not establish migration or runtime acceptance and preserves all remaining obligations. Source rechecked for #1685 narrow activation on 2026-11-24: reorderRoutes adds bounded product choices, exact reload and exact count. Read and replay paths now require committed disclosure evidence; list queries reject unsupported fields. Existing tenant, pharmacy, outlet, product, stock-read, catalogue-write, editor, version and actor checks remain unchanged. pharmacy_low_stock now owns release admission. This source review does not establish deployed acceptance or reviewed Staff employment authority.",
+        "rationale": "Source review for #1685: the registered stock-read or catalogue-write permission is followed by catalogueScope and transaction/outletAccess. Every read locks the current outlet grant; writes additionally require stock-read permission, an editor grant and the scoped product row. Receipts reauthorize and compare the original product, payload and actor; history, actor, version and product/unit constraints are enforced by the database. The list/count uses current available outlet stock only and creates no order. This classification records source behavior, not employment cutoff or deployment acceptance. Source rechecked for #1690 on 2026-11-21: catalogue.go only splits decodeCatalogue into decodeCatalogueWithin so the Tally ledger-map PUT can take a larger bounded body; existing callers keep the 32 KiB cap. Transaction, outletAccess, grants and this registration's recorded authority are unchanged. Source rechecked for #1686 retained participant history on 2026-11-23: catalogue.go only adds a private IndependentStaffHistoryGuard dependency field. catalogueRoutes, outletAccess and the legacy transaction body are unchanged; only the separate reviewed inventory constructor wires the optional guard, and new reviewed approval fails closed when it is unavailable. This review does not establish migration or runtime acceptance and preserves all remaining obligations. Source rechecked for #1685 narrow activation on 2026-11-24: reorderRoutes adds bounded product choices, exact reload and exact count. Read and replay paths now require committed disclosure evidence; list queries reject unsupported fields. Existing tenant, pharmacy, outlet, product, stock-read, catalogue-write, editor, version and actor checks remain unchanged. pharmacy_low_stock now owns release admission. This source review does not establish deployed acceptance or reviewed Staff employment authority. The 0071 source rewrite retains row tenant/outlet guards and the same grant function in a statement-local scalar SELECT. Only the existing legacy read subexpression changes; all other read branches, write expressions, roles, forced RLS and restrictive purpose policies remain unchanged. Hosted predecessor/new visibility, migration refusal and capacity acceptance are required before rollout.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/pharmacy/reorder_levels.go",
@@ -9583,6 +9583,11 @@
             "path": "backend/internal/modules/pharmacy/reorder_projections.go",
             "sha256": "89dcbc2cac319f8f96c71084e206034b978dbb7bd35da232cedcc3a757ffdfdd",
             "symbol": "func lowStockReadAudit("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/low_stock_scope_read.sql",
+            "sha256": "b8d6feea9f5b0875493c5678c7fc2eff422fb7e90882e870e908c31390fb72fb",
+            "symbol": "DO $migration$"
           }
         ],
         "remaining": [
@@ -9611,7 +9616,7 @@
         "registration_sha256": "71104fd93ef47150ae8e200e3f67b5dfa070618abeb48a86f0facd047d494c87",
         "authority_kind": "hospital_operational",
         "resource_scope": "Verified tenant, pharmacy, outlet and scoped catalogue product; explicit current outlet grant.",
-        "rationale": "Source review for #1685: the registered stock-read or catalogue-write permission is followed by catalogueScope and transaction/outletAccess. Every read locks the current outlet grant; writes additionally require stock-read permission, an editor grant and the scoped product row. Receipts reauthorize and compare the original product, payload and actor; history, actor, version and product/unit constraints are enforced by the database. The list/count uses current available outlet stock only and creates no order. This classification records source behavior, not employment cutoff or deployment acceptance. Source rechecked for #1690 on 2026-11-21: catalogue.go only splits decodeCatalogue into decodeCatalogueWithin so the Tally ledger-map PUT can take a larger bounded body; existing callers keep the 32 KiB cap. Transaction, outletAccess, grants and this registration's recorded authority are unchanged. Source rechecked for #1686 retained participant history on 2026-11-23: catalogue.go only adds a private IndependentStaffHistoryGuard dependency field. catalogueRoutes, outletAccess and the legacy transaction body are unchanged; only the separate reviewed inventory constructor wires the optional guard, and new reviewed approval fails closed when it is unavailable. This review does not establish migration or runtime acceptance and preserves all remaining obligations. Source rechecked for #1685 narrow activation on 2026-11-24: reorderRoutes adds bounded product choices, exact reload and exact count. Read and replay paths now require committed disclosure evidence; list queries reject unsupported fields. Existing tenant, pharmacy, outlet, product, stock-read, catalogue-write, editor, version and actor checks remain unchanged. pharmacy_low_stock now owns release admission. This source review does not establish deployed acceptance or reviewed Staff employment authority.",
+        "rationale": "Source review for #1685: the registered stock-read or catalogue-write permission is followed by catalogueScope and transaction/outletAccess. Every read locks the current outlet grant; writes additionally require stock-read permission, an editor grant and the scoped product row. Receipts reauthorize and compare the original product, payload and actor; history, actor, version and product/unit constraints are enforced by the database. The list/count uses current available outlet stock only and creates no order. This classification records source behavior, not employment cutoff or deployment acceptance. Source rechecked for #1690 on 2026-11-21: catalogue.go only splits decodeCatalogue into decodeCatalogueWithin so the Tally ledger-map PUT can take a larger bounded body; existing callers keep the 32 KiB cap. Transaction, outletAccess, grants and this registration's recorded authority are unchanged. Source rechecked for #1686 retained participant history on 2026-11-23: catalogue.go only adds a private IndependentStaffHistoryGuard dependency field. catalogueRoutes, outletAccess and the legacy transaction body are unchanged; only the separate reviewed inventory constructor wires the optional guard, and new reviewed approval fails closed when it is unavailable. This review does not establish migration or runtime acceptance and preserves all remaining obligations. Source rechecked for #1685 narrow activation on 2026-11-24: reorderRoutes adds bounded product choices, exact reload and exact count. Read and replay paths now require committed disclosure evidence; list queries reject unsupported fields. Existing tenant, pharmacy, outlet, product, stock-read, catalogue-write, editor, version and actor checks remain unchanged. pharmacy_low_stock now owns release admission. This source review does not establish deployed acceptance or reviewed Staff employment authority. The 0071 source rewrite retains row tenant/outlet guards and the same grant function in a statement-local scalar SELECT. Only the existing legacy read subexpression changes; all other read branches, write expressions, roles, forced RLS and restrictive purpose policies remain unchanged. Hosted predecessor/new visibility, migration refusal and capacity acceptance are required before rollout.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/pharmacy/reorder_levels.go",
@@ -9632,6 +9637,11 @@
             "path": "backend/internal/modules/pharmacy/reorder_projections.go",
             "sha256": "89dcbc2cac319f8f96c71084e206034b978dbb7bd35da232cedcc3a757ffdfdd",
             "symbol": "func lowStockReadAudit("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/low_stock_scope_read.sql",
+            "sha256": "b8d6feea9f5b0875493c5678c7fc2eff422fb7e90882e870e908c31390fb72fb",
+            "symbol": "DO $migration$"
           }
         ],
         "remaining": [
@@ -9724,7 +9734,7 @@
         "registration_sha256": "ec40a6c63274b75babb20ad48f5f9de6be049631dba2a58ff570ff200e15966c",
         "authority_kind": "mixed",
         "resource_scope": "Verified tenant, pharmacy and exact outlet; current outlet reader grant and stock-read permission for inventory administration in both ownership models.",
-        "rationale": "Source review for #1685 on 2026-11-24: the registered stock-read route enters catalogueScope and the guarded transaction/outletAccess. Active choices are bounded keyset pages; exact product reload also scopes its product ID and preserves inactive status. The aggregate uses the existing lowStockSource and canonical sellable buckets, never a partial-page count. Each read retains disclosure audit within the guarded transaction and returns no result on audit failure. This is inventory metadata/read access, not clinical, dispensing, physical-movement, employment-cutoff or automatic-ordering authority. Release admission is pharmacy_low_stock; no broad Catalogue/Stock capability is activated.",
+        "rationale": "Source review for #1685 on 2026-11-24: the registered stock-read route enters catalogueScope and the guarded transaction/outletAccess. Active choices are bounded keyset pages; exact product reload also scopes its product ID and preserves inactive status. The aggregate uses the existing lowStockSource and canonical sellable buckets, never a partial-page count. Each read retains disclosure audit within the guarded transaction and returns no result on audit failure. This is inventory metadata/read access, not clinical, dispensing, physical-movement, employment-cutoff or automatic-ordering authority. Release admission is pharmacy_low_stock; no broad Catalogue/Stock capability is activated. The 0071 source rewrite retains row tenant/outlet guards and the same grant function in a statement-local scalar SELECT. Only the existing legacy read subexpression changes; all other read branches, write expressions, roles, forced RLS and restrictive purpose policies remain unchanged. Hosted predecessor/new visibility, migration refusal and capacity acceptance are required before rollout.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/pharmacy/reorder_levels.go",
@@ -9745,6 +9755,11 @@
             "path": "backend/internal/modules/pharmacy/reorder_projections.go",
             "sha256": "89dcbc2cac319f8f96c71084e206034b978dbb7bd35da232cedcc3a757ffdfdd",
             "symbol": "func lowStockReadAudit("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/low_stock_scope_read.sql",
+            "sha256": "b8d6feea9f5b0875493c5678c7fc2eff422fb7e90882e870e908c31390fb72fb",
+            "symbol": "DO $migration$"
           }
         ],
         "remaining": [
@@ -9773,7 +9788,7 @@
         "registration_sha256": "3860d0c37c255307f1a12fade52a55b254484ec38c1077b0b8a0b0f499154e63",
         "authority_kind": "mixed",
         "resource_scope": "Verified tenant, pharmacy and exact outlet; current outlet reader grant and stock-read permission for inventory administration in both ownership models.",
-        "rationale": "Source review for #1685 on 2026-11-24: the registered stock-read route enters catalogueScope and the guarded transaction/outletAccess. Active choices are bounded keyset pages; exact product reload also scopes its product ID and preserves inactive status. The aggregate uses the existing lowStockSource and canonical sellable buckets, never a partial-page count. Each read retains disclosure audit within the guarded transaction and returns no result on audit failure. This is inventory metadata/read access, not clinical, dispensing, physical-movement, employment-cutoff or automatic-ordering authority. Release admission is pharmacy_low_stock; no broad Catalogue/Stock capability is activated.",
+        "rationale": "Source review for #1685 on 2026-11-24: the registered stock-read route enters catalogueScope and the guarded transaction/outletAccess. Active choices are bounded keyset pages; exact product reload also scopes its product ID and preserves inactive status. The aggregate uses the existing lowStockSource and canonical sellable buckets, never a partial-page count. Each read retains disclosure audit within the guarded transaction and returns no result on audit failure. This is inventory metadata/read access, not clinical, dispensing, physical-movement, employment-cutoff or automatic-ordering authority. Release admission is pharmacy_low_stock; no broad Catalogue/Stock capability is activated. The 0071 source rewrite retains row tenant/outlet guards and the same grant function in a statement-local scalar SELECT. Only the existing legacy read subexpression changes; all other read branches, write expressions, roles, forced RLS and restrictive purpose policies remain unchanged. Hosted predecessor/new visibility, migration refusal and capacity acceptance are required before rollout.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/pharmacy/reorder_levels.go",
@@ -9794,6 +9809,11 @@
             "path": "backend/internal/modules/pharmacy/reorder_projections.go",
             "sha256": "89dcbc2cac319f8f96c71084e206034b978dbb7bd35da232cedcc3a757ffdfdd",
             "symbol": "func lowStockReadAudit("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/low_stock_scope_read.sql",
+            "sha256": "b8d6feea9f5b0875493c5678c7fc2eff422fb7e90882e870e908c31390fb72fb",
+            "symbol": "DO $migration$"
           }
         ],
         "remaining": [
@@ -10694,7 +10714,7 @@
         "registration_sha256": "36ed3383169fbbd2db2fba80cf068f623dd045d38b82835ccf7a8d275c1e2c44",
         "authority_kind": "hospital_operational",
         "resource_scope": "Verified tenant, pharmacy, outlet and scoped catalogue product; explicit current outlet grant.",
-        "rationale": "Source review for #1685: the registered stock-read or catalogue-write permission is followed by catalogueScope and transaction/outletAccess. Every read locks the current outlet grant; writes additionally require stock-read permission, an editor grant and the scoped product row. Receipts reauthorize and compare the original product, payload and actor; history, actor, version and product/unit constraints are enforced by the database. The list/count uses current available outlet stock only and creates no order. This classification records source behavior, not employment cutoff or deployment acceptance. Source rechecked for #1690 on 2026-11-21: catalogue.go only splits decodeCatalogue into decodeCatalogueWithin so the Tally ledger-map PUT can take a larger bounded body; existing callers keep the 32 KiB cap. Transaction, outletAccess, grants and this registration's recorded authority are unchanged. Source rechecked for #1686 retained participant history on 2026-11-23: catalogue.go only adds a private IndependentStaffHistoryGuard dependency field. catalogueRoutes, outletAccess and the legacy transaction body are unchanged; only the separate reviewed inventory constructor wires the optional guard, and new reviewed approval fails closed when it is unavailable. This review does not establish migration or runtime acceptance and preserves all remaining obligations. Source rechecked for #1685 narrow activation on 2026-11-24: reorderRoutes adds bounded product choices, exact reload and exact count. Read and replay paths now require committed disclosure evidence; list queries reject unsupported fields. Existing tenant, pharmacy, outlet, product, stock-read, catalogue-write, editor, version and actor checks remain unchanged. pharmacy_low_stock now owns release admission. This source review does not establish deployed acceptance or reviewed Staff employment authority.",
+        "rationale": "Source review for #1685: the registered stock-read or catalogue-write permission is followed by catalogueScope and transaction/outletAccess. Every read locks the current outlet grant; writes additionally require stock-read permission, an editor grant and the scoped product row. Receipts reauthorize and compare the original product, payload and actor; history, actor, version and product/unit constraints are enforced by the database. The list/count uses current available outlet stock only and creates no order. This classification records source behavior, not employment cutoff or deployment acceptance. Source rechecked for #1690 on 2026-11-21: catalogue.go only splits decodeCatalogue into decodeCatalogueWithin so the Tally ledger-map PUT can take a larger bounded body; existing callers keep the 32 KiB cap. Transaction, outletAccess, grants and this registration's recorded authority are unchanged. Source rechecked for #1686 retained participant history on 2026-11-23: catalogue.go only adds a private IndependentStaffHistoryGuard dependency field. catalogueRoutes, outletAccess and the legacy transaction body are unchanged; only the separate reviewed inventory constructor wires the optional guard, and new reviewed approval fails closed when it is unavailable. This review does not establish migration or runtime acceptance and preserves all remaining obligations. Source rechecked for #1685 narrow activation on 2026-11-24: reorderRoutes adds bounded product choices, exact reload and exact count. Read and replay paths now require committed disclosure evidence; list queries reject unsupported fields. Existing tenant, pharmacy, outlet, product, stock-read, catalogue-write, editor, version and actor checks remain unchanged. pharmacy_low_stock now owns release admission. This source review does not establish deployed acceptance or reviewed Staff employment authority. The 0071 source rewrite retains row tenant/outlet guards and the same grant function in a statement-local scalar SELECT. Only the existing legacy read subexpression changes; all other read branches, write expressions, roles, forced RLS and restrictive purpose policies remain unchanged. Hosted predecessor/new visibility, migration refusal and capacity acceptance are required before rollout.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/pharmacy/reorder_levels.go",
@@ -10715,6 +10735,11 @@
             "path": "backend/internal/modules/pharmacy/reorder_projections.go",
             "sha256": "89dcbc2cac319f8f96c71084e206034b978dbb7bd35da232cedcc3a757ffdfdd",
             "symbol": "func lowStockReadAudit("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/low_stock_scope_read.sql",
+            "sha256": "b8d6feea9f5b0875493c5678c7fc2eff422fb7e90882e870e908c31390fb72fb",
+            "symbol": "DO $migration$"
           }
         ],
         "remaining": [
@@ -10743,7 +10768,7 @@
         "registration_sha256": "5a8003652be16f43f5a1c918b874aae04c687ac27ae72111a815d114d94742f6",
         "authority_kind": "mixed",
         "resource_scope": "Verified tenant, pharmacy and exact outlet; current outlet reader grant and stock-read permission for inventory administration in both ownership models.",
-        "rationale": "Source review for #1685 on 2026-11-24: the registered stock-read route enters catalogueScope and the guarded transaction/outletAccess. Active choices are bounded keyset pages; exact product reload also scopes its product ID and preserves inactive status. The aggregate uses the existing lowStockSource and canonical sellable buckets, never a partial-page count. Each read retains disclosure audit within the guarded transaction and returns no result on audit failure. This is inventory metadata/read access, not clinical, dispensing, physical-movement, employment-cutoff or automatic-ordering authority. Release admission is pharmacy_low_stock; no broad Catalogue/Stock capability is activated.",
+        "rationale": "Source review for #1685 on 2026-11-24: the registered stock-read route enters catalogueScope and the guarded transaction/outletAccess. Active choices are bounded keyset pages; exact product reload also scopes its product ID and preserves inactive status. The aggregate uses the existing lowStockSource and canonical sellable buckets, never a partial-page count. Each read retains disclosure audit within the guarded transaction and returns no result on audit failure. This is inventory metadata/read access, not clinical, dispensing, physical-movement, employment-cutoff or automatic-ordering authority. Release admission is pharmacy_low_stock; no broad Catalogue/Stock capability is activated. The 0071 source rewrite retains row tenant/outlet guards and the same grant function in a statement-local scalar SELECT. Only the existing legacy read subexpression changes; all other read branches, write expressions, roles, forced RLS and restrictive purpose policies remain unchanged. Hosted predecessor/new visibility, migration refusal and capacity acceptance are required before rollout.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/pharmacy/reorder_levels.go",
@@ -10764,6 +10789,11 @@
             "path": "backend/internal/modules/pharmacy/reorder_projections.go",
             "sha256": "89dcbc2cac319f8f96c71084e206034b978dbb7bd35da232cedcc3a757ffdfdd",
             "symbol": "func lowStockReadAudit("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/low_stock_scope_read.sql",
+            "sha256": "b8d6feea9f5b0875493c5678c7fc2eff422fb7e90882e870e908c31390fb72fb",
+            "symbol": "DO $migration$"
           }
         ],
         "remaining": [
@@ -12335,7 +12365,7 @@
         "registration_sha256": "62daa7e77c2ea3d9f10746e6671936cb2d5386b9391a88f8a59da76be9bd8514",
         "authority_kind": "hospital_operational",
         "resource_scope": "Verified tenant, pharmacy, outlet and scoped catalogue product; explicit current outlet grant.",
-        "rationale": "Source review for #1685: the registered stock-read or catalogue-write permission is followed by catalogueScope and transaction/outletAccess. Every read locks the current outlet grant; writes additionally require stock-read permission, an editor grant and the scoped product row. Receipts reauthorize and compare the original product, payload and actor; history, actor, version and product/unit constraints are enforced by the database. The list/count uses current available outlet stock only and creates no order. This classification records source behavior, not employment cutoff or deployment acceptance. Source rechecked for #1690 on 2026-11-21: catalogue.go only splits decodeCatalogue into decodeCatalogueWithin so the Tally ledger-map PUT can take a larger bounded body; existing callers keep the 32 KiB cap. Transaction, outletAccess, grants and this registration's recorded authority are unchanged. Source rechecked for #1686 retained participant history on 2026-11-23: catalogue.go only adds a private IndependentStaffHistoryGuard dependency field. catalogueRoutes, outletAccess and the legacy transaction body are unchanged; only the separate reviewed inventory constructor wires the optional guard, and new reviewed approval fails closed when it is unavailable. This review does not establish migration or runtime acceptance and preserves all remaining obligations. Source rechecked for #1685 narrow activation on 2026-11-24: reorderRoutes adds bounded product choices, exact reload and exact count. Read and replay paths now require committed disclosure evidence; list queries reject unsupported fields. Existing tenant, pharmacy, outlet, product, stock-read, catalogue-write, editor, version and actor checks remain unchanged. pharmacy_low_stock now owns release admission. This source review does not establish deployed acceptance or reviewed Staff employment authority.",
+        "rationale": "Source review for #1685: the registered stock-read or catalogue-write permission is followed by catalogueScope and transaction/outletAccess. Every read locks the current outlet grant; writes additionally require stock-read permission, an editor grant and the scoped product row. Receipts reauthorize and compare the original product, payload and actor; history, actor, version and product/unit constraints are enforced by the database. The list/count uses current available outlet stock only and creates no order. This classification records source behavior, not employment cutoff or deployment acceptance. Source rechecked for #1690 on 2026-11-21: catalogue.go only splits decodeCatalogue into decodeCatalogueWithin so the Tally ledger-map PUT can take a larger bounded body; existing callers keep the 32 KiB cap. Transaction, outletAccess, grants and this registration's recorded authority are unchanged. Source rechecked for #1686 retained participant history on 2026-11-23: catalogue.go only adds a private IndependentStaffHistoryGuard dependency field. catalogueRoutes, outletAccess and the legacy transaction body are unchanged; only the separate reviewed inventory constructor wires the optional guard, and new reviewed approval fails closed when it is unavailable. This review does not establish migration or runtime acceptance and preserves all remaining obligations. Source rechecked for #1685 narrow activation on 2026-11-24: reorderRoutes adds bounded product choices, exact reload and exact count. Read and replay paths now require committed disclosure evidence; list queries reject unsupported fields. Existing tenant, pharmacy, outlet, product, stock-read, catalogue-write, editor, version and actor checks remain unchanged. pharmacy_low_stock now owns release admission. This source review does not establish deployed acceptance or reviewed Staff employment authority. The 0071 source rewrite retains row tenant/outlet guards and the same grant function in a statement-local scalar SELECT. Only the existing legacy read subexpression changes; all other read branches, write expressions, roles, forced RLS and restrictive purpose policies remain unchanged. Hosted predecessor/new visibility, migration refusal and capacity acceptance are required before rollout.",
         "authority_sources": [
           {
             "path": "backend/internal/modules/pharmacy/reorder_levels.go",
@@ -12356,6 +12386,11 @@
             "path": "backend/internal/modules/pharmacy/reorder_projections.go",
             "sha256": "89dcbc2cac319f8f96c71084e206034b978dbb7bd35da232cedcc3a757ffdfdd",
             "symbol": "func lowStockReadAudit("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/low_stock_scope_read.sql",
+            "sha256": "b8d6feea9f5b0875493c5678c7fc2eff422fb7e90882e870e908c31390fb72fb",
+            "symbol": "DO $migration$"
           }
         ],
         "remaining": [

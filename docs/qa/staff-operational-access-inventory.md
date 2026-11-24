@@ -333,3 +333,12 @@ projection. Audit failure discloses no result.
 activates no operating Staff role, employment cutoff, dispensing, stock movement,
 automatic order or live release. Focused gateway/browser, capacity, protected
 checks and deployed acceptance remain separate evidence.
+
+The measured 10,000-product read slowdown requires migration 0071. Its source
+review keeps the row tenant/outlet comparisons and the existing grant function;
+an uncorrelated scalar SELECT permits one grant evaluation per statement. Only
+the legacy read subexpression on five tables changes. Alternative read branches,
+all WITH CHECK expressions, policy roles and restrictive purpose policies remain
+retained. Hosted predecessor/new visibility and unexpected-predecessor refusal,
+both ownership regressions and the original performance gate remain required.
+No source-review entry claims this migration is already approved or deployed.

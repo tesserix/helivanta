@@ -317,6 +317,7 @@ type saleLine struct {
 	TaxableMinor       int64      `gorm:"column:taxable_minor" json:"taxable_minor"`
 	CGSTMinor          int64      `gorm:"column:cgst_minor" json:"cgst_minor"`
 	SGSTMinor          int64      `gorm:"column:sgst_minor" json:"sgst_minor"`
+	IGSTMinor          int64      `gorm:"column:igst_minor" json:"igst_minor"`
 	PrescriptionID     *uuid.UUID `gorm:"column:prescription_id" json:"prescription_id"`
 	PrescriptionLine   *int       `gorm:"column:prescription_line" json:"prescription_line"`
 	ListAmountMinor    int64      `gorm:"column:list_amount_minor" json:"list_amount_minor"`

@@ -34,11 +34,13 @@
 ### Task 1: IBM Plex Sans in the root layout, Anek scoped to the home page's headings
 
 **Files:**
+
 - Create: `apps/shell/app/fonts/plex/ibm-plex-sans-latin-{400,500,600,700}-normal.woff2`, `apps/shell/app/fonts/plex/ibm-plex-sans-latin-ext-{400,500,600,700}-normal.woff2`, `apps/shell/app/fonts/plex/OFL.txt`
 - Modify: `apps/shell/app/layout.tsx` (the `<body>` element), `apps/shell/app/globals.css` (the `@theme` block and one new rule), `apps/shell/app/page.tsx:19-23` (the `localFont` call) and `:155` (the wrapper class)
 - Test: `apps/shell/app/layout.test.tsx`, `apps/shell/app/landing.test.tsx`
 
 **Interfaces:**
+
 - Produces: CSS variable `--font-plex` on `<body>`; Tailwind `font-sans` resolves to it through `@theme { --font-sans: var(--font-plex), ui-sans-serif, system-ui, sans-serif; }`. CSS variable `--font-anek` on the home page wrapper, used only by the rule `.home-slate :is(h1, h2, h3) { font-family: var(--font-anek), var(--font-sans); }`.
 
 - [ ] **Step 1: Fetch the font files and licence**
@@ -85,14 +87,38 @@ Add at module level:
 import localFont from "next/font/local";
 const plex = localFont({
   src: [
-    { path: "./fonts/plex/ibm-plex-sans-latin-400-normal.woff2", weight: "400" },
-    { path: "./fonts/plex/ibm-plex-sans-latin-ext-400-normal.woff2", weight: "400" },
-    { path: "./fonts/plex/ibm-plex-sans-latin-500-normal.woff2", weight: "500" },
-    { path: "./fonts/plex/ibm-plex-sans-latin-ext-500-normal.woff2", weight: "500" },
-    { path: "./fonts/plex/ibm-plex-sans-latin-600-normal.woff2", weight: "600" },
-    { path: "./fonts/plex/ibm-plex-sans-latin-ext-600-normal.woff2", weight: "600" },
-    { path: "./fonts/plex/ibm-plex-sans-latin-700-normal.woff2", weight: "700" },
-    { path: "./fonts/plex/ibm-plex-sans-latin-ext-700-normal.woff2", weight: "700" },
+    {
+      path: "./fonts/plex/ibm-plex-sans-latin-400-normal.woff2",
+      weight: "400",
+    },
+    {
+      path: "./fonts/plex/ibm-plex-sans-latin-ext-400-normal.woff2",
+      weight: "400",
+    },
+    {
+      path: "./fonts/plex/ibm-plex-sans-latin-500-normal.woff2",
+      weight: "500",
+    },
+    {
+      path: "./fonts/plex/ibm-plex-sans-latin-ext-500-normal.woff2",
+      weight: "500",
+    },
+    {
+      path: "./fonts/plex/ibm-plex-sans-latin-600-normal.woff2",
+      weight: "600",
+    },
+    {
+      path: "./fonts/plex/ibm-plex-sans-latin-ext-600-normal.woff2",
+      weight: "600",
+    },
+    {
+      path: "./fonts/plex/ibm-plex-sans-latin-700-normal.woff2",
+      weight: "700",
+    },
+    {
+      path: "./fonts/plex/ibm-plex-sans-latin-ext-700-normal.woff2",
+      weight: "700",
+    },
   ],
   variable: "--font-plex",
   display: "swap",
@@ -162,11 +188,13 @@ Then open the CI run for the push and confirm the web job's build step is green 
 ### Task 2: The token values
 
 **Files:**
+
 - Modify: `packages/ui/styles.css` root scope (lines 16–75), the three `[data-brand-theme]` blocks in the app scope (lines 151–171) and under `.login-page` (lines 250–264), `--auth-button` in `.login-content` (line 182)
 - Modify: `apps/shell/app/globals.css` `@theme` shadows (the five `rgb(15 23 42 / …)` values)
 - Test: `packages/ui/src/contrast.test.ts`
 
 **Interfaces:**
+
 - Produces: the token values in spec D1 and D3, verbatim. Later tasks and the e2e rewrite depend on `--primary #0b1324`, `--hms-accent #2b4ee6`, and the tenant accents `teal #2b4ee6` (default, Task 2 ruling), `blue #1d5da8`, `indigo #5352a6` with dims `#d9eeea`, `#e7effa`, `#eeedf9`.
 
 - [ ] **Step 1: Write the failing tests**
@@ -182,9 +210,14 @@ it("is cool white, blue-black ink and ultramarine (#1834)", () => {
 });
 
 // Primary actions are ink under every tenant theme (#1834 spec D2).
-it.each(["teal", "blue", "indigo"])("brand %s leaves primary as ink", (brand) => {
-  expect(tokensOf(`[data-brand-theme="${brand}"]`)["--primary"]).toBeUndefined();
-});
+it.each(["teal", "blue", "indigo"])(
+  "brand %s leaves primary as ink",
+  (brand) => {
+    expect(
+      tokensOf(`[data-brand-theme="${brand}"]`)["--primary"],
+    ).toBeUndefined();
+  },
+);
 
 // Autofill paints --background behind text on a --card field; the two must be
 // close enough that the box is invisible (Review Focus 2).
@@ -194,7 +227,9 @@ it("canvas and card are near-identical for autofill", () => {
 
 // The one chart pair in the same hue family must still separate (Review Focus 3).
 it("plum separates from the accent", () => {
-  expect(contrast(root["--hms-violet"], root["--hms-accent"])).toBeGreaterThanOrEqual(1.6);
+  expect(
+    contrast(root["--hms-violet"], root["--hms-accent"]),
+  ).toBeGreaterThanOrEqual(1.6);
 });
 ```
 
@@ -240,10 +275,12 @@ git push
 ### Task 3: Lint ban on `Input`'s `valid` prop
 
 **Files:**
+
 - Modify: `packages/config/eslint.config.mjs` (the `DESIGN_SYNTAX` array, lines 50–61)
 - Test: `packages/config/eslint.config.test.mjs` (inside `describe("design rules")`)
 
 **Interfaces:**
+
 - Produces: a design-rule message `"Input's valid prop paints a non-token green beside the clinical good colour; show success with text or a status badge (#1834 spec D5)."`
 
 - [ ] **Step 1: Write the failing test**
@@ -253,10 +290,12 @@ it("rejects Input's valid prop", async () => {
   expect(await messages(`export const A = () => <Input valid />;`)).toEqual([
     expect.stringMatching(/valid prop paints a non-token green/),
   ]);
-  expect(await messages(`export const A = () => <Input valid={ok} />;`)).toEqual([
-    expect.stringMatching(/valid prop paints a non-token green/),
-  ]);
-  expect(await messages(`export const A = () => <Input aria-invalid />;`)).toEqual([]);
+  expect(
+    await messages(`export const A = () => <Input valid={ok} />;`),
+  ).toEqual([expect.stringMatching(/valid prop paints a non-token green/)]);
+  expect(
+    await messages(`export const A = () => <Input aria-invalid />;`),
+  ).toEqual([]);
 });
 ```
 
@@ -293,6 +332,7 @@ git push
 ### Task 4: Docs that name the palette
 
 **Files:**
+
 - Modify: `CLAUDE.md:84`, `docs/standards/frontend.md:474-490`, `docs/superpowers/specs/2026-10-22-one-look-design.md` (the superseded note at the top), `docs/superpowers/specs/2026-10-28-shared-web-token-roles.md` (header note)
 
 - [ ] **Step 1: Update the rule text**
@@ -317,9 +357,11 @@ git push
 ### Task 5: Sign-in appearance e2e for an ink button and a visible tenant accent
 
 **Files:**
+
 - Modify: `e2e/tests/login-appearance.spec.ts`
 
 **Interfaces:**
+
 - Consumes: Task 2's values. Button `rgb(11, 19, 36)` under every theme. Accents: teal `rgb(43, 78, 230)` (the default carries the platform accent, Task 2 ruling), blue `rgb(29, 93, 168)`, indigo `rgb(83, 82, 166)`.
 
 - [ ] **Step 1: Rewrite the palette table and the assertions**
@@ -371,6 +413,7 @@ git push
 ### Task 6: Hosted verification and the pull request
 
 **Files:**
+
 - None in the repo beyond the PR body.
 
 - [ ] **Step 1: Full CI green**

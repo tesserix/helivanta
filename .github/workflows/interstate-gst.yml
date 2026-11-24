@@ -1,0 +1,38 @@
+name: Interstate GST acceptance
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "backend/internal/modules/pharmacy/interstate*"
+      - "backend/internal/modules/pharmacy/sale*"
+      - "backend/internal/modules/pharmacy/credit_note*"
+      - "backend/internal/modules/pharmacy/daily_report*"
+      - "backend/internal/modules/pharmacy/sales_report*"
+      - "backend/internal/modules/pharmacy/service_charge*"
+      - "backend/internal/modules/pharmacy/price_control*"
+      - "backend/internal/modules/pharmacy/tally*"
+      - "backend/internal/modules/pharmacy/report_csv*"
+      - "backend/internal/modules/pharmacy/module.go"
+      - ".github/workflows/interstate-gst.yml"
+permissions:
+  contents: read
+concurrency:
+  group: interstate-gst-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  tax-and-ledger:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      GOTOOLCHAIN: local
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5
+        with:
+          go-version-file: backend/go.mod
+          cache: false
+      - name: Real migrations and scoped interstate invoice, credit, report and Tally tests
+        run: go test -race -v -count=1 -timeout 15m ./internal/modules/pharmacy -run '^TestInterstate'

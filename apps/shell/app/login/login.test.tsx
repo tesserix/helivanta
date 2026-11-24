@@ -183,6 +183,33 @@ describe("LoginPage", () => {
     },
   );
 
+  // #1820 slice 2 D2: "Sign in again" is a new sign-in, so a live session in
+  // this browser is never asked and cannot answer for it.
+  it("starts a new unscoped sign-in for Sign in again without consulting the live session", async () => {
+    window.history.pushState({}, "", "/login?again=1");
+    const request = vi.fn().mockResolvedValue(jsonResponse(200, {}));
+    vi.stubGlobal("fetch", request);
+    signinRedirect.mockResolvedValue(undefined);
+    renderWithProviders(<LoginPage />);
+    await waitFor(() => expect(signinRedirect).toHaveBeenCalledTimes(1));
+    expect(signinRedirect.mock.calls[0][0]).not.toHaveProperty("scope");
+    expect(signinRedirect.mock.calls[0][0]).toMatchObject({ state: { purpose: "email-login" } });
+    expect(request).not.toHaveBeenCalled();
+    expect(router.replace).not.toHaveBeenCalled();
+    expect(window.location.search).toBe("");
+  });
+
+  it("still shows the button for Sign in again right after a sign-out", async () => {
+    window.history.pushState({}, "", "/login?again=1");
+    window.sessionStorage.setItem(SIGNED_OUT_MARK, "1");
+    const request = vi.fn();
+    vi.stubGlobal("fetch", request);
+    renderWithProviders(<LoginPage />);
+    expect(await screen.findByRole("button", { name: "Sign in" })).toBeInTheDocument();
+    expect(signinRedirect).not.toHaveBeenCalled();
+    expect(request).not.toHaveBeenCalled();
+  });
+
   it("retries an unavailable session check without requesting credentials or email codes", async () => {
     const request = vi
       .fn()

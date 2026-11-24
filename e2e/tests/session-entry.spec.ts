@@ -74,3 +74,23 @@ test("a missing app session reopens the email card with the remembered name and 
   const probe = await page.request.get("/api/v1/iam/me/permissions");
   expect(probe.status()).toBe(401);
 });
+
+// #1820 slice 2 D2: "Sign in again" after a failed sign-in is a new sign-in.
+// A live session in this browser is never asked, so it cannot answer for the
+// account the person was trying to reach, and it survives until a password is
+// typed.
+test("sign in again opens the email card without consulting the live session", async ({ page }) => {
+  await login(page);
+  const renewals: string[] = [];
+  page.on("request", (request) => {
+    if (new URL(request.url()).pathname === "/api/v1/auth/renew") renewals.push(request.url());
+  });
+  await page.goto("/login?again=1");
+  await expect(page.getByText("Sign in with your email and password.")).toBeVisible({
+    timeout: 30_000,
+  });
+  await expect(page).toHaveURL(/\/login\?authRequest=/);
+  expect(renewals).toEqual([]);
+  const probe = await page.request.get("/api/v1/iam/me/permissions");
+  expect(probe.status()).toBe(200);
+});

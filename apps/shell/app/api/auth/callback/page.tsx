@@ -10,7 +10,7 @@ import {
   continueCustomerSignup,
 } from "@helivanta/api";
 import { getUserManager } from "@/lib/oidc";
-import { redirectFailure } from "@/lib/callback-error";
+import { redirectFailure, signInAgainHref } from "@/lib/callback-error";
 import { exchangeIdToken } from "@/lib/auth-exchange";
 import { customerSignupSigninStateContract } from "@/lib/signup-signin";
 
@@ -41,6 +41,7 @@ import { customerSignupSigninStateContract } from "@/lib/signup-signin";
 export default function AuthCallbackPage() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
+  const [tenant, setTenant] = useState<string>();
   // signinRedirectCallback() consumes the authorization code — Zitadel
   // refuses a second exchange of the same code. React 19's Strict Mode
   // double-invokes effects in development, which would otherwise burn the
@@ -63,6 +64,7 @@ export default function AuthCallbackPage() {
         }
         stage = "exchange";
         const signup = customerSignupSigninStateContract.optional().parse(user.state ?? undefined);
+        if (signup && "tenantId" in signup) setTenant(signup.tenantId);
         if (signup?.purpose === "customer-signup") {
           await continueCustomerSignup({ idToken: user.id_token });
           router.replace("/signup");
@@ -103,7 +105,10 @@ export default function AuthCallbackPage() {
           <p role="alert" className="text-sm text-destructive">
             {error}
           </p>
-          <a href="/login" className="text-sm text-foreground underline underline-offset-4">
+          <a
+            href={signInAgainHref(tenant)}
+            className="text-sm text-foreground underline underline-offset-4"
+          >
             Sign in again
           </a>
         </div>

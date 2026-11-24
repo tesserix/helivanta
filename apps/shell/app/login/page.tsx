@@ -79,6 +79,11 @@ function LoginPageContent() {
   if (authRequestId) {
     return <ValidatedCredentialForm authRequestId={authRequestId} />;
   }
+  // "Sign in again" asks for a new sign-in, so the live session is not
+  // consulted and cannot answer for it (#1820 slice 2 D2).
+  if (params.get("again") === "1" && !params.has("workspace")) {
+    return <RedirectLanding />;
+  }
   if (!params.has("workspace") && !params.has("authRequest")) {
     return <SessionLanding />;
   }
@@ -1301,6 +1306,7 @@ function RedirectLanding({
     // Back from the credential form returns to the landing, not to another start.
     const url = new URL(window.location.href);
     url.searchParams.delete("start");
+    url.searchParams.delete("again");
     window.history.replaceState(window.history.state, "", url);
     void signIn();
   }, [message, shouldStart, signIn]);

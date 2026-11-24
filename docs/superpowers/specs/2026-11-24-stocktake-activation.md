@@ -61,8 +61,9 @@ First record actual hospital maximum-capacity evidence and inherited child
 selection tests, then source-change/recovery evidence. Keep the canonical
 `pharmacy_stocktake` eligibility false until those checks pass. Generate the
 canonical release outputs and contract/access inventories together. Merge only
-after focused hosted checks and protected CI pass; no local app/database,
-container/Colima or local build is required by this workflow.
+after focused hosted checks and protected CI pass. Current repository instructions
+also require focused local builds and removal of their generated artifacts. No
+local application, database, container or Colima is started.
 
 Deploy through the owning GitOps/Kargo stage, verify the exact running images
 and migrations, then enable the reviewed Console flag and its prerequisites.
@@ -121,7 +122,7 @@ new replacement can satisfy the same-transaction guard. Migration preflight
 refuses drift, with bounded lock/statement timeouts. Runtime source seals fail
 closed after unexpected metadata changes.
 
-Deploy the compatible application through Kargo with eligibility still false,
+Deploy the compatible application through Kargo with the provider value still false,
 verify the running revision and schema, then activate the reviewed catalogue and
 Console value. The transaction-local read marker is optional: old binaries retain
 the previous access predicate. Old adjustment writes retain their verified
@@ -145,3 +146,26 @@ quantity/reservation locks and bounds. The sellable unlinked-correction test was
 observed reaching the old row guard in 45337096105; current validation must prove
 both location types reach the complete movement-evidence refusal and preserve
 supplier reservations. Capacity must be remeasured before activation.
+
+## Release candidate evidence
+
+Source recovery passed **45334426067**, including binding end/replacement,
+department revision/retirement, failed-start/audit rollback and zero recovery
+movements. The corrected complete movement guards, supplier reservation
+conservation, migration/isolation regressions and generated inventories passed
+**45337519712**. The current built hospital browser passed **45338199508**.
+
+Combined hospital source/capacity **45337524268** passed at the unchanged limits:
+10,000-bucket start **4.9667 s**, page p99 **217.8 ms**, 500-adjustment posting
+**4.5136 s**, and the final 10,000-observation header **315.8 ms**. These are hosted
+measurements, not a production-load SLO claim. Independent/native capacity remains
+separate evidence (**45334492301**).
+
+Those focused gates permit candidate policy `2026-11-24.pharmacy-stocktake.v1`
+to mark only `pharmacy_stocktake` eligible. Protected CI must still pass on this
+final candidate before merge. The live provider flag stays disabled through
+rollout verification. Catalogue repair **tesserix-k8s#1720** is already merged;
+its scheduled job created one disabled definition and preserved 23 existing
+values. Synchronize the final candidate policy after its matching application
+revision is deployed. Console activation and both-model authenticated live
+acceptance remain pending; #1686 remains open.

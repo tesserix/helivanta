@@ -79,8 +79,7 @@ flowchart TD
     PS --> PST
 ```
 
-The other 17 definitions are release locked: `pharmacy_catalogue`, `pharmacy_stock`,
-`pharmacy_stocktake`,
+The other 16 definitions remain release locked: `pharmacy_catalogue`, `pharmacy_stock`,
 `pharmacy_prescriptions`, `pharmacy_returns`, `pharmacy_reports`, `pharmacy_counter`,
 `pharmacy_payables`, `workforce_scheduling`, `workforce_payroll`,
 `workforce_advanced`, `supplier_collaboration`, `clinical`, `lab`, `emergency`,
@@ -98,7 +97,7 @@ original outcomes; cancellation additionally needs correction permission and an
 outlet editor grant. They cannot start a count, change quantities, approve
 adjustments or export inventory while Stock is disabled.
 
-### Reviewed Stocktake duties — development only
+### Reviewed stocktake duties — release candidate
 
 The candidate **My stocktakes** page (`/pharmacy/working-stocktakes`)
 uses `pharmacy_setup` and current-user reviewed-duty discovery. The navigation
@@ -110,9 +109,9 @@ status/recovery and current-counter cancellation only. The worker-command
 continuation connects operational controls under `pharmacy_stocktake`: counters
 start/count/submit/cancel, independent reviewers approve/reject and readers have
 no command controls. Release refresh failure removes those new-work controls
-while retaining recovery. Hosted acceptance does not enable production: compiled
-eligibility must stay false until the remaining issue and deployed acceptance
-gates pass.
+while retaining recovery. The reviewed source/capacity/browser gates have passed. This release candidate
+makes the capability eligible; protected CI, matching deployed revisions and
+Console activation remain required before production availability.
 
 The reviewed `/stocktakes/product-choices` and `/stocktakes/quarantine-choices`
 collections use the same stocktake capability as new work. They do not expose
@@ -120,9 +119,9 @@ general catalogue/receiving access and are unavailable when that capability is
 withdrawn. Existing retained-work discovery remains a baseline continuation.
 
 `pharmacy_stocktake` is a separate capability, dependent on `pharmacy_setup`
-and compiled **ineligible**. Its provider key is
-`helivanta.release.pharmacy_stocktake`. A Console value of true cannot override
-that compiled lock. Do not enable broad Stock/Catalogue to reach this work.
+and compiled **eligible in this release candidate**. Its provider key is
+`helivanta.release.pharmacy_stocktake`; the scheduled catalogue job creates it
+disabled. Deploy and verify the approved revision before enabling it in Console. Do not enable broad Stock/Catalogue to reach this work.
 
 The canonical release panels classify each operating template as
 `staff.operating.<template-key>`. Existing duties retain their baseline
@@ -140,7 +139,7 @@ When adding a template, update its canonical panel binding in
 The operating generator refuses a missing or unknown release binding. These
 bindings control availability, and do not assign Staff or confer stock authority.
 
-The unreleased independent/chain development path includes start, line reads,
+The reviewed independent/chain path includes start, line reads,
 counting, submission, independent posting, rejection, cancellation and original
 command recovery with retained Staff/link/duty evidence. Current reviewed
 header/list/register reads also passed hosted scope, audit-failure and rollback
@@ -158,10 +157,11 @@ through the legacy flow; they are not adopted into reviewed work. A scope change
 removes confirmed results from view until the new scope is checked. This SDK
 support does not release a page or replace current server authorization.
 
-Hospital department admission/capacity, the operational
-page/SDK and both-model live acceptance remain required by #1686. Keep eligibility
-false until those gates pass. A passing independent backend gate does not enable
-these capabilities by itself.
+Hospital source recovery and maximum capacity passed hosted 45337524268; the
+built hospital browser passed 45338199508. Independent reviewed browser/capacity
+evidence is separate. Current protected checks, Kargo rollout and both-model
+authenticated live acceptance remain required by #1686. A passing hosted gate
+does not enable the provider value by itself.
 
 ### Changed hospital stocktake source
 

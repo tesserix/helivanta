@@ -15,7 +15,7 @@ const manifest = () => ({
   panels: [{ key: "staff.postings", capability: "staff_core" }],
 });
 
-test("every operating duty has a release binding and stocktake duties stay locked", () => {
+test("every operating duty has a release binding and reviewed stocktakes are eligible", () => {
   const release = JSON.parse(
     readFileSync(new URL("../contracts/release-capabilities.json", import.meta.url), "utf8"),
   );
@@ -31,10 +31,19 @@ test("every operating duty has a release binding and stocktake duties stay locke
       panels.get(`staff.operating.pharmacy.stocktake_${template}.v1`),
       "pharmacy_stocktake",
     );
-  assert.equal(
-    release.capabilities.find((row) => row.key === "pharmacy_stocktake").eligible,
-    false,
+  assert.equal(release.capabilities.find((row) => row.key === "pharmacy_stocktake").eligible, true);
+  assert.deepEqual(
+    release.capabilities.find((row) => row.key === "pharmacy_stocktake").dependencies,
+    ["pharmacy_setup"],
   );
+  for (const key of [
+    "pharmacy_catalogue",
+    "pharmacy_stock",
+    "pharmacy_counter",
+    "pharmacy_payables",
+    "supplier_collaboration",
+  ])
+    assert.equal(release.capabilities.find((row) => row.key === key).eligible, false, key);
   assert.equal(panels.get("staff.operating.pharmacy.stock_fulfiller.v1"), "baseline");
 });
 

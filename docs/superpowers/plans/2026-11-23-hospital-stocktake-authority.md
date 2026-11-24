@@ -615,3 +615,25 @@ that failure; regenerating after the hosted contract output updates only
 `registry_sha256`, and the check passes. The focused hosted generator now also
 regenerates/checks and exports that dependent ledger, in the correct order.
 No classifications, route reviews or release availability were changed.
+
+### Hospital maximum-capacity activation gate
+
+The activation continuation adds a separate `hospital-capacity` hosted suite.
+It uses the full real reviewed hospital employment/department fixture, removes
+legacy outlet access from operational actors and retains their actual IAM,
+Workforce, Organization and approved binding authority. After the existing
+32-unit workflow it bulk-loads 9,999 additional synthetic stocked buckets through
+the Pharmacy owner's test transaction. This setup measures stocktake work, not
+intake performance, and is never run against a live database.
+
+Assertions require a 10,000-row frozen snapshot, all 100 pages without duplicate
+IDs, 100 bounded count commands, self-review refusal, exactly 500 independently
+posted shortages, original count/decision recovery after later commands and
+ledger conservation (501 total corrections including the preceding workflow;
+99,522 units). A subsequent 10,001-bucket start must be refused without creating
+a retained count. Existing five-second start/post and 300ms page-p99 budgets
+are unchanged. Browser and capacity modes cannot share the stateful fixture.
+
+This adds acceptance tests for already implemented commands; it changes no
+production authorization or runtime feature availability. Hosted results must
+be observed before claiming hospital capacity or changing eligibility.

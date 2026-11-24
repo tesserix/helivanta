@@ -105,6 +105,7 @@ func assertHospitalStocktakeWorkflow(t *testing.T, db *tenantdb.DB, call func(*t
 	if browser != nil {
 		browser(pharmacy, outlet)
 	}
+	assertHospitalStocktakeCapacity(t, db, call, root, pharmacy, outlet, product, quarantine, owner, counter, reviewer)
 	call(t, "PUT", base+"/access/"+reviewer, owner, map[string]any{"level": "editor"}, 200)
 	bindingRecord := approved["binding"].(map[string]any)
 	call(t, "POST", binding+"/commands", reviewer, map[string]any{"id": v7(), "operation": "end", "expected_version": bindingRecord["version"], "reason": "Synthetic source withdrawal after completed physical count"}, 200)

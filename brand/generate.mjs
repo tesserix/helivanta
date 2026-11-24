@@ -21,7 +21,7 @@ const CANVAS = "#f6f8fb";
 const MUTED = "#4e5a6e";
 const WHITE = "#ffffff";
 const PRODUCTS = {
-  pharmacy: "#86198f", // --hms-violet
+  pharmacy: "#661565", // --hms-violet
   lab: "#0e7490", // --hms-sky
   supply: "#92400e", // --hms-amber
   emergency: "#c13b5e", // --hms-rose

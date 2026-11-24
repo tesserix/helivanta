@@ -39,6 +39,6 @@ node brand/generate.mjs "$(pnpm --filter @helivanta/shell exec node -p "require.
   chart token for that area. Product lockups add the product word; product
   icons carry no letters.
 - Tokens: ink `#0b1324`, accent `#2b4ee6` (`#7aa0ff` on ink), canvas
-  `#f6f8fb`; pharmacy `#86198f`, lab `#0e7490`, supply `#92400e`,
+  `#f6f8fb`; pharmacy `#661565`, lab `#0e7490`, supply `#92400e`,
   emergency `#c13b5e`. These mirror `packages/ui/styles.css` after #1834.
 - The wordmark face is Anek Latin (OFL, `apps/shell/app/fonts/OFL.txt`).

@@ -44,10 +44,34 @@ describe("contrast()", () => {
   });
 });
 
-it("is slate", () => {
-  expect(root["--background"]).toBe("#f8fafc");
-  expect(root["--foreground"]).toBe("#0f172a");
-  expect(root["--primary"]).toBe("#334155");
+it("is cool white, blue-black ink and ultramarine (#1834)", () => {
+  expect(root["--background"]).toBe("#f6f8fb");
+  expect(root["--foreground"]).toBe("#0b1324");
+  expect(root["--primary"]).toBe("#0b1324");
+  expect(root["--hms-accent"]).toBe("#2b4ee6");
+});
+
+// Primary actions are ink under every tenant theme; a theme recolours the
+// accent trio only (#1834 spec D2).
+it.each(["teal", "blue", "indigo"])("brand %s leaves primary as ink", (brand) => {
+  expect(tokensOf(`[data-brand-theme="${brand}"]`)["--primary"]).toBeUndefined();
+});
+
+// Autofill paints --background behind text in a --card field; the two must be
+// close enough that the painted box is invisible.
+it("canvas and card are near-identical for autofill", () => {
+  expect(contrast(root["--background"], root["--card"])).toBeLessThan(1.1);
+});
+
+// Plum (IPD) and the accent (OPD) are the one chart pair in the same hue
+// family; they must still separate for a reader who cannot rely on hue. The
+// workspace sits inside a tenant theme, so OPD takes that theme's accent.
+it.each(["root", "teal", "blue", "indigo"])("plum separates from the %s accent", (scope) => {
+  const accent =
+    scope === "root"
+      ? root["--hms-accent"]
+      : tokensOf(`[data-brand-theme="${scope}"]`)["--hms-accent"];
+  expect(contrast(root["--hms-violet"], accent)).toBeGreaterThanOrEqual(1.6);
 });
 
 const PAIRS: [fg: string, bg: string, min: number][] = [
@@ -88,6 +112,8 @@ const PAIRS: [fg: string, bg: string, min: number][] = [
     ]),
   ),
   ["--muted-foreground", "--accent", BODY],
+  ["--muted-foreground", "--secondary", BODY],
+  ["--hms-accent", "--hms-accent-dim", BODY],
 ];
 
 it.each(PAIRS)("%s on %s passes AA", (fg, bg, min) => {

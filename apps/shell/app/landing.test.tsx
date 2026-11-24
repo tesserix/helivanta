@@ -4,7 +4,9 @@ import { renderWithProviders } from "@helivanta/api/testing";
 import LandingPage from "./page";
 
 // next/font is a build-time transform that throws when called outside Next.
-vi.mock("next/font/local", () => ({ default: () => ({ className: "font-site" }) }));
+vi.mock("next/font/local", () => ({
+  default: () => ({ className: "font-site", variable: "font-site-var" }),
+}));
 
 beforeEach(() => {
   vi.stubGlobal(
@@ -133,4 +135,14 @@ it("offers public emergency call access from the homepage", () => {
     "href",
     "/ambulance",
   );
+});
+
+// Anek is the public page's headline face only; body text is the shared UI
+// face from the root layout (#1834 spec D4). Scoped by variable, so the
+// wrapper must not carry the class that sets font-family on everything.
+it("scopes Anek to the home page by variable, not by class", () => {
+  const { container } = renderWithProviders(<LandingPage />);
+  const classes = (container.querySelector(".home-slate") as HTMLElement).className.split(/\s+/);
+  expect(classes).toContain("font-site-var");
+  expect(classes).not.toContain("font-site");
 });

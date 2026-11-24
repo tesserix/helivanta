@@ -34,11 +34,13 @@
 ### Task 1: IBM Plex Sans in the root layout, Anek scoped to the home page's headings
 
 **Files:**
+
 - Create: `apps/shell/app/fonts/plex/ibm-plex-sans-latin-{400,500,600,700}-normal.woff2`, `apps/shell/app/fonts/plex/ibm-plex-sans-latin-ext-{400,500,600,700}-normal.woff2`, `apps/shell/app/fonts/plex/OFL.txt`
 - Modify: `apps/shell/app/layout.tsx` (the `<body>` element), `apps/shell/app/globals.css` (the `@theme` block and one new rule), `apps/shell/app/page.tsx:19-23` (the `localFont` call) and `:155` (the wrapper class)
 - Test: `apps/shell/app/layout.test.tsx`, `apps/shell/app/landing.test.tsx`
 
 **Interfaces:**
+
 - Produces: CSS variable `--font-plex` on `<body>`; Tailwind `font-sans` resolves to it through `@theme { --font-sans: var(--font-plex), ui-sans-serif, system-ui, sans-serif; }`. CSS variable `--font-anek` on the home page wrapper, used only by the rule `.home-slate :is(h1, h2, h3) { font-family: var(--font-anek), var(--font-sans); }`.
 
 - [ ] **Step 1: Fetch the font files and licence**
@@ -85,14 +87,38 @@ Add at module level:
 import localFont from "next/font/local";
 const plex = localFont({
   src: [
-    { path: "./fonts/plex/ibm-plex-sans-latin-400-normal.woff2", weight: "400" },
-    { path: "./fonts/plex/ibm-plex-sans-latin-ext-400-normal.woff2", weight: "400" },
-    { path: "./fonts/plex/ibm-plex-sans-latin-500-normal.woff2", weight: "500" },
-    { path: "./fonts/plex/ibm-plex-sans-latin-ext-500-normal.woff2", weight: "500" },
-    { path: "./fonts/plex/ibm-plex-sans-latin-600-normal.woff2", weight: "600" },
-    { path: "./fonts/plex/ibm-plex-sans-latin-ext-600-normal.woff2", weight: "600" },
-    { path: "./fonts/plex/ibm-plex-sans-latin-700-normal.woff2", weight: "700" },
-    { path: "./fonts/plex/ibm-plex-sans-latin-ext-700-normal.woff2", weight: "700" },
+    {
+      path: "./fonts/plex/ibm-plex-sans-latin-400-normal.woff2",
+      weight: "400",
+    },
+    {
+      path: "./fonts/plex/ibm-plex-sans-latin-ext-400-normal.woff2",
+      weight: "400",
+    },
+    {
+      path: "./fonts/plex/ibm-plex-sans-latin-500-normal.woff2",
+      weight: "500",
+    },
+    {
+      path: "./fonts/plex/ibm-plex-sans-latin-ext-500-normal.woff2",
+      weight: "500",
+    },
+    {
+      path: "./fonts/plex/ibm-plex-sans-latin-600-normal.woff2",
+      weight: "600",
+    },
+    {
+      path: "./fonts/plex/ibm-plex-sans-latin-ext-600-normal.woff2",
+      weight: "600",
+    },
+    {
+      path: "./fonts/plex/ibm-plex-sans-latin-700-normal.woff2",
+      weight: "700",
+    },
+    {
+      path: "./fonts/plex/ibm-plex-sans-latin-ext-700-normal.woff2",
+      weight: "700",
+    },
   ],
   variable: "--font-plex",
   display: "swap",
@@ -162,12 +188,14 @@ Then open the CI run for the push and confirm the web job's build step is green 
 ### Task 2: The token values
 
 **Files:**
+
 - Modify: `packages/ui/styles.css` root scope (lines 16–75), the three `[data-brand-theme]` blocks in the app scope (lines 151–171) and under `.login-page` (lines 250–264), `--auth-button` in `.login-content` (line 182)
 - Modify: `apps/shell/app/globals.css` `@theme` shadows (the five `rgb(15 23 42 / …)` values)
 - Test: `packages/ui/src/contrast.test.ts`
 
 **Interfaces:**
-- Produces: the token values in spec D1 and D3, verbatim. Later tasks and the e2e rewrite depend on `--primary #0b1324`, `--hms-accent #2b4ee6`, and the tenant accents `teal #0e6b63`, `blue #1d5da8`, `indigo #5352a6` with dims `#d9eeea`, `#e7effa`, `#eeedf9`.
+
+- Produces: the token values in spec D1 and D3, verbatim. Later tasks and the e2e rewrite depend on `--primary #0b1324`, `--hms-accent #2b4ee6`, and the tenant accents `teal #2b4ee6` (default, Task 2 ruling), `blue #1d5da8`, `indigo #5352a6` with dims `#d9eeea`, `#e7effa`, `#eeedf9`.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -182,9 +210,14 @@ it("is cool white, blue-black ink and ultramarine (#1834)", () => {
 });
 
 // Primary actions are ink under every tenant theme (#1834 spec D2).
-it.each(["teal", "blue", "indigo"])("brand %s leaves primary as ink", (brand) => {
-  expect(tokensOf(`[data-brand-theme="${brand}"]`)["--primary"]).toBeUndefined();
-});
+it.each(["teal", "blue", "indigo"])(
+  "brand %s leaves primary as ink",
+  (brand) => {
+    expect(
+      tokensOf(`[data-brand-theme="${brand}"]`)["--primary"],
+    ).toBeUndefined();
+  },
+);
 
 // Autofill paints --background behind text on a --card field; the two must be
 // close enough that the box is invisible (Review Focus 2).
@@ -194,7 +227,9 @@ it("canvas and card are near-identical for autofill", () => {
 
 // The one chart pair in the same hue family must still separate (Review Focus 3).
 it("plum separates from the accent", () => {
-  expect(contrast(root["--hms-violet"], root["--hms-accent"])).toBeGreaterThanOrEqual(1.6);
+  expect(
+    contrast(root["--hms-violet"], root["--hms-accent"]),
+  ).toBeGreaterThanOrEqual(1.6);
 });
 ```
 
@@ -207,9 +242,9 @@ Expected: FAIL on the pin test (`#f8fafc` is not `#f6f8fb`) and on the `brand %s
 
 - [ ] **Step 3: Set the values in `packages/ui/styles.css`**
 
-Root scope, every value from spec D1 with `!important` kept: `--background #f6f8fb`, `--foreground #0b1324`, `--card-foreground #0b1324`, `--popover-foreground #0b1324`, `--primary #0b1324`, `--secondary #f0f4f8`, `--secondary-foreground #0b1324`, `--muted #f0f4f8`, `--muted-foreground #4e5a6e`, `--accent #e4eaff`, `--accent-foreground #1f3ab8`, `--border #dfe4ec`, `--input #c7cfdc`, `--ring #2b4ee6`, `--sidebar #ffffff`, `--sidebar-foreground #0b1324`, `--sidebar-primary #0b1324`, `--sidebar-accent #e4eaff`, `--sidebar-accent-foreground #1f3ab8`, `--sidebar-border #dfe4ec`, `--sidebar-ring #2b4ee6`, `--sidebar-rail #ffffff`, `--hms-accent #2b4ee6`, `--hms-accent-strong #1f3ab8`, `--hms-accent-dim #e4eaff`, `--hms-violet #86198f`, `--hms-violet-tint #f7e9f9`, `--hms-sky #0e7490`, `--hms-sky-tint #e3f3f8`, `--hms-track #e3e8ef`, `--hms-band #f0f4f8`, `--hms-band-ink #0b1324`, `--hms-band-muted #4e5a6e`, `--hms-band-line #4e5a6e`, `--hms-shadow #0b1324`. Unchanged: `--card`, `--popover`, `--primary-foreground`, `--destructive*`, `--hms-good`, `--hms-warn`, `--hms-crit`, `--hms-rose*`, `--hms-amber*`.
+Root scope, every value from spec D1 with `!important` kept: `--background #f6f8fb`, `--foreground #0b1324`, `--card-foreground #0b1324`, `--popover-foreground #0b1324`, `--primary #0b1324`, `--secondary #f0f4f8`, `--secondary-foreground #0b1324`, `--muted #f0f4f8`, `--muted-foreground #4e5a6e`, `--accent #e4eaff`, `--accent-foreground #1f3ab8`, `--border #dfe4ec`, `--input #c7cfdc`, `--ring #2b4ee6`, `--sidebar #ffffff`, `--sidebar-foreground #0b1324`, `--sidebar-primary #0b1324`, `--sidebar-accent #e4eaff`, `--sidebar-accent-foreground #1f3ab8`, `--sidebar-border #dfe4ec`, `--sidebar-ring #2b4ee6`, `--sidebar-rail #ffffff`, `--hms-accent #2b4ee6`, `--hms-accent-strong #1f3ab8`, `--hms-accent-dim #e4eaff`, `--hms-violet #661565`, `--hms-violet-tint #f7e9f9`, `--hms-sky #0e7490`, `--hms-sky-tint #e3f3f8`, `--hms-track #e3e8ef`, `--hms-band #f0f4f8`, `--hms-band-ink #0b1324`, `--hms-band-muted #4e5a6e`, `--hms-band-line #4e5a6e`, `--hms-shadow #0b1324`. Unchanged: `--card`, `--popover`, `--primary-foreground`, `--destructive*`, `--hms-good`, `--hms-warn`, `--hms-crit`, `--hms-rose*`, `--hms-amber*`.
 
-Tenant blocks, both scopes: delete the `--primary` and `--primary-foreground` lines; set `teal` to `#0e6b63 / #0a4f49 / #d9eeea`, keep `blue` `#1d5da8 / #17497f / #e7effa` and `indigo` `#5352a6 / #403f83 / #eeedf9`.
+Tenant blocks, both scopes: delete the `--primary` and `--primary-foreground` lines; set `teal` (the default) to the platform accent `#2b4ee6 / #1f3ab8 / #e4eaff`, keep `blue` `#1d5da8 / #17497f / #e7effa` and `indigo` `#5352a6 / #403f83 / #eeedf9`.
 
 `.login-content`: `--auth-button: var(--primary);` and `--auth-button-shadow: 0 2px 4px color-mix(in srgb, var(--primary) 20%, transparent);`.
 
@@ -240,10 +275,12 @@ git push
 ### Task 3: Lint ban on `Input`'s `valid` prop
 
 **Files:**
+
 - Modify: `packages/config/eslint.config.mjs` (the `DESIGN_SYNTAX` array, lines 50–61)
 - Test: `packages/config/eslint.config.test.mjs` (inside `describe("design rules")`)
 
 **Interfaces:**
+
 - Produces: a design-rule message `"Input's valid prop paints a non-token green beside the clinical good colour; show success with text or a status badge (#1834 spec D5)."`
 
 - [ ] **Step 1: Write the failing test**
@@ -253,10 +290,12 @@ it("rejects Input's valid prop", async () => {
   expect(await messages(`export const A = () => <Input valid />;`)).toEqual([
     expect.stringMatching(/valid prop paints a non-token green/),
   ]);
-  expect(await messages(`export const A = () => <Input valid={ok} />;`)).toEqual([
-    expect.stringMatching(/valid prop paints a non-token green/),
-  ]);
-  expect(await messages(`export const A = () => <Input aria-invalid />;`)).toEqual([]);
+  expect(
+    await messages(`export const A = () => <Input valid={ok} />;`),
+  ).toEqual([expect.stringMatching(/valid prop paints a non-token green/)]);
+  expect(
+    await messages(`export const A = () => <Input aria-invalid />;`),
+  ).toEqual([]);
 });
 ```
 
@@ -293,6 +332,7 @@ git push
 ### Task 4: Docs that name the palette
 
 **Files:**
+
 - Modify: `CLAUDE.md:84`, `docs/standards/frontend.md:474-490`, `docs/superpowers/specs/2026-10-22-one-look-design.md` (the superseded note at the top), `docs/superpowers/specs/2026-10-28-shared-web-token-roles.md` (header note)
 
 - [ ] **Step 1: Update the rule text**
@@ -317,10 +357,12 @@ git push
 ### Task 5: Sign-in appearance e2e for an ink button and a visible tenant accent
 
 **Files:**
+
 - Modify: `e2e/tests/login-appearance.spec.ts`
 
 **Interfaces:**
-- Consumes: Task 2's values. Button `rgb(11, 19, 36)` under every theme. Accents: teal `rgb(14, 107, 99)`, blue `rgb(29, 93, 168)`, indigo `rgb(83, 82, 166)`.
+
+- Consumes: Task 2's values. Button `rgb(11, 19, 36)` under every theme. Accents: teal `rgb(43, 78, 230)` (the default carries the platform accent, Task 2 ruling), blue `rgb(29, 93, 168)`, indigo `rgb(83, 82, 166)`.
 
 - [ ] **Step 1: Rewrite the palette table and the assertions**
 
@@ -329,7 +371,7 @@ Replace the `palettes` constant with:
 ```ts
 const INK = "rgb(11, 19, 36)";
 const palettes = [
-  { theme: "teal", accent: "rgb(14, 107, 99)" },
+  { theme: "teal", accent: "rgb(43, 78, 230)" },
   { theme: "blue", accent: "rgb(29, 93, 168)" },
   { theme: "indigo", accent: "rgb(83, 82, 166)" },
 ] as const;
@@ -371,6 +413,7 @@ git push
 ### Task 6: Hosted verification and the pull request
 
 **Files:**
+
 - None in the repo beyond the PR body.
 
 - [ ] **Step 1: Full CI green**

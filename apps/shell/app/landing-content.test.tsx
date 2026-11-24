@@ -6,7 +6,9 @@ import fixture from "./landing-content.fixture.json";
 import LandingPage from "./page";
 
 // next/font is a build-time transform that throws when called outside Next.
-vi.mock("next/font/local", () => ({ default: () => ({ className: "font-site" }) }));
+vi.mock("next/font/local", () => ({
+  default: () => ({ className: "font-site", variable: "font-site-var" }),
+}));
 
 beforeEach(() => {
   vi.stubGlobal(

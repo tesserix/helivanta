@@ -110,7 +110,7 @@ function BrandingEditor({ initial }: { initial: Branding }) {
               id="brand-theme"
               label="Medical theme"
               options={[
-                { value: "teal", label: "Clinical teal" },
+                { value: "teal", label: "Helivanta default" },
                 { value: "blue", label: "Care blue" },
                 { value: "indigo", label: "Calm indigo" },
               ]}
@@ -172,7 +172,7 @@ function BrandingEditor({ initial }: { initial: Branding }) {
                   ••••••••••••
                 </Panel>
               </div>
-              <div className="rounded-lg bg-(--hms-accent) p-3 text-center text-sm font-medium text-primary-foreground">
+              <div className="rounded-lg bg-primary p-3 text-center text-sm font-medium text-primary-foreground">
                 Sign in
               </div>
               <p className="mt-4 text-center text-xs text-muted-foreground">

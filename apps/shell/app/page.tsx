@@ -21,6 +21,8 @@ const anek = localFont({
   weight: "100 800",
   display: "swap",
   declarations: [{ prop: "font-stretch", value: "75% 125%" }],
+  // Headlines only (#1834 spec D4); body text is the root layout's UI face.
+  variable: "--font-anek",
 });
 
 export const metadata: Metadata = {
@@ -152,7 +154,7 @@ const chapterGroups: readonly ChapterGroup[] = [
 export default function LandingPage() {
   return (
     <div
-      className={`${anek.className} home-slate min-h-screen bg-background text-foreground selection:bg-(--hms-accent)/30`}
+      className={`${anek.variable} home-slate min-h-screen bg-background text-foreground selection:bg-(--hms-accent)/30`}
     >
       <a
         href="#main"

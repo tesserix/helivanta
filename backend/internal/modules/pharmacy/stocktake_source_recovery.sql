@@ -73,7 +73,7 @@ CREATE TRIGGER pharmacy_stocktake_source_invalidation_guard BEFORE INSERT OR UPD
 CREATE FUNCTION pharmacy_stocktake_source_write_audit()RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
  INSERT INTO audit_events(tenant_id,actor_subject,action,resource_type,resource_id,changed_fields)
- VALUES(NEW.tenant_id,NEW.actor_subject,'pharmacy.stocktake.source_invalidated','pharmacy_stocktakes',NEW.stocktake_id,'["source_invalidated","replacement_stocktake_id"]'::jsonb);
+ VALUES(NEW.tenant_id,NEW.actor_subject,'pharmacy.stocktake.source_invalidated','pharmacy_stocktakes',NEW.stocktake_id,ARRAY['source_invalidated','replacement_stocktake_id']::text[]);
  RETURN NULL;
 END $$;
 CREATE TRIGGER pharmacy_stocktake_source_write_audit AFTER INSERT ON pharmacy_stocktake_source_invalidations FOR EACH ROW EXECUTE FUNCTION pharmacy_stocktake_source_write_audit();

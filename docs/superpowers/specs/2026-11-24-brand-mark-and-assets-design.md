@@ -100,7 +100,7 @@ not invent a third lockup.
 
 Products are the same geometry with the pulse in the product hue, and the
 hue set is the chart token set from #1834: pharmacy `--hms-violet`
-(`#86198f`), lab `--hms-sky` (`#0e7490`), supply `--hms-amber` (`#92400e`),
+(`#6b1a6e`), lab `--hms-sky` (`#0e7490`), supply `--hms-amber` (`#92400e`),
 emergency `--hms-rose` (`#c13b5e`). The platform and the hospital core use
 the accent. Product lockups add the product word after "helivanta" in the
 product hue at weight 600; product icons and favicons carry no letters, since

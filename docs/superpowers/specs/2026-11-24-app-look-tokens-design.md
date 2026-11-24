@@ -143,7 +143,7 @@ pair is critical red on the muted surface at 4.55:1.
 | `--hms-good` / `--hms-warn` / `--hms-crit` | | unchanged | clinical status |
 | `--hms-rose` / tint | `#c13b5e` / `#fbedf1` | unchanged | chart |
 | `--hms-amber` / tint | `#92400e` / `#fbf3e4` | unchanged | chart |
-| `--hms-violet` / tint | `#4f46e5` / `#eeeefb` | `#86198f` / `#f7e9f9` | chart; moved off the accent's hue |
+| `--hms-violet` / tint | `#4f46e5` / `#eeeefb` | `#6b1a6e` / `#f7e9f9` | chart; moved off the accent's hue and darkened to separate from it in lightness (1.67:1) |
 | `--hms-sky` / tint | `#1d5da8` / `#e7effa` | `#0e7490` / `#e3f3f8` | chart; moved off blue |
 | `--hms-track` | `#e7ebf1` | `#e3e8ef` | progress track |
 | `--hms-band` | `#f1f5f9` | `#f0f4f8` | home-page bands |
@@ -173,13 +173,17 @@ accent on the canvas and on its tint.
 
 | Theme | `--hms-accent` | `--hms-accent-strong` | `--hms-accent-dim` |
 | --- | --- | --- | --- |
-| `teal` | `#0e6b63` | `#0a4f49` | `#d9eeea` |
+| `teal` (the default) | `#2b4ee6` | `#1f3ab8` | `#e4eaff` |
 | `blue` | `#1d5da8` | `#17497f` | `#e7effa` |
 | `indigo` | `#5352a6` | `#403f83` | `#eeedf9` |
 
-`teal` is a real teal again; since #1412 it had been slate, which made the
-default and the teal theme indistinguishable. `blue` and `indigo` keep their
-values. The enum in `packages/api/src/workspace.ts` is unchanged.
+Amended during implementation: `teal` is the theme every workspace stores
+by default (`DEFAULT_BRANDING` and the Go default), so it carries the
+platform accent rather than a real teal; a real teal would have turned every
+default workspace teal. Its settings label becomes "Helivanta default". The
+values above apply to `blue` and `indigo`; `teal` reads `#2b4ee6`, `#1f3ab8`,
+`#e4eaff`. A tenant-selectable teal would need a new enum value and is not in
+this slice. The enum in `packages/api/src/workspace.ts` is unchanged.
 
 ### D4 Typeface
 

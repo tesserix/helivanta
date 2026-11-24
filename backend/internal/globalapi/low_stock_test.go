@@ -58,6 +58,7 @@ func newLowStockGatewayFixture(t *testing.T, ownership string) lowStockGatewayFi
 			}
 		},
 	})
+	owner.GET("/v1/workspace/release-capabilities", authn.Middleware(authn.NewSessionVerifier(verifier), revocationState{}), policy.Capabilities)
 	upstream := httptest.NewServer(owner)
 	t.Cleanup(upstream.Close)
 	gateway, err := New(Config{Development: true, Timeout: 10 * time.Second, Upstreams: map[string]string{"platform": upstream.URL, "pharmacy": upstream.URL}})
@@ -100,6 +101,20 @@ func TestLowStockThroughGlobalAPI(t *testing.T) {
 	for _, ownership := range []string{"independent", "hospital_owned"} {
 		t.Run(ownership, func(t *testing.T) {
 			f := newLowStockGatewayFixture(t, ownership)
+			var snapshot struct {
+				Capabilities []struct {
+					Key       string
+					Available bool
+				}
+			}
+			require.NoError(t, json.Unmarshal(f.call("GET", "/v1/workspace/release-capabilities", "owner", "", 200).Body.Bytes(), &snapshot))
+			var enabled []string
+			for _, capability := range snapshot.Capabilities {
+				if capability.Available {
+					enabled = append(enabled, capability.Key)
+				}
+			}
+			require.ElementsMatch(t, []string{"team_accounts", "pharmacy_setup", "pharmacy_low_stock"}, enabled)
 			product := f.root + "/catalogue/products/" + f.product
 			f.call("GET", f.root+"/catalogue/products", "owner", "", 404)
 			f.call("PUT", product, "owner", receiverProduct, 404)

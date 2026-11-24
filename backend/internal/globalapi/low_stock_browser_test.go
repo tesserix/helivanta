@@ -15,6 +15,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/tesserix/helivanta/internal/testutil"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 	"gorm.io/gorm"
 )
 
@@ -42,7 +43,15 @@ func TestLowStockBuiltBrowser(t *testing.T) {
 			output, err := command.CombinedOutput()
 			require.NoError(t, err, "built low-stock browser acceptance: %s", output)
 			t.Log(string(output))
-			require.NoError(t, f.db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+			require.NoError(t, f.db.WithTenant(tenantdb.WithActor(t.Context(), "user-owner"), testutil.TenantA, func(tx *gorm.DB) error {
+				if err := tx.Exec("SELECT set_config('app.pharmacy_subject','user-owner',true),set_config('app.pharmacy_outlet',?,true),set_config('app.pharmacy_id',?,true)", f.outlet, f.pharmacy).Error; err != nil {
+					return err
+				}
+				var revisions int64
+				if err := tx.Table("pharmacy_reorder_levels").Where("tenant_id=? AND outlet_id=? AND product_id=?", testutil.TenantA, f.outlet, f.product).Count(&revisions).Error; err != nil {
+					return err
+				}
+				require.EqualValues(t, 2, revisions, "authorized history contains exactly the enable and disable revisions")
 				var movements int64
 				if err := tx.Table("pharmacy_stock_movements").Where("tenant_id=? AND outlet_id=?", testutil.TenantA, f.outlet).Count(&movements).Error; err != nil {
 					return err

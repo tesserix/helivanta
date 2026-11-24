@@ -107,3 +107,6 @@ func SetTallyMapEntries(t interface{ Cleanup(func()) }, n int) {
 	tallyMapEntries = n
 	t.Cleanup(func() { tallyMapEntries = was })
 }
+
+// LowStockSource exposes the owner query for hosted capacity plan diagnostics.
+var LowStockSource = lowStockSource

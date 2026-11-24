@@ -11,6 +11,11 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
+	"github.com/tesserix/helivanta/internal/modules/pharmacy" //nolint:depguard // external test importing its own module
+	"github.com/tesserix/helivanta/internal/testutil"
+	"github.com/tesserix/helivanta/pkg/pagination"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
+	"gorm.io/gorm"
 )
 
 func TestLowStockCapacityAtTenThousandProducts(t *testing.T) {
@@ -39,6 +44,29 @@ func TestLowStockCapacityAtTenThousandProducts(t *testing.T) {
 				require.Equal(t, 200, saved.Code, saved.Body.String())
 			}
 			t.Logf("prepared 10,000 configured products, 1,000 released buckets and 9,000 zero-batch products through owner APIs in %s", time.Since(started))
+			require.NoError(t, w.db.WithTenant(tenantdb.WithActor(t.Context(), "user-editor"), testutil.TenantA, func(tx *gorm.DB) error {
+				if err := tx.Exec("SELECT set_config('app.pharmacy_subject','user-editor',true),set_config('app.pharmacy_outlet',?,true),set_config('app.pharmacy_id',?,true)", pharmaOutlet, pharmaOrganization).Error; err != nil {
+					return err
+				}
+				if err := tx.Exec("SET LOCAL statement_timeout='8s'").Error; err != nil {
+					return err
+				}
+				observed := time.Now().UTC()
+				source := pharmacy.LowStockSource(tx, testutil.TenantA, uuid.MustParse(pharmaOutlet), observed)
+				var count int64
+				var rows []map[string]any
+				countQuery := tx.Session(&gorm.Session{DryRun: true}).Table("(?) low_stock", source).Count(&count)
+				pageQuery := tenantdb.ApplyKeyset(tx.Session(&gorm.Session{DryRun: true}), pagination.Params{Limit: 50}).Table("(?) low_stock", source).Find(&rows)
+				for label, query := range map[string]*gorm.DB{"overview": countQuery, "first-page": pageQuery} {
+					var plan string
+					if err := tx.Raw("EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) "+query.Statement.SQL.String(), query.Statement.Vars...).Scan(&plan).Error; err != nil {
+						return err
+					}
+					require.True(t, json.Valid([]byte(plan)), "actual owner query plan")
+					t.Logf("%s %s owner query plan: %s", ownership, label, plan)
+				}
+				return nil
+			}))
 			var pageTimes, countTimes []time.Duration
 			seen := map[string]bool{}
 			cursor := ""

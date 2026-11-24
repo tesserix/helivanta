@@ -50,9 +50,9 @@ and the actual ownership mutation contract. An old count cannot be silently
 adopted by a new binding or department revision. Revoke operational access
 immediately; preserve original quantities, actors, commands and adjustments.
 Changing a source must not leave an active count blocking the outlet forever.
-Cancellation of an invalidated unfinished count must never post stock movements
-or confer approval authority. Verify the existing mutation/event/retained-command
-contracts before implementing the specific cancellation mechanism. A completed
+Recovery of an invalidated unfinished count must never post stock movements
+or confer approval authority. The source recovery decision below uses append-only
+invalidation metadata and a fresh start; it invents no cancellation command. A completed
 count and its ledger are never erased or undone by source cleanup.
 
 ## Delivery and activation

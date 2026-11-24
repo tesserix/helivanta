@@ -163,6 +163,30 @@ page/SDK and both-model live acceptance remain required by #1686. Keep eligibili
 false until those gates pass. A passing independent backend gate does not enable
 these capabilities by itself.
 
+### Changed hospital stocktake source
+
+A retained unfinished count can show **Source changed** when its original
+hospital department revision or approved outlet binding no longer matches.
+Its observations and original state/version remain evidence; its counting,
+submission and review actions are unavailable. Do not grant broad outlet access
+or enable another feature to adopt that count.
+
+1. Have the responsible department administrators establish the correct current
+   department and independently approve its replacement outlet binding through
+   the existing binding workflow.
+2. Select the current named assignment, department and outlet in **My stocktakes**.
+3. Start a fresh count. A successful start records source invalidation and the
+   replacement atomically. An invalid start or unavailable audit leaves neither
+   change committed; recover the same command before retrying an uncertain result.
+4. Inspect the retained original observations and current fresh count separately.
+   Recovery creates no stock movement. Only a later independent approved
+   difference posts adjustments through the normal stocktake workflow.
+
+The CSV column `source_invalidated` conveys this condition without rewriting
+state, version or quantities. Completed counts retain their ledger. A replacement
+department does not inherit receipt access from a retired department. Eligibility
+and live acceptance gates above still apply to this development candidate.
+
 ### Pending Staff authenticator recovery control
 
 Policy `2026-11-19-r1` adds `staff_mfa_recovery`, dependent on `staff_core` and

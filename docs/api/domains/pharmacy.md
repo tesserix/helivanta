@@ -2171,8 +2171,36 @@ current operational assignment is hidden as 404. Unsupported query fields,
 repeated values and reused foreign cursors return 400. This baseline collection
 supports retained recovery; it does not enable new stocktake work.
 
-Binding/source replacement recovery, hospital maximum posting capacity and live
-acceptance remain release gates.
+Candidate migration **0069_pharmacy_stocktake_latest_observations** materializes
+latest count observations once and shares the immutable approval timestamp across
+adjustment batches. The existing statement validator still verifies actor,
+transaction, quantities, destination and timestamp. A transaction-local snapshot
+read frame evaluates the existing native outlet predicate on held tenant/outlet
+coordinates once per statement, preserving the other policy clauses, reviewed
+source checks and every write check. No reader receives write access.
+
+Candidate migration **0070_pharmacy_stocktake_source_recovery** preserves the
+original hospital/department/binding/version/revision of a count. A new write on
+an old snapshot returns `409 source_changed` after replacement, even if the
+replacement independently authorizes new work. Header/list responses add the
+optional boolean `source_invalidated`; CSV appends the same column. State,
+version and quantities retain their original meaning. The UI labels invalidated
+unfinished counts and withholds editing and review controls.
+
+A fresh start under a different current, independently approved binding can
+append an invalidation for the old unfinished count. Its replacement must be
+newly sealed by the same actor in the same transaction. A unique current-binding
+index, exact current counter/source authority, original/replacement foreign keys,
+forced RLS and an append-only audit guard that transition. Failed starts and
+failed audits roll back together. Replays cannot create another invalidation.
+This metadata creates no movement, correction, cancellation or review decision.
+Completed counts are never invalidated. Old receipt recovery retains its original
+hospital/department restriction; retirement transfers no recovery authority to a
+new department.
+
+Source-recovery acceptance, current capacity/protected checks and both-model live
+verification remain activation gates; these candidate migrations are not a live
+rollout approval.
 
 ### Hospital worker workspace — development candidate
 

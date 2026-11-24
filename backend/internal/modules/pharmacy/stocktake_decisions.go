@@ -174,7 +174,7 @@ func postStocktakeDecision(tx *gorm.DB, p authn.Principal, pharmacy, outlet, tak
 		}
 		publications[i] = events.Event{Type: "StockMovementRecorded", Version: 1, TenantID: p.TenantID, Data: data}
 	}
-	if err := tx.CreateInBatches(&links, 500).Error; err != nil {
+	if err := withStocktakeAdjustmentTimestamp(tx, p, outlet, take, command, func() error { return tx.CreateInBatches(&links, 500).Error }); err != nil {
 		return err
 	}
 	if err := tx.CreateInBatches(&movements, 500).Error; err != nil {

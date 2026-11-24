@@ -12,7 +12,7 @@ import {
   type ReactNode,
 } from "react";
 import { usePathname } from "next/navigation";
-import { ChevronsLeft, ChevronsRight, Menu, X } from "lucide-react";
+import { ChevronsLeft, ChevronsRight, HeartPulse, Menu, X } from "lucide-react";
 import {
   ApiError,
   useApiQuery,
@@ -26,6 +26,7 @@ import {
   clearPermissionsCache,
   clearRenewAt,
   notifySessionChanged,
+  type Branding,
 } from "@helivanta/api";
 import { GuardedLink, NavigationGuardProvider } from "./navigation-guard";
 import { ZONES, visibleZones, activeZone, activePage, railName, type Zone } from "./zones";
@@ -115,7 +116,7 @@ function ZoneLink({
       aria-current={active ? "page" : undefined}
       className={`flex items-center rounded-lg transition-colors ${expanded ? "h-11 w-full gap-3 px-3" : "h-11 w-11 justify-center md:h-auto md:w-16 md:flex-col md:gap-1 md:py-2"} ${
         active
-          ? "bg-(--hms-accent-dim) text-(--hms-accent)"
+          ? "hms-current bg-sidebar-accent text-sidebar-accent-foreground"
           : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
       }`}
     >
@@ -181,7 +182,7 @@ function PhoneMenu({
           aria-current={active ? "page" : undefined}
           className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
             active
-              ? "bg-(--hms-accent-dim) text-(--hms-accent)"
+              ? "hms-current bg-sidebar-accent text-sidebar-accent-foreground"
               : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
           }`}
         >
@@ -270,6 +271,19 @@ function PhoneMenu({
         </nav>
       </div>
     </div>
+  );
+}
+
+// The tenant's logo in the header row, on the canvas it was designed for
+// (#1836 D2). Nothing when the tenant has none or it fails to load: the
+// platform mark is already in the rail, so a fallback would show it twice.
+function HeaderLogo({ branding }: { branding: Branding }) {
+  const [failed, setFailed] = useState(false);
+  if (!branding.logo_url || failed) return null;
+  return (
+    <span onErrorCapture={() => setFailed(true)} className="flex shrink-0 items-center">
+      <BrandLogo branding={branding} compact />
+    </span>
   );
 }
 
@@ -646,19 +660,21 @@ export function HmsShell({
             returnFocusTo={menuButtonRef}
           />
           <aside
-            // Floating and content-height from md (#1286 D1); below md the rail
-            // stays the flush 64px icon column and the open rail a full-height
-            // drawer (D3), so every card class is md-scoped.
-            className={`hms-rail hms-sidebar-border hidden shrink-0 flex-col bg-(--sidebar-rail) md:flex ${navigationOpen ? "absolute inset-y-0 left-0 z-40 w-52 border-r shadow-xl md:relative md:inset-auto md:m-2 md:max-h-[calc(100dvh-1rem)] md:self-start md:rounded-xl md:border md:shadow-sm" : "w-16 border-r md:m-2 md:max-h-[calc(100dvh-1rem)] md:w-20 md:self-start md:rounded-xl md:border md:shadow-sm"}`}
+            // A flat, full-height ink column from md (#1836 D1). The rail is
+            // never a card; below md it is not rendered (the phone menu is).
+            className={`hms-rail hidden shrink-0 flex-col bg-(--sidebar-rail) md:flex md:h-full ${navigationOpen ? "absolute inset-y-0 left-0 z-40 w-52 shadow-xl md:relative md:inset-auto md:shadow-none" : "w-16 md:w-20"}`}
           >
             <div className={`flex h-16 items-center ${navigationOpen ? "px-4" : "justify-center"}`}>
               <GuardedLink
                 href="/dashboard"
                 aria-label="Helivanta home"
-                className="flex h-9 items-center gap-2 rounded-lg text-lg font-semibold text-sidebar-primary"
+                className="flex h-9 items-center gap-2 rounded-lg text-lg font-semibold text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--sidebar-ring)"
               >
-                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                  <BrandLogo key={branding.logo_url} branding={branding} compact />
+                {/* The platform's own mark; a tenant logo is designed for a
+                    light surface and goes in the header row (#1836 D1). #1835
+                    replaces this icon with the generated mark. */}
+                <span className="flex h-9 w-9 items-center justify-center">
+                  <HeartPulse className="size-6" aria-hidden="true" />
                 </span>
                 {navigationOpen && (
                   <span className="text-sm text-sidebar-foreground">Helivanta</span>
@@ -719,7 +735,7 @@ export function HmsShell({
                 aria-label={navigationOpen ? "Collapse navigation" : "Expand navigation"}
                 title={navigationOpen ? "Collapse navigation" : "Expand navigation"}
                 onClick={() => setNavigationOpen(!navigationOpen)}
-                className={`flex h-9 w-9 items-center justify-center rounded-lg text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--hms-accent) ${navigationOpen ? "ml-2" : ""}`}
+                className={`flex h-9 w-9 items-center justify-center rounded-lg text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--sidebar-ring) ${navigationOpen ? "ml-2" : ""}`}
               >
                 {navigationOpen ? (
                   <ChevronsLeft className="size-4" aria-hidden="true" />
@@ -730,11 +746,11 @@ export function HmsShell({
             </div>
           </aside>
 
-          {/* Right of the rail: the header card spans the panel and the page, and
-            the panel and page sit below it, top-aligned (#1286 D6). The header
-            is outside the scroll container, so it needs no sticky backdrop. */}
-          <div className="flex min-w-0 flex-1 flex-col md:gap-2 md:py-2 md:pr-2">
-            <header className="hms-sidebar-border z-30 shrink-0 border-b bg-background md:rounded-xl md:border md:bg-(--sidebar-rail) md:shadow-sm">
+          {/* Right of the rail: the header row spans the panel and the page, and
+            the panel and page sit below it (#1836 D2, D3). The header is outside
+            the scroll container, so it needs no sticky backdrop. */}
+          <div className="flex min-w-0 flex-1 flex-col">
+            <header className="z-30 shrink-0 border-b border-border bg-background">
               <div className="flex min-h-16 flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
                 <div className="flex items-center gap-2">
                   <button
@@ -748,6 +764,7 @@ export function HmsShell({
                   >
                     <Menu className="h-5 w-5" aria-hidden="true" />
                   </button>
+                  <HeaderLogo key={branding.logo_url} branding={branding} />
                   {/* The header names the hospital on every page, so the tenant is
                       never off screen. */}
                   <span
@@ -775,7 +792,7 @@ export function HmsShell({
                 A single-page zone has none: it would repeat the rail's one link
                 (#1255 spec D4). */}
               {hasPagePanel && (
-                <aside className="hms-page-panel hms-sidebar-border hidden shrink-0 flex-col overflow-hidden bg-(--sidebar-rail) md:static md:mr-2 md:flex md:max-h-full md:w-56 md:self-start md:rounded-xl md:border md:shadow-sm">
+                <aside className="hms-page-panel hidden shrink-0 flex-col overflow-hidden border-r border-border md:static md:flex md:h-full md:w-56">
                   <nav
                     aria-label={zone.label}
                     className="flex w-56 min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-3 py-4"
@@ -796,7 +813,7 @@ export function HmsShell({
                             {heading && (
                               <p
                                 data-section
-                                className={`px-3 pb-1 text-xs font-medium text-sidebar-foreground/60 ${index > 0 ? "pt-4" : ""}`}
+                                className={`px-3 pb-1 text-xs font-medium text-muted-foreground ${index > 0 ? "pt-4" : ""}`}
                               >
                                 {heading}
                               </p>
@@ -807,8 +824,8 @@ export function HmsShell({
                               onClick={closeOverlays}
                               className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                                 isActive
-                                  ? "bg-sidebar-accent text-sidebar-foreground"
-                                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                                  ? "hms-page-current text-foreground"
+                                  : "text-muted-foreground hover:bg-accent hover:text-foreground"
                               }`}
                             >
                               <pageLink.icon className="h-4 w-4 shrink-0" aria-hidden="true" />
@@ -829,7 +846,7 @@ export function HmsShell({
               >
                 {/* A size container, so a list lays out by the space it has: the
                   rail expanding changes that without the viewport changing (#1303). */}
-                <main className="@container/main flex-1 px-6 pt-6 pb-6 md:pt-0">
+                <main className="@container/main flex-1 p-6">
                   {/* Left-aligned with the header card, not centred: centring left an
                     empty band beside the rail on a page with no panel (#1296). A zone
                     declares full width in zones.ts; it still stops at 1760px. */}

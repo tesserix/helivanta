@@ -37,6 +37,7 @@ func assertHospitalStocktakeWorkflow(t *testing.T, db *tenantdb.DB, call func(*t
 	for _, subject := range []string{counter, reviewer} {
 		call(t, "DELETE", base+"/access/"+subject, owner, nil, 200)
 	}
+	assertHospitalStocktakeDepartmentChoices(t, call, hospital, department, revision, owner, counter, reviewer)
 	survivingChoices := assertHospitalStocktakeOutletDiscovery(t, call, hospital, department, revision, pharmacy, outlet, owner, counter, reviewer, approved["binding"].(map[string]any))
 	root := "/v1/pharmacy/hospitals/" + hospital + "/departments/" + department + "/pharmacies/" + pharmacy + "/outlets/" + outlet + "/stocktakes"
 	take := v7()

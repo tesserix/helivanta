@@ -352,3 +352,26 @@ Disabling Low stock hides the workspace and denies its APIs. Broad Stock also
 depends on it, preventing legacy list/count exposure if Stock is enabled later.
 Configuration history remains retained. General Catalogue, Reports, receiving,
 ordering and financial capabilities remain governed by their own release gates.
+
+### Low-stock read-policy migration gate
+
+`0071_pharmacy_low_stock_scope_read` is a forward-only read-policy optimization
+for catalogue products, reorder levels, stock batches, movements and locations.
+It retains exact row tenant/outlet checks and evaluates the existing current
+outlet grant once per statement. It does not cache authority between requests.
+No write, alternate read, restrictive purpose or policy-role clause is replaced.
+
+Before production application, retain the exact-head hosted predecessor/new
+visibility tests, write/purpose metadata checks, denial/revocation, both-owner
+browser acceptance and original 10,000-product p99 ≤500 ms evidence. Obtain
+explicit approval naming this migration and the signed release commit. Capture
+the five current policies' expressions, roles and purpose-integrity result in
+protected operational evidence before release; no credentials or private data
+belong in the public repository.
+
+The migration refuses an unexpected predecessor and uses five-second lock and
+60-second statement limits. If it refuses or times out, investigate the exact
+policy discrepancy; do not weaken its guard or edit an applied migration. It has
+no automatic down migration. Rolling back an application image leaves the
+compatible policy optimization in place; reverting the policy requires a new
+reviewed forward migration with separately approved production application.

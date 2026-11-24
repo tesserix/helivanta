@@ -1,6 +1,6 @@
 {
   "format_version": 1,
-  "registry_sha256": "0ef1654be2fdb2bacb7763a2f79133758937c4c129f7861e28b7449c5bd1a5e5",
+  "registry_sha256": "14fe519d1188f6a93204783a4caa381efe4a85881dca882110eb85da374053be",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
     "total": 1256,

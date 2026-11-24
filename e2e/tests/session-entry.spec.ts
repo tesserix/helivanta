@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { login } from "./support/login";
+import { login, specAdmin } from "./support/login";
 
 function observeChallenges(page: Page): string[] {
   const challenges: string[] = [];
@@ -46,14 +46,16 @@ test("marketing sign-in resumes the same authenticated tenant without credential
   expect(challenges).toEqual([]);
 });
 
-// #1751 spec D1: with no session and no sign-out, sign-in starts on its own
-// for the remembered account. prompt=login keeps it deliberate: it reaches
-// the password card and nothing is granted, no email code is sent and no
+// #1751 spec D1: with no session and no sign-out, sign-in starts on its own.
+// It is unscoped even though this browser just used a workspace (#1820 spec
+// D1), and offers the remembered email. prompt=login keeps it deliberate: it
+// reaches the card and nothing is granted, no email code is sent and no
 // credential is checked, until a password is typed.
-test("a missing app session reopens the remembered account's password card without any challenge", async ({
+test("a missing app session reopens the email card with the remembered name and no challenge", async ({
   page,
 }) => {
-  await login(page);
+  const user = specAdmin();
+  await login(page, user);
   await page.context().clearCookies({ name: "helivanta_session" });
   const challenges = observeChallenges(page);
   const refused = page.waitForResponse(
@@ -63,10 +65,10 @@ test("a missing app session reopens the remembered account's password card witho
   );
   await page.goto("/login?start=1");
   expect((await refused).status()).toBe(401);
-  await expect(page.getByLabel("Email or username", { exact: true })).toBeVisible({
+  await expect(page.getByLabel("Email or username", { exact: true })).toHaveValue(user.email, {
     timeout: 30_000,
   });
-  await expect(page.getByText("Enter your password to continue.")).toBeVisible();
+  await expect(page.getByText("Sign in with your email and password.")).toBeVisible();
   await expect(page).toHaveURL(/\/login\?authRequest=/);
   expect(challenges.filter((path) => path !== "/oauth/v2/authorize")).toEqual([]);
   const probe = await page.request.get("/api/v1/iam/me/permissions");

@@ -174,7 +174,7 @@ export const releaseDefinitions = [
     key: "pharmacy_low_stock",
     owner: "pharmacy",
     dependencies: ["pharmacy_setup"],
-    eligible: false,
+    eligible: true,
     review_after: "2027-02-16",
   },
 ] as const;

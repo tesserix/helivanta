@@ -1,6 +1,7 @@
 # Low-stock release activation — #1685
 
-Status: development design; this document activates no feature.
+Status: implemented and hosted acceptance passed; production release and live
+acceptance pending. This document activates no feature.
 
 ## Verified implementation and remaining work
 
@@ -183,3 +184,27 @@ materialized canonical aggregate per statement and at most two scalar reads.
 This prevents large tuple rescans under either plan without forcing a planner
 mode, changing authority, caching between requests or relaxing the 500 ms gate.
 Retain both custom/generic actual-role plan evidence after this correction.
+
+## Accepted candidate evidence
+
+Hosted run [45405102721](https://github.com/tesserix/helivanta/actions/runs/45405102721)
+passed owner, real Global API, built-browser and capacity gates on `7c871c33`.
+The complete pharmacy package passed with the race detector (308.851 seconds).
+Both ownership models passed uncertain-save recovery, reader denial, grant
+revocation, count/list refresh and disabled/broad capability boundaries.
+
+Each capacity outlet had 10,000 configured products, including 1,000 released
+buckets and 9,000 products without batches, created through owner APIs. All 200
+pages returned exactly the expected products/quantities without duplicates or
+loss, and all 100 summary reads returned the exact count.
+
+| Ownership | Page p99 | Overview p99 | Custom plan | Generic plan |
+| --- | ---: | ---: | ---: | ---: |
+| Independent | 365.755 ms | 339.204 ms | 353.121 ms | 347.658 ms |
+| Hospital-owned | 352.775 ms | 337.058 ms | 349.628 ms | 343.789 ms |
+
+The original 500 ms target is unchanged. Canonical eligibility can now be true;
+the provider's desired flag still controls availability. Protected checks on the
+final release head, approved migration/signed rollout, matching chart catalogue,
+audited Console enablement and live owner acceptance remain delivery gates.
+Hosted synthetic acceptance does not prove live onboarding or Staff sign-in.

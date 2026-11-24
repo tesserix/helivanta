@@ -32,7 +32,7 @@ var definitions = []Definition{{Key: "onboarding", Eligible: true, Dependencies:
 	{Key: "billing_workspace", Eligible: false, Dependencies: []string{}},
 	{Key: "unreleased", Eligible: false, Dependencies: []string{}},
 	{Key: "pharmacy_stocktake", Eligible: true, Dependencies: []string{"pharmacy_setup"}},
-	{Key: "pharmacy_low_stock", Eligible: false, Dependencies: []string{"pharmacy_setup"}}}
+	{Key: "pharmacy_low_stock", Eligible: true, Dependencies: []string{"pharmacy_setup"}}}
 var routeCapabilities = map[string]string{"POST /v1/workforce/hospitals/:hospital/staff/:id/mfa-recoveries/:command/cancel": "baseline",
 	"POST /v1/workforce/pharmacies/:pharmacy/staff/:id/mfa-recoveries/:command/cancel": "baseline",
 	"POST /v1/workforce/suppliers/:supplier/staff/:id/mfa-recoveries/:command/cancel":  "baseline",

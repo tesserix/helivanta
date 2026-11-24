@@ -54,3 +54,29 @@ func TestBroadStockCannotExposeWarningsWhenLowStockIsDisabled(t *testing.T) {
 		})
 	}
 }
+
+func TestReviewedLowStockFollowsProviderWithoutUnlockingBroadWorkflows(t *testing.T) {
+	for _, enabled := range []bool{false, true} {
+		t.Run(fmt.Sprint(enabled), func(t *testing.T) {
+			now := time.Now().UTC()
+			payload := fmt.Sprintf(`{"features":{
+				"helivanta.release.team_accounts":{"defaultValue":true},
+				"helivanta.release.pharmacy_setup":{"defaultValue":true},
+				"helivanta.release.pharmacy_low_stock":{"defaultValue":%t},
+				"helivanta.release.pharmacy_catalogue":{"defaultValue":true},
+				"helivanta.release.pharmacy_stock":{"defaultValue":true},
+				"helivanta.release.pharmacy_counter":{"defaultValue":true},
+				"helivanta.release.pharmacy_payables":{"defaultValue":true},
+				"helivanta.release.supplier_collaboration":{"defaultValue":true}
+			}}`, enabled)
+			service := testService(t, &payload, &now)
+			require.NoError(t, service.Refresh(t.Context()))
+			snapshot, err := service.Snapshot(t.Context(), uuid.MustParse("018f8f5b-1111-7111-8111-111111111111"), "TEST-owner")
+			require.NoError(t, err)
+			require.Equal(t, enabled, available(t, snapshot, "pharmacy_low_stock"))
+			for _, key := range []string{"pharmacy_catalogue", "pharmacy_stock", "pharmacy_counter", "pharmacy_payables", "supplier_collaboration"} {
+				require.False(t, available(t, snapshot, key), key)
+			}
+		})
+	}
+}

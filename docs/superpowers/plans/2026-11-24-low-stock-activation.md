@@ -1,68 +1,70 @@
 # Delivery plan — low-stock activation #1685
 
-1. Add and observe failing release-boundary tests, then canonical narrow capability
-   and route/page classifications; eligibility remains false.
-2. Add failing owner tests for product choices, exact reload and overview parity,
-   permission/scope/query boundaries and disclosure audit failure. Implement the
-   narrow projections using existing scoped transactions and lowStockSource.
-3. Add canonical models/SDK validation and failing UI tests. Reuse the minimum
-   editor with its narrow product source, add named overview/list entry and ensure
-   scope/authorization failures hide stale details and pending commands recover.
-4. Prove the real built-browser → Global API → owner workflow with broad pharmacy
-   capabilities off, plus 10,000-product list/summary capacity and original stock
-   semantics/replay/isolation regressions on hosted infrastructure.
-5. Generate/check contracts, run affected local tests/lints/builds and remove build
-   outputs. Record actual red/green evidence. Commit and push incremental work.
-6. After focused gates pass, prepare reviewed eligibility and matching chart
-   catalogue. Merge passing protected checks; deploy signed application revision
-   through normal Release/Kargo. Sync the chart and enable only low stock through
-   Console; verify scheduled preservation and authenticated browser acceptance.
-7. Update #1685 with exact evidence and close only when its acceptance is met.
+## Implemented and verified
 
-7. **Measured performance correction (pending hosted acceptance).** Run 45381432835
-   failed the original 500 ms gate (page p99 2.997 s, count 3.223 s); the hospital
-   case exhausted the overall test timeout. Diagnostic 45383663086 retains actual
-   EXPLAIN plans (count 2.789 s, first page 2.874 s). Migration 0071 preserves the
-   row tenant/outlet boundary and same grant function while evaluating that
-   statement-local grant in a scalar SELECT. Verify predecessor/new visibility,
-   unchanged writes/purposes/other read branches, unexpected-predecessor refusal,
-   both ownership regressions and unchanged capacity target. Request explicit
-   production migration approval only with concrete passing evidence.
+1. Dedicated `pharmacy_low_stock` release boundary, dependent on Setup, with
+   canonical route/page/panel classifications. Broad Stock also depends on Low
+   stock so its old overview cannot bypass withdrawal.
+2. Scoped owner projections for bounded product choices, exact product reload,
+   minimum revision/receipt recovery, warnings and exact overview count. Successful
+   disclosures require committed audit evidence; unavailable authority fails closed.
+3. Generated Go/Zod contracts and validated SDK, named Low stock workspace,
+   reader/editor controls, stale-data hiding and uncertain-save recovery.
+4. Forward migration `0071_pharmacy_low_stock_scope_read`: statement-local existing
+   grant evaluation, centralized canonical lot/bucket projections and guarded
+   hospital source-seal update. Existing writes, purpose policies, forced RLS,
+   signatures, stock arithmetic and runtime restrictions remain enforced.
+5. Measured query correction: materialize canonical outlet totals once and read
+   the numeric JSONB lookup through scalar InitPlans, avoiding repeated large
+   tuple scans under generic plans. No persistent count/stock cache or planner
+   override is introduced.
 
-Observed candidate evidence as of 24 November:
-- Full local API 2,012, shell 2,378 and shared UI 333 tests passed.
-- Built-browser and Global API acceptance passed both ownership models on
-  `527dcfe4`, hosted run `45386011073` (before the read-policy migration).
-- The dedicated outlet-access read now belongs to Setup; an observed browser 404
-  and local release-classifier regression proved the prior Catalogue lock.
-- Local affected builds, Go vet/lint, generators, source-review and contract checks
-  passed; generated build artifacts were removed. No local app/DB/container ran.
-- Performance, migration acceptance, exact-head protected checks, normal merge,
-  signed release, Console activation and deployed acceptance remain pending.
+Hosted run [45405102721](https://github.com/tesserix/helivanta/actions/runs/45405102721)
+passed owner, real Global API, built-browser and capacity on `7c871c33`:
 
-8. **Remaining measured cost (pending acceptance).** First policy optimization
-   reduced the catalogue scan to 41 ms but count/page plans remained 1.830/1.840 s.
-   The same unapplied migration now centralizes relational lot reasons and bulk
-   canonical buckets; legacy functions delegate with compatible signatures,
-   null-day/missing-lot behavior, rule priority, holds and arithmetic. The warning
-   source aggregates once per outlet. Run all affected pharmacy regressions,
-   explicit bulk/product/blocked-lot parity and the unchanged capacity gate.
-   Enable nothing until these pass; production approval must include the
-   function delegations as well as policy evaluation.
+| Ownership | Complete pages | Page p99 | Exact overview reads | Overview p99 |
+| --- | ---: | ---: | ---: | ---: |
+| Independent | 200 | 365.755 ms | 100 | 339.204 ms |
+| Hospital-owned | 200 | 352.775 ms | 100 | 337.058 ms |
 
-9. **Wider gate corrections (pending acceptance).** On 0347e7ff, browser and
-   bulk/product/rule-parity tests pass. Count p99 is 373/377 ms, but pages
-   933/942 ms still fail. Use a materialized query-local keyed numeric aggregate
-   to remove the observed 9.5-million-row nested-loop rescan; preserve 500 ms.
-   Full pharmacy and compound-admission regressions detected the hospital
-   stocktake seal's old movement-policy fingerprint. Validate the exact previous
-   seals/choice structure, compare all unrelated metadata, then re-pin the one
-   controlled read-clause change. Prove unrelated evidence, choice, index and
-   guard-property drift is refused atomically; retain all runtime restrictions.
+Each outlet contained 10,000 configured products, 1,000 released buckets and
+9,000 zero-batch products created through owner APIs. Product identity/quantity,
+complete pagination and exact counts passed. Actual-role custom/generic plans
+also remained below the unchanged 500 ms budget. The complete affected pharmacy
+package passed with `-race` in 308.851 seconds, including original hospital
+stocktake integrity/tamper and bulk/legacy rule parity.
 
-10. **Prepared-plan correction (pending acceptance).** Diagnostic 96feb933
-    recorded page p99 534 ms at page 7 (count 244 ms), 194 generic/five custom
-    page executions, and 285 ms custom versus 542 ms generic execution at that
-    cursor. Generic rescanned the materialized JSONB tuple 9,650 times. Use
-    uncorrelated scalar InitPlans to read that one statement-local aggregate
-    once per expression. Keep both models, all pages/counts and 500 ms unchanged.
+Earlier measured failures drove these optimizations: original page/count p99
+2.997/3.223 seconds, then 933/942 ms pages, then a 534 ms generic-plan page.
+No acceptance target was raised. Migration tests cover predecessor/new visibility,
+unchanged writes/purposes, unrelated metadata drift refusal and rollback atomicity.
+Built-browser tests cover original receipt recovery after a lost committed
+response, reader write denial, revoked-grant stale-data removal, disable/count
+refresh, exactly two attributable revisions and no physical stock movements.
+
+Local evidence before eligibility: full API 2,012, shell 2,378 and shared UI 333
+tests passed, plus focused checks, Go vet/lint, generators, contractdocs/source
+review and affected production builds. Generated build artifacts were removed.
+No local app, database, container or Colima ran. The new provider-controlled
+eligibility regression was observed red before regeneration and green after it;
+the matching chart test likewise failed before catalogue sync and passed after.
+
+## Remaining delivery gates
+
+1. Validate final eligibility/generated outputs and matching chart catalogue,
+   affected local builds/checks, and remove generated build artifacts.
+2. Push the stable final head and pass all required protected checks; merge
+   application PR #1842 normally. Keep the GitOps catalogue PR #1723 aligned.
+3. Publish signed main images. Capture the five live policies, roles, forced-RLS
+   and purpose/source integrity before release. Obtain explicit approval naming
+   migration 0071 (including function delegation/source-seal update) and the
+   signed release revision; run the normal reviewer-gated Release/Kargo flow.
+4. Verify migration completion, exact signed workload digests and readiness.
+   Merge/sync the matching chart catalogue in the release sequence. Enable only
+   Low stock through audited Console controls and verify a later scheduled sync
+   preserves the acknowledged desired value.
+5. Exercise the actual signed-in owner UI and Global API using authorized
+   synthetic existing products/outlets, including denial and recovery checks.
+   Record actual running revision and unexecuted cases explicitly.
+6. Update and close #1685 only after deployed acceptance. Automatic ordering stays
+   in #1144. Hosted fixtures do not prove live onboarding or Staff sign-in.

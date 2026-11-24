@@ -5,6 +5,12 @@ on:
     paths:
       - "backend/internal/modules/pharmacy/reorder*"
       - "backend/internal/release/**"
+      - "backend/internal/globalapi/low_stock*"
+      - "apps/shell/components/pharmacy/low-stock*"
+      - "apps/shell/components/pharmacy/pharmacy-workspace*"
+      - "apps/shell/app/(workspace)/pharmacy/low-stock/**"
+      - "packages/api/src/pharmacy-reorder*"
+      - "scripts/verify-low-stock.mjs"
       - "contracts/pharmacy.json"
       - "contracts/release-capabilities.json"
       - ".github/workflows/low-stock.yml"
@@ -30,6 +36,10 @@ jobs:
           cache: false
       - name: Reorder owner semantics and narrow projections
         run: go test -race -v -count=1 -timeout 20m ./internal/modules/pharmacy -run '^TestReorder'
+      - name: Narrow admission and object authority through Global API
+        run: go test -race -v -count=1 -timeout 8m ./internal/globalapi -run '^TestLowStockThroughGlobalAPI$'
+      - name: Single-result and paginated contract boundaries
+        run: go test -count=1 ./internal/archtest -run '^TestEveryCollectionGETIsPaginated$'
   capacity:
     runs-on: ubuntu-latest
     timeout-minutes: 35

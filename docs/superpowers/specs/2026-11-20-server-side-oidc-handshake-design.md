@@ -2,7 +2,7 @@
 
 **Issue:** [#915](https://github.com/tesserix/helivanta/issues/915). This spec widens #915 from "move the code exchange" to the whole handshake.
 **Also resolves:** [#1289](https://github.com/tesserix/helivanta/issues/1289) (one-step sign-in), finished at the server.
-**Builds on:** [#1751](https://github.com/tesserix/helivanta/issues/1751) / PR #1754 (single sign-in card) and PR #1758 (one pending card).
+**Builds on:** [#1751](https://github.com/tesserix/helivanta/issues/1751) (unscoped sign-in), PR #1819 (single sign-in card), PR #1828 ([sign-in never routes by memory](2026-11-24-no-sign-in-routing-by-memory-design.md)) and PR #1830 ([Sign in again starts fresh](2026-11-24-sign-in-again-starts-fresh-design.md)).
 **Revisits:** [D1 and D4a of the Zitadel auth design](2026-08-15-zitadel-auth-design.md). Its author must agree; see "Decisions that need agreement".
 **Reference implementation:** mark8ly admin, `apps/admin/app/login/authorize/route.ts`, plus the session-cookie size guard in tesserix-home `packages/platform-auth/src/session-cookie-size.ts` (#915, 2026-08-19 comments).
 
@@ -46,7 +46,7 @@ The Go API, not Next.js, because it already holds the login-client PAT and the s
 
 - sealed with AES-GCM under a key derived from the session signing key (HKDF, info `helivanta-oidc-handshake-v1`);
 - `HttpOnly; Secure; SameSite=Lax; Path=/api/v1/auth/oidc`;
-- `Max-Age` of 10 minutes.
+- `Max-Age` of 60 minutes, the same as the browser's started-sign-in lifetime today (`staleStateAgeInSeconds`, commit `c7e8ba83`). A first sign-in includes finding and setting up an authenticator app, and a shorter lifetime strands the person after every step succeeded (#1767). The cookie is single-use and PKCE-bound, so the longer lifetime does not widen what a stolen code can do.
 
 `Lax`, not `Strict`: the callback is a top-level cross-site navigation from Zitadel, and `Strict` would drop the cookie. A fresh start overwrites any earlier cookie, so two tabs racing a start leaves the later one winning and the earlier callback refused. The refusal lands on the landing page with the existing "start again" wording, and the person loses nothing. The size is bounded and checked at mint, with the console's guard ported per #915: refuse loudly with the byte count, and warn at 90%.
 
@@ -54,15 +54,18 @@ The Go API, not Next.js, because it already holds the login-client PAT and the s
 
 `app/login/page.tsx` becomes a server component at the top. It reads the request, decides, and redirects before rendering:
 
-| Request | Answer |
-|---|---|
-| `?authRequest=…` | Render the credential card, as today. |
-| `?find=accounts` | Render the emailed-code finder, as today. |
-| A session-end cookie (D5) | Render the landing with its wording and button, and clear the cookie. |
-| A `helivanta_session` cookie | Render the client session check, as today. A cookie is not proof of a session, and the check can rotate it. |
-| None of the above | 302 to `/api/v1/auth/oidc/start` with the remembered-workspace purpose, or `email-login` if there is none. |
+| Request                      | Answer                                                                                                                                                    |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `?authRequest=…`             | Render the credential card, as today.                                                                                                                     |
+| `?find=accounts`             | Render the emailed-code finder, as today.                                                                                                                 |
+| `?workspace=<uuid>&start=1`  | 302 to `/api/v1/auth/oidc/start` with `workspace-login` for that tenant. This is the signup hand-off and the workspace form of **Sign in again** (#1830). |
+| `?workspace=<uuid>`          | Render the landing with its button, which starts `workspace-login` for that tenant, as today.                                                             |
+| `?again=1`                   | 302 to start with `email-login`, without consulting the live session (#1830 D1).                                                                          |
+| A session-end cookie (D5)    | Render the landing with its wording and button, and clear the cookie.                                                                                     |
+| A `helivanta_session` cookie | Render the client session check, as today. A cookie is not proof of a session, and the check can rotate it.                                               |
+| None of the above            | 302 to start with `email-login`.                                                                                                                          |
 
-The remembered workspace moves from `localStorage` to a long-lived cookie, `helivanta_workspace`, holding the tenant UUID only. The server cannot read `localStorage`, and the hint is routing, not a credential. It has the same 30-day lifetime and the same write points, now set by the callback.
+A tenant that is not a lowercase UUID is refused by start, never guessed. Only the URL pins a workspace ([#1828 D1](2026-11-24-no-sign-in-routing-by-memory-design.md)): there is no remembered-workspace cookie, and nothing stored in the browser chooses the workspace. **Not your workspace?** on a pinned card links to plain `/login`, the last row.
 
 The common case, a fresh visitor with no cookie, therefore sees exactly one page: the card.
 
@@ -71,7 +74,10 @@ The common case, a fresh visitor with no cookie, therefore sees exactly one page
 The browser no longer has an `id_token` to pass as `id_token_hint`. `POST /v1/iam/me/sign-out` already writes the revocation watermark. It additionally ends the Zitadel session that the session claims record:
 
 - The callback stores the `id_token`'s `sid` in `pkg/session.Claims` as `ZitadelSessionID`, which adds a few dozen bytes.
-- Sign-out calls `DELETE /v2/sessions/{sid}` with the login-client PAT, the method #1754 added.
+- Sign-out calls `DELETE /v2/sessions/{sid}` with the login-client PAT.
+
+This depends on spike 1 below. `loginclient.DeleteSession` today sends the session's own token with the delete, and Helivanta holds that token only for sessions it created itself. If the PAT alone cannot delete the session, the fallback in spike 1 applies.
+
 - On success it 302s to `/login`. The browser never navigates to Zitadel's end-session endpoint again.
 
 Fail direction: if the Zitadel delete fails, the Helivanta session is still revoked and the cookie cleared (#781's watermark is what protects the next user). `prompt=login` on every interactive start (D1) means a surviving Zitadel session can never sign the next person in silently. The failure is logged at error level so a delete that is never working is visible.
@@ -108,12 +114,12 @@ The exception for `renewSession` remains.
 
 ## Decisions that need agreement
 
-- **Public client with PKCE versus confidential client.** #915 proposed a confidential client. This spec keeps the app a **public client with PKCE**: the verifier never leaves the server and the sealed cookie, so a stolen code cannot be exchanged. That avoids a new client secret to provision through OpenBao → ESO. Switching to `private_key_jwt` later is a provisioning change only. *Needs the D1 author's agreement.*
+- **Public client with PKCE versus confidential client.** #915 proposed a confidential client. This spec keeps the app a **public client with PKCE**: the verifier never leaves the server and the sealed cookie, so a stolen code cannot be exchanged. That avoids a new client secret to provision through OpenBao → ESO. Switching to `private_key_jwt` later is a provisioning change only. _Needs the D1 author's agreement._
 - **D1/D4a of the 2026-08-15 design.** D1's "public client in the browser" premise is replaced. D4a stands: no refresh token, no `offline_access`, and renewal remains first-party.
 
 ## Must be proven before implementation (spike, dev Zitadel)
 
-1. That the `id_token`'s `sid` equals the v2 session id, and that the login-client PAT may `DELETE /v2/sessions/{id}` for a session it did not create through the session API. That is the case for a Zitadel-UI session; Helivanta's own sessions are created by the PAT. If either fails, D4 falls back to a server-built end-session redirect with `client_id` and `post_logout_redirect_uri`, whose behaviour without `id_token_hint` must then be verified the same way.
+1. That the `id_token`'s `sid` equals the v2 session id, and that the login-client PAT may `DELETE /v2/sessions/{id}` without that session's token. The existing `loginclient.DeleteSession` sends the token, so this is not yet shown. If either fails, D4 falls back to a server-built end-session redirect with `client_id` and `post_logout_redirect_uri`, whose behaviour without `id_token_hint` must then be verified the same way.
 2. That `SameSite=Lax` cookies on `/api/v1/auth/oidc` survive Zitadel's 302 in Chromium, Firefox and Safari, as an e2e assertion.
 
 ## Not in scope

@@ -3,6 +3,9 @@
 Resolves #1286. Builds on the sidebar spec (#1270, `2026-10-22-sidebar-design.md`), whose
 D1–D5 stand unchanged.
 
+Amended 2026-11-24 by `2026-11-24-app-chrome-flat-rail-design.md` (#1836): D1 and D6 reversed;
+D2 to D5 stand.
+
 ## Problem
 
 The zone rail and the page panel are full-height columns. With a short list (PharmaConnect

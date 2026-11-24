@@ -66,7 +66,7 @@ func assertHospitalStocktakeDepartmentChoices(t *testing.T, call func(*testing.T
 		}
 		require.Len(t, seen, 2)
 	}
-	call(t, "GET", endpoint, owner, nil, 403)
+	call(t, "GET", endpoint, owner, nil, 404)
 	call(t, "GET", endpoint+"?include_retired=true", counter, nil, 400)
 	call(t, "GET", "/v1/pharmacy/hospitals/"+hospital+"/departments/"+sibling+"/stocktake-department-choices", counter, nil, 404)
 }

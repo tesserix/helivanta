@@ -67,6 +67,12 @@ func TestLowStockCapacityAtTenThousandProducts(t *testing.T) {
 				}
 				return nil
 			}))
+			type measuredPage struct {
+				elapsed time.Duration
+				cursor  string
+				index   int
+			}
+			var measured []measuredPage
 			var pageTimes, countTimes []time.Duration
 			seen := map[string]bool{}
 			cursor := ""
@@ -77,7 +83,9 @@ func TestLowStockCapacityAtTenThousandProducts(t *testing.T) {
 				}
 				start := time.Now()
 				result := do(w.r, "GET", path, "editor", "")
-				pageTimes = append(pageTimes, time.Since(start))
+				elapsed := time.Since(start)
+				pageTimes = append(pageTimes, elapsed)
+				measured = append(measured, measuredPage{elapsed: elapsed, cursor: cursor, index: len(measured)})
 				require.Equal(t, 200, result.Code, result.Body.String())
 				var page struct {
 					Data []struct {
@@ -128,8 +136,93 @@ func TestLowStockCapacityAtTenThousandProducts(t *testing.T) {
 			}
 			pageP99, countP99 := p99(pageTimes), p99(countTimes)
 			t.Logf("%s capacity: %d complete pages p99=%s; 100 overview reads p99=%s", ownership, len(pageTimes), pageP99, countP99)
+			for _, sample := range measured {
+				if sample.elapsed != pageP99 {
+					continue
+				}
+				params := pagination.Params{Limit: 50}
+				if sample.cursor != "" {
+					after, err := pagination.Decode(sample.cursor, testutil.TenantA)
+					require.NoError(t, err)
+					params.After = &after
+				}
+				t.Logf("%s page p99 at zero-based page %d", ownership, sample.index)
+				lowStockPreparedPagePlans(t, &w, ownership, params)
+				break
+			}
 			require.LessOrEqual(t, pageP99, 500*time.Millisecond, "original page-read budget")
 			require.LessOrEqual(t, countP99, 500*time.Millisecond, "original overview-read budget")
 		})
 	}
+}
+
+// Prepared generic plans reproduce the driver's repeated-page path; the first
+// EXPLAIN alone can hide a later plan switch.
+func lowStockPreparedPagePlans(t *testing.T, w *releaseWorld, ownership string, params pagination.Params) {
+	t.Helper()
+	require.NoError(t, w.db.WithTenant(tenantdb.WithActor(t.Context(), "user-editor"), testutil.TenantA, func(tx *gorm.DB) error {
+		if err := tx.Exec("SELECT set_config('app.pharmacy_subject','user-editor',true),set_config('app.pharmacy_outlet',?,true),set_config('app.pharmacy_id',?,true)", pharmaOutlet, pharmaOrganization).Error; err != nil {
+			return err
+		}
+		if err := tx.Exec("SET LOCAL statement_timeout='8s'").Error; err != nil {
+			return err
+		}
+		var cached []struct {
+			Statement    string
+			GenericPlans int64
+			CustomPlans  int64
+		}
+		if err := tx.Raw("SELECT statement,generic_plans,custom_plans FROM pg_prepared_statements WHERE statement LIKE '%WITH available AS MATERIALIZED%'AND statement NOT LIKE '%pg_prepared_statements%'ORDER BY statement").Scan(&cached).Error; err != nil {
+			return err
+		}
+		for _, statement := range cached {
+			t.Logf("%s cached source plan generic=%d custom=%d: %s", ownership, statement.GenericPlans, statement.CustomPlans, statement.Statement)
+		}
+		source := pharmacy.LowStockSource(tx, testutil.TenantA, uuid.MustParse(pharmaOutlet), time.Now().UTC())
+		var rows []map[string]any
+		query := tenantdb.ApplyKeyset(tx.Session(&gorm.Session{DryRun: true}), params).Table("(?) low_stock", source).Find(&rows)
+		if err := tx.Exec("PREPARE low_stock_capacity_page AS " + query.Statement.SQL.String()).Error; err != nil {
+			return err
+		}
+		defer tx.Exec("DEALLOCATE low_stock_capacity_page")
+		literals := make([]string, len(query.Statement.Vars))
+		for i, value := range query.Statement.Vars {
+			// Only canonical UUIDs, server timestamps and integer limits can enter this
+			// diagnostic EXECUTE. No request strings or arbitrary SQL literals enter it.
+			switch value := value.(type) {
+			case uuid.UUID:
+				literals[i] = "'" + value.String() + "'"
+			case time.Time:
+				literals[i] = "'" + value.UTC().Format(time.RFC3339Nano) + "'"
+			case int:
+				literals[i] = fmt.Sprint(value)
+			case int64:
+				literals[i] = fmt.Sprint(value)
+			case string:
+				if id, err := uuid.Parse(value); err == nil {
+					literals[i] = "'" + id.String() + "'"
+					continue
+				}
+				stamp, err := time.Parse(time.RFC3339Nano, value)
+				if err != nil {
+					return fmt.Errorf("unexpected capacity-plan parameter type: %T", value)
+				}
+				literals[i] = "'" + stamp.UTC().Format(time.RFC3339Nano) + "'"
+			default:
+				return fmt.Errorf("unexpected capacity-plan parameter type: %T", value)
+			}
+		}
+		for _, mode := range []string{"force_custom_plan", "force_generic_plan"} {
+			if err := tx.Exec("SELECT set_config('plan_cache_mode',?,true)", mode).Error; err != nil {
+				return err
+			}
+			var plan string
+			if err := tx.Raw("EXPLAIN(ANALYZE,BUFFERS,FORMAT JSON)EXECUTE low_stock_capacity_page(" + strings.Join(literals, ",") + ")").Scan(&plan).Error; err != nil {
+				return err
+			}
+			require.True(t, json.Valid([]byte(plan)))
+			t.Logf("%s p99-page %s actual-role plan: %s", ownership, mode, plan)
+		}
+		return nil
+	}))
 }

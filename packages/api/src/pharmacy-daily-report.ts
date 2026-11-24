@@ -9,6 +9,7 @@ export type PharmacyDailyTotals = {
   sales_taxable_minor: number;
   sales_cgst_minor: number;
   sales_sgst_minor: number;
+  sales_igst_minor: number;
   discount_minor: number;
   units_sold: number;
   credit_notes: number;
@@ -16,6 +17,7 @@ export type PharmacyDailyTotals = {
   credits_taxable_minor: number;
   credits_cgst_minor: number;
   credits_sgst_minor: number;
+  credits_igst_minor: number;
   units_returned: number;
   net_minor: number;
   cash_minor: number;

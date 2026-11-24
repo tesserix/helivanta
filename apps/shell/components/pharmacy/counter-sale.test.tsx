@@ -42,6 +42,7 @@ const line = {
   taxable_minor: 8928,
   cgst_minor: 536,
   sgst_minor: 536,
+  igst_minor: 0,
 };
 const totals = {
   currency: "INR",
@@ -49,6 +50,7 @@ const totals = {
   taxable_minor: 8928,
   cgst_minor: 536,
   sgst_minor: 536,
+  igst_minor: 0,
   nppa_ceiling_checked: false,
   charges: [] as PharmacySaleCharge[],
 };
@@ -272,6 +274,42 @@ async function basketOfEight(user: ReturnType<typeof renderWithProviders>["user"
 }
 
 describe("CounterSale", () => {
+  it("prices an Odisha recipient with IGST and sends the destination on posting", async () => {
+    const fetcher = fixture({
+      quote: () =>
+        new Response(
+          JSON.stringify({
+            ...totals,
+            place_of_supply: "21",
+            taxable_minor: 8929,
+            cgst_minor: 0,
+            sgst_minor: 0,
+            igst_minor: 1071,
+            lines: [
+              { ...line, taxable_minor: 8929, cgst_minor: 0, sgst_minor: 0, igst_minor: 1071 },
+            ],
+          }),
+        ),
+    });
+    const { user } = renderWithProviders(
+      <CounterSale scope={scope} canSell canManageProfile={false} />,
+    );
+    await basketOfEight(user);
+    await user.click(screen.getByRole("combobox", { name: "Recipient state" }));
+    await user.click(screen.getByRole("option", { name: "Odisha" }));
+    await user.click(screen.getByRole("button", { name: "Price basket" }));
+    expect(await screen.findByText("IGST", { selector: "dt" })).toBeVisible();
+    expect(screen.getByText("INR 10.71", { selector: "dd" })).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Post sale" }));
+    await screen.findByRole("heading", { name: "Tax invoice TS/2627/1" });
+    const quote = fetcher.mock.calls.find(([url]) => url.endsWith("/sales/quote"));
+    const post = fetcher.mock.calls.find(
+      ([url, init]) => /\/sales\/[0-9a-f-]{36}$/.test(url) && init?.method === "PUT",
+    );
+    expect(JSON.parse(String(quote?.[1]?.body))).toMatchObject({ place_of_supply: "21" });
+    expect(JSON.parse(String(post?.[1]?.body))).toMatchObject({ place_of_supply: "21" });
+  });
+
   it("prices the basket on the server, takes cash and shows the invoice", async () => {
     const fetcher = fixture();
     const { user } = renderWithProviders(
@@ -874,6 +912,7 @@ describe("CounterSale", () => {
       taxable_minor: 1786,
       cgst_minor: 107,
       sgst_minor: 107,
+      igst_minor: 0,
       credited_minor: 0,
     };
     const priced = { ...totals, total_minor: 12000, charges: [handlingLine], lines: [line] };

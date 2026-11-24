@@ -20,6 +20,7 @@ type dailyRow struct {
 	SalesTaxable   int64  `gorm:"column:sales_taxable_minor" json:"sales_taxable_minor"`
 	SalesCGST      int64  `gorm:"column:sales_cgst_minor" json:"sales_cgst_minor"`
 	SalesSGST      int64  `gorm:"column:sales_sgst_minor" json:"sales_sgst_minor"`
+	SalesIGST      int64  `gorm:"column:sales_igst_minor" json:"sales_igst_minor"`
 	DiscountMinor  int64  `gorm:"column:discount_minor" json:"discount_minor"`
 	UnitsSold      int64  `gorm:"column:units_sold" json:"units_sold"`
 	CreditNotes    int64  `gorm:"column:credit_notes" json:"credit_notes"`
@@ -27,6 +28,7 @@ type dailyRow struct {
 	CreditsTaxable int64  `gorm:"column:credits_taxable_minor" json:"credits_taxable_minor"`
 	CreditsCGST    int64  `gorm:"column:credits_cgst_minor" json:"credits_cgst_minor"`
 	CreditsSGST    int64  `gorm:"column:credits_sgst_minor" json:"credits_sgst_minor"`
+	CreditsIGST    int64  `gorm:"column:credits_igst_minor" json:"credits_igst_minor"`
 	UnitsReturned  int64  `gorm:"column:units_returned" json:"units_returned"`
 	NetMinor       int64  `gorm:"column:net_minor" json:"net_minor"`
 	CashMinor      int64  `gorm:"column:cash_minor" json:"cash_minor"`
@@ -59,7 +61,7 @@ type dailyReport struct {
 // amount_minor, what was applied to the sale; change is not income.
 const dailyTotals = `WITH
  s AS (SELECT sale_date AS day, currency, count(*) AS sales, sum(total_minor) AS sales_minor, sum(taxable_minor) AS sales_taxable_minor,
-   sum(cgst_minor) AS sales_cgst_minor, sum(sgst_minor) AS sales_sgst_minor
+   sum(cgst_minor) AS sales_cgst_minor, sum(sgst_minor) AS sales_sgst_minor, sum(igst_minor) AS sales_igst_minor
   FROM pharmacy_sales WHERE tenant_id=@tenant AND outlet_id=@outlet AND sale_date BETWEEN CAST(@since AS date) AND CAST(@until AS date) GROUP BY 1,2),
  sl AS (SELECT s.sale_date AS day, s.currency, sum(l.discount_minor) AS discount_minor, sum(l.quantity_units) AS units_sold
   FROM pharmacy_sale_lines l JOIN pharmacy_sales s ON s.tenant_id=l.tenant_id AND s.outlet_id=l.outlet_id AND s.id=l.sale_id
@@ -70,7 +72,7 @@ const dailyTotals = `WITH
   FROM pharmacy_sale_tenders t JOIN pharmacy_sales s ON s.tenant_id=t.tenant_id AND s.outlet_id=t.outlet_id AND s.id=t.sale_id
   WHERE s.tenant_id=@tenant AND s.outlet_id=@outlet AND s.sale_date BETWEEN CAST(@since AS date) AND CAST(@until AS date) GROUP BY 1,2),
  c AS (SELECT credit_note_date AS day, currency, count(*) AS credit_notes, sum(total_minor) AS credits_minor, sum(taxable_minor) AS credits_taxable_minor,
-   sum(cgst_minor) AS credits_cgst_minor, sum(sgst_minor) AS credits_sgst_minor
+   sum(cgst_minor) AS credits_cgst_minor, sum(sgst_minor) AS credits_sgst_minor, sum(igst_minor) AS credits_igst_minor
   FROM pharmacy_credit_notes WHERE tenant_id=@tenant AND outlet_id=@outlet AND credit_note_date BETWEEN CAST(@since AS date) AND CAST(@until AS date) GROUP BY 1,2),
  cl AS (SELECT n.credit_note_date AS day, n.currency, sum(l.quantity_units) AS units_returned
   FROM pharmacy_credit_note_lines l JOIN pharmacy_credit_notes n ON n.tenant_id=l.tenant_id AND n.outlet_id=l.outlet_id AND n.id=l.credit_note_id
@@ -89,10 +91,10 @@ const dailyTotals = `WITH
  k AS (SELECT day, currency FROM s UNION SELECT day, currency FROM c)
 SELECT to_char(k.day,'YYYY-MM-DD') AS day, k.currency,
  COALESCE(s.sales,0) AS sales, COALESCE(s.sales_minor,0)::bigint AS sales_minor, COALESCE(s.sales_taxable_minor,0)::bigint AS sales_taxable_minor,
- COALESCE(s.sales_cgst_minor,0)::bigint AS sales_cgst_minor, COALESCE(s.sales_sgst_minor,0)::bigint AS sales_sgst_minor,
+ COALESCE(s.sales_cgst_minor,0)::bigint AS sales_cgst_minor, COALESCE(s.sales_sgst_minor,0)::bigint AS sales_sgst_minor, COALESCE(s.sales_igst_minor,0)::bigint AS sales_igst_minor,
  COALESCE(sl.discount_minor,0)::bigint AS discount_minor, COALESCE(sl.units_sold,0)::bigint AS units_sold,
  COALESCE(c.credit_notes,0) AS credit_notes, COALESCE(c.credits_minor,0)::bigint AS credits_minor, COALESCE(c.credits_taxable_minor,0)::bigint AS credits_taxable_minor,
- COALESCE(c.credits_cgst_minor,0)::bigint AS credits_cgst_minor, COALESCE(c.credits_sgst_minor,0)::bigint AS credits_sgst_minor,
+ COALESCE(c.credits_cgst_minor,0)::bigint AS credits_cgst_minor, COALESCE(c.credits_sgst_minor,0)::bigint AS credits_sgst_minor, COALESCE(c.credits_igst_minor,0)::bigint AS credits_igst_minor,
  COALESCE(cl.units_returned,0)::bigint AS units_returned,
  (COALESCE(s.sales_minor,0)-COALESCE(c.credits_minor,0))::bigint AS net_minor,
  COALESCE(st.cash_minor,0)::bigint AS cash_minor, COALESCE(st.upi_minor,0)::bigint AS upi_minor, COALESCE(st.upi_verified_minor,0)::bigint AS upi_verified_minor, COALESCE(st.card_minor,0)::bigint AS card_minor,

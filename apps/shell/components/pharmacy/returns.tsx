@@ -430,8 +430,17 @@ function preview(sale: PharmacySale, units: string[], charges: boolean[]): numbe
     const k = l.returned_units ?? 0;
     if (r <= 0) return sum;
     const prorate = (v: number) =>
-      Math.floor((v * (k + r)) / l.quantity_units) - Math.floor((v * k) / l.quantity_units);
-    return sum + prorate(l.taxable_minor) + 2 * prorate(l.cgst_minor);
+      Number(
+        (BigInt(v) * BigInt(k + r)) / BigInt(l.quantity_units) -
+          (BigInt(v) * BigInt(k)) / BigInt(l.quantity_units),
+      );
+    return (
+      sum +
+      prorate(l.taxable_minor) +
+      prorate(l.cgst_minor) +
+      prorate(l.sgst_minor) +
+      prorate(l.igst_minor ?? 0)
+    );
   }, credited);
 }
 
@@ -468,6 +477,7 @@ function CreditNoteDocument({ note, onNext }: { note: PharmacyCreditNote; onNext
               <th>Rate</th>
               <th>Taxable</th>
               <th>CGST + SGST</th>
+              <th>IGST</th>
               <th>Credited</th>
             </tr>
           </thead>
@@ -482,6 +492,7 @@ function CreditNoteDocument({ note, onNext }: { note: PharmacyCreditNote; onNext
                 <td>
                   {money(l.cgst_minor)} + {money(l.sgst_minor)}
                 </td>
+                <td>{money(l.igst_minor ?? 0)}</td>
                 <td>{money(l.amount_minor)}</td>
               </tr>
             ))}
@@ -496,6 +507,7 @@ function CreditNoteDocument({ note, onNext }: { note: PharmacyCreditNote; onNext
                 <th>Rate</th>
                 <th>Taxable</th>
                 <th>CGST + SGST</th>
+                <th>IGST</th>
                 <th>Credited</th>
               </tr>
             </thead>
@@ -509,6 +521,7 @@ function CreditNoteDocument({ note, onNext }: { note: PharmacyCreditNote; onNext
                   <td>
                     {money(c.cgst_minor)} + {money(c.sgst_minor)}
                   </td>
+                  <td>{money(c.igst_minor ?? 0)}</td>
                   <td>{money(c.amount_minor)}</td>
                 </tr>
               ))}

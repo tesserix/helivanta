@@ -265,32 +265,32 @@ const tallyPeriodVouchers = `WITH docs AS (
 ),
 page AS (SELECT * FROM docs ORDER BY day,rank,created_at,id LIMIT @limit),
 parts AS (
- SELECT p.id,'line' AS part,l.line_number AS position,'goods' AS treatment,l.supply_nature AS nature,l.rate_ppm,l.taxable_minor,l.cgst_minor,l.sgst_minor,''::text AS kind,0::bigint AS amount
+ SELECT p.id,'line' AS part,l.line_number AS position,'goods' AS treatment,l.supply_nature AS nature,l.rate_ppm,l.taxable_minor,l.cgst_minor,l.sgst_minor,l.igst_minor,''::text AS kind,0::bigint AS amount
  FROM page p JOIN pharmacy_sale_lines l ON l.tenant_id=@tenant AND l.outlet_id=@outlet AND l.sale_id=p.id WHERE p.rank=0
  UNION ALL
- SELECT p.id,'line',1000+c.charge_number,c.tax_treatment,c.supply_nature,c.rate_ppm,c.taxable_minor,c.cgst_minor,c.sgst_minor,'',0
+ SELECT p.id,'line',1000+c.charge_number,c.tax_treatment,c.supply_nature,c.rate_ppm,c.taxable_minor,c.cgst_minor,c.sgst_minor,c.igst_minor,'',0
  FROM page p JOIN pharmacy_sale_charge_lines c ON c.tenant_id=@tenant AND c.outlet_id=@outlet AND c.sale_id=p.id WHERE p.rank=0
  UNION ALL
- SELECT p.id,'tender',t.tender_number,'','',0,0,0,0,t.kind,t.amount_minor
+ SELECT p.id,'tender',t.tender_number,'','',0,0,0,0,0,t.kind,t.amount_minor
  FROM page p JOIN pharmacy_sale_tenders t ON t.tenant_id=@tenant AND t.outlet_id=@outlet AND t.sale_id=p.id WHERE p.rank=0
  UNION ALL
- SELECT p.id,'line',cl.line_number,'goods',l.supply_nature,l.rate_ppm,cl.taxable_minor,cl.cgst_minor,cl.sgst_minor,'',0
+ SELECT p.id,'line',cl.line_number,'goods',l.supply_nature,l.rate_ppm,cl.taxable_minor,cl.cgst_minor,cl.sgst_minor,cl.igst_minor,'',0
  FROM page p JOIN pharmacy_credit_note_lines cl ON cl.tenant_id=@tenant AND cl.outlet_id=@outlet AND cl.credit_note_id=p.id
  JOIN pharmacy_sale_lines l ON l.tenant_id=cl.tenant_id AND l.outlet_id=cl.outlet_id AND l.sale_id=cl.sale_id AND l.line_number=cl.sale_line WHERE p.rank=1
  UNION ALL
- SELECT p.id,'line',1000+cc.charge_number,c.tax_treatment,c.supply_nature,c.rate_ppm,cc.taxable_minor,cc.cgst_minor,cc.sgst_minor,'',0
+ SELECT p.id,'line',1000+cc.charge_number,c.tax_treatment,c.supply_nature,c.rate_ppm,cc.taxable_minor,cc.cgst_minor,cc.sgst_minor,cc.igst_minor,'',0
  FROM page p JOIN pharmacy_credit_note_charge_lines cc ON cc.tenant_id=@tenant AND cc.outlet_id=@outlet AND cc.credit_note_id=p.id
  JOIN pharmacy_sale_charge_lines c ON c.tenant_id=cc.tenant_id AND c.outlet_id=cc.outlet_id AND c.sale_id=cc.sale_id AND c.charge_number=cc.sale_charge WHERE p.rank=1
  UNION ALL
- SELECT p.id,'tender',f.refund_number,'','',0,0,0,0,f.kind,f.amount_minor
+ SELECT p.id,'tender',f.refund_number,'','',0,0,0,0,0,f.kind,f.amount_minor
  FROM page p JOIN pharmacy_credit_note_refunds f ON f.tenant_id=@tenant AND f.outlet_id=@outlet AND f.credit_note_id=p.id WHERE p.rank=1
  UNION ALL
- SELECT p.id,'settlement',1,'','',0,0,0,0,e.method,e.amount_minor
+ SELECT p.id,'settlement',1,'','',0,0,0,0,0,e.method,e.amount_minor
  FROM page p JOIN pharmacy_settlements e ON e.tenant_id=@tenant AND e.outlet_id=@outlet AND e.id=p.id WHERE p.rank>=2
 )
 SELECT p.rank,p.id,to_char(p.day,'YYYY-MM-DD') AS day,p.number,p.currency,p.related,p.bill,p.supplier,p.supplier_name,
  COALESCE(x.part,'') AS part,COALESCE(x.treatment,'') AS treatment,COALESCE(x.nature,'') AS nature,COALESCE(x.rate_ppm,0) AS rate_ppm,
- COALESCE(x.taxable_minor,0) AS taxable_minor,COALESCE(x.cgst_minor,0) AS cgst_minor,COALESCE(x.sgst_minor,0) AS sgst_minor,COALESCE(x.kind,'') AS kind,COALESCE(x.amount,0) AS amount
+ COALESCE(x.taxable_minor,0) AS taxable_minor,COALESCE(x.cgst_minor,0) AS cgst_minor,COALESCE(x.sgst_minor,0) AS sgst_minor,COALESCE(x.igst_minor,0) AS igst_minor,COALESCE(x.kind,'') AS kind,COALESCE(x.amount,0) AS amount
 FROM page p LEFT JOIN parts x ON x.id=p.id
 ORDER BY p.day,p.rank,p.created_at,p.id,x.part,x.position`
 
@@ -304,6 +304,7 @@ type tallyRow struct {
 	RatePPM                 int64
 	TaxableMinor, CGSTMinor int64
 	SGSTMinor               int64
+	IGSTMinor               int64
 	Kind                    string
 	Amount                  int64
 }
@@ -401,6 +402,7 @@ func tallyVoucherOf(rows []tallyRow) (tallyVoucher, error) {
 			post(tallySalesHead(r.Treatment, r.Nature, r.RatePPM), !sales, false, r.TaxableMinor)
 			post(tallyTaxHead("cgst", r.RatePPM), !sales, false, r.CGSTMinor)
 			post(tallyTaxHead("sgst", r.RatePPM), !sales, false, r.SGSTMinor)
+			post(tallyTaxHead("igst", r.RatePPM), !sales, false, r.IGSTMinor)
 		case "tender":
 			post("tender:"+r.Kind, sales, false, r.Amount)
 		case "settlement":

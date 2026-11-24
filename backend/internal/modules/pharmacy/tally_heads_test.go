@@ -21,6 +21,7 @@ func TestTallyHeadsFollowTheClosedGrammar(t *testing.T) {
 		"sales_goods:nil_rated:0":                "Sales of goods, nil rated",
 		"sales_service:exempt:0":                 "Sales of own services, exempt",
 		"cgst:50000":                             "Output CGST on 5% supplies",
+		"igst:120000":                            "Output IGST on 12% supplies",
 		"sgst:1000000":                           "Output SGST on 100% supplies",
 		"payment_method:bank":                    "Supplier payments by bank transfer",
 		"supplier:TEST-ACME/01":                  "Supplier TEST-ACME/01",
@@ -38,7 +39,7 @@ func TestTallyHeadsRefuseAnythingOutsideTheGrammar(t *testing.T) {
 		"", "sale", "voucher_type:", "voucher_type:purchase", "tender:cheque", "tender:CASH",
 		"sales_goods:taxable", "sales_goods:taxable:012", "sales_goods:taxable:+5", "sales_goods:taxable:1000001",
 		"sales_goods:nil_rated:50000", "sales_service:exempt:1", "sales_goods:zero:0", "sales:taxable:0",
-		"cgst:", "cgst:-1", "igst:120000", "cess:10000", "payment_method:cheque",
+		"cgst:", "cgst:-1", "igst:1000001", "cess:10000", "payment_method:cheque",
 		"supplier:", "supplier: ACME", "supplier:ACME ", "supplier:acme", "supplier:" + strings.Repeat("A", 101), "supplier:\xff", "supplier:AC\x01ME", "supplier:AC\tME", "supplier:AC\u0085ME",
 	} {
 		_, ok := tallyHeadLabel(head)

@@ -40,7 +40,7 @@ ALTER TABLE pharmacy_stocktake_source_invalidations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE pharmacy_stocktake_source_invalidations FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON pharmacy_stocktake_source_invalidations
  USING(hms_tenant_visible(tenant_id)AND pharmacy_stocktake_hospital_scope(tenant_id,outlet_id,'read'))
- WITH CHECK(hms_tenant_visible(tenant_id)AND pharmacy_stocktake_hospital_scope(tenant_id,outlet_id,'count')AND actor_subject=NULLIF(current_setting('app.pharmacy_stock_subject',true),''));
+ WITH CHECK(hms_tenant_visible(tenant_id)AND pharmacy_stocktake_hospital_scope(tenant_id,outlet_id,'count')AND actor_subject=NULLIF(current_setting('app.actor_subject',true),''));
 CREATE POLICY operating_choice_purpose ON pharmacy_stocktake_source_invalidations AS RESTRICTIVE
  USING(hms_tenant_visible(tenant_id)AND COALESCE(current_setting('app.pharmacy_operating_choices',true),'')='')WITH CHECK(tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid AND COALESCE(current_setting('app.pharmacy_operating_choices',true),'')='');
 CREATE POLICY operating_choice_delete ON pharmacy_stocktake_source_invalidations AS RESTRICTIVE FOR DELETE

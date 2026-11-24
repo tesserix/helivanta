@@ -74,8 +74,12 @@ func encodeStocktakeCSV(header Stocktake, input []stocktakeRegisterRow) ([]byte,
 		}
 		return rows[i].ID.String() < rows[j].ID.String()
 	})
+	sourceInvalidated := ""
+	if header.SourceInvalidated != nil {
+		sourceInvalidated = strconv.FormatBool(*header.SourceInvalidated)
+	}
 	w := csvsafe.NewWriter(stockExportByteLimit)
-	if err := w.Write([]string{"register_section", "stocktake_number", "stocktake_state", "stocktake_version", "snapshot_at_utc", "stocktake_line_id", "product_id", "product_version", "sku", "brand_name", "unit_of_issue", "batch_id", "lot_number", "expires_on", "counted_location_id", "counted_location_code", "counted_location_name", "stock_status", "book_units", "counted_units", "difference_units", "counted_by_reference", "counted_at_utc", "count_reason", "regulatory_class", "ndps_status", "schedule_declaration_id", "adjustment_movement_id", "adjustment_location_id", "adjustment_location_code", "adjustment_units", "approved_by_reference", "approved_at_utc", "approval_reason"}); err != nil {
+	if err := w.Write([]string{"register_section", "stocktake_number", "stocktake_state", "stocktake_version", "snapshot_at_utc", "stocktake_line_id", "product_id", "product_version", "sku", "brand_name", "unit_of_issue", "batch_id", "lot_number", "expires_on", "counted_location_id", "counted_location_code", "counted_location_name", "stock_status", "book_units", "counted_units", "difference_units", "counted_by_reference", "counted_at_utc", "count_reason", "regulatory_class", "ndps_status", "schedule_declaration_id", "adjustment_movement_id", "adjustment_location_id", "adjustment_location_code", "adjustment_units", "approved_by_reference", "approved_at_utc", "approval_reason", "source_invalidated"}); err != nil {
 		return nil, err
 	}
 	for _, row := range rows {
@@ -85,7 +89,7 @@ func encodeStocktakeCSV(header Stocktake, input []stocktakeRegisterRow) ([]byte,
 			row.BatchID.String(), csvsafe.Text(row.LotNumber), row.ExpiresOn, row.LocationID.String(), csvsafe.Text(row.LocationCode), csvsafe.Text(row.LocationName), row.StockStatus,
 			strconv.FormatInt(row.BookUnits, 10), stocktakeCSVNumber(row.CountedUnits), stocktakeCSVNumber(row.DifferenceUnits), stocktakeCSVText(row.CountedBy), stocktakeCSVText(row.CountedAt), stocktakeCSVText(row.CountReason),
 			stocktakeCSVText(row.RegulatoryClass), row.NdpsStatus, stocktakeCSVUUID(row.ScheduleDeclarationID), stocktakeCSVUUID(row.MovementID), stocktakeCSVUUID(row.AdjustmentLocationID), stocktakeCSVText(row.AdjustmentLocationCode),
-			stocktakeCSVNumber(row.AdjustmentUnits), stocktakeCSVText(row.ApprovedBy), stocktakeCSVTime(row.ApprovedAt), stocktakeCSVText(row.ApprovalReason),
+			stocktakeCSVNumber(row.AdjustmentUnits), stocktakeCSVText(row.ApprovedBy), stocktakeCSVTime(row.ApprovedAt), stocktakeCSVText(row.ApprovalReason), sourceInvalidated,
 		}); err != nil {
 			return nil, err
 		}

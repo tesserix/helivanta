@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { Button } from "@tesserix/web";
+import { Button, cn } from "@tesserix/web";
 import {
   apiFetch,
   describeStatutoryRevision,
@@ -31,9 +31,23 @@ import {
   type StatutoryRule,
   type StatutoryWithdrawInput,
 } from "@helivanta/api";
-import { AccountName, Field, SelectControl, useZodForm, RequestFailure } from "@helivanta/ui";
-import { inputClass, today } from "../roster-policy/policy-ui";
+import {
+  AccountName,
+  Field,
+  SelectControl,
+  useZodForm,
+  RequestFailure,
+  controlClass,
+  Panel,
+  tableStyles,
+} from "@helivanta/ui";
+import { today } from "../roster-policy/policy-ui";
 import { SaveError } from "../leave-balances/years-panel";
+
+const cell = "px-4 py-3";
+const head = cn(tableStyles.head, "px-4 py-3");
+const numberHead = cn(head, tableStyles.number);
+const numberCell = cn(cell, tableStyles.number);
 import { Check, Fact, RevisionHistory, structuresKey } from "./payroll-workspace";
 import { IncomeTaxPreview } from "./income-tax-preview";
 import { StatutoryEditor } from "./statutory-editor";
@@ -70,10 +84,7 @@ export function StatutoryPanel({ hospital, writable }: { hospital: Hospital; wri
     setPreviewing(null);
   };
   return (
-    <section
-      aria-label="Statutory contributions"
-      className="overflow-hidden rounded-2xl border bg-card shadow-sm"
-    >
+    <Panel flush aria-label="Statutory contributions">
       <div className="flex flex-wrap items-end justify-between gap-4 border-b p-5">
         <div>
           <h3 className="font-semibold">Statutory contributions</h3>
@@ -252,7 +263,7 @@ export function StatutoryPanel({ hospital, writable }: { hospital: Hospital; wri
         <StatutoryPreview hospital={hospital.id} base={base} onClose={close} />
       )}
       {previewing === "income_tax" && <IncomeTaxPreview base={base} onClose={close} />}
-    </section>
+    </Panel>
   );
 }
 
@@ -354,7 +365,7 @@ function ProposalDecision({
           <textarea
             id="statutory-decision-note"
             rows={2}
-            className={inputClass}
+            className={controlClass}
             aria-invalid={!!errors.note}
             disabled={pending}
             {...form.register("note")}
@@ -479,7 +490,7 @@ function StatutoryPreview({
             <input
               id="statutory-preview-on"
               type="date"
-              className={inputClass}
+              className={controlClass}
               aria-invalid={!!errors.on}
               {...form.register("on")}
             />
@@ -492,7 +503,7 @@ function StatutoryPreview({
             <input
               id="statutory-preview-days"
               inputMode="decimal"
-              className={inputClass}
+              className={controlClass}
               aria-invalid={!!errors.payable_days}
               {...form.register("payable_days")}
             />
@@ -541,7 +552,7 @@ function StatutoryPreview({
       {result && (
         <div className="mt-5 space-y-4">
           {result.results.map((r) => (
-            <div key={r.kind} className="rounded-xl border p-4 text-sm">
+            <Panel as="div" key={r.kind} className="text-sm">
               <p className="font-medium">
                 {STATUTORY_KINDS[r.kind]} · {STATUTORY_RESULT_STATUSES[r.status]}
               </p>
@@ -551,20 +562,18 @@ function StatutoryPreview({
                     {STATUTORY_KINDS[r.kind]} on {formatPaise(r.base_paise)}
                   </caption>
                   <thead>
-                    <tr className="border-b text-left text-xs text-muted-foreground">
-                      <th className="py-2 font-medium">Component</th>
-                      <th className="py-2 font-medium">Paid by</th>
-                      <th className="py-2 text-right font-medium">Amount</th>
+                    <tr>
+                      <th className={head}>Component</th>
+                      <th className={head}>Paid by</th>
+                      <th className={numberHead}>Amount</th>
                     </tr>
                   </thead>
                   <tbody>
                     {r.components.map((c) => (
-                      <tr key={c.component} className="border-b last:border-0">
-                        <td className="py-2">{STATUTORY_COMPONENTS[c.component]}</td>
-                        <td className="py-2">{c.party === "employee" ? "Employee" : "Employer"}</td>
-                        <td className="py-2 text-right tabular-nums">
-                          {formatPaise(c.amount_paise)}
-                        </td>
+                      <tr key={c.component} className={tableStyles.row}>
+                        <td className={cell}>{STATUTORY_COMPONENTS[c.component]}</td>
+                        <td className={cell}>{c.party === "employee" ? "Employee" : "Employer"}</td>
+                        <td className={numberCell}>{formatPaise(c.amount_paise)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -579,7 +588,7 @@ function StatutoryPreview({
                 Wages {formatPaise(r.wages_paise)} · contribution base {formatPaise(r.base_paise)}
               </p>
               {r.period && <PeriodLine period={r.period} />}
-            </div>
+            </Panel>
           ))}
           <dl className="grid gap-4 text-sm sm:grid-cols-3">
             <Fact label="Employee contributions" value={formatPaise(result.employee_paise)} />

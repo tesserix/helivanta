@@ -13,7 +13,7 @@ import {
   type Hospital,
   type SalaryHead,
 } from "@helivanta/api";
-import { AccountName, Field, SelectControl, RequestFailure } from "@helivanta/ui";
+import { AccountName, Field, SelectControl, RequestFailure, Panel } from "@helivanta/ui";
 
 import { HeadEditor } from "./head-editor";
 import { headsKey, RevisionHistory } from "./payroll-workspace";
@@ -45,10 +45,7 @@ export function HeadsPanel({ hospital, writable }: { hospital: Hospital; writabl
     opener.current?.focus();
   };
   return (
-    <section
-      aria-label="Salary heads"
-      className="overflow-hidden rounded-2xl border bg-card shadow-sm"
-    >
+    <Panel flush aria-label="Salary heads">
       <div className="flex flex-wrap items-end justify-between gap-4 border-b p-5">
         <div>
           <h3 className="font-semibold">Salary heads</h3>
@@ -196,6 +193,6 @@ export function HeadsPanel({ hospital, writable }: { hospital: Hospital; writabl
           )}
         />
       )}
-    </section>
+    </Panel>
   );
 }

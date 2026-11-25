@@ -15,7 +15,7 @@ import {
 import { headsKey, RevisionHistory, structuresKey } from "./payroll-workspace";
 import { StructureEditor } from "./structure-editor";
 import { StructurePreview } from "./structure-preview";
-import { AccountName, RequestFailure } from "@helivanta/ui";
+import { AccountName, RequestFailure, Panel } from "@helivanta/ui";
 
 export const describeLines = (s: SalaryStructure) =>
   s.lines
@@ -61,10 +61,7 @@ export function StructuresPanel({ hospital, writable }: { hospital: Hospital; wr
       setOpen({ structure, view });
     };
   return (
-    <section
-      aria-label="Salary structures"
-      className="overflow-hidden rounded-2xl border bg-card shadow-sm"
-    >
+    <Panel flush aria-label="Salary structures">
       <div className="flex flex-wrap items-end justify-between gap-4 border-b p-5">
         <div>
           <h3 className="font-semibold">Salary structures</h3>
@@ -215,6 +212,6 @@ export function StructuresPanel({ hospital, writable }: { hospital: Hospital; wr
           )}
         />
       )}
-    </section>
+    </Panel>
   );
 }

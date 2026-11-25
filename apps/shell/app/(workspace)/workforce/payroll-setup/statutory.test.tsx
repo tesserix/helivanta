@@ -12,6 +12,10 @@ const renderWithProviders = (ui: Parameters<typeof renderWithNamedAccounts>[0]) 
 import { chooseOption } from "@/test/select";
 import PayrollSetup from "./page";
 
+// #1261 slice 5: cards are Panel, so no hand-painted card class survives.
+// Buttons are controls: the design system's outline button carries shadow-sm.
+const CARDS = ":is(.rounded-xl, .rounded-2xl, .shadow-sm):not(button)";
+
 const hospital = "11111111-1111-4111-8111-111111111111";
 const ruleID = "22222222-2222-4222-8222-222222222222";
 const current = "33333333-3333-4333-8333-333333333333";
@@ -186,6 +190,7 @@ it("explains unconfigured rules and offers no proposals to readers", async () =>
     within(section).getByText(/Payroll will not compute Employees' State Insurance/),
   ).toBeInTheDocument();
   expect(within(section).queryByRole("button", { name: /Propose/ })).toBeNull();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
 });
 
 it("offers a retry when statutory rules cannot be loaded", async () => {
@@ -217,6 +222,7 @@ it("refuses a blank PF proposal and submits only the cited values", longForm, as
   await user.click(within(form).getByRole("button", { name: "Submit for approval" }));
   expect(await within(form).findAllByText("Choose an option.")).toHaveLength(4);
   expect(within(form).getAllByText(/Enter a percentage from 0 to 100/)).toHaveLength(5);
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   expect(writes).toHaveLength(0);
   await chooseOption(
     user,
@@ -348,6 +354,7 @@ it("lists every revision with its decision in history", async () => {
   expect(items[0]).toHaveTextContent("Awaiting approval · effective 2026-10-01");
   expect(items[1]).toHaveTextContent("Approved · v1 · effective 2026-04-01");
   await waitFor(() => expect(items[1]).toHaveTextContent("decided by QA Approver"));
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
 });
 
 it("previews contributions for a structure without storing anything", async () => {
@@ -384,6 +391,14 @@ it("previews contributions for a structure without storing anything", async () =
     within(region).getByText("Employees' State Insurance · Not configured"),
   ).toBeInTheDocument();
   expect(within(region).getByRole("cell", { name: "Pension (EPS)" })).toBeInTheDocument();
+  const eps = within(region).getByRole("cell", { name: "Pension (EPS)" }).closest("tr")!;
+  expect(eps).toHaveClass("h-11");
+  expect(within(eps).getByText("₹600.00")).toHaveClass("text-right");
+  expect(within(region).getByRole("columnheader", { name: "Component" })).not.toHaveClass(
+    "uppercase",
+  );
+  expect(within(region).getByRole("columnheader", { name: "Amount" })).toHaveClass("text-right");
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   expect(within(region).getByText("Net after contributions")).toBeInTheDocument();
 });
 
@@ -420,6 +435,7 @@ it("builds a professional tax table and refuses one with a gender left out", lon
   ).toBeInTheDocument();
   expect(within(form).getByText("Choose its months.")).toBeInTheDocument();
   expect(within(form).getByText("Choose who it applies to.")).toBeInTheDocument();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   expect(writes).toHaveLength(0);
   await fill(user, form, [["State code (for example IN-MH)", "in-zz"]]);
   await chooseOption(user, within(form).getByRole("combobox", { name: "Wages" }), "Gross pay");
@@ -608,6 +624,7 @@ it("submits labour welfare fund slabs with optional caps", longForm, async () =>
   expect(
     await within(form).findByText("Choose the months LWF is deducted in."),
   ).toBeInTheDocument();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   expect(writes).toHaveLength(0);
   await fill(user, form, [["State code (for example IN-MH)", "IN-ZZ"]]);
   await chooseOption(
@@ -720,6 +737,7 @@ it(
     expect(
       await within(form).findByText("Enter the tax year as YYYY-YY, for example 2026-27."),
     ).toBeInTheDocument();
+    expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
     expect(writes).toHaveLength(0);
     const effective = (within(form).getByLabelText("Effective date") as HTMLInputElement).value;
     await user.clear(within(form).getByLabelText("Effective date"));
@@ -887,7 +905,10 @@ it("previews each regime's annual tax and explains what is missing", async () =>
   const table = within(region).getByRole("table", {
     name: "Income tax (new regime) for tax year 2026-27",
   });
-  expect(within(table).getByRole("row", { name: "Rebate − ₹4,000.00" })).toBeInTheDocument();
+  const rebate = within(table).getByRole("row", { name: "Rebate − ₹4,000.00" });
+  expect(rebate).toHaveClass("h-11");
+  expect(within(rebate).getByRole("rowheader", { name: "Rebate" })).not.toHaveClass("uppercase");
+  expect(within(rebate).getByText("− ₹4,000.00")).toHaveClass("text-right");
   expect(
     within(table).getByRole("row", { name: "Tax for the year ₹98,800.00" }),
   ).toBeInTheDocument();
@@ -896,6 +917,7 @@ it("previews each regime's annual tax and explains what is missing", async () =>
   ).toBeInTheDocument();
   expect(within(region).getByText(/The rule in force covers tax year 2025-26/)).toBeInTheDocument();
   expect(within(section).queryByRole("region", { name: "Statutory preview" })).toBeNull();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
 });
 
 it("asks for an age when a regime's slabs differ by age", async () => {
@@ -1004,6 +1026,7 @@ it("edits each kind of claim head and refuses a repeated code inline", longForm,
   ]);
   await user.click(within(form).getByRole("button", { name: "Submit for approval" }));
   expect(await claim(3).findByText("Use each code once.")).toBeInTheDocument();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   expect(writes).toHaveLength(0);
   await user.clear(claim(3).getByLabelText("Code"));
   await user.type(claim(3).getByLabelText("Code"), "HOMELOAN");
@@ -1139,9 +1162,18 @@ it("previews stated claims and shows each claim's outcome per regime", async () 
   const oldClaims = within(region).getByRole("table", {
     name: "Claims under Income tax (old regime)",
   });
-  expect(
-    within(oldClaims).getByRole("row", { name: "SAVINGS · Capped ₹15,000.00 ₹12,000.00" }),
-  ).toBeInTheDocument();
+  const capped = within(oldClaims).getByRole("row", {
+    name: "SAVINGS · Capped ₹15,000.00 ₹12,000.00",
+  });
+  expect(capped).toHaveClass("h-11");
+  expect(within(capped).getByText("₹12,000.00")).toHaveClass("text-right");
+  expect(within(oldClaims).getByRole("columnheader", { name: "Claim" })).not.toHaveClass(
+    "uppercase",
+  );
+  expect(within(oldClaims).getByRole("columnheader", { name: "Allowed" })).toHaveClass(
+    "text-right",
+  );
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   const newClaims = within(region).getByRole("table", {
     name: "Claims under Income tax (new regime)",
   });

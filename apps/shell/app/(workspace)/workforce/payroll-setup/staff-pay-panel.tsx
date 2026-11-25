@@ -22,8 +22,15 @@ import {
   type StatutoryDecisionInput,
   type StatutoryWithdrawInput,
 } from "@helivanta/api";
-import { AccountName, Field, SelectControl, useZodForm, RequestFailure } from "@helivanta/ui";
-import { inputClass } from "../roster-policy/policy-ui";
+import {
+  AccountName,
+  Field,
+  SelectControl,
+  useZodForm,
+  RequestFailure,
+  controlClass,
+  Panel,
+} from "@helivanta/ui";
 import { SaveError } from "../leave-balances/years-panel";
 import { Fact, RevisionHistory, structuresKey } from "./payroll-workspace";
 import { StaffPayEditor } from "./staff-pay-editor";
@@ -58,10 +65,7 @@ export function StaffPayPanel({ hospital, writable }: { hospital: Hospital; writ
   const [selected, setSelected] = useState("");
   const member = staff.items.find((s) => s.id === selected);
   return (
-    <section
-      aria-label="Staff pay"
-      className="overflow-hidden rounded-2xl border bg-card shadow-sm"
-    >
+    <Panel flush aria-label="Staff pay">
       <div className="flex flex-wrap items-end justify-between gap-4 border-b p-5">
         <div>
           <h3 className="font-semibold">Staff pay</h3>
@@ -110,7 +114,7 @@ export function StaffPayPanel({ hospital, writable }: { hospital: Hospital; writ
           </Button>
         </div>
       )}
-    </section>
+    </Panel>
   );
 }
 
@@ -381,7 +385,7 @@ function PayDecision({
           <textarea
             id="pay-decision-note"
             rows={2}
-            className={inputClass}
+            className={controlClass}
             aria-invalid={!!errors.note}
             disabled={busy}
             {...form.register("note")}

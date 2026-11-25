@@ -14,8 +14,15 @@ import {
   type SalaryStructure,
   type SalaryStructureInput,
 } from "@helivanta/api";
-import { Field, SelectControl, useFieldArray, useZodForm } from "@helivanta/ui";
-import { inputClass, today } from "../roster-policy/policy-ui";
+import {
+  Field,
+  SelectControl,
+  useFieldArray,
+  useZodForm,
+  controlClass,
+  Panel,
+} from "@helivanta/ui";
+import { today } from "../roster-policy/policy-ui";
 import { SaveError } from "../leave-balances/years-panel";
 import { Check, ReviewCheck, structuresKey } from "./payroll-workspace";
 
@@ -82,7 +89,7 @@ export function StructureEditor({
           <Field id="salary-structure-code" label="Code" error={errors.code?.message}>
             <input
               id="salary-structure-code"
-              className={inputClass}
+              className={controlClass}
               disabled={!!record}
               aria-invalid={!!errors.code}
               {...form.register("code")}
@@ -91,7 +98,7 @@ export function StructureEditor({
           <Field id="salary-structure-name" label="Name" error={errors.name?.message}>
             <input
               id="salary-structure-name"
-              className={inputClass}
+              className={controlClass}
               aria-invalid={!!errors.name}
               {...form.register("name")}
             />
@@ -104,7 +111,7 @@ export function StructureEditor({
             <input
               id="salary-structure-effective"
               type="date"
-              className={inputClass}
+              className={controlClass}
               aria-invalid={!!errors.effective_on}
               {...form.register("effective_on")}
             />
@@ -118,7 +125,7 @@ export function StructureEditor({
           <textarea
             id="salary-structure-description"
             rows={2}
-            className={inputClass}
+            className={controlClass}
             aria-invalid={!!errors.description}
             {...form.register("description")}
           />
@@ -146,80 +153,85 @@ export function StructureEditor({
           onChange={(on) => form.setValue("active", on, { shouldDirty: true })}
         />
 
-        <fieldset className="space-y-3 rounded-xl border p-4">
-          <legend className="px-1 text-sm font-semibold">Heads</legend>
-          {lines.fields.map((line, index) => {
-            const head = byId.get(value.lines[index]?.head_id ?? "");
-            const lineErrors = errors.lines?.[index];
-            return (
-              <div key={line.fieldKey} className="grid items-end gap-3 sm:grid-cols-[2fr_1fr_auto]">
-                <Field
-                  id={`salary-line-${index}-head`}
-                  label={`Head ${index + 1}`}
-                  error={lineErrors?.head_id?.message}
+        <Panel as="div">
+          <fieldset className="space-y-3">
+            <legend className="text-sm font-semibold">Heads</legend>
+            {lines.fields.map((line, index) => {
+              const head = byId.get(value.lines[index]?.head_id ?? "");
+              const lineErrors = errors.lines?.[index];
+              return (
+                <div
+                  key={line.fieldKey}
+                  className="grid items-end gap-3 sm:grid-cols-[2fr_1fr_auto]"
                 >
-                  <SelectControl
-                    id={`salary-line-${index}-head`}
-                    value={value.lines[index]?.head_id ?? ""}
-                    placeholder="Choose a head"
-                    onValueChange={(next) =>
-                      form.setValue(`lines.${index}.head_id`, next, {
-                        shouldDirty: true,
-                        shouldValidate: form.formState.isSubmitted,
-                      })
-                    }
-                    options={headOptions(value.lines[index]?.head_id ?? "")}
-                  />
-                </Field>
-                {head?.basis === "fixed" ? (
                   <Field
-                    id={`salary-line-${index}-amount`}
-                    label="Monthly amount (₹)"
-                    error={lineErrors?.amount?.message}
+                    id={`salary-line-${index}-head`}
+                    label={`Head ${index + 1}`}
+                    error={lineErrors?.head_id?.message}
                   >
-                    <input
-                      id={`salary-line-${index}-amount`}
-                      inputMode="decimal"
-                      className={inputClass}
-                      aria-invalid={!!lineErrors?.amount}
-                      {...form.register(`lines.${index}.amount`)}
+                    <SelectControl
+                      id={`salary-line-${index}-head`}
+                      value={value.lines[index]?.head_id ?? ""}
+                      placeholder="Choose a head"
+                      onValueChange={(next) =>
+                        form.setValue(`lines.${index}.head_id`, next, {
+                          shouldDirty: true,
+                          shouldValidate: form.formState.isSubmitted,
+                        })
+                      }
+                      options={headOptions(value.lines[index]?.head_id ?? "")}
                     />
                   </Field>
-                ) : (
-                  <p className="pb-3 text-sm text-muted-foreground">
-                    {head ? "Computed from its bases" : ""}
-                  </p>
-                )}
-                <Button
-                  type="button"
-                  variant="ghost"
-                  aria-label={`Remove head ${index + 1}`}
-                  disabled={lines.fields.length === 1}
-                  onClick={() => lines.remove(index)}
-                >
-                  Remove
-                </Button>
-              </div>
-            );
-          })}
-          {errors.lines?.root?.message || errors.lines?.message ? (
-            <p role="alert" className="text-sm text-destructive">
-              {errors.lines.root?.message ?? errors.lines.message}
+                  {head?.basis === "fixed" ? (
+                    <Field
+                      id={`salary-line-${index}-amount`}
+                      label="Monthly amount (₹)"
+                      error={lineErrors?.amount?.message}
+                    >
+                      <input
+                        id={`salary-line-${index}-amount`}
+                        inputMode="decimal"
+                        className={controlClass}
+                        aria-invalid={!!lineErrors?.amount}
+                        {...form.register(`lines.${index}.amount`)}
+                      />
+                    </Field>
+                  ) : (
+                    <p className="pb-3 text-sm text-muted-foreground">
+                      {head ? "Computed from its bases" : ""}
+                    </p>
+                  )}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    aria-label={`Remove head ${index + 1}`}
+                    disabled={lines.fields.length === 1}
+                    onClick={() => lines.remove(index)}
+                  >
+                    Remove
+                  </Button>
+                </div>
+              );
+            })}
+            {errors.lines?.root?.message || errors.lines?.message ? (
+              <p role="alert" className="text-sm text-destructive">
+                {errors.lines.root?.message ?? errors.lines.message}
+              </p>
+            ) : null}
+            <Button
+              type="button"
+              variant="outline"
+              disabled={lines.fields.length >= 60}
+              onClick={() => lines.append({ head_id: "", amount: "" })}
+            >
+              Add head
+            </Button>
+            <p className="text-xs text-muted-foreground">
+              Every percentage head needs its bases in the same structure. The server refuses a
+              structure it cannot compute.
             </p>
-          ) : null}
-          <Button
-            type="button"
-            variant="outline"
-            disabled={lines.fields.length >= 60}
-            onClick={() => lines.append({ head_id: "", amount: "" })}
-          >
-            Add head
-          </Button>
-          <p className="text-xs text-muted-foreground">
-            Every percentage head needs its bases in the same structure. The server refuses a
-            structure it cannot compute.
-          </p>
-        </fieldset>
+          </fieldset>
+        </Panel>
 
         <ReviewCheck
           id="salary-structure-review"

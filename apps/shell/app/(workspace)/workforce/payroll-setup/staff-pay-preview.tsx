@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef } from "react";
-import { Button } from "@tesserix/web";
+import { Button, cn } from "@tesserix/web";
 import {
   apiFetch,
   formatPaise,
@@ -15,9 +15,14 @@ import {
   type StaffSalaryPreview as StaffSalaryPreviewResult,
   type StaffSalaryPreviewInput,
 } from "@helivanta/api";
-import { Field, SelectControl, useZodForm } from "@helivanta/ui";
+import { Field, SelectControl, useZodForm, tableStyles } from "@helivanta/ui";
 import { inputClass, today } from "../roster-policy/policy-ui";
 import { SaveError } from "../leave-balances/years-panel";
+
+const cell = "px-4 py-3";
+const head = cn(tableStyles.head, "px-4 py-3");
+const numberHead = cn(head, tableStyles.number);
+const numberCell = cn(cell, tableStyles.number);
 import { Check, Fact } from "./payroll-workspace";
 import { PeriodLine } from "./statutory-panel";
 
@@ -121,20 +126,20 @@ export function StaffPayPreview({ path, onClose }: { path: string; onClose: () =
           <table className="w-full text-sm">
             <caption className="sr-only">Pay lines on {result.salary.on}</caption>
             <thead>
-              <tr className="border-b text-left text-xs text-muted-foreground">
-                <th className="py-2 font-medium">Head</th>
-                <th className="py-2 font-medium">Kind</th>
-                <th className="py-2 text-right font-medium">Amount</th>
+              <tr>
+                <th className={head}>Head</th>
+                <th className={head}>Kind</th>
+                <th className={numberHead}>Amount</th>
               </tr>
             </thead>
             <tbody>
               {result.salary.lines
                 .filter((l) => l.shown)
                 .map((l) => (
-                  <tr key={l.head_id} className="border-b last:border-0">
-                    <td className="py-2">{l.payslip_label}</td>
-                    <td className="py-2">{SALARY_HEAD_KINDS[l.kind]}</td>
-                    <td className="py-2 text-right tabular-nums">{formatPaise(l.amount_paise)}</td>
+                  <tr key={l.head_id} className={tableStyles.row}>
+                    <td className={cell}>{l.payslip_label}</td>
+                    <td className={cell}>{SALARY_HEAD_KINDS[l.kind]}</td>
+                    <td className={numberCell}>{formatPaise(l.amount_paise)}</td>
                   </tr>
                 ))}
             </tbody>

@@ -18,8 +18,12 @@ it("keeps only available modules, and no empty group, for the home page", () => 
 // #1839 D1, D3: a module is offered publicly only when the pages behind it are
 // eligible in this release. Evidence is data, so a withdrawn capability or a
 // reclassified page fails here instead of leaving the label stale.
-import release from "../../../contracts/release-capabilities.json";
+import { releaseDefinitionsForTest, releasePagesForTest } from "@helivanta/api/testing";
 import { unbackedRows } from "./platform-catalog";
+
+// The generated copy of contracts/release-capabilities.json; the image build
+// has no contracts/ directory.
+const release = { capabilities: releaseDefinitionsForTest, pages: releasePagesForTest };
 
 it("backs every available row with eligible release pages", () => {
   expect(unbackedRows(platformGroups, release)).toEqual([]);

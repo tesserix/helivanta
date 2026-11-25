@@ -13,8 +13,16 @@ import {
   type SalaryAssignmentInput,
   type SalaryStructure,
 } from "@helivanta/api";
-import { Field, SelectControl, useFieldArray, useZodForm, RequestFailure } from "@helivanta/ui";
-import { inputClass, today } from "../roster-policy/policy-ui";
+import {
+  Field,
+  SelectControl,
+  useFieldArray,
+  useZodForm,
+  RequestFailure,
+  controlClass,
+  Panel,
+} from "@helivanta/ui";
+import { today } from "../roster-policy/policy-ui";
 import { SaveError } from "../leave-balances/years-panel";
 import { staffPayKey } from "./staff-pay-panel";
 
@@ -112,7 +120,7 @@ export function StaffPayEditor({
               <input
                 id="staff-pay-effective"
                 type="date"
-                className={inputClass}
+                className={controlClass}
                 aria-invalid={!!errors.effective_on}
                 {...form.register("effective_on")}
               />
@@ -122,45 +130,47 @@ export function StaffPayEditor({
             <textarea
               id="staff-pay-reason"
               rows={2}
-              className={inputClass}
+              className={controlClass}
               aria-invalid={!!errors.reason}
               {...form.register("reason")}
             />
           </Field>
           {amounts.fields.length > 0 && (
-            <fieldset className="space-y-3 rounded-xl border p-4">
-              <legend className="px-1 text-sm font-semibold">Personal amounts</legend>
-              <p className="text-xs text-muted-foreground">
-                Leave a head blank to pay the structure&apos;s amount. Percentage heads always
-                compute from their bases.
-              </p>
-              <div className="grid gap-4 sm:grid-cols-2">
-                {amounts.fields.map((field, index) => {
-                  const line = lines.get(field.head_id);
-                  return (
-                    <Field
-                      key={field.fieldKey}
-                      id={`staff-pay-amount-${index}`}
-                      label={`${line?.name ?? "Head"} (₹ monthly)`}
-                      error={errors.amounts?.[index]?.amount?.message}
-                    >
-                      <input
+            <Panel as="div">
+              <fieldset className="space-y-3">
+                <legend className="text-sm font-semibold">Personal amounts</legend>
+                <p className="text-xs text-muted-foreground">
+                  Leave a head blank to pay the structure&apos;s amount. Percentage heads always
+                  compute from their bases.
+                </p>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {amounts.fields.map((field, index) => {
+                    const line = lines.get(field.head_id);
+                    return (
+                      <Field
+                        key={field.fieldKey}
                         id={`staff-pay-amount-${index}`}
-                        inputMode="decimal"
-                        className={inputClass}
-                        placeholder={
-                          line?.amount_paise !== undefined
-                            ? `Structure ${formatPaise(line.amount_paise)}`
-                            : undefined
-                        }
-                        aria-invalid={!!errors.amounts?.[index]?.amount}
-                        {...form.register(`amounts.${index}.amount`)}
-                      />
-                    </Field>
-                  );
-                })}
-              </div>
-            </fieldset>
+                        label={`${line?.name ?? "Head"} (₹ monthly)`}
+                        error={errors.amounts?.[index]?.amount?.message}
+                      >
+                        <input
+                          id={`staff-pay-amount-${index}`}
+                          inputMode="decimal"
+                          className={controlClass}
+                          placeholder={
+                            line?.amount_paise !== undefined
+                              ? `Structure ${formatPaise(line.amount_paise)}`
+                              : undefined
+                          }
+                          aria-invalid={!!errors.amounts?.[index]?.amount}
+                          {...form.register(`amounts.${index}.amount`)}
+                        />
+                      </Field>
+                    );
+                  })}
+                </div>
+              </fieldset>
+            </Panel>
           )}
           <p className="text-xs text-muted-foreground">
             A second person with approval rights must approve this before it takes effect. The

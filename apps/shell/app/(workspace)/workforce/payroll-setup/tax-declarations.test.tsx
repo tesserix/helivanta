@@ -14,6 +14,10 @@ const renderWithProviders = (ui: Parameters<typeof renderWithNamedAccounts>[0]) 
 import { chooseOption } from "@/test/select";
 import PayrollSetup from "./page";
 
+// #1261 slice 5: cards are Panel, so no hand-painted card class survives.
+// Buttons are controls: the design system's outline button carries shadow-sm.
+const CARDS = ":is(.rounded-xl, .rounded-2xl, .shadow-sm):not(button)";
+
 const hospital = "11111111-1111-4111-8111-111111111111";
 const staffID = "22222222-2222-4222-8222-222222222222";
 const current = "66666666-6666-4666-8666-666666666666";
@@ -211,6 +215,7 @@ it("shows the masked declaration and offers no reveal or change without permissi
   expect(within(party).getByText("PAN XXXXXX234A")).toBeInTheDocument();
   expect(within(section).queryByRole("button", { name: /Show full/ })).toBeNull();
   expect(within(section).queryByRole("button", { name: /Propose declaration/ })).toBeNull();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
 });
 
 it("says nothing is declared, switches year, and offers a retry when loading fails", async () => {
@@ -265,6 +270,7 @@ it("validates every row inline and sends the normalised proposal", async () => {
   expect(
     within(form).getByText("Enter the 10-character PAN, such as ABCDE1234F."),
   ).toBeInTheDocument();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   expect(writes).toHaveLength(0);
 
   await user.clear(within(form).getByLabelText("Claim 1 code"));

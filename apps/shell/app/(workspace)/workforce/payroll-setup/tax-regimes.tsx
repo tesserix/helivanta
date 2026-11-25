@@ -14,8 +14,16 @@ import {
   type TaxRegimeInput,
   type TaxRegimeRevision,
 } from "@helivanta/api";
-import { AccountName, Field, SelectControl, useZodForm, RequestFailure } from "@helivanta/ui";
-import { inputClass, today } from "../roster-policy/policy-ui";
+import {
+  AccountName,
+  Field,
+  SelectControl,
+  useZodForm,
+  RequestFailure,
+  controlClass,
+  Panel,
+} from "@helivanta/ui";
+import { today } from "../roster-policy/policy-ui";
 import { SaveError } from "../leave-balances/years-panel";
 import { RevisionHistory } from "./payroll-workspace";
 
@@ -79,11 +87,11 @@ export function TaxRegimes({
       ) : elections.items.length === 0 ? (
         <p className="text-sm text-muted-foreground">No regime recorded for any tax year.</p>
       ) : (
-        <ul className="divide-y rounded-xl border">
+        <ul className="divide-y">
           {elections.items.map((e) => (
             <li
               key={e.id}
-              className="flex flex-wrap items-center justify-between gap-3 p-4 text-sm"
+              className="flex flex-wrap items-center justify-between gap-3 py-4 text-sm"
             >
               <div>
                 <p className="font-medium">
@@ -198,85 +206,91 @@ function RegimeEditor({
   const errors = form.formState.errors;
   const value = form.watch();
   return (
-    <form
-      noValidate
-      autoComplete="off"
-      aria-label={current ? `Change ${current.tax_year} election` : "Record election"}
-      onSubmit={form.handleSubmit((input) =>
-        save.mutate({
-          year: input.tax_year,
-          input: toTaxRegimeInput(input, current?.version ?? 0),
-        }),
-      )}
-      className="mt-4 space-y-4 rounded-xl border bg-muted/10 p-4"
-    >
-      <h5 ref={heading} tabIndex={-1} className="text-sm font-semibold outline-none">
-        {current ? `Change ${current.tax_year} election` : "Record election"}
-      </h5>
-      <fieldset disabled={save.isPending} className="grid gap-4 sm:grid-cols-3">
-        <Field id="tax-regime-year" label="Tax year" error={errors.tax_year?.message}>
-          <input
-            id="tax-regime-year"
-            className={inputClass}
-            disabled={!!current}
-            placeholder="2026-27"
-            aria-invalid={!!errors.tax_year}
-            {...form.register("tax_year")}
-          />
-        </Field>
-        <Field id="tax-regime-regime" label="Regime" error={errors.regime?.message}>
-          <SelectControl
-            id="tax-regime-regime"
-            value={value.regime}
-            aria-invalid={!!errors.regime}
-            placeholder="Choose a regime"
-            onValueChange={(next) =>
-              form.setValue("regime", next as TaxRegimeElection["regime"], {
-                shouldDirty: true,
-                shouldValidate: form.formState.isSubmitted,
-              })
-            }
-            options={Object.entries(TAX_REGIMES).map(([r, label]) => ({ value: r, label }))}
-          />
-        </Field>
-        <Field id="tax-regime-intimated" label="Intimated on" error={errors.intimated_on?.message}>
-          <input
-            id="tax-regime-intimated"
-            type="date"
-            className={inputClass}
-            aria-invalid={!!errors.intimated_on}
-            {...form.register("intimated_on")}
-          />
-        </Field>
-        <div className="sm:col-span-3">
-          <Field
-            id="tax-regime-note"
-            label={current ? "Reason for the change" : "Note (optional)"}
-            error={errors.note?.message}
-          >
-            <textarea
-              id="tax-regime-note"
-              rows={2}
-              className={inputClass}
-              aria-invalid={!!errors.note}
-              {...form.register("note")}
+    <Panel as="div" className="mt-4">
+      <form
+        noValidate
+        autoComplete="off"
+        aria-label={current ? `Change ${current.tax_year} election` : "Record election"}
+        onSubmit={form.handleSubmit((input) =>
+          save.mutate({
+            year: input.tax_year,
+            input: toTaxRegimeInput(input, current?.version ?? 0),
+          }),
+        )}
+        className="space-y-4"
+      >
+        <h5 ref={heading} tabIndex={-1} className="text-sm font-semibold outline-none">
+          {current ? `Change ${current.tax_year} election` : "Record election"}
+        </h5>
+        <fieldset disabled={save.isPending} className="grid gap-4 sm:grid-cols-3">
+          <Field id="tax-regime-year" label="Tax year" error={errors.tax_year?.message}>
+            <input
+              id="tax-regime-year"
+              className={controlClass}
+              disabled={!!current}
+              placeholder="2026-27"
+              aria-invalid={!!errors.tax_year}
+              {...form.register("tax_year")}
             />
           </Field>
+          <Field id="tax-regime-regime" label="Regime" error={errors.regime?.message}>
+            <SelectControl
+              id="tax-regime-regime"
+              value={value.regime}
+              aria-invalid={!!errors.regime}
+              placeholder="Choose a regime"
+              onValueChange={(next) =>
+                form.setValue("regime", next as TaxRegimeElection["regime"], {
+                  shouldDirty: true,
+                  shouldValidate: form.formState.isSubmitted,
+                })
+              }
+              options={Object.entries(TAX_REGIMES).map(([r, label]) => ({ value: r, label }))}
+            />
+          </Field>
+          <Field
+            id="tax-regime-intimated"
+            label="Intimated on"
+            error={errors.intimated_on?.message}
+          >
+            <input
+              id="tax-regime-intimated"
+              type="date"
+              className={controlClass}
+              aria-invalid={!!errors.intimated_on}
+              {...form.register("intimated_on")}
+            />
+          </Field>
+          <div className="sm:col-span-3">
+            <Field
+              id="tax-regime-note"
+              label={current ? "Reason for the change" : "Note (optional)"}
+              error={errors.note?.message}
+            >
+              <textarea
+                id="tax-regime-note"
+                rows={2}
+                className={controlClass}
+                aria-invalid={!!errors.note}
+                {...form.register("note")}
+              />
+            </Field>
+          </div>
+        </fieldset>
+        {save.isError && (
+          <SaveError
+            message={`${save.error.message} Cancel and reload to see the current election.`}
+          />
+        )}
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="ghost" disabled={save.isPending} onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={save.isPending}>
+            {save.isPending ? "Saving…" : current ? "Change election" : "Record election"}
+          </Button>
         </div>
-      </fieldset>
-      {save.isError && (
-        <SaveError
-          message={`${save.error.message} Cancel and reload to see the current election.`}
-        />
-      )}
-      <div className="flex justify-end gap-2">
-        <Button type="button" variant="ghost" disabled={save.isPending} onClick={onClose}>
-          Cancel
-        </Button>
-        <Button type="submit" disabled={save.isPending}>
-          {save.isPending ? "Saving…" : current ? "Change election" : "Record election"}
-        </Button>
-      </div>
-    </form>
+      </form>
+    </Panel>
   );
 }

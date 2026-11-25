@@ -5,6 +5,10 @@ import { renderWithProviders } from "@helivanta/api/testing";
 import { chooseOption } from "@/test/select";
 import PayrollSetup from "./page";
 
+// #1261 slice 5: cards are Panel, so no hand-painted card class survives.
+// Buttons are controls: the design system's outline button carries shadow-sm.
+const CARDS = ":is(.rounded-xl, .rounded-2xl, .shadow-sm):not(button)";
+
 const hospital = "11111111-1111-4111-8111-111111111111";
 const basic = "22222222-2222-4222-8222-222222222222";
 const hra = "33333333-3333-4333-8333-333333333333";
@@ -240,6 +244,7 @@ it.each([{ permissions: [] }, { permissions: ["workforce.payroll.configure"] }])
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "You do not have access to payroll.",
     );
+    expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
     expect(screen.queryByRole("region", { name: "Salary heads" })).toBeNull();
     expect(
       vi.mocked(fetch).mock.calls.some(([url]) => String(url).includes("/workforce/hospitals")),
@@ -290,6 +295,7 @@ it("shows heads, structures and history read-only to readers", async () => {
   const history = await screen.findByRole("region", { name: "Synthetic Basic history" });
   expect(await within(history).findByText("v1 · effective 2026-10-01")).toBeInTheDocument();
   expect(within(history).getByText("v2 · effective 2026-11-01")).toBeInTheDocument();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
 });
 
 it("keeps the setup read-only where the hospital grants no manager access", async () => {
@@ -314,6 +320,7 @@ it("refuses an incomplete head and saves a percentage of a reviewed base", async
     within(form).getByText("Use up to 40 letters, numbers, underscores or hyphens."),
   ).toBeInTheDocument();
   expect(within(form).getByText("Confirm that you reviewed the head.")).toBeInTheDocument();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   expect(within(form).getByLabelText("Proration")).toBeInTheDocument();
   await chooseOption(
     user,
@@ -461,6 +468,7 @@ it("asks for amounts on fixed heads only and saves a scoped structure", async ()
   await user.click(within(form).getByRole("button", { name: "Save salary structure" }));
   expect(await within(form).findByText(/Enter rupees with up to 2 decimals/)).toBeInTheDocument();
   expect(within(form).getByText("Confirm that you reviewed the structure.")).toBeInTheDocument();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   expect(writes).toHaveLength(0);
   await user.type(within(form).getByLabelText("Monthly amount (₹)"), "30,000.50");
   await user.click(within(form).getByRole("checkbox", { name: /I reviewed the heads/ }));
@@ -509,6 +517,11 @@ it("bounds preview days by the month and shows totals and the wage test", async 
   });
   const row = (await within(region).findByText("PF")).closest("tr")!;
   expect(within(row).getByText("₹1,800.00")).toBeInTheDocument();
+  expect(row).toHaveClass("h-11");
+  expect(within(region).getByRole("columnheader", { name: "Head" })).not.toHaveClass("uppercase");
+  expect(within(region).getByRole("columnheader", { name: "Amount" })).toHaveClass("text-right");
+  expect(within(row).getByText("₹1,800.00")).toHaveClass("text-right");
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   expect(within(region).queryByText("Synthetic hidden line")).toBeNull();
   expect(within(region).getByText("₹40,200.00")).toBeInTheDocument();
   expect(within(region).getByText(/28\.5714% of ₹42,000\.00/)).toBeInTheDocument();

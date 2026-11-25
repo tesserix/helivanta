@@ -21,7 +21,7 @@ describe("surface legacy list", () => {
 
   it("is never added to", () => {
     // Lower this as zone tidy-ups remove files; raising it needs a reason in review.
-    expect(SURFACE_LEGACY.length).toBeLessThanOrEqual(44);
+    expect(SURFACE_LEGACY.length).toBeLessThanOrEqual(28);
     expect(new Set(SURFACE_LEGACY).size).toBe(SURFACE_LEGACY.length);
   });
 });

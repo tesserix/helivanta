@@ -43,8 +43,10 @@ import {
   useZodForm,
   type UseFormReturn,
   RequestFailure,
+  controlClass,
+  Panel,
 } from "@helivanta/ui";
-import { inputClass, today } from "../roster-policy/policy-ui";
+import { today } from "../roster-policy/policy-ui";
 import { SaveError } from "../leave-balances/years-panel";
 import { Check, Fact, RevisionHistory } from "./payroll-workspace";
 import { TableError } from "./statutory-slabs";
@@ -317,7 +319,7 @@ function PartyFact({
 }) {
   const title = `${DECLARATION_ROLES[party.role]} ${party.position}`;
   return (
-    <li className="rounded-lg border p-3">
+    <Panel as="li">
       <p className="text-xs text-muted-foreground">{title}</p>
       <p className="mt-1 font-medium">{party.name}</p>
       <p className="text-muted-foreground">{party.address}</p>
@@ -337,7 +339,7 @@ function PartyFact({
           }
         />
       )}
-    </li>
+    </Panel>
   );
 }
 
@@ -359,7 +361,7 @@ function Text({
     <Field id={id} label={label} error={error}>
       <input
         id={id}
-        className={inputClass}
+        className={controlClass}
         inputMode={decimal ? "decimal" : undefined}
         spellCheck={false}
         aria-invalid={!!error}
@@ -397,8 +399,8 @@ function Parties({
         );
         const id = `tax-declaration-${name}-${index}-pan`;
         return (
-          <fieldset key={row.fieldKey} className="space-y-3 rounded-lg border p-3">
-            <legend className="px-1 text-sm font-medium">
+          <fieldset key={row.fieldKey} className="space-y-3 border-t border-border pt-4">
+            <legend className="text-sm font-medium">
               {label} {index + 1}
             </legend>
             <div className="grid items-end gap-4 sm:grid-cols-2">
@@ -512,82 +514,95 @@ function DeclarationEditor({
       className="mt-4 space-y-6 border-t bg-muted/10 pt-5"
     >
       <fieldset disabled={save.isPending} className="space-y-6">
-        <fieldset className="space-y-4 rounded-xl border p-4">
-          <legend className="px-1 text-sm font-semibold">Claims</legend>
-          {claims.fields.map((claim, index) => (
-            <div key={claim.fieldKey} className="grid items-end gap-4 sm:grid-cols-[1fr_1fr_auto]">
-              <Text
-                form={form}
-                name={`claims.${index}.code`}
-                label={`Claim ${index + 1} code`}
-                error={errors.claims?.[index]?.code?.message}
-              />
-              <Text
-                form={form}
-                name={`claims.${index}.amount`}
-                label={`Claim ${index + 1} amount (₹)`}
-                decimal
-                error={errors.claims?.[index]?.amount?.message}
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                aria-label={`Remove claim ${index + 1}`}
-                onClick={() => claims.remove(index)}
+        <Panel as="div">
+          <fieldset className="space-y-4">
+            <legend className="text-sm font-semibold">Claims</legend>
+            {claims.fields.map((claim, index) => (
+              <div
+                key={claim.fieldKey}
+                className="grid items-end gap-4 sm:grid-cols-[1fr_1fr_auto]"
               >
-                Remove
-              </Button>
-            </div>
-          ))}
-          <TableError message={errors.claims?.root?.message ?? errors.claims?.message} />
-          <Button
-            type="button"
-            variant="outline"
-            disabled={claims.fields.length >= MAX_DECLARATION_CLAIMS}
-            onClick={() => claims.append(blankDeclarationClaim())}
-          >
-            Add claim
-          </Button>
-        </fieldset>
-        <fieldset className="space-y-4 rounded-xl border p-4">
-          <legend className="px-1 text-sm font-semibold">House rent</legend>
-          <Check label="Claim house rent allowance" checked={hra} onChange={(v) => set("hra", v)} />
-          {hra && (
-            <>
-              <Check
-                label="Rented home is in a metro city"
-                checked={metro}
-                onChange={(v) => set("metro", v)}
-              />
-              <Parties form={form} kind="landlord" inForce={inForce} />
-            </>
-          )}
-        </fieldset>
-        <fieldset className="space-y-4 rounded-xl border p-4">
-          <legend className="px-1 text-sm font-semibold">Home loan</legend>
-          <Check
-            label="Claim home loan interest"
-            checked={homeLoan}
-            onChange={(v) => set("home_loan", v)}
-          />
-          {homeLoan && (
-            <>
-              <Text
-                form={form}
-                name="interest"
-                label="Interest payable this year (₹)"
-                decimal
-                error={errors.interest?.message}
-              />
-              <Parties form={form} kind="lender" inForce={inForce} />
-            </>
-          )}
-        </fieldset>
+                <Text
+                  form={form}
+                  name={`claims.${index}.code`}
+                  label={`Claim ${index + 1} code`}
+                  error={errors.claims?.[index]?.code?.message}
+                />
+                <Text
+                  form={form}
+                  name={`claims.${index}.amount`}
+                  label={`Claim ${index + 1} amount (₹)`}
+                  decimal
+                  error={errors.claims?.[index]?.amount?.message}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  aria-label={`Remove claim ${index + 1}`}
+                  onClick={() => claims.remove(index)}
+                >
+                  Remove
+                </Button>
+              </div>
+            ))}
+            <TableError message={errors.claims?.root?.message ?? errors.claims?.message} />
+            <Button
+              type="button"
+              variant="outline"
+              disabled={claims.fields.length >= MAX_DECLARATION_CLAIMS}
+              onClick={() => claims.append(blankDeclarationClaim())}
+            >
+              Add claim
+            </Button>
+          </fieldset>
+        </Panel>
+        <Panel as="div">
+          <fieldset className="space-y-4">
+            <legend className="text-sm font-semibold">House rent</legend>
+            <Check
+              label="Claim house rent allowance"
+              checked={hra}
+              onChange={(v) => set("hra", v)}
+            />
+            {hra && (
+              <>
+                <Check
+                  label="Rented home is in a metro city"
+                  checked={metro}
+                  onChange={(v) => set("metro", v)}
+                />
+                <Parties form={form} kind="landlord" inForce={inForce} />
+              </>
+            )}
+          </fieldset>
+        </Panel>
+        <Panel as="div">
+          <fieldset className="space-y-4">
+            <legend className="text-sm font-semibold">Home loan</legend>
+            <Check
+              label="Claim home loan interest"
+              checked={homeLoan}
+              onChange={(v) => set("home_loan", v)}
+            />
+            {homeLoan && (
+              <>
+                <Text
+                  form={form}
+                  name="interest"
+                  label="Interest payable this year (₹)"
+                  decimal
+                  error={errors.interest?.message}
+                />
+                <Parties form={form} kind="lender" inForce={inForce} />
+              </>
+            )}
+          </fieldset>
+        </Panel>
         <Field id="tax-declaration-reason" label="Reason" error={errors.reason?.message}>
           <textarea
             id="tax-declaration-reason"
             rows={2}
-            className={inputClass}
+            className={controlClass}
             aria-invalid={!!errors.reason}
             {...form.register("reason")}
           />
@@ -731,7 +746,7 @@ function DeclarationDecision({
           <textarea
             id="tax-declaration-decision-note"
             rows={2}
-            className={inputClass}
+            className={controlClass}
             aria-invalid={!!errors.note}
             disabled={busy}
             {...form.register("note")}

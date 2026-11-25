@@ -9,8 +9,8 @@ function ClaimHead({ form, index, onRemove }: { form: Form; index: number; onRem
   const errors = form.formState.errors.income_tax?.claims?.[index];
   const claim = form.watch(name);
   return (
-    <fieldset className="space-y-3 rounded-lg border p-3">
-      <legend className="px-1 text-sm font-medium">Claim {index + 1}</legend>
+    <fieldset className="space-y-3 border-t border-border pt-4">
+      <legend className="text-sm font-medium">Claim {index + 1}</legend>
       <div className="grid items-end gap-4 sm:grid-cols-[1fr_2fr_2fr_auto]">
         <Text form={form} name={`${name}.code`} label="Code" error={errors?.code?.message} />
         <Text form={form} name={`${name}.label`} label="Name" error={errors?.label?.message} />

@@ -13,8 +13,14 @@ import {
   STATUTORY_WAGE_BASES,
   type StatutoryRuleForm,
 } from "@helivanta/api";
-import { Field, SelectControl, useFieldArray, type UseFormReturn } from "@helivanta/ui";
-import { inputClass } from "../roster-policy/policy-ui";
+import {
+  Field,
+  SelectControl,
+  useFieldArray,
+  type UseFormReturn,
+  controlClass,
+  Panel,
+} from "@helivanta/ui";
 import { Check } from "./payroll-workspace";
 
 export type Form = UseFormReturn<StatutoryRuleForm>;
@@ -48,7 +54,7 @@ export function Text({
     <Field id={id} label={label} error={error}>
       <input
         id={id}
-        className={inputClass}
+        className={controlClass}
         inputMode={/(state_code|tax_year)$/.test(name) ? undefined : "decimal"}
         aria-invalid={!!error}
         {...form.register(name as never)}
@@ -171,118 +177,120 @@ export function PtFields({ form }: { form: Form }) {
   const totals = ptAnnualTotals(value);
   const genders = Object.entries(STATUTORY_GENDERS) as [Gender, string][];
   return (
-    <fieldset className="space-y-4 rounded-xl border p-4">
-      <legend className="px-1 text-sm font-semibold">Professional tax parameters</legend>
-      <div className="grid gap-5 sm:grid-cols-3">
-        <StateFields form={form} kind="pt" />
-        <Choose
-          form={form}
-          name="pt.cadence"
-          label="Charged on"
-          current={cadence}
-          labels={PT_CADENCES}
-          error={errors?.cadence?.message}
-        />
-      </div>
-      {periodic && (
-        <Toggles
-          id="statutory-pt-periods"
-          label={cadence === "annual" ? "The year starts in" : "Half-years start in"}
-          choices={months}
-          chosen={form.watch("pt.period_start_months")}
-          onChange={(next) => set("pt.period_start_months", next)}
-          error={errors?.period_start_months?.message}
-        />
-      )}
-      {slabs.fields.map((slab, index) => {
-        const slabErrors = errors?.slabs?.[index];
-        const row = value[index];
-        return (
-          <fieldset key={slab.fieldKey} className="space-y-3 rounded-lg border p-3">
-            <legend className="px-1 text-sm font-medium">Slab {index + 1}</legend>
-            <div className="grid items-end gap-4 sm:grid-cols-[1fr_1fr_1fr_auto]">
-              <Text
-                form={form}
-                name={`pt.slabs.${index}.from`}
-                label={`${wages} wages from (₹)`}
-                error={slabErrors?.from?.message}
+    <Panel as="div">
+      <fieldset className="space-y-4">
+        <legend className="text-sm font-semibold">Professional tax parameters</legend>
+        <div className="grid gap-5 sm:grid-cols-3">
+          <StateFields form={form} kind="pt" />
+          <Choose
+            form={form}
+            name="pt.cadence"
+            label="Charged on"
+            current={cadence}
+            labels={PT_CADENCES}
+            error={errors?.cadence?.message}
+          />
+        </div>
+        {periodic && (
+          <Toggles
+            id="statutory-pt-periods"
+            label={cadence === "annual" ? "The year starts in" : "Half-years start in"}
+            choices={months}
+            chosen={form.watch("pt.period_start_months")}
+            onChange={(next) => set("pt.period_start_months", next)}
+            error={errors?.period_start_months?.message}
+          />
+        )}
+        {slabs.fields.map((slab, index) => {
+          const slabErrors = errors?.slabs?.[index];
+          const row = value[index];
+          return (
+            <fieldset key={slab.fieldKey} className="space-y-3 border-t border-border pt-4">
+              <legend className="text-sm font-medium">Slab {index + 1}</legend>
+              <div className="grid items-end gap-4 sm:grid-cols-[1fr_1fr_1fr_auto]">
+                <Text
+                  form={form}
+                  name={`pt.slabs.${index}.from`}
+                  label={`${wages} wages from (₹)`}
+                  error={slabErrors?.from?.message}
+                />
+                <Text
+                  form={form}
+                  name={`pt.slabs.${index}.to`}
+                  label="Up to, excluding (₹, blank for no limit)"
+                  error={slabErrors?.to?.message}
+                />
+                <Text
+                  form={form}
+                  name={`pt.slabs.${index}.amount`}
+                  label={periodic ? "Tax for the period (₹)" : "Tax per month (₹)"}
+                  error={slabErrors?.amount?.message}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  aria-label={`Remove slab ${index + 1}`}
+                  disabled={slabs.fields.length === 1}
+                  onClick={() => slabs.remove(index)}
+                >
+                  Remove
+                </Button>
+              </div>
+              <Toggles
+                id={`statutory-pt-slab-${index}-months`}
+                label={
+                  periodic
+                    ? `Month slab ${index + 1} is charged in`
+                    : `Months slab ${index + 1} applies in`
+                }
+                choices={months}
+                chosen={row?.months ?? []}
+                onChange={(next) => set(`pt.slabs.${index}.months`, next)}
+                error={slabErrors?.months?.message}
               />
-              <Text
-                form={form}
-                name={`pt.slabs.${index}.to`}
-                label="Up to, excluding (₹, blank for no limit)"
-                error={slabErrors?.to?.message}
+              <Toggles
+                id={`statutory-pt-slab-${index}-genders`}
+                label={`Slab ${index + 1} applies to`}
+                choices={genders}
+                chosen={row?.genders ?? []}
+                onChange={(next) => set(`pt.slabs.${index}.genders`, next)}
+                error={slabErrors?.genders?.message}
               />
-              <Text
-                form={form}
-                name={`pt.slabs.${index}.amount`}
-                label={periodic ? "Tax for the period (₹)" : "Tax per month (₹)"}
-                error={slabErrors?.amount?.message}
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                aria-label={`Remove slab ${index + 1}`}
-                disabled={slabs.fields.length === 1}
-                onClick={() => slabs.remove(index)}
-              >
-                Remove
-              </Button>
-            </div>
-            <Toggles
-              id={`statutory-pt-slab-${index}-months`}
-              label={
-                periodic
-                  ? `Month slab ${index + 1} is charged in`
-                  : `Months slab ${index + 1} applies in`
-              }
-              choices={months}
-              chosen={row?.months ?? []}
-              onChange={(next) => set(`pt.slabs.${index}.months`, next)}
-              error={slabErrors?.months?.message}
-            />
-            <Toggles
-              id={`statutory-pt-slab-${index}-genders`}
-              label={`Slab ${index + 1} applies to`}
-              choices={genders}
-              chosen={row?.genders ?? []}
-              onChange={(next) => set(`pt.slabs.${index}.genders`, next)}
-              error={slabErrors?.genders?.message}
-            />
-          </fieldset>
-        );
-      })}
-      <TableError message={errors?.slabs?.root?.message ?? errors?.slabs?.message} />
-      <Button
-        type="button"
-        variant="outline"
-        disabled={slabs.fields.length >= 96}
-        onClick={() => slabs.append(blankPtSlab())}
-      >
-        Add slab
-      </Button>
-      {totals && (
-        <p className="text-sm" aria-live="polite">
-          Highest yearly tax:{" "}
-          {genders
-            .map(([g, label]) => `${label.toLowerCase()} ${formatPaise(totals[g])}`)
-            .join(" · ")}
-        </p>
-      )}
-      <p className="text-xs text-muted-foreground">
-        In every month a slab names, the slabs for each gender must run from ₹0 without gaps or
-        overlaps, ending in one with no limit. Enter an exempt band as a ₹0 slab. A month no slab
-        names has no professional tax. Check the yearly total against the ceiling in Article 276 of
-        the Constitution.
-      </p>
-      {periodic && (
+            </fieldset>
+          );
+        })}
+        <TableError message={errors?.slabs?.root?.message ?? errors?.slabs?.message} />
+        <Button
+          type="button"
+          variant="outline"
+          disabled={slabs.fields.length >= 96}
+          onClick={() => slabs.append(blankPtSlab())}
+        >
+          Add slab
+        </Button>
+        {totals && (
+          <p className="text-sm" aria-live="polite">
+            Highest yearly tax:{" "}
+            {genders
+              .map(([g, label]) => `${label.toLowerCase()} ${formatPaise(totals[g])}`)
+              .join(" · ")}
+          </p>
+        )}
         <p className="text-xs text-muted-foreground">
-          Slabs apply to the period&apos;s wages, and each period is charged once, in the one month
-          its slabs name. Previews project the period&apos;s wages from the month they compute; the
-          payroll run uses the wages actually paid.
+          In every month a slab names, the slabs for each gender must run from ₹0 without gaps or
+          overlaps, ending in one with no limit. Enter an exempt band as a ₹0 slab. A month no slab
+          names has no professional tax. Check the yearly total against the ceiling in Article 276
+          of the Constitution.
         </p>
-      )}
-    </fieldset>
+        {periodic && (
+          <p className="text-xs text-muted-foreground">
+            Slabs apply to the period&apos;s wages, and each period is charged once, in the one
+            month its slabs name. Previews project the period&apos;s wages from the month they
+            compute; the payroll run uses the wages actually paid.
+          </p>
+        )}
+      </fieldset>
+    </Panel>
   );
 }
 
@@ -292,102 +300,104 @@ export function LwfFields({ form }: { form: Form }) {
   const errors = form.formState.errors.lwf;
   const lwf = form.watch("lwf");
   return (
-    <fieldset className="space-y-4 rounded-xl border p-4">
-      <legend className="px-1 text-sm font-semibold">Labour welfare fund parameters</legend>
-      <div className="grid gap-5 sm:grid-cols-3">
-        <StateFields form={form} kind="lwf" />
-        <Choose
-          form={form}
-          name="lwf.rounding_mode"
-          label="Rounding"
-          current={lwf.rounding_mode}
-          labels={SALARY_ROUNDING_MODES}
-          error={errors?.rounding_mode?.message}
+    <Panel as="div">
+      <fieldset className="space-y-4">
+        <legend className="text-sm font-semibold">Labour welfare fund parameters</legend>
+        <div className="grid gap-5 sm:grid-cols-3">
+          <StateFields form={form} kind="lwf" />
+          <Choose
+            form={form}
+            name="lwf.rounding_mode"
+            label="Rounding"
+            current={lwf.rounding_mode}
+            labels={SALARY_ROUNDING_MODES}
+            error={errors?.rounding_mode?.message}
+          />
+          <Choose
+            form={form}
+            name="lwf.rounding_unit"
+            label="Round to"
+            current={lwf.rounding_unit}
+            labels={SALARY_ROUNDING_UNITS}
+            error={errors?.rounding_unit?.message}
+          />
+        </div>
+        <Toggles
+          id="statutory-lwf-months"
+          label="Deducted in"
+          choices={months}
+          chosen={lwf.deduction_months}
+          onChange={(next) => set("lwf.deduction_months", next)}
+          error={errors?.deduction_months?.message}
         />
-        <Choose
-          form={form}
-          name="lwf.rounding_unit"
-          label="Round to"
-          current={lwf.rounding_unit}
-          labels={SALARY_ROUNDING_UNITS}
-          error={errors?.rounding_unit?.message}
-        />
-      </div>
-      <Toggles
-        id="statutory-lwf-months"
-        label="Deducted in"
-        choices={months}
-        chosen={lwf.deduction_months}
-        onChange={(next) => set("lwf.deduction_months", next)}
-        error={errors?.deduction_months?.message}
-      />
-      {slabs.fields.map((slab, index) => {
-        const slabErrors = errors?.slabs?.[index];
-        return (
-          <fieldset key={slab.fieldKey} className="space-y-3 rounded-lg border p-3">
-            <legend className="px-1 text-sm font-medium">Slab {index + 1}</legend>
-            <div className="grid items-end gap-4 sm:grid-cols-[1fr_1fr_auto]">
-              <Text
-                form={form}
-                name={`lwf.slabs.${index}.from`}
-                label="Wages from (₹)"
-                error={slabErrors?.from?.message}
-              />
-              <Text
-                form={form}
-                name={`lwf.slabs.${index}.to`}
-                label="Up to, excluding (₹, blank for no limit)"
-                error={slabErrors?.to?.message}
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                aria-label={`Remove slab ${index + 1}`}
-                disabled={slabs.fields.length === 1}
-                onClick={() => slabs.remove(index)}
-              >
-                Remove
-              </Button>
-            </div>
-            {(["employee", "employer"] as const).map((party) => (
-              <div key={party} className="grid gap-4 sm:grid-cols-3">
+        {slabs.fields.map((slab, index) => {
+          const slabErrors = errors?.slabs?.[index];
+          return (
+            <fieldset key={slab.fieldKey} className="space-y-3 border-t border-border pt-4">
+              <legend className="text-sm font-medium">Slab {index + 1}</legend>
+              <div className="grid items-end gap-4 sm:grid-cols-[1fr_1fr_auto]">
                 <Text
                   form={form}
-                  name={`lwf.slabs.${index}.${party}_fixed`}
-                  label={`${party === "employee" ? "Employee" : "Employer"} fixed (₹)`}
-                  error={slabErrors?.[`${party}_fixed`]?.message}
+                  name={`lwf.slabs.${index}.from`}
+                  label="Wages from (₹)"
+                  error={slabErrors?.from?.message}
                 />
                 <Text
                   form={form}
-                  name={`lwf.slabs.${index}.${party}_rate`}
-                  label={`${party === "employee" ? "Employee" : "Employer"} rate (%)`}
-                  error={slabErrors?.[`${party}_rate`]?.message}
+                  name={`lwf.slabs.${index}.to`}
+                  label="Up to, excluding (₹, blank for no limit)"
+                  error={slabErrors?.to?.message}
                 />
-                <Text
-                  form={form}
-                  name={`lwf.slabs.${index}.${party}_cap`}
-                  label={`${party === "employee" ? "Employee" : "Employer"} cap (₹, optional)`}
-                  error={slabErrors?.[`${party}_cap`]?.message}
-                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  aria-label={`Remove slab ${index + 1}`}
+                  disabled={slabs.fields.length === 1}
+                  onClick={() => slabs.remove(index)}
+                >
+                  Remove
+                </Button>
               </div>
-            ))}
-          </fieldset>
-        );
-      })}
-      <TableError message={errors?.slabs?.root?.message ?? errors?.slabs?.message} />
-      <Button
-        type="button"
-        variant="outline"
-        disabled={slabs.fields.length >= 24}
-        onClick={() => slabs.append(blankLwfSlab())}
-      >
-        Add slab
-      </Button>
-      <p className="text-xs text-muted-foreground">
-        Each share is the fixed amount plus the rate on wages, rounded, then limited to the cap.
-        Enter 0 for a part the state does not use. The slabs must run from ₹0 without gaps or
-        overlaps, ending in one with no limit.
-      </p>
-    </fieldset>
+              {(["employee", "employer"] as const).map((party) => (
+                <div key={party} className="grid gap-4 sm:grid-cols-3">
+                  <Text
+                    form={form}
+                    name={`lwf.slabs.${index}.${party}_fixed`}
+                    label={`${party === "employee" ? "Employee" : "Employer"} fixed (₹)`}
+                    error={slabErrors?.[`${party}_fixed`]?.message}
+                  />
+                  <Text
+                    form={form}
+                    name={`lwf.slabs.${index}.${party}_rate`}
+                    label={`${party === "employee" ? "Employee" : "Employer"} rate (%)`}
+                    error={slabErrors?.[`${party}_rate`]?.message}
+                  />
+                  <Text
+                    form={form}
+                    name={`lwf.slabs.${index}.${party}_cap`}
+                    label={`${party === "employee" ? "Employee" : "Employer"} cap (₹, optional)`}
+                    error={slabErrors?.[`${party}_cap`]?.message}
+                  />
+                </div>
+              ))}
+            </fieldset>
+          );
+        })}
+        <TableError message={errors?.slabs?.root?.message ?? errors?.slabs?.message} />
+        <Button
+          type="button"
+          variant="outline"
+          disabled={slabs.fields.length >= 24}
+          onClick={() => slabs.append(blankLwfSlab())}
+        >
+          Add slab
+        </Button>
+        <p className="text-xs text-muted-foreground">
+          Each share is the fixed amount plus the rate on wages, rounded, then limited to the cap.
+          Enter 0 for a part the state does not use. The slabs must run from ₹0 without gaps or
+          overlaps, ending in one with no limit.
+        </p>
+      </fieldset>
+    </Panel>
   );
 }

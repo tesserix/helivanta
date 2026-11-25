@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef } from "react";
-import { Button } from "@tesserix/web";
+import { Button, cn } from "@tesserix/web";
 import {
   apiFetch,
   formatPaise,
@@ -15,10 +15,15 @@ import {
   type SalaryPreviewInput,
   type SalaryStructure,
 } from "@helivanta/api";
-import { Field, useZodForm } from "@helivanta/ui";
-import { inputClass, today } from "../roster-policy/policy-ui";
+import { Field, useZodForm, controlClass, Panel, tableStyles } from "@helivanta/ui";
+import { today } from "../roster-policy/policy-ui";
 import { SaveError } from "../leave-balances/years-panel";
 import { Fact } from "./payroll-workspace";
+
+const cell = "px-4 py-3";
+const head = cn(tableStyles.head, "px-4 py-3");
+const numberHead = cn(head, tableStyles.number);
+const numberCell = cn(cell, tableStyles.number);
 
 export function StructurePreview({
   base,
@@ -63,7 +68,7 @@ export function StructurePreview({
           <input
             id="salary-preview-on"
             type="date"
-            className={inputClass}
+            className={controlClass}
             aria-invalid={!!errors.on}
             {...form.register("on")}
           />
@@ -72,7 +77,7 @@ export function StructurePreview({
           <input
             id="salary-preview-days"
             inputMode="decimal"
-            className={inputClass}
+            className={controlClass}
             aria-invalid={!!errors.payable_days}
             {...form.register("payable_days")}
           />
@@ -92,25 +97,25 @@ export function StructurePreview({
               Lines for {halfDaysToDays(result.payable_half_days)} of {result.period_days} days
             </caption>
             <thead>
-              <tr className="border-b text-left text-xs text-muted-foreground">
-                <th className="py-2 font-medium">Head</th>
-                <th className="py-2 font-medium">Kind</th>
-                <th className="py-2 text-right font-medium">Amount</th>
+              <tr>
+                <th className={head}>Head</th>
+                <th className={head}>Kind</th>
+                <th className={numberHead}>Amount</th>
               </tr>
             </thead>
             <tbody>
               {result.lines
                 .filter((l) => l.shown)
                 .map((l) => (
-                  <tr key={l.head_id} className="border-b last:border-0">
-                    <td className="py-2">
+                  <tr key={l.head_id} className={tableStyles.row}>
+                    <td className={cell}>
                       {l.payslip_label}
                       {!l.applicable && (
                         <span className="text-xs text-muted-foreground"> · not applicable</span>
                       )}
                     </td>
-                    <td className="py-2">{SALARY_HEAD_KINDS[l.kind]}</td>
-                    <td className="py-2 text-right tabular-nums">{formatPaise(l.amount_paise)}</td>
+                    <td className={cell}>{SALARY_HEAD_KINDS[l.kind]}</td>
+                    <td className={numberCell}>{formatPaise(l.amount_paise)}</td>
                   </tr>
                 ))}
             </tbody>
@@ -130,7 +135,7 @@ export function StructurePreview({
               Deductions exceed gross for these days, so net pay is negative.
             </p>
           )}
-          <div className="rounded-xl border bg-muted/30 p-4 text-sm">
+          <Panel as="div" className="text-sm">
             <p className="font-medium">Statutory wage test</p>
             <p className="mt-1 text-muted-foreground">
               Wages {formatPaise(result.wage_test.wages_paise)} · excluded{" "}
@@ -140,7 +145,7 @@ export function StructurePreview({
               {formatPaise(result.wage_test.add_back_paise)} · statutory wages{" "}
               {formatPaise(result.wage_test.statutory_wages_paise)}
             </p>
-          </div>
+          </Panel>
         </div>
       )}
     </div>

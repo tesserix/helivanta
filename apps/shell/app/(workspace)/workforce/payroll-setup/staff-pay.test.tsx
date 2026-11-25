@@ -12,6 +12,10 @@ const renderWithProviders = (ui: Parameters<typeof renderWithNamedAccounts>[0]) 
 import { chooseOption } from "@/test/select";
 import PayrollSetup from "./page";
 
+// #1261 slice 5: cards are Panel, so no hand-painted card class survives.
+// Buttons are controls: the design system's outline button carries shadow-sm.
+const CARDS = ":is(.rounded-xl, .rounded-2xl, .shadow-sm):not(button)";
+
 const hospital = "11111111-1111-4111-8111-111111111111";
 const staffID = "22222222-2222-4222-8222-222222222222";
 const structureID = "33333333-3333-4333-8333-333333333333";
@@ -177,6 +181,7 @@ it("says nothing is paid until approved and offers readers no changes", async ()
   expect(within(section).getByText("No regime recorded for any tax year.")).toBeInTheDocument();
   expect(within(section).queryByRole("button", { name: /Propose pay/ })).toBeNull();
   expect(within(section).queryByRole("button", { name: "Record election" })).toBeNull();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
 });
 
 it("offers a retry when a staff member's pay cannot be loaded", async () => {
@@ -211,6 +216,7 @@ it("refuses a proposal without a structure or reason and sends only overridden a
   expect(
     await within(form).findByText("Enter rupees with up to two decimals, or leave blank."),
   ).toBeInTheDocument();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   expect(writes).toHaveLength(0);
   await user.clear(within(form).getByLabelText("Basic (₹ monthly)"));
   await user.type(within(form).getByLabelText("Basic (₹ monthly)"), "25000");
@@ -246,6 +252,7 @@ it("lets a second person approve and requires a note to reject", async () => {
   const form = within(section).getByRole("form", { name: "Decide pay proposal" });
   await user.click(within(form).getByRole("button", { name: "Reject pay" }));
   expect(await within(form).findByText("Give a reason for rejecting.")).toBeInTheDocument();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   expect(writes).toHaveLength(0);
   await user.click(within(form).getByRole("button", { name: "Approve pay" }));
   await waitFor(() => expect(writes).toHaveLength(1));
@@ -292,6 +299,7 @@ it("records a regime only once chosen and needs a reason to change one", async (
   expect(
     await within(record).findByText("Choose the regime the employee intimated."),
   ).toBeInTheDocument();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   expect(writes).toHaveLength(0);
   await user.click(within(record).getByRole("button", { name: "Cancel" }));
 
@@ -357,4 +365,10 @@ it("previews pay and reports an unrecorded regime instead of assuming one", asyn
   });
   expect(await within(region).findByText(/no regime recorded/)).toBeInTheDocument();
   expect(within(region).getByRole("cell", { name: "Basic" })).toBeInTheDocument();
+  const basic = within(region).getByRole("cell", { name: "Basic" }).closest("tr")!;
+  expect(basic).toHaveClass("h-11");
+  expect(within(basic).getByText("₹25,000.00")).toHaveClass("text-right");
+  expect(within(region).getByRole("columnheader", { name: "Head" })).not.toHaveClass("uppercase");
+  expect(within(region).getByRole("columnheader", { name: "Amount" })).toHaveClass("text-right");
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
 });

@@ -1,7 +1,7 @@
 import { WEEKDAYS } from "@helivanta/api";
 
-export const inputClass =
-  "w-full rounded-lg border bg-background px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--hms-accent)";
+// The shared control style (#1261 D1); kept under this name for its importers.
+export { controlClass as inputClass } from "@helivanta/ui";
 export const today = () => new Date().toISOString().slice(0, 10);
 export const weekdayOptions = WEEKDAYS.map((label, index) => ({ value: String(index), label }));
 export function ReviewBox({

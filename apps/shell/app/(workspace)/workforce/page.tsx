@@ -32,6 +32,7 @@ import {
   StaffDirectory,
   useZodForm,
   useConfirmLeave,
+  controlClass,
 } from "@helivanta/ui";
 import { BusinessProfilePanel } from "@/components/organization/business-profile";
 import { EnrollmentEditor } from "./enrollment-editor";
@@ -42,9 +43,6 @@ import { StaffIdentitySourcePanel } from "./identity-source-panel";
 import { StaffEmploymentPeriods } from "./employment-periods-panel";
 import { StaffPostingDraftPanel } from "./posting-drafts-panel";
 import { StaffLoginLinkPanel } from "./login-link-panel";
-
-const inputClass =
-  "w-full rounded-lg border bg-background px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--hms-accent)";
 
 export default function Workforce() {
   const [attempt, setAttempt] = useState(0);
@@ -686,7 +684,7 @@ function HospitalSetup() {
         className="mt-5 max-w-lg space-y-4"
       >
         <Field id="hospital-name" label="Hospital name" error={form.formState.errors.name?.message}>
-          <input id="hospital-name" className={inputClass} {...form.register("name")} />
+          <input id="hospital-name" className={controlClass} {...form.register("name")} />
         </Field>
         <label className="flex items-start gap-3 text-sm">
           <input type="checkbox" className="mt-1" {...form.register("grant")} />

@@ -89,7 +89,6 @@ export const SURFACE_LEGACY = [
   "app/(workspace)/workforce/roster-policy/settings-panel.tsx",
   "app/(workspace)/workforce/roster-setup/roster-editor.tsx",
   "app/(workspace)/workforce/roster-setup/roster-summary.tsx",
-  "app/(workspace)/workforce/roster-setup/roster-ui.ts",
   "app/(workspace)/workforce/roster-setup/roster-workspace.tsx",
   "app/(workspace)/workforce/roster-setup/weekly-fields.tsx",
   "app/(workspace)/workforce/rosters/roster-change.tsx",

@@ -50,10 +50,9 @@ import {
   ConfirmDialog,
   SelectControl,
   RequestFailure,
+  controlClass,
 } from "@helivanta/ui";
 
-const inputClass =
-  "w-full rounded-lg border bg-background px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--hms-accent)";
 const sections = [
   { id: "identity", title: "Identity & contact", icon: UserRound },
   { id: "employment", title: "Employment", icon: BriefcaseBusiness },
@@ -475,7 +474,7 @@ export function EnrollmentForm({
         <input
           id={id}
           type={type}
-          className={inputClass}
+          className={controlClass}
           aria-invalid={!!error}
           aria-describedby={error ? `${id}-error` : undefined}
           {...form.register(

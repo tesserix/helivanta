@@ -25,10 +25,9 @@ import {
   isRefusal,
   RefreshButton,
   RequestFailure,
+  controlClass,
 } from "@helivanta/ui";
 
-const inputClass =
-  "w-full rounded-lg border bg-background px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--hms-accent)";
 const timing = (shift: Pick<ShiftDefinition, "start_time" | "end_time" | "duration_minutes">) =>
   `${shift.start_time} – ${shift.end_time} · ${shift.duration_minutes} min${shift.end_time < shift.start_time ? " · next day" : ""}`;
 
@@ -143,7 +142,7 @@ function ShiftCatalog({ hospital }: { hospital: Hospital }) {
           <Field id="shift-search" label="Filter loaded shifts">
             <input
               id="shift-search"
-              className={inputClass}
+              className={controlClass}
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
               placeholder="Search name or code"
@@ -377,7 +376,7 @@ function ShiftEditor({
               >
                 <input
                   id={`shift-${name}`}
-                  className={inputClass}
+                  className={controlClass}
                   type={name.endsWith("time") ? "time" : "text"}
                   disabled={name === "code" && !!record}
                   aria-invalid={!!form.formState.errors[name]}
@@ -424,7 +423,7 @@ function ShiftEditor({
               >
                 <input
                   id={`shift-${name}`}
-                  className={inputClass}
+                  className={controlClass}
                   type="number"
                   min={0}
                   step={1}
@@ -446,7 +445,7 @@ function ShiftEditor({
           >
             <textarea
               id="shift-description"
-              className={inputClass}
+              className={controlClass}
               rows={3}
               {...form.register("description")}
             />

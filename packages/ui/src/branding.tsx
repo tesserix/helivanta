@@ -1,8 +1,8 @@
 "use client";
 import { useState, type ReactNode } from "react";
-import { HeartPulse } from "lucide-react";
 import Link from "next/link";
 import { type Branding } from "@helivanta/api";
+import { HelivantaMark } from "./brand-mark.generated";
 
 export function TesserixFooter() {
   return (
@@ -49,11 +49,8 @@ export function BrandLogo({
     );
     return onInk ? <span className="shrink-0 rounded-lg bg-card p-1.5">{logo}</span> : logo;
   }
-  return (
-    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-      <HeartPulse className="h-5 w-5" aria-hidden="true" />
-    </span>
-  );
+  // No logo: the Helivanta mark, on the surface itself (#1835 D6).
+  return <HelivantaMark onInk={onInk} className="size-9 shrink-0" />;
 }
 export function BrandMark({ branding, onInk = false }: { branding: Branding; onInk?: boolean }) {
   return (

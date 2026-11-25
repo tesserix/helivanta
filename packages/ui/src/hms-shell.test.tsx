@@ -1412,6 +1412,9 @@ describe("flat chrome (#1836)", () => {
     await renderShell({ logo_url: "https://example.test/logo.png" });
     const home = screen.getByRole("link", { name: "Helivanta home" });
     expect(within(home).queryByRole("img")).toBeNull();
+    // The Helivanta mark, white on ink with the on-ink pulse (#1835 D6).
+    expect(home.querySelector("svg path")!.getAttribute("stroke")).toBe("var(--hms-accent-on-ink)");
+    expect(home.querySelector(".lucide-heart-pulse")).toBeNull();
   });
 
   it("draws the header as a row and the page panel as a column", async () => {

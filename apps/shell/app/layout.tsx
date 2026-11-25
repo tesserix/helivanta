@@ -7,7 +7,12 @@ import { SessionRenewal } from "@/components/session-renewal";
 import { StyleNonce } from "@/components/style-nonce";
 import "./globals.css";
 
-export const metadata: Metadata = { title: "Helivanta" };
+// The deployed origin (#863), so the social image URL is absolute (#1835 D6).
+// Previews emit it too, which is acceptable for link-preview metadata.
+export const metadata: Metadata = {
+  title: "Helivanta",
+  metadataBase: new URL("https://helivanta.app"),
+};
 
 // The UI face (#1834 spec D4). The variable goes on <html>: Tailwind writes
 // --font-sans on :root, so --font-plex must exist there or it resolves to

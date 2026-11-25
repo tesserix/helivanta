@@ -12,7 +12,7 @@ vi.mock("next/font/local", () => ({
   default: () => ({ className: "font-plex-class", variable: "font-plex-var" }),
 }));
 
-import RootLayout from "./layout";
+import RootLayout, { metadata } from "./layout";
 
 beforeEach(() => {
   requestHeaders.current = new Headers();
@@ -47,4 +47,10 @@ it("puts the UI face variable on the root element", async () => {
   requestHeaders.current = new Headers({ "x-nonce": "n1" });
   const html = renderToStaticMarkup(await RootLayout({ children: null }));
   expect(html).toMatch(/<html[^>]*class="[^"]*font-plex-var[^"]*"/);
+});
+
+// #1835 D6: link previews need an absolute og:image, so metadata resolves
+// against the deployed origin.
+it("resolves metadata against the deployed origin", () => {
+  expect(String(metadata.metadataBase)).toBe("https://helivanta.app/");
 });

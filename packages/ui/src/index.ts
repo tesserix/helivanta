@@ -66,6 +66,7 @@ export {
   type IdleTrackerHandlers,
 } from "./idle-timer";
 export { TesserixFooter, BrandMark, LoginSurface } from "./branding";
+export { HelivantaMark } from "./brand-mark.generated";
 
 export { SelectControl, FormSelectField, type SelectOption } from "./select";
 export { Popover, PopoverTrigger, PopoverContent } from "./popover";

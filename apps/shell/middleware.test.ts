@@ -63,6 +63,24 @@ it("serves the favicon before login without opening similarly named routes", () 
   }
 });
 
+// #1835 D6: a manifest or icon fetch carries no session, so each brand file
+// is public by exact path; lookalikes still go to sign-in.
+it("serves the brand files before login without opening similarly named routes", () => {
+  for (const path of [
+    "/apple-icon.png",
+    "/opengraph-image.png?abc123",
+    "/manifest.webmanifest",
+    "/icon-192.png",
+    "/icon-512.png",
+    "/maskable-icon-512.png",
+  ]) {
+    expect(middleware(new NextRequest(`https://helivanta.app${path}`)).status, path).toBe(200);
+  }
+  for (const path of ["/manifest.webmanifest/x", "/icon-512.png.bak", "/apple-icon.png/private"]) {
+    expect(middleware(new NextRequest(`https://helivanta.app${path}`)).status, path).toBe(307);
+  }
+});
+
 it("keeps only exact emergency access routes public", () => {
   for (const path of ["/ambulance", "/api/emergency/access?country=IN"]) {
     expect(middleware(new NextRequest(`https://helivanta.app${path}`)).status).toBe(200);

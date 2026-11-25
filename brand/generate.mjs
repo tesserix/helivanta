@@ -1,16 +1,22 @@
 // Generates every Helivanta brand asset from one mark definition and the
 // outlined wordmark (outlines.json, produced by outline.py from the repo's
-// Anek Latin file). Run: node generate.mjs <sharp-module-path> <outDir>
+// Anek Latin file). Run: node brand/generate.mjs [--check]
 //
 // Everything is derived, nothing is hand-exported, so a change to the mark or
-// a hue is one edit followed by one run.
+// a hue is one edit followed by one run. It writes the files the app ships as
+// well as brand/, and --check fails CI when any committed output is stale (#1835 D7).
 
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 
-const [sharpPath, outDir] = process.argv.slice(2);
-const sharp = createRequire(import.meta.url)(sharpPath);
+const check = process.argv.includes("--check");
+const root = fileURLToPath(new URL("..", import.meta.url));
+// sharp comes with Next (the shell's image optimiser), so the brand needs no
+// dependency of its own: resolve it from where the shell resolves next.
+const next = createRequire(join(root, "apps/shell/package.json")).resolve("next");
+const sharp = createRequire(next)("sharp");
 const outlines = JSON.parse(readFileSync(new URL("./outlines.json", import.meta.url)));
 
 // Tokens from the slice-1 spec (docs/superpowers/specs/2026-11-24-app-look-tokens-design.md).
@@ -147,9 +153,9 @@ const png = (svgText, size, opts = {}) =>
     .png({ compressionLevel: 9 })
     .toBuffer();
 
-const dirs = { svg: join(outDir, "svg"), png: join(outDir, "png"), app: join(outDir, "next-app") };
-for (const d of Object.values(dirs)) mkdirSync(d, { recursive: true });
-const write = (dir, name, data) => writeFileSync(join(dir, name), data);
+// Every output, keyed by repo-relative path, so write and check share one list.
+const out = new Map();
+const put = (path, data) => out.set(path, typeof data === "string" ? Buffer.from(data) : data);
 
 // 1. SVG sources
 const sources = {
@@ -174,37 +180,46 @@ for (const [name, hue] of Object.entries(PRODUCTS)) {
   sources[`app-icon-${name}.svg`] = tile(hue);
   sources[`lockup-${name}.svg`] = lockupSvg(INK, hue, INK, name, hue);
 }
-for (const [name, body] of Object.entries(sources)) write(dirs.svg, name, body);
+for (const [name, body] of Object.entries(sources)) put(`brand/svg/${name}`, body);
 
 // 2. Rasters
-const favSizes = [16, 32, 48];
 const favPngs = [];
-for (const s of favSizes) {
+for (const s of [16, 32, 48]) {
   const buf = await png(s === 16 ? sources["mark-16.svg"] : sources["mark.svg"], s);
   favPngs.push({ size: s, buf });
-  write(dirs.png, `favicon-${s}.png`, buf);
+  put(`brand/png/favicon-${s}.png`, buf);
 }
-write(dirs.png, "favicon.ico", ico(favPngs));
-write(dirs.png, "apple-touch-icon-180.png", await png(sources["maskable-icon.svg"], 180));
-write(dirs.png, "icon-192.png", await png(sources["app-icon.svg"], 192));
-write(dirs.png, "icon-512.png", await png(sources["app-icon.svg"], 512));
-write(dirs.png, "maskable-icon-512.png", await png(sources["maskable-icon.svg"], 512));
-write(dirs.png, "opengraph-image.png", await png(sources["opengraph.svg"], { w: 1200, h: 630 }));
-write(dirs.png, "lockup@2x.png", await png(sources["lockup.svg"], { w: 1200, h: Math.round((1200 * 96) / (lockup(INK, ACCENT, INK).width + 32)) }));
+const favicon = ico(favPngs);
+const apple = await png(sources["maskable-icon.svg"], 180);
+const og = await png(sources["opengraph.svg"], { w: 1200, h: 630 });
+const icons = {
+  "icon-192.png": await png(sources["app-icon.svg"], 192),
+  "icon-512.png": await png(sources["app-icon.svg"], 512),
+  "maskable-icon-512.png": await png(sources["maskable-icon.svg"], 512),
+};
+put("brand/png/favicon.ico", favicon);
+put("brand/png/apple-touch-icon-180.png", apple);
+for (const [name, buf] of Object.entries(icons)) put(`brand/png/${name}`, buf);
+put("brand/png/opengraph-image.png", og);
+put(
+  "brand/png/lockup@2x.png",
+  await png(sources["lockup.svg"], { w: 1200, h: Math.round((1200 * 96) / (lockup(INK, ACCENT, INK).width + 32)) }),
+);
 for (const name of Object.keys(PRODUCTS)) {
-  write(dirs.png, `icon-${name}-512.png`, await png(sources[`app-icon-${name}.svg`], 512));
-  write(dirs.png, `favicon-${name}-32.png`, await png(sources[`mark-${name}.svg`], 32));
-  write(dirs.png, `favicon-${name}-16.png`, await png(mark16Svg(INK, PRODUCTS[name]), 16));
+  put(`brand/png/icon-${name}-512.png`, await png(sources[`app-icon-${name}.svg`], 512));
+  put(`brand/png/favicon-${name}-32.png`, await png(sources[`mark-${name}.svg`], 32));
+  put(`brand/png/favicon-${name}-16.png`, await png(mark16Svg(INK, PRODUCTS[name]), 16));
 }
 
-// 3. Files named for Next's metadata conventions (apps/shell/app/), ready to copy.
-write(dirs.app, "icon.svg", sources["mark.svg"]);
-write(dirs.app, "favicon.ico", ico(favPngs));
-write(dirs.app, "apple-icon.png", await png(sources["maskable-icon.svg"], 180));
-write(dirs.app, "opengraph-image.png", await png(sources["opengraph.svg"], { w: 1200, h: 630 }));
-write(
-  dirs.app,
-  "manifest.webmanifest",
+// 3. What the app ships: Next's metadata file conventions (apps/shell/app/),
+// the manifest's icons (apps/shell/public/) and the inline mark (packages/ui).
+put("apps/shell/app/icon.svg", sources["mark.svg"]);
+put("apps/shell/app/favicon.ico", favicon);
+put("apps/shell/app/apple-icon.png", apple);
+put("apps/shell/app/opengraph-image.png", og);
+for (const [name, buf] of Object.entries(icons)) put(`apps/shell/public/${name}`, buf);
+put(
+  "apps/shell/app/manifest.webmanifest",
   JSON.stringify(
     {
       name: "Helivanta",
@@ -223,7 +238,76 @@ write(
     },
     null,
     2,
-  ),
+  ) + "\n",
+);
+// Bars take the text colour of whatever surface the mark sits on; the pulse is
+// the accent, or the on-ink accent on the rail and the ink sign-in panel (D6).
+put(
+  "packages/ui/src/brand-mark.generated.tsx",
+  `// Generated by brand/generate.mjs (#1835). Do not edit.
+export function HelivantaMark({
+  onInk = false,
+  className,
+}: {
+  onInk?: boolean;
+  className?: string;
+}) {
+  return (
+    <svg viewBox="0 0 64 64" aria-hidden="true" className={className}>
+      <rect x="8" y="6" width="12" height="52" fill="currentColor" />
+      <rect x="40" y="34" width="12" height="24" fill="currentColor" />
+      <path
+        d="M20 32H27L31 19L36 46L39 32H52"
+        fill="none"
+        stroke={onInk ? "var(--hms-accent-on-ink)" : "var(--hms-accent)"}
+        strokeWidth="4"
+      />
+    </svg>
+  );
+}
+`,
 );
 
-console.log("wrote", Object.keys(sources).length, "svg sources and rasters to", outDir);
+// Rasters compare as decoded pixels: the committed files come from macOS and
+// CI runs Linux, where libvips or zlib may pack the same pixels differently.
+const pixels = async (buf) => {
+  const { data, info } = await sharp(buf).raw().toBuffer({ resolveWithObject: true });
+  return `${info.width}x${info.height}x${info.channels}:${data.toString("base64")}`;
+};
+const icoPngs = (buf) => {
+  const n = buf.readUInt16LE(4);
+  return Array.from({ length: n }, (_, i) => {
+    const e = 6 + 16 * i;
+    return buf.subarray(buf.readUInt32LE(e + 12), buf.readUInt32LE(e + 12) + buf.readUInt32LE(e + 8));
+  });
+};
+async function same(path, want, have) {
+  if (path.endsWith(".png")) return (await pixels(want)) === (await pixels(have));
+  if (path.endsWith(".ico")) {
+    const [a, b] = [icoPngs(want), icoPngs(have)];
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) if ((await pixels(a[i])) !== (await pixels(b[i]))) return false;
+    return true;
+  }
+  return want.equals(have);
+}
+
+if (check) {
+  const stale = [];
+  for (const [path, want] of out) {
+    const file = join(root, path);
+    if (!existsSync(file) || !(await same(path, want, readFileSync(file)))) stale.push(path);
+  }
+  for (const path of stale) console.error(`stale: ${path}`);
+  if (stale.length) {
+    console.error("Run brand/generate.mjs (see brand/README.md) and commit the result.");
+    process.exit(1);
+  }
+  console.log("brand assets up to date:", out.size, "files");
+} else {
+  for (const [path, data] of out) {
+    mkdirSync(dirname(join(root, path)), { recursive: true });
+    writeFileSync(join(root, path), data);
+  }
+  console.log("wrote", out.size, "files");
+}

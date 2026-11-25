@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import localFont from "next/font/local";
-import { HeartPulse } from "lucide-react";
-import { Button, TesserixFooter } from "@helivanta/ui";
+import { Button, HelivantaMark, TesserixFooter } from "@helivanta/ui";
 import { AiBoard } from "@/components/landing/ai-board";
 import { AuditTrail } from "@/components/landing/audit-trail";
 import { CareBoard } from "@/components/landing/care-board";
@@ -170,17 +169,12 @@ export default function LandingPage() {
           <Link
             href="/"
             aria-label="Helivanta home"
-            className="flex items-center gap-3 text-xl font-semibold tracking-tight"
+            className="flex items-center gap-3 text-xl font-bold tracking-[-0.03em]"
           >
-            <span
-              aria-hidden="true"
-              className="flex size-9 items-center justify-center rounded-xl bg-(--hms-accent) text-background"
-            >
-              <HeartPulse size={20} />
-            </span>
-            <span>
-              helivanta<span className="text-(--hms-accent)">.</span>
-            </span>
+            {/* The lockup (#1835 D3): mark, then the word in the page's Anek face;
+                the outlined wordmark is for images, where no font is loaded. */}
+            <HelivantaMark className="size-8" />
+            <span className="home-wordmark">helivanta</span>
           </Link>
           <div className="hidden items-center gap-7 text-sm text-muted-foreground lg:flex">
             <a href="#how" className="hover:text-foreground">

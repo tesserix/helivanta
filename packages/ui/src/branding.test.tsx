@@ -16,6 +16,29 @@ it("falls back to the medical mark when the tenant logo is unavailable", () => {
   expect(screen.queryByRole("img")).not.toBeInTheDocument();
   expect(screen.getByText("YES HOSPITAL")).toBeInTheDocument();
 });
+
+// #1835 D6: with no logo the fallback is the Helivanta mark, drawn on the
+// surface: bars in the text colour, pulse in the (tenant) accent, no tile.
+it("draws the Helivanta mark when there is no tenant logo", () => {
+  const { container } = render(<BrandMark branding={DEFAULT_BRANDING} />);
+  const pulse = container.querySelector("svg path")!;
+  expect(pulse.getAttribute("stroke")).toBe("var(--hms-accent)");
+  expect(container.querySelector("svg rect")!.getAttribute("fill")).toBe("currentColor");
+  expect(container.querySelector(".bg-primary")).toBeNull();
+  expect(screen.queryByRole("img")).toBeNull();
+});
+
+it("draws the mark's pulse in the on-ink accent inside the ink panel", () => {
+  const { container } = render(
+    <LoginSurface branding={{ ...DEFAULT_BRANDING, login_layout: "split" }} entry>
+      <h1>Sign in</h1>
+    </LoginSurface>,
+  );
+  const panel = container.querySelector("aside.login-story")!;
+  expect(panel.querySelector("svg path")!.getAttribute("stroke")).toBe("var(--hms-accent-on-ink)");
+  const header = container.querySelector("header")!;
+  expect(header.querySelector("svg path")!.getAttribute("stroke")).toBe("var(--hms-accent)");
+});
 it("keeps Tesserix attribution on an entry page", () => {
   render(
     <LoginSurface

@@ -58,6 +58,19 @@ const mark16Svg = (c1, c2) =>
       `<path d="M5 7.5H6.5L7.5 4.5L8.5 10.5L9.5 7.5H13" fill="none" stroke="${c2}" stroke-width="1"/>`,
   );
 
+// Favicon: the mark on a white rounded tile. A tab bar may be dark, where ink
+// bars on transparent all but vanish; on a light bar the tile is quiet and the
+// mark reads as before. The brand mark files stay transparent.
+const faviconSvg = (size) =>
+  size === 16
+    ? svg(
+        16,
+        16,
+        `<rect width="16" height="16" rx="3" fill="${WHITE}"/>` +
+          mark16Svg(INK, ACCENT).replace(/^.*?<\/title>/, "").replace("</svg>", ""),
+      )
+    : svg(64, 64, `<rect width="64" height="64" rx="12" fill="${WHITE}"/>${markBody(INK, ACCENT)}`);
+
 // App icon: ink tile, white mark, pulse in the on-ink accent. Rounded for the
 // "any" icon; the maskable one is full bleed with the mark inside the 80% safe zone.
 const tile = (c2, { rx = 16, scale = 0.75 } = {}) =>
@@ -161,6 +174,8 @@ const put = (path, data) => out.set(path, typeof data === "string" ? Buffer.from
 const sources = {
   "mark.svg": markSvg(INK, ACCENT),
   "mark-16.svg": mark16Svg(INK, ACCENT),
+  "favicon.svg": faviconSvg(64),
+  "favicon-16.svg": faviconSvg(16),
   "mark-mono-ink.svg": markSvg(INK, INK),
   "mark-mono-white.svg": markSvg(WHITE, WHITE),
   "mark-on-ink.svg": svg(64, 64, `<rect width="64" height="64" fill="${INK}"/>${markBody(WHITE, ACCENT_ON_INK)}`),
@@ -185,7 +200,7 @@ for (const [name, body] of Object.entries(sources)) put(`brand/svg/${name}`, bod
 // 2. Rasters
 const favPngs = [];
 for (const s of [16, 32, 48]) {
-  const buf = await png(s === 16 ? sources["mark-16.svg"] : sources["mark.svg"], s);
+  const buf = await png(s === 16 ? sources["favicon-16.svg"] : sources["favicon.svg"], s);
   favPngs.push({ size: s, buf });
   put(`brand/png/favicon-${s}.png`, buf);
 }
@@ -213,7 +228,7 @@ for (const name of Object.keys(PRODUCTS)) {
 
 // 3. What the app ships: Next's metadata file conventions (apps/shell/app/),
 // the manifest's icons (apps/shell/public/) and the inline mark (packages/ui).
-put("apps/shell/app/icon.svg", sources["mark.svg"]);
+put("apps/shell/app/icon.svg", sources["favicon.svg"]);
 put("apps/shell/app/favicon.ico", favicon);
 put("apps/shell/app/apple-icon.png", apple);
 put("apps/shell/app/opengraph-image.png", og);

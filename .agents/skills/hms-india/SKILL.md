@@ -5,6 +5,7 @@ description: Scope India-specific Helivanta HMS domain work and identify applica
 
 # India HMS domain routing
 
+Use [hms-domain](../hms-domain/SKILL.md) for shared healthcare scope and hazards.
 Read root `AGENTS.md`, the [India knowledge index](../../../docs/domain/india/README.md)
 and the affected current [API contract](../../../docs/api/README.md). Select the
 domain references needed for the task; do not load every domain by default.
@@ -24,7 +25,9 @@ Route clinical identity/care/order work to
 [hms-india-clinical](../hms-india-clinical/SKILL.md), revenue/insurance work to
 [hms-india-revenue](../hms-india-revenue/SKILL.md), and pharmacy/supply/facility
 controls to [hms-india-regulated-operations](../hms-india-regulated-operations/SKILL.md).
-Reuse existing workforce and emergency references from the knowledge index. Route
+Route ambulance calling, dispatch, crew, receiving and scheduled patient transport
+to [hms-transport](../hms-transport/SKILL.md). Reuse existing workforce references
+from the knowledge index. Route
 roles, departments, staff access, approvals and public/private sector work to
 [hms-organization-access](../hms-organization-access/SKILL.md).
 

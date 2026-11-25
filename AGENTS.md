@@ -7,7 +7,7 @@ correctness. Read applicable nested instructions as well.
 
 ## Required reading before development
 
-Before proposing a design or changing application code:
+Before proposing a design, changing application code or reviewing healthcare behavior:
 
 1. Read [engineering principles](docs/standards/engineering-principles.md), the
    [API contract index](docs/api/README.md) and
@@ -23,14 +23,21 @@ Before proposing a design or changing application code:
    scope, canonical schema source, current implementation and proposed changes.
    Check the actual handlers, migrations, registered contracts and relevant
    issues; documentation does not replace source verification.
-4. For India-specific hospital workflows, read the
+4. For healthcare workflow design, implementation or review, load
+   [hms-domain](.agents/skills/hms-domain/SKILL.md) and use the
+   [domain knowledge index](docs/domain/README.md) to select affected references.
+   For ambulance calling, dispatch, crew, receiving handover or scheduled patient
+   transport, also load [hms-transport](.agents/skills/hms-transport/SKILL.md).
+   Read these files explicitly if native skill discovery is unavailable; do not
+   load every domain skill for unrelated tooling or purely visual changes.
+5. For India-specific hospital workflows, read the
    [India HMS knowledge index](docs/domain/india/README.md) and use the relevant
    [domain skill](.agents/skills/hms-india/SKILL.md). Consult only the affected
    domain references and `IN-*` acceptance criteria. Verify consequential legal,
    clinical, tax, drug-schedule and payer rules against current primary sources,
    actual state/service scope and qualified review; do not invent them from model
    memory or mistake a research note for an activated production policy.
-5. For roles, permissions, staff access, departments, approvals, tenant-configured
+6. For roles, permissions, staff access, departments, approvals, tenant-configured
    workflows or public/private sector differences, read the
    [organization knowledge index](docs/domain/organization/README.md) and use the
    [organization access skill](.agents/skills/hms-organization-access/SKILL.md).

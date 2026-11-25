@@ -69,3 +69,14 @@ Backend admission and browser page/navigation/signup candidates are implemented.
 The [API contract](../api/release-capabilities.md) records remaining nested-panel,
 provider isolation, configuration and live acceptance gates. Infrastructure health
 does not mean Helivanta capabilities are configured, accepted or enabled.
+
+## Proposed scoped acceptance pilot
+
+The #1689 candidate adds an independently compiled `pilot_eligible` designation
+without changing global eligibility or the membership/permission boundary.
+Activation additionally needs a named tenant/deadline policy and provider
+approval, with the same dependencies and product guards. This permits synthetic
+live acceptance without a general retail release. It is disabled by default and
+is not the Mahesh/general-release sign-off described above. See the
+[design, limits and rollout evidence](../design/1689-qa-retail-pilot.md). No pilot
+is activated by this ADR addendum.

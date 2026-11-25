@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "policy_version": "2026-11-24.pharmacy-low-stock.v1",
+  "policy_version": "2026-11-25.pharmacy-retail-pilot.v1",
   "capabilities": [
     {
       "key": "onboarding",
@@ -56,35 +56,40 @@
       "owner": "pharmacy",
       "dependencies": ["pharmacy_setup"],
       "eligible": false,
-      "review_after": "2027-02-16"
+      "review_after": "2027-02-16",
+      "pilot_eligible": true
     },
     {
       "key": "pharmacy_stock",
       "owner": "pharmacy",
       "dependencies": ["pharmacy_catalogue", "pharmacy_low_stock"],
       "eligible": false,
-      "review_after": "2027-02-16"
+      "review_after": "2027-02-16",
+      "pilot_eligible": true
     },
     {
       "key": "pharmacy_prescriptions",
       "owner": "pharmacy",
       "dependencies": ["pharmacy_staff"],
       "eligible": false,
-      "review_after": "2027-02-16"
+      "review_after": "2027-02-16",
+      "pilot_eligible": true
     },
     {
       "key": "pharmacy_returns",
       "owner": "pharmacy",
       "dependencies": ["pharmacy_stock"],
       "eligible": false,
-      "review_after": "2027-02-16"
+      "review_after": "2027-02-16",
+      "pilot_eligible": true
     },
     {
       "key": "pharmacy_reports",
       "owner": "pharmacy",
       "dependencies": ["pharmacy_stock"],
       "eligible": false,
-      "review_after": "2027-02-16"
+      "review_after": "2027-02-16",
+      "pilot_eligible": true
     },
     {
       "key": "pharmacy_counter",
@@ -97,14 +102,16 @@
         "pharmacy_reports"
       ],
       "eligible": false,
-      "review_after": "2027-02-16"
+      "review_after": "2027-02-16",
+      "pilot_eligible": true
     },
     {
       "key": "pharmacy_payables",
       "owner": "pharmacy",
       "dependencies": ["pharmacy_setup"],
       "eligible": false,
-      "review_after": "2027-02-16"
+      "review_after": "2027-02-16",
+      "pilot_eligible": true
     },
     {
       "key": "workforce_scheduling",

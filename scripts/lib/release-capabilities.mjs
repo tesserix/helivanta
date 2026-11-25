@@ -11,6 +11,7 @@ export function validateReleaseManifest(value, declaredRoutes) {
     if (
       !/^[a-z][a-z0-9_]{0,63}$/.test(capability.key) ||
       typeof capability.eligible !== "boolean" ||
+      (capability.pilot_eligible !== undefined && typeof capability.pilot_eligible !== "boolean") ||
       !capability.owner ||
       !Array.isArray(capability.dependencies) ||
       capabilities.has(capability.key)
@@ -30,6 +31,13 @@ export function validateReleaseManifest(value, declaredRoutes) {
       visit(dependency, next);
       if (capability.eligible && !capabilities.get(dependency).eligible) {
         fail(`ineligible dependency ${dependency}`);
+      }
+      if (
+        capability.pilot_eligible &&
+        !capabilities.get(dependency).eligible &&
+        !capabilities.get(dependency).pilot_eligible
+      ) {
+        fail(`ineligible pilot dependency ${dependency}`);
       }
     }
     visited.add(key);

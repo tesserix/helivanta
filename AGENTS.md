@@ -35,6 +35,12 @@ Before proposing a design or changing application code:
    [organization knowledge index](docs/domain/organization/README.md) and use the
    [organization access skill](.agents/skills/hms-organization-access/SKILL.md).
 
+For release flags or pilot activation, also read the
+[release capability contract](docs/api/release-capabilities.md) and
+[operator runbook](docs/runbooks/feature-flags.md). A scoped acceptance pilot is
+separate from a general release; verify the authenticated tenant, fixed deadline
+and existing product authorization before relying on availability.
+
 Proposed architecture and draft contracts are not implemented or approved APIs.
 Do not infer a deployed service, FHIR compliance, clinical authority or a working
 end-to-end integration from a document, route, event publication or passing schema

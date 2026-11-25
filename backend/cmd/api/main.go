@@ -547,7 +547,7 @@ func run() error {
 	if fixture := os.Getenv("HELIVANTA_IDENTITY_FIXTURE"); fixture != "" {
 		releasePolicy, err = release.DevelopmentFixture(cfg.Env, cfg.ZitadelIssuerURL, fixture)
 	} else {
-		releasePolicy, err = release.FromFile(os.Getenv("GROWTHBOOK_API_URL"), os.Getenv("GROWTHBOOK_SDK_KEY_FILE"))
+		releasePolicy, err = release.FromFile(os.Getenv("GROWTHBOOK_API_URL"), os.Getenv("GROWTHBOOK_SDK_KEY_FILE"), os.Getenv("RELEASE_PILOT_POLICY_FILE"))
 	}
 	if err != nil {
 		return err

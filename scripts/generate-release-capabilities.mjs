@@ -39,7 +39,7 @@ const models = emitModels(releaseWireModels(manifest));
 const definitions = manifest.capabilities
   .map(
     (capability) =>
-      `{Key:${JSON.stringify(capability.key)},Eligible:${capability.eligible},Dependencies:[]string{${capability.dependencies.map(JSON.stringify).join(",")}}}`,
+      `{Key:${JSON.stringify(capability.key)},Eligible:${capability.eligible},PilotEligible:${capability.pilot_eligible === true},Dependencies:[]string{${capability.dependencies.map(JSON.stringify).join(",")}}}`,
   )
   .join(",\n");
 const bindings = manifest.routes

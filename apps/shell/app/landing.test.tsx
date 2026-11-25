@@ -135,7 +135,11 @@ it("links the roadmap from the nav and the platform section", () => {
       name: "The full platform and its status, module by module.",
     }),
   ).toHaveAttribute("href", "/roadmap");
-  expect(within(platform).getByRole("article", { name: "Patient management" })).toBeInTheDocument();
+  expect(
+    within(platform).getByRole("article", { name: "Staff & hospital management" }),
+  ).toBeInTheDocument();
+  // Not eligible in this release (#1839), so it is on the roadmap only.
+  expect(within(platform).queryByRole("article", { name: "Patient management" })).toBeNull();
   expect(within(platform).queryByRole("article", { name: "Inventory & procurement" })).toBeNull();
 });
 

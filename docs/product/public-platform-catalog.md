@@ -15,6 +15,16 @@ explicitly separates implemented workflows from their planned extensions.
 “Planned” and “Future” do not represent working application modules. Updating
 these labels requires implementation evidence, not just a route or menu entry.
 
+The labels follow the release, not the code (#1839,
+`docs/superpowers/specs/2026-11-25-public-catalogue-release-truth-design.md`).
+A row is “Available” only when everything it names is on shell pages whose
+capability in `contracts/release-capabilities.json` is eligible in this
+release, with eligible dependencies. It is “Foundation available” when part of
+it is, and its description says which part. Each such row lists those pages as
+`evidence`, and `platform-catalog.test.ts` fails when a page is withdrawn or
+reclassified. A shipped route behind a non-eligible capability stays
+“Planned”.
+
 Coverage includes patient identity, appointments, OPD/IPD, clinical specialties,
 clinician experience, pharmacy, laboratory, imaging, procurement, inventory,
 workforce/payroll, billing/insurance, finance, assets/facilities, emergency care,

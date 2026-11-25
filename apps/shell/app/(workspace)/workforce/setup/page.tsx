@@ -27,10 +27,8 @@ import {
   SelectControl,
   useConfirmLeave,
   useZodForm,
+  controlClass,
 } from "@helivanta/ui";
-
-const inputClass =
-  "w-full rounded-lg border bg-background px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--hms-accent)";
 
 export default function HRSetup() {
   const confirm = useConfirmLeave();
@@ -162,7 +160,7 @@ function MasterCatalog({ hospital }: { hospital: Hospital }) {
           <Field id="hr-search" label="Filter loaded records">
             <input
               id="hr-search"
-              className={inputClass}
+              className={controlClass}
               value={filter}
               onChange={(event) => setFilter(event.target.value)}
               placeholder="Search name or code"
@@ -433,7 +431,7 @@ function MasterEditor({
               >
                 <input
                   id={`hr-${name}`}
-                  className={inputClass}
+                  className={controlClass}
                   disabled={name === "code" && !!record}
                   aria-invalid={!!form.formState.errors[name]}
                   aria-describedby={form.formState.errors[name] ? `hr-${name}-error` : undefined}
@@ -450,7 +448,7 @@ function MasterEditor({
             <textarea
               id="hr-description"
               rows={3}
-              className={inputClass}
+              className={controlClass}
               {...form.register("description")}
             />
           </Field>

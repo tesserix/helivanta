@@ -11,6 +11,10 @@ const renderWithProviders = (ui: Parameters<typeof renderWithNamedAccounts>[0]) 
 import { chooseOption } from "@/test/select";
 import LeaveReports from "./page";
 
+// #1261 slice 2: cards are Panel, so no hand-painted card class survives.
+// Buttons are controls: the design system's outline button carries shadow-sm.
+const CARDS = ":is(.rounded-xl, .rounded-2xl, .shadow-sm):not(button)";
+
 const hospital = "11111111-1111-4111-8111-111111111111";
 const staffID = "22222222-2222-4222-8222-222222222222";
 const casual = "33333333-3333-4333-8333-333333333333";
@@ -109,6 +113,7 @@ it("shows leave by month with a column per type and no profile data for other ro
   const reads = mock();
   const { user } = renderWithProviders(<LeaveReports />);
   expect(await screen.findByText("Choose a period and run a report.")).toBeInTheDocument();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   const form = await run(user, "2026-10-01", "2026-10-31");
   expect(within(form).queryByRole("combobox", { name: "Department" })).toBeNull();
   const table = await screen.findByRole("table");
@@ -122,6 +127,10 @@ it("shows leave by month with a column per type and no profile data for other ro
   expect(within(table).getByText("2026-10-01, 2026-10-03")).toBeInTheDocument();
   expect(within(table).getByText("1 day")).toBeInTheDocument();
   expect(within(table).getByText("0.5 days · 60 min")).toBeInTheDocument();
+  expect(within(table).getByText("2026-10-01, 2026-10-03").closest("tr")).toHaveClass("h-11");
+  expect(within(table).getByRole("columnheader", { name: "Staff" })).not.toHaveClass("uppercase");
+  expect(within(table).getByRole("columnheader", { name: "SYN-CL" })).toHaveClass("text-right");
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
 });
 
 it("lets enrollment managers filter by department and see profile columns", async () => {
@@ -161,6 +170,9 @@ it("runs the status report with its own filters", async () => {
   expect(await within(row).findByText(accountText("QA Filer"))).toBeInTheDocument();
   expect(within(row).getByText("—")).toBeInTheDocument();
   expect(within(row).getByText("Pending")).toBeInTheDocument();
+  expect(row).toHaveClass("h-11");
+  expect(within(table).getByRole("columnheader", { name: "Total" })).toHaveClass("text-right");
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   expect(within(table).queryByRole("columnheader", { name: "Department" })).toBeNull();
 });
 

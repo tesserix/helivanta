@@ -12,6 +12,10 @@ const renderWithProviders = (ui: Parameters<typeof renderWithNamedAccounts>[0]) 
 import { chooseOption } from "@/test/select";
 import LeaveRequests from "./page";
 
+// #1261 slice 2: cards are Panel, so no hand-painted card class survives.
+// Buttons are controls: the design system's outline button carries shadow-sm.
+const CARDS = ":is(.rounded-xl, .rounded-2xl, .shadow-sm):not(button)";
+
 const hospital = "11111111-1111-4111-8111-111111111111";
 const staffID = "22222222-2222-4222-8222-222222222222";
 const casual = "33333333-3333-4333-8333-333333333333";
@@ -218,6 +222,7 @@ it("shows a request read-only, with clashes and history, to readers", async () =
   expect(within(region).queryByText(/Reason:/)).not.toBeInTheDocument();
   expect(await within(region).findByText(accountText(/by QA Filer/))).toBeInTheDocument();
   expect(within(region).queryByRole("form", { name: "Decide leave request" })).toBeNull();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
 });
 
 it("files a request with only the unit's fields and replays the same id on retry", async () => {
@@ -245,6 +250,7 @@ it("files a request with only the unit's fields and replays the same id on retry
   await user.type(date, "2026-11-09");
   await user.click(within(form).getByRole("button", { name: "File leave request" }));
   expect(await within(form).findByRole("alert")).toHaveTextContent("input is preserved");
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   await user.click(within(form).getByRole("button", { name: "File leave request" }));
   await waitFor(() => expect(writes).toHaveLength(2));
   expect(writes[0].url).toMatch(
@@ -291,6 +297,7 @@ it("keeps a refused decision visible with the input preserved", async () => {
   await user.type(within(region).getByLabelText(/^Note/), "Ward short-staffed");
   await user.click(within(region).getByRole("button", { name: "Reject leave" }));
   expect(await within(region).findByRole("alert")).toHaveTextContent("changed since you opened it");
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   expect(writes[0].body).toEqual({
     decision: "reject",
     expected_version: 1,

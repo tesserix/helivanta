@@ -4,6 +4,10 @@ import { afterEach, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
 import LeaveBalances from "./page";
 
+// #1261 slice 2: cards are Panel, so no hand-painted card class survives.
+// Buttons are controls: the design system's outline button carries shadow-sm.
+const CARDS = ":is(.rounded-xl, .rounded-2xl, .shadow-sm):not(button)";
+
 const hospital = "11111111-1111-4111-8111-111111111111";
 const staffID = "22222222-2222-4222-8222-222222222222";
 const casual = "33333333-3333-4333-8333-333333333333";
@@ -64,6 +68,7 @@ it("closes the assignment editor when browser scrolling returns a promise", asyn
     const { user } = renderWithProviders(<LeaveBalances />);
     await user.click(await screen.findByRole("button", { name: "Assign leave structure" }));
     const editor = await screen.findByRole("form", { name: "Assign leave structure" });
+    expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
     await user.click(within(editor).getByRole("button", { name: "Cancel changes" }));
     expect(screen.queryByRole("form", { name: "Assign leave structure" })).not.toBeInTheDocument();
     expect(
@@ -151,6 +156,7 @@ it("sets the leave year only after review and preserves a rejected save", async 
   await user.click(screen.getByRole("checkbox", { name: /cannot change once saved/ }));
   await user.click(screen.getByRole("button", { name: "Save leave year" }));
   expect(await screen.findByRole("alert")).toHaveTextContent("input is preserved");
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   expect(writes).toEqual([
     {
       method: "PUT",
@@ -172,6 +178,7 @@ it("shows balances and the ledger read-only to readers", async () => {
   await user.click(screen.getByRole("button", { name: "Ledger for Synthetic Nurse" }));
   const ledger = await screen.findByRole("region", { name: "Leave ledger" });
   expect(await within(ledger).findByText(/Monthly credit · \+1 day/)).toBeInTheDocument();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   expect(within(ledger).queryByRole("button", { name: "Correct balance" })).not.toBeInTheDocument();
 });
 
@@ -226,6 +233,7 @@ it("validates a correction and replays the same entry id when a save is retried"
   await user.type(within(form).getByLabelText("Reason"), "Synthetic audit adjustment");
   await user.click(within(form).getByRole("button", { name: "Record correction" }));
   expect(await within(form).findByRole("alert")).toHaveTextContent("input is preserved");
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   await user.click(within(form).getByRole("button", { name: "Record correction" }));
   await waitFor(() => expect(writes).toHaveLength(2));
   expect(writes[0].url).toMatch(

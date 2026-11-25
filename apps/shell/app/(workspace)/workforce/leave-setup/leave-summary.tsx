@@ -13,7 +13,7 @@ export const configNoun = {
   structure: "leave structure",
 } as const;
 
-const chip = "rounded-lg border bg-muted/30 px-3 py-2 text-xs";
+const chip = "rounded-md border px-3 py-2 text-xs";
 
 export function LeaveSummary({ record }: { record: LeaveConfig }) {
   if (record.kind === "leave_type" && record.rules) {

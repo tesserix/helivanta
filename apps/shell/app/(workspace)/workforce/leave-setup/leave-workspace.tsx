@@ -11,12 +11,13 @@ import {
 import {
   Field,
   PageHeading,
+  Panel,
   SelectControl,
   RequestFailure,
   isRefusal,
   RefreshButton,
+  controlClass,
 } from "@helivanta/ui";
-import { inputClass } from "../roster-policy/policy-ui";
 import { effectiveDate } from "../roster-setup/roster-summary";
 import { LeaveEditor } from "./leave-editor";
 import { LeaveSummary, configNoun } from "./leave-summary";
@@ -38,7 +39,7 @@ export function LeaveWorkspace() {
   return (
     <>
       <PageHeading
-        description="Define leave types, yearly holiday calendars and the allowances each staff structure receives. Earlier revisions stay intact."
+        description="Define leave types, yearly holiday calendars and the allowances each staff structure receives."
         actions={
           <>
             <div className="grid w-full gap-4 sm:w-auto sm:grid-cols-2">
@@ -75,9 +76,9 @@ export function LeaveWorkspace() {
       ) : hospital ? (
         <LeaveCatalog key={`${hospital.id}:${kind}`} hospital={hospital} kind={kind} />
       ) : (
-        <p className="rounded-2xl border bg-card p-8">
-          Ask your tenant administrator for hospital access before managing leave setup.
-        </p>
+        <Panel as="div">
+          <p>Ask your tenant administrator for hospital access before managing leave setup.</p>
+        </Panel>
       )}
       {hospitals.hasMore && (
         <Button
@@ -118,7 +119,7 @@ function LeaveCatalog({ hospital, kind }: { hospital: Hospital; kind: LeaveConfi
   );
   return (
     <>
-      <section className="overflow-hidden rounded-2xl border bg-card shadow-sm">
+      <Panel flush>
         <div className="flex flex-wrap items-center justify-between gap-4 border-b p-5">
           <div>
             <h3 className="font-semibold">{hospital.name}</h3>
@@ -142,7 +143,7 @@ function LeaveCatalog({ hospital, kind }: { hospital: Hospital; kind: LeaveConfi
           <Field id="leave-search" label="Filter loaded configurations">
             <input
               id="leave-search"
-              className={inputClass}
+              className={controlClass}
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
               placeholder="Search name or code"
@@ -245,7 +246,7 @@ function LeaveCatalog({ hospital, kind }: { hospital: Hospital; kind: LeaveConfi
             </RefreshButton>
           </div>
         </div>
-      </section>
+      </Panel>
       {editing && !refused && (
         <LeaveEditor
           key={editing === "new" ? "new" : editing.id}
@@ -291,11 +292,7 @@ function LeaveHistory({
     heading.current?.focus();
   }, []);
   return (
-    <section
-      ref={section}
-      className="mt-6 scroll-mt-24 rounded-2xl border bg-card p-6 shadow-sm"
-      aria-label="Leave configuration history"
-    >
+    <Panel ref={section} className="mt-6 scroll-mt-4" aria-label="Leave configuration history">
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
           <h3 ref={heading} tabIndex={-1} className="text-xl font-semibold outline-none">
@@ -318,9 +315,9 @@ function LeaveHistory({
           error={history.error}
         />
       ) : (
-        <ul className="space-y-4">
+        <ul className="divide-y">
           {history.items.map((r) => (
-            <li key={r.id} className="rounded-xl border p-4">
+            <li key={r.id} className="py-4">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <p className="font-semibold">{r.name}</p>
                 <p className="text-xs text-muted-foreground">
@@ -348,6 +345,6 @@ function LeaveHistory({
           Load earlier revisions
         </Button>
       )}
-    </section>
+    </Panel>
   );
 }

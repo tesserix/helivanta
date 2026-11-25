@@ -11,7 +11,14 @@ import {
   type Hospital,
   type LeaveRequest,
 } from "@helivanta/api";
-import { AccountName, Field, PageHeading, SelectControl, RequestFailure } from "@helivanta/ui";
+import {
+  AccountName,
+  Field,
+  PageHeading,
+  Panel,
+  SelectControl,
+  RequestFailure,
+} from "@helivanta/ui";
 
 import { LeaveRequestForm } from "./request-form";
 import { LeaveRequestReview } from "./request-review";
@@ -26,7 +33,7 @@ export function LeaveRequestsWorkspace() {
   return (
     <>
       <PageHeading
-        description="File leave for staff, then have a second person approve it against the balance and the published roster. Approval and cancellation post to the leave ledger."
+        description="File leave for staff, then have a second person approve it against the balance and the published roster."
         actions={
           hospital && (
             <div className="w-full sm:w-72">
@@ -53,9 +60,9 @@ export function LeaveRequestsWorkspace() {
       ) : hospital ? (
         <RequestBoard key={hospital.id} hospital={hospital} />
       ) : (
-        <p className="rounded-2xl border bg-card p-8">
-          Ask your tenant administrator for hospital access before managing leave requests.
-        </p>
+        <Panel as="div">
+          <p>Ask your tenant administrator for hospital access before managing leave requests.</p>
+        </Panel>
       )}
       {hospitals.hasMore && (
         <Button
@@ -102,10 +109,7 @@ function RequestBoard({ hospital }: { hospital: Hospital }) {
     opener.current?.focus();
   };
   return (
-    <section
-      aria-label="Leave requests"
-      className="overflow-hidden rounded-2xl border bg-card shadow-sm"
-    >
+    <Panel flush aria-label="Leave requests">
       <div className="flex flex-wrap items-end justify-between gap-4 border-b p-5">
         <div>
           <h3 className="font-semibold">Requests</h3>
@@ -202,6 +206,6 @@ function RequestBoard({ hospital }: { hospital: Hospital }) {
           onClose={close}
         />
       )}
-    </section>
+    </Panel>
   );
 }

@@ -22,11 +22,13 @@ import {
   AccountName,
   ConfirmDialog,
   Field,
+  Panel,
   SelectControl,
   useZodForm,
   RequestFailure,
+  controlClass,
 } from "@helivanta/ui";
-import { inputClass, today } from "../roster-policy/policy-ui";
+import { today } from "../roster-policy/policy-ui";
 
 const monthOptions = Array.from({ length: 12 }, (_, i) => ({
   value: String(i + 1),
@@ -45,7 +47,7 @@ export function LeaveSettingsPanel({
   // The hospital list already proved access, so 404 here means the leave year was never set.
   const missing = settings.error instanceof ApiError && settings.error.status === 404;
   return (
-    <section aria-label="Leave year" className="rounded-2xl border bg-card p-5 shadow-sm">
+    <Panel aria-label="Leave year">
       <h3 className="font-semibold">Leave year</h3>
       {settings.isPending ? (
         <p role="status" className="mt-3">
@@ -71,7 +73,7 @@ export function LeaveSettingsPanel({
           />
         </div>
       )}
-    </section>
+    </Panel>
   );
 }
 
@@ -157,10 +159,7 @@ export function LeaveYearsPanel({
   );
   const busy = post.isPending || close.isPending;
   return (
-    <section
-      aria-label="Leave years"
-      className="overflow-hidden rounded-2xl border bg-card shadow-sm"
-    >
+    <Panel flush aria-label="Leave years">
       <div className="border-b p-5">
         <h3 className="font-semibold">Leave years</h3>
         <p className="mt-1 text-xs text-muted-foreground">
@@ -245,7 +244,7 @@ export function LeaveYearsPanel({
         busy={close.isPending}
         onConfirm={() => closing && close.mutate(closing)}
       />
-    </section>
+    </Panel>
   );
 }
 
@@ -284,7 +283,7 @@ function OpenYearForm({ hospital, base }: { hospital: string; base: string }) {
           <input
             id="leave-year-open"
             type="number"
-            className={inputClass}
+            className={controlClass}
             aria-invalid={!!error}
             {...form.register("leave_year", { valueAsNumber: true })}
           />
@@ -332,9 +331,9 @@ function RunHistory({
       ) : runs.items.length === 0 ? (
         <p className="text-sm text-muted-foreground">Nothing has been posted for this year.</p>
       ) : (
-        <ul className="space-y-2 text-sm">
+        <ul className="divide-y text-sm">
           {runs.items.map((r) => (
-            <li key={r.id} className="rounded-xl border p-3">
+            <li key={r.id} className="py-3">
               {r.step === 13 ? "Year-end close" : leaveMonthName(monthOf(year, r.step))} ·{" "}
               {r.entries} ledger entries · by <AccountName subject={r.actor_subject} /> ·{" "}
               {new Date(r.created_at).toLocaleString()}
@@ -368,7 +367,7 @@ export function LeaveReview({
   register: object;
 }) {
   return (
-    <div className="rounded-xl border bg-muted/30 p-4">
+    <Panel as="div">
       <label className="flex items-start gap-3 text-sm">
         <input
           type="checkbox"
@@ -383,16 +382,13 @@ export function LeaveReview({
           {error}
         </p>
       )}
-    </div>
+    </Panel>
   );
 }
 
 export function SaveError({ message }: { message: string }) {
   return (
-    <p
-      role="alert"
-      className="w-full rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive"
-    >
+    <p role="alert" className="w-full text-sm text-destructive">
       {message} Your input is preserved.
     </p>
   );

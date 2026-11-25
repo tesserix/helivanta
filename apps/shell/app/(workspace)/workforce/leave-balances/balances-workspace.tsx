@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Button } from "@tesserix/web";
 import { useApiPagedQuery, usePermissions, type Hospital, type LeaveYear } from "@helivanta/api";
-import { Field, PageHeading, SelectControl, RequestFailure } from "@helivanta/ui";
+import { Field, PageHeading, Panel, SelectControl, RequestFailure } from "@helivanta/ui";
 
 import { LeaveSettingsPanel, LeaveYearsPanel } from "./years-panel";
 import { LeaveRoutingPanel } from "./routing-panel";
@@ -19,7 +19,7 @@ export function LeaveBalancesWorkspace() {
   return (
     <>
       <PageHeading
-        description="Assign leave structures, post monthly credits, close leave years and correct balances. Every change is an append-only ledger entry."
+        description="Assign leave structures, post monthly credits, close leave years and correct balances."
         actions={
           hospital && (
             <div className="w-full sm:w-72">
@@ -46,9 +46,9 @@ export function LeaveBalancesWorkspace() {
       ) : hospital ? (
         <LeaveLedger key={hospital.id} hospital={hospital} />
       ) : (
-        <p className="rounded-2xl border bg-card p-8">
-          Ask your tenant administrator for hospital access before managing leave balances.
-        </p>
+        <Panel as="div">
+          <p>Ask your tenant administrator for hospital access before managing leave balances.</p>
+        </Panel>
       )}
       {hospitals.hasMore && (
         <Button

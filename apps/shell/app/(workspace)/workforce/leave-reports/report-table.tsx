@@ -1,5 +1,5 @@
 "use client";
-import { Button } from "@tesserix/web";
+import { Button, cn } from "@tesserix/web";
 import {
   formatHalfDays,
   leaveReportPath,
@@ -11,10 +11,12 @@ import {
   type LeaveReportFilter,
   type LeaveStatusReportRow,
 } from "@helivanta/api";
-import { AccountName, RequestFailure } from "@helivanta/ui";
+import { AccountName, Panel, RequestFailure, tableStyles } from "@helivanta/ui";
 
 const cell = "px-4 py-3 align-top";
-const head = "px-4 py-3 text-left text-xs font-semibold uppercase";
+const head = cn(tableStyles.head, "px-4 py-3");
+const numberHead = cn(head, tableStyles.number);
+const numberCell = cn(cell, tableStyles.number);
 
 export const describeTaken = (halfDays: number, minutes: number) =>
   [halfDays ? formatHalfDays(halfDays) : "", minutes ? `${minutes} min` : ""]
@@ -38,10 +40,7 @@ export function LeaveReportTable({
   // The API includes profile columns only for enrollment managers, so their presence decides the columns.
   const profiles = rows.items.some((r) => r.department !== undefined);
   return (
-    <section
-      aria-label={filter.report === "monthly" ? "Leave by month" : "Leave status"}
-      className="overflow-hidden rounded-2xl border bg-card shadow-sm"
-    >
+    <Panel flush aria-label={filter.report === "monthly" ? "Leave by month" : "Leave status"}>
       <div className="border-b p-5">
         <h3 className="font-semibold">
           {filter.report === "monthly" ? "Leave by month" : "Leave status"}
@@ -79,7 +78,7 @@ export function LeaveReportTable({
           </Button>
         </div>
       )}
-    </section>
+    </Panel>
   );
 }
 
@@ -134,7 +133,7 @@ function MonthlyTable({ rows, profiles }: { rows: LeaveMonthlyReportRow[]; profi
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
-        <thead className="border-b bg-muted/40">
+        <thead>
           <tr>
             <PersonHead profiles={profiles} />
             <th scope="col" className={head}>
@@ -144,23 +143,23 @@ function MonthlyTable({ rows, profiles }: { rows: LeaveMonthlyReportRow[]; profi
               Leave dates
             </th>
             {columns.map(([id, t]) => (
-              <th key={id} scope="col" className={head} title={t.name}>
+              <th key={id} scope="col" className={numberHead} title={t.name}>
                 {t.code}
               </th>
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y">
+        <tbody>
           {rows.flatMap((r) =>
             r.months.map((m) => (
-              <tr key={`${r.staff_id}-${m.month}`}>
+              <tr key={`${r.staff_id}-${m.month}`} className={tableStyles.row}>
                 <Person r={r} profiles={profiles} />
                 <td className={cell}>{m.month}</td>
                 <td className={cell}>{m.leave_dates.join(", ")}</td>
                 {columns.map(([id]) => {
                   const t = m.types.find((x) => x.leave_type_id === id);
                   return (
-                    <td key={id} className={cell}>
+                    <td key={id} className={numberCell}>
                       {t ? describeTaken(t.half_days, t.minutes) : "—"}
                     </td>
                   );
@@ -185,21 +184,21 @@ function StatusTable({ rows, profiles }: { rows: LeaveStatusReportRow[]; profile
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
-        <thead className="border-b bg-muted/40">
+        <thead>
           <tr>
             <PersonHead profiles={profiles} />
             {["Leave", "Start", "End", "Total", "Requested by", "Decided by", "Status"].map(
               (label) => (
-                <th key={label} scope="col" className={head}>
+                <th key={label} scope="col" className={label === "Total" ? numberHead : head}>
                   {label}
                 </th>
               ),
             )}
           </tr>
         </thead>
-        <tbody className="divide-y">
+        <tbody>
           {rows.map((r) => (
-            <tr key={r.id}>
+            <tr key={r.id} className={tableStyles.row}>
               <Person r={r} profiles={profiles} />
               <td className={cell}>
                 {r.name} ({r.code})
@@ -207,7 +206,7 @@ function StatusTable({ rows, profiles }: { rows: LeaveStatusReportRow[]; profile
               </td>
               <td className={cell}>{r.start_on}</td>
               <td className={cell}>{r.end_on}</td>
-              <td className={cell}>{describeTaken(r.half_days, 0)}</td>
+              <td className={numberCell}>{describeTaken(r.half_days, 0)}</td>
               <td className={cell}>
                 <AccountName subject={r.requested_by_subject} />
               </td>

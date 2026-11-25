@@ -2033,9 +2033,12 @@ payable journal/report integration and approved live acceptance remain open.
 The export slice adds `PUT/GET /accounts/tally/ledger-maps/{map}`,
 `GET /accounts/tally/preview` and `GET /accounts/tally/vouchers.xml` under the
 existing pharmacy/outlet prefix ([ADR-0076](../../adr/0076-pharmacy-tally-accounting-export.md)).
-They remain unreleased behind the `pharmacy_payables` capability, panel
-`pharmacy.tally_export`. Migration `0062_pharmacy_tally_ledger_maps` is not
-approved for live application.
+They remain outside the global release behind the `pharmacy_payables`
+capability, panel `pharmacy.tally_export`. Migration
+`0062_pharmacy_tally_ledger_maps` is present in the approved deployed release.
+The bounded #1689 tenant pilot verified sale/credit tax exports, explicit
+IGST/UTGST mappings and balanced vouchers; it does not establish supplier-payment
+acceptance or a global release of #1690.
 
 `pharmacy.accounts.export` covers all four routes. Module grants name pharmacy
 owners only, because the file discloses both sales and supplier payments; the
@@ -2299,5 +2302,6 @@ existing field meanings, authority, limits, command identity, audit and source
 ownership are unchanged. SDK readers allow omitted UTGST during mixed rollout.
 Once UTGST documents exist, recovery requires a compatible reader. Migration and
 rollout completed for revision `f6a36e9635a4e1226366e04d6693416c0afc763f`;
-[deployment evidence and outstanding live acceptance](../../design/1689-interstate-igst.md#deployment-evidence-2026-11-25)
-remain distinct. Issue #1689 is open pending transaction acceptance.
+[deployment and live synthetic API acceptance evidence](../../design/1689-interstate-igst.md#acceptance-evidence)
+remain distinct from tax-policy approval. Issue #1689 is open pending final
+posted-document browser verification.

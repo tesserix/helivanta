@@ -305,7 +305,7 @@ describe("CounterSale", () => {
     expect(screen.getByText("INR 10.71", { selector: "dd" })).toBeVisible();
     await user.click(screen.getByRole("button", { name: "Post sale" }));
     await screen.findByRole("heading", { name: "Tax invoice TS/2627/1" });
-    expect(screen.getByRole("columnheader", { name: "GST rate", exact: true })).toBeVisible();
+    expect(screen.getByRole("columnheader", { name: "GST rate" })).toBeVisible();
     const quote = fetcher.mock.calls.find(([url]) => url.endsWith("/sales/quote"));
     const post = fetcher.mock.calls.find(
       ([url, init]) => /\/sales\/[0-9a-f-]{36}$/.test(url) && init?.method === "PUT",

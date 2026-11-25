@@ -61,6 +61,7 @@ it("keeps evidence read-only without outlet editor access", async () => {
 });
 
 it("freezes an uncertain save and retries the original command without changing its identity", async () => {
+  let current: Record<string, unknown> | null = null;
   const puts: { url: string; body: Record<string, unknown> }[] = [];
   vi.stubGlobal(
     "fetch",
@@ -68,17 +69,18 @@ it("freezes an uncertain save and retries the original command without changing 
       if (init.method === "PUT") {
         const body = JSON.parse(String(init.body)) as Record<string, unknown>;
         puts.push({ url, body });
-        if (puts.length === 1) throw new Error("TEST response lost after commit");
-        return Response.json({
+        current = {
           ...body,
           id: url.split("/").at(-1),
           outlet_id: scope.outletId,
           payable_id: doc.id,
           recorded_by: scope.subject,
           recorded_at: "2026-11-26T00:00:00Z",
-        });
+        };
+        if (puts.length === 1) throw new Error("TEST response lost after commit");
+        return Response.json(current);
       }
-      return Response.json({ evidence: null });
+      return Response.json({ evidence: current });
     }),
   );
   renderWithProviders(
@@ -111,4 +113,69 @@ it("freezes an uncertain save and retries the original command without changing 
   await waitFor(() => expect(puts).toHaveLength(2));
   expect(puts[1]).toEqual(puts[0]);
   expect(await screen.findByRole("button", { name: "Record corrected evidence" })).toBeVisible();
+});
+
+it("reloads the current evidence instead of presenting a replayed receipt as the latest version", async () => {
+  const earlier = {
+    id: "0199e000-0000-7000-8000-000000000030",
+    outlet_id: scope.outletId,
+    payable_id: doc.id,
+    recorded_by: scope.subject,
+    recorded_at: "2026-11-26T00:00:00Z",
+    replaces: null,
+    supplier_gstin: "07ABCDE1234F1Z2",
+    supplier_state: "07",
+    place_of_supply: "07",
+    reason: "TEST earlier evidence",
+    lines: [
+      {
+        position: 1,
+        supply_nature: "taxable",
+        rate_ppm: 120000,
+        cgst_minor: 600,
+        sgst_minor: 600,
+        igst_minor: 0,
+        utgst_minor: 0,
+        cgst_recoverable_minor: 300,
+        sgst_recoverable_minor: 300,
+        igst_recoverable_minor: 0,
+        utgst_recoverable_minor: 0,
+      },
+    ],
+  };
+  let current: Record<string, unknown> = earlier;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init: RequestInit = {}) => {
+      if (init.method === "PUT") {
+        const receipt = {
+          ...JSON.parse(String(init.body)),
+          id: url.split("/").at(-1),
+          outlet_id: scope.outletId,
+          payable_id: doc.id,
+          recorded_by: scope.subject,
+          recorded_at: "2026-11-26T00:00:01Z",
+        };
+        current = {
+          ...receipt,
+          id: "0199e000-0000-7000-8000-000000000031",
+          replaces: receipt.id,
+          reason: "TEST later owner correction",
+        };
+        return Response.json(receipt);
+      }
+      return Response.json({ evidence: current });
+    }),
+  );
+  renderWithProviders(
+    <NavigationGuardProvider>
+      <PurchaseTax scope={scope} doc={doc} writable />
+    </NavigationGuardProvider>,
+  );
+  const user = userEvent.setup();
+  await user.click(await screen.findByRole("button", { name: "Record corrected evidence" }));
+  await user.type(screen.getByLabelText("Source / correction reason"), "TEST my correction");
+  await user.click(screen.getByRole("button", { name: "Record purchase tax evidence" }));
+  expect(await screen.findByText("TEST later owner correction")).toBeVisible();
+  expect(screen.queryByText("TEST my correction")).not.toBeInTheDocument();
 });

@@ -122,7 +122,8 @@ export function PurchaseTax({
         retry={evidence.refetch}
       />
     );
-  if (evidence.isPending) return <p role="status">Loading purchase tax evidence…</p>;
+  if (evidence.isPending || evidence.isFetching)
+    return <p role="status">Loading purchase tax evidence…</p>;
   return (
     <Panel>
       <h4 className="font-semibold">Purchase tax evidence</h4>
@@ -278,7 +279,7 @@ function EvidenceEditor({
         AbortSignal.timeout(15000),
       );
       form.reset(values);
-      client.setQueryData(pharmacyPurchaseTaxKey(scope, doc.id), result);
+      void client.invalidateQueries({ queryKey: pharmacyPurchaseTaxKey(scope, doc.id) });
       void client.invalidateQueries({ queryKey: pharmacyTallyKey(scope) });
       return result;
     },

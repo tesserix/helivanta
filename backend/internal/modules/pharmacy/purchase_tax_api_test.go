@@ -56,6 +56,11 @@ func TestPurchaseTaxEvidenceVersionsReplayAndPreserveThePostedBill(t *testing.T)
 	}
 	require.NoError(t, json.Unmarshal(current.Body.Bytes(), &view))
 	require.Equal(t, nextID, view.Evidence.ID)
+	recovered := do(w.r, "PUT", path, "exporter", purchaseTaxBody())
+	require.Equal(t, 200, recovered.Code, recovered.Body.String())
+	require.JSONEq(t, first.Body.String(), recovered.Body.String(), "recovery replays the original receipt even after a later version")
+	require.JSONEq(t, current.Body.String(), do(w.r, "GET", bill+"/purchase-tax", "exporter", "").Body.String(), "replaying a receipt never moves the current head backward")
+
 	require.JSONEq(t, before.Body.String(), do(w.r, "GET", bill, "finance", "").Body.String(), "annotating evidence must not rewrite the posted bill or valuation")
 	err := w.db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
 		return tx.Exec(`UPDATE pharmacy_purchase_tax_evidence SET reason='rewrite' WHERE id=?`, id).Error

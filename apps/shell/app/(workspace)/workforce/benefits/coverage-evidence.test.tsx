@@ -19,6 +19,10 @@ import {
 } from "@/test/benefits";
 import Benefits from "./page";
 
+// #1261 slice 1: cards are Panel, so no hand-painted card class survives.
+// Buttons are controls: the design system's outline button carries shadow-sm.
+const CARDS = ":is(.rounded-xl, .rounded-2xl, .shadow-sm):not(button)";
+
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
@@ -134,6 +138,8 @@ it("shows a reader the evidence without any way to attach", async () => {
     await within(proposed).findByText("synthetic-marriage-certificate.png"),
   ).toBeInTheDocument();
   expect(within(proposed).queryByRole("form")).toBeNull();
+  expect(proposed.querySelectorAll(CARDS)).toHaveLength(0);
+  expect(proposed).not.toHaveClass("rounded-xl");
 });
 
 it("holds the review with the reason while a file is still scanning", async () => {

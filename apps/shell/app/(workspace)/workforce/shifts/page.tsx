@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Button } from "@tesserix/web";
+import { Button, cn } from "@tesserix/web";
 import {
   apiFetch,
   useApiMutation,
@@ -18,6 +18,7 @@ import {
 import {
   Field,
   PageHeading,
+  Panel,
   SelectControl,
   useZodForm,
   useLeaveGuard,
@@ -26,6 +27,7 @@ import {
   RefreshButton,
   RequestFailure,
   controlClass,
+  tableStyles,
 } from "@helivanta/ui";
 
 const timing = (shift: Pick<ShiftDefinition, "start_time" | "end_time" | "duration_minutes">) =>
@@ -42,7 +44,7 @@ export default function Shifts() {
   return (
     <>
       <PageHeading
-        description="The shifts each hospital rosters, with their start and end times. Every change keeps the earlier version."
+        description="The shifts each hospital rosters, with their start and end times."
         actions={
           hospital && (
             <div className="w-full sm:w-72">
@@ -69,9 +71,9 @@ export default function Shifts() {
       ) : hospital ? (
         <ShiftCatalog key={hospital.id} hospital={hospital} />
       ) : (
-        <p className="rounded-2xl border bg-card p-8">
-          Ask your tenant administrator for hospital access before managing shifts.
-        </p>
+        <Panel as="div">
+          <p>Ask your tenant administrator for hospital access before managing shifts.</p>
+        </Panel>
       )}
       {hospitals.hasMore && (
         <Button
@@ -113,7 +115,7 @@ function ShiftCatalog({ hospital }: { hospital: Hospital }) {
   );
   return (
     <>
-      <section className="overflow-hidden rounded-2xl border bg-card shadow-sm">
+      <Panel flush>
         <div className="flex flex-wrap items-center justify-between gap-4 border-b p-5">
           <div>
             <h3 className="font-semibold">{hospital.name}</h3>
@@ -176,10 +178,18 @@ function ShiftCatalog({ hospital }: { hospital: Hospital }) {
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <caption className="sr-only">Shifts at {hospital.name}</caption>
-              <thead className="border-b bg-muted/40 text-xs text-muted-foreground">
+              <thead>
                 <tr>
                   {["Shift", "Timing", "Rules", "Status", "Revision", "Actions"].map((h) => (
-                    <th key={h} scope="col" className="px-5 py-3 font-medium">
+                    <th
+                      key={h}
+                      scope="col"
+                      className={cn(
+                        tableStyles.head,
+                        "px-5 py-3",
+                        h === "Revision" && tableStyles.number,
+                      )}
+                    >
                       {h}
                     </th>
                   ))}
@@ -187,7 +197,7 @@ function ShiftCatalog({ hospital }: { hospital: Hospital }) {
               </thead>
               <tbody>
                 {rows.map((s) => (
-                  <tr key={s.id} className="border-b last:border-0">
+                  <tr key={s.id} className={tableStyles.row}>
                     <td className="px-5 py-4">
                       <p className="font-medium">{s.name}</p>
                       <p className="mt-1 text-xs text-muted-foreground">
@@ -204,7 +214,7 @@ function ShiftCatalog({ hospital }: { hospital: Hospital }) {
                         {s.active ? "Active" : "Retired"}
                       </span>
                     </td>
-                    <td className="px-5 py-4">{s.version}</td>
+                    <td className={cn("px-5 py-4", tableStyles.number)}>{s.version}</td>
                     <td className="px-5 py-4 whitespace-nowrap">
                       {writable && (
                         <Button
@@ -269,7 +279,7 @@ function ShiftCatalog({ hospital }: { hospital: Hospital }) {
             </RefreshButton>
           </div>
         </div>
-      </section>
+      </Panel>
       {editing && !refused && (
         <ShiftEditor
           key={`${editing === "new" ? "new" : editing.id}:${editorSession}`}
@@ -338,9 +348,9 @@ function ShiftEditor({
   const end = form.watch("end_time");
   const duration = shiftDuration(start, end);
   return (
-    <section
+    <Panel
       ref={section}
-      className="mt-6 scroll-mt-24 rounded-2xl border bg-card p-6 shadow-sm"
+      className="mt-6 scroll-mt-4"
       aria-label={record ? "Edit shift" : "Add shift"}
     >
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
@@ -434,10 +444,12 @@ function ShiftEditor({
               </Field>
             ))}
           </div>
-          <p className="rounded-lg bg-muted/50 p-4 text-xs text-muted-foreground">
-            Break, grace and overtime values are configuration only. Review them against your
-            hospital policy. This screen does not calculate pay or approve attendance.
-          </p>
+          <Panel as="div">
+            <p className="text-xs text-muted-foreground">
+              Break, grace and overtime values are configuration only. Review them against your
+              hospital policy. This screen does not calculate pay or approve attendance.
+            </p>
+          </Panel>
           <Field
             id="shift-description"
             label="Description"
@@ -473,7 +485,7 @@ function ShiftEditor({
         {save.isError && (
           <p
             role="alert"
-            className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive"
+            className="rounded-md border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive"
           >
             {save.error.message} Your input is preserved. Cancel and refresh shifts to load current
             values.
@@ -485,7 +497,7 @@ function ShiftEditor({
           </Button>
         </div>
       </form>
-    </section>
+    </Panel>
   );
 }
 function ShiftHistory({
@@ -505,11 +517,7 @@ function ShiftHistory({
     heading.current?.focus();
   }, []);
   return (
-    <section
-      ref={section}
-      aria-label="Shift revision history"
-      className="mt-6 scroll-mt-24 rounded-2xl border bg-card p-6 shadow-sm"
-    >
+    <Panel ref={section} aria-label="Shift revision history" className="mt-6 scroll-mt-4">
       <div className="mb-6 flex items-start justify-between gap-4">
         <div>
           <h3 ref={heading} tabIndex={-1} className="text-xl font-semibold outline-none">
@@ -532,9 +540,9 @@ function ShiftHistory({
           error={history.error}
         />
       ) : (
-        <ul className="space-y-3">
+        <ul className="divide-y">
           {history.items.map((r) => (
-            <li key={r.id} className="rounded-xl border p-4">
+            <li key={r.id} className="py-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <p className="font-medium">{r.name}</p>
                 <span className="text-xs text-muted-foreground">
@@ -565,6 +573,6 @@ function ShiftHistory({
           Load earlier revisions
         </Button>
       )}
-    </section>
+    </Panel>
   );
 }

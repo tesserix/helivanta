@@ -26,6 +26,7 @@ import {
   firstError,
   isRefusal,
   PageHeading,
+  Panel,
   RefreshButton,
   RequestFailure,
   SelectControl,
@@ -59,13 +60,13 @@ function WorkforceAccount({ onRestart }: { onRestart: () => void }) {
   );
   if (changed)
     return (
-      <section role="alert" className="space-y-4 rounded-xl border bg-card p-6">
+      <Panel role="alert" className="space-y-4">
         <p>
           Your account or workspace changed, or access to this Staff record is no longer available.
           Reopen the Staff workspace to verify your access.
         </p>
         <Button onClick={onRestart}>Reload Staff workspace</Button>
-      </section>
+      </Panel>
     );
   if (identity.isPending) return <p role="status">Checking Staff workspace…</p>;
   if (
@@ -186,7 +187,7 @@ function WorkforceWorkspace({ scope, permissions, onContextChanged }: WorkspaceP
           error={accessError}
         />
       ) : (
-        <section className="rounded-2xl border bg-card p-12 text-center">
+        <Panel className="py-12 text-center">
           <h3 className="text-lg font-semibold">
             {hospitals.data?.page.has_more || intake.data?.page.has_more
               ? "No hospital access on this page"
@@ -197,7 +198,7 @@ function WorkforceWorkspace({ scope, permissions, onContextChanged }: WorkspaceP
               ? "Continue to check the next hospitals."
               : "Ask your tenant administrator to grant access to a hospital before managing its staff."}
           </p>
-        </section>
+        </Panel>
       )}
       {hospitals.data?.page.has_more && (
         <Button
@@ -676,34 +677,40 @@ function HospitalSetup() {
     },
   );
   return (
-    <details className="mb-6 rounded-xl border bg-card p-5">
-      <summary className="cursor-pointer text-sm font-medium">Add a hospital</summary>
-      <form
-        noValidate
-        onSubmit={form.handleSubmit((value) => confirmLeave(() => save.mutate(value)))}
-        className="mt-5 max-w-lg space-y-4"
-      >
-        <Field id="hospital-name" label="Hospital name" error={form.formState.errors.name?.message}>
-          <input id="hospital-name" className={controlClass} {...form.register("name")} />
-        </Field>
-        <label className="flex items-start gap-3 text-sm">
-          <input type="checkbox" className="mt-1" {...form.register("grant")} />
-          Grant me staff manager access to this hospital
-        </label>
-        {form.formState.errors.grant && (
-          <p role="alert" className="text-sm text-destructive">
-            {form.formState.errors.grant.message}
-          </p>
-        )}
-        {save.isError && (
-          <p role="alert" className="text-sm text-destructive">
-            {save.error.message} Your hospital setup can be retried safely.
-          </p>
-        )}
-        <Button type="submit" disabled={save.isPending}>
-          {save.isPending ? "Creating…" : "Create hospital"}
-        </Button>
-      </form>
-    </details>
+    <Panel as="div" className="mb-6">
+      <details>
+        <summary className="cursor-pointer text-sm font-medium">Add a hospital</summary>
+        <form
+          noValidate
+          onSubmit={form.handleSubmit((value) => confirmLeave(() => save.mutate(value)))}
+          className="mt-5 max-w-lg space-y-4"
+        >
+          <Field
+            id="hospital-name"
+            label="Hospital name"
+            error={form.formState.errors.name?.message}
+          >
+            <input id="hospital-name" className={controlClass} {...form.register("name")} />
+          </Field>
+          <label className="flex items-start gap-3 text-sm">
+            <input type="checkbox" className="mt-1" {...form.register("grant")} />
+            Grant me staff manager access to this hospital
+          </label>
+          {form.formState.errors.grant && (
+            <p role="alert" className="text-sm text-destructive">
+              {form.formState.errors.grant.message}
+            </p>
+          )}
+          {save.isError && (
+            <p role="alert" className="text-sm text-destructive">
+              {save.error.message} Your hospital setup can be retried safely.
+            </p>
+          )}
+          <Button type="submit" disabled={save.isPending}>
+            {save.isPending ? "Creating…" : "Create hospital"}
+          </Button>
+        </form>
+      </details>
+    </Panel>
   );
 }

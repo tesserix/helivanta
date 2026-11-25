@@ -111,7 +111,7 @@ export function StaffDocumentPanel({
     scope.hrIntake === true ||
     (hospital.access_level === "manager" && can("workforce.documents.manage"));
   return (
-    <Panel flush aria-labelledby="staff-documents-heading" className="mt-6 scroll-mt-24">
+    <Panel flush aria-labelledby="staff-documents-heading" className="mt-6 scroll-mt-4">
       <header className="flex items-start justify-between gap-4 border-b px-6 py-5">
         <div>
           <h3
@@ -342,13 +342,13 @@ export function DocumentWorkspace({
     );
   return (
     <div className="p-6">
-      <div className="mb-6 flex items-start gap-3 rounded-xl bg-muted/40 p-4 text-sm">
+      <Panel as="div" className="mb-6 flex items-start gap-3 text-sm">
         <ShieldCheck className="mt-0.5 size-5 shrink-0 text-(--hms-accent)" />
         <p>
           Files are checked before they can be downloaded. Access stays within this{" "}
           {hospitalScope ? "hospital" : "pharmacy"}’s authorised staff-document team.
         </p>
-      </div>
+      </Panel>
       {records.isPending ? (
         <p role="status">Loading saved record choices…</p>
       ) : records.isError ? (
@@ -362,12 +362,14 @@ export function DocumentWorkspace({
       ) : (
         <>
           {!storageAvailable && (
-            <p role="status" className="mb-5 rounded-xl border bg-muted/30 p-4 text-sm">
-              File storage is not available. Existing records are shown; file actions are
-              temporarily disabled.
-            </p>
+            <Panel as="div" role="status" className="mb-5 text-sm">
+              <p>
+                File storage is not available. Existing records are shown; file actions are
+                temporarily disabled.
+              </p>
+            </Panel>
           )}
-          <div className="rounded-xl border p-5">
+          <Panel as="div">
             <h4 className="mb-4 flex items-center gap-2 font-semibold">
               <FileCheck2 className="size-4 text-(--hms-accent)" />
               {resume ? "Resume incomplete upload" : "Attach evidence"}
@@ -446,7 +448,7 @@ export function DocumentWorkspace({
                   }
                   disabled={locked || !storageAvailable || (!selected && !resume)}
                   onChange={(event) => selectFile(event.target.files?.[0])}
-                  className="w-full rounded-lg border bg-background p-3 text-sm file:mr-4 file:rounded-md file:border-0 file:bg-muted file:px-3 file:py-2 file:font-medium"
+                  className="w-full rounded-md border bg-background p-3 text-sm file:mr-4 file:rounded-md file:border-0 file:bg-muted file:px-3 file:py-2 file:font-medium"
                 />
               </Field>
               <p className="mt-2 text-xs text-muted-foreground">
@@ -495,13 +497,13 @@ export function DocumentWorkspace({
                 )}
               </div>
             </form>
-          </div>
+          </Panel>
         </>
       )}
       {error && (
         <p
           role="alert"
-          className="mt-4 rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive"
+          className="mt-4 rounded-md border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive"
         >
           {error}
         </p>
@@ -547,20 +549,20 @@ export function DocumentWorkspace({
           />
         </div>
       ) : documents.data?.data.length === 0 ? (
-        <div className="mt-4 rounded-xl border border-dashed px-5 py-8 text-center">
+        <Panel as="div" className="mt-4 px-5 py-8 text-center">
           <FileText className="mx-auto mb-3 size-7 text-muted-foreground" />
           <p className="font-medium">No evidence files yet</p>
           <p className="mt-1 text-sm text-muted-foreground">
             Attach a file to a saved staff record above.
           </p>
-        </div>
+        </Panel>
       ) : (
-        <ul className="mt-4 divide-y rounded-xl border">
+        <ul className="mt-4 divide-y">
           {documents.data?.data.map((document) => {
             const expired =
               document.status === "upload_pending" && Date.parse(document.expires_at) < now;
             return (
-              <li key={document.id} className="p-5">
+              <li key={document.id} className="py-5">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div className="min-w-0">
                     <p className="break-all font-medium">{document.filename}</p>

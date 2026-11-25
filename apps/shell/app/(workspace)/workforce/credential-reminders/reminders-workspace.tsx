@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Button } from "@tesserix/web";
+import { Button, cn } from "@tesserix/web";
 import {
   ApiError,
   acknowledgeCredentialReminder,
@@ -27,11 +27,13 @@ import {
   Field,
   LoadMore,
   PageHeading,
+  Panel,
   SelectControl,
   useZodForm,
   RequestFailure,
+  tableStyles,
+  controlClass,
 } from "@helivanta/ui";
-import { inputClass } from "../roster-policy/policy-ui";
 import { credentialPlace, useAccessChange } from "../credential-panel";
 
 const statuses: { value: CredentialReminderStatus; label: string }[] = [
@@ -61,7 +63,7 @@ export function CredentialRemindersWorkspace() {
   return (
     <>
       <PageHeading
-        description="Renewal reminders for approved licences and registrations, raised on the hospital calendar at the days before expiry you choose."
+        description="Renewal reminders for approved licences and registrations."
         actions={
           hospital && (
             <div className="w-full sm:w-72">
@@ -92,10 +94,12 @@ export function CredentialRemindersWorkspace() {
           ownerName={hospital.name}
         />
       ) : (
-        <p className="rounded-2xl border bg-card p-8">
-          Ask your tenant administrator for hospital management access to manage credential
-          reminders.
-        </p>
+        <Panel as="div">
+          <p>
+            Ask your tenant administrator for hospital management access to manage credential
+            reminders.
+          </p>
+        </Panel>
       )}
       {hospitals.hasMore && (
         <Button
@@ -128,9 +132,9 @@ export function CredentialReminders({
   useAccessChange(onContextChanged, policy.error);
   if (!allowed)
     return (
-      <p role="alert" className="rounded-2xl border bg-card p-8">
-        You need enrollment management access to manage credential reminders.
-      </p>
+      <Panel as="div" role="alert">
+        <p>You need enrollment management access to manage credential reminders.</p>
+      </Panel>
     );
   return (
     <div className="space-y-10">
@@ -172,7 +176,7 @@ function PolicyForm({
   );
   useAccessChange(onContextChanged, save.error);
   return (
-    <section aria-label="Reminder days" className="rounded-2xl border bg-card p-6">
+    <Panel aria-label="Reminder days">
       <h3 className="text-lg font-semibold">Reminder days</h3>
       <p className="mt-1 text-sm text-muted-foreground">
         {policy.version === 0
@@ -195,7 +199,7 @@ function PolicyForm({
             <input
               id="reminder-days"
               placeholder="90, 30, 0"
-              className={inputClass}
+              className={controlClass}
               {...form.register("days")}
             />
           </Field>
@@ -209,7 +213,7 @@ function PolicyForm({
           {failureText(save.error)}
         </p>
       )}
-    </section>
+    </Panel>
   );
 }
 
@@ -253,25 +257,27 @@ function Inbox({ owner, ownerName, onContextChanged }: Owned & { ownerName: stri
       ) : rows.isError ? (
         <RequestFailure message="Could not load reminders." retry={rows.retry} error={rows.error} />
       ) : rows.items.length === 0 ? (
-        <p className="rounded-xl border p-6 text-sm">
-          No {statuses.find((s) => s.value === status)?.label.toLowerCase()} reminders.
-        </p>
+        <Panel as="div">
+          <p className="text-sm">
+            No {statuses.find((s) => s.value === status)?.label.toLowerCase()} reminders.
+          </p>
+        </Panel>
       ) : (
-        <div className="overflow-x-auto rounded-2xl border bg-card">
+        <Panel flush className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <caption className="sr-only">Credential reminders at {ownerName}</caption>
-            <thead className="bg-muted/40 text-xs text-muted-foreground">
+            <thead>
               <tr>
                 {["Staff", "Credential", "Valid until", "Due", "Status", ""].map((label, i) => (
-                  <th key={i} scope="col" className="px-4 py-3 font-medium">
+                  <th key={i} scope="col" className={cn(tableStyles.head, "px-4 py-3")}>
                     {label === "" ? <span className="sr-only">Actions</span> : label}
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y">
+            <tbody>
               {rows.items.map((row) => (
-                <tr key={row.id}>
+                <tr key={row.id} className={tableStyles.row}>
                   <td className="px-4 py-3">
                     {row.display_name}
                     <span className="block font-mono text-xs text-muted-foreground">
@@ -320,7 +326,7 @@ function Inbox({ owner, ownerName, onContextChanged }: Owned & { ownerName: stri
             isLoading={rows.isFetchingMore}
             onClick={rows.loadMore}
           />
-        </div>
+        </Panel>
       )}
     </section>
   );

@@ -6,6 +6,10 @@ import { renderWithProviders } from "@helivanta/api/testing";
 import { EMPTY_PROFILE } from "@helivanta/api";
 import Workforce from "./page";
 
+// #1261 slice 1: cards are Panel, so no hand-painted card class survives.
+// Buttons are controls: the design system's outline button carries shadow-sm.
+const CARDS = ":is(.rounded-xl, .rounded-2xl, .shadow-sm):not(button)";
+
 const hospital = "11111111-1111-4111-8111-111111111111";
 afterEach(() => vi.unstubAllGlobals());
 
@@ -424,6 +428,12 @@ it("reveals and focuses enrollment with separate personal, contact and professio
   expect(screen.getByLabelText("Emergency phone")).toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "Add qualification" }));
   expect(screen.getByLabelText("Qualification")).toBeInTheDocument();
+  const editor = screen.getByRole("region", { name: "Enroll a staff member" });
+  expect(editor.querySelectorAll(CARDS)).toHaveLength(0);
+  // The save row is a plain footer, not a floating bar.
+  expect(screen.getByRole("button", { name: "Save staff" }).closest(".border-t")).not.toHaveClass(
+    "sticky",
+  );
   await user.click(screen.getByRole("button", { name: "Cancel" }));
   await waitFor(() => expect(screen.getByRole("button", { name: "Add staff" })).toHaveFocus());
 });

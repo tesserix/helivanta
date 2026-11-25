@@ -6,6 +6,10 @@ import type { Hospital, Staff } from "@helivanta/api";
 import { StaffCredentialPanel } from "./credential-panel";
 import CredentialRegister from "./credentials/page";
 
+// #1261 slice 1: cards are Panel, so no hand-painted card class survives.
+// Buttons are controls: the design system's outline button carries shadow-sm.
+const CARDS = ":is(.rounded-xl, .rounded-2xl, .shadow-sm):not(button)";
+
 // Synthetic staff, licence numbers and councils only.
 const tenant = "33333333-3333-4333-8333-333333333333";
 const hospital: Hospital = {
@@ -168,6 +172,7 @@ it("shows reviewed validity in the hospital calendar", async () => {
   expect(await screen.findByText("Valid · 2 days left")).toBeInTheDocument();
   expect(screen.getByText("Today is 2026-10-18 in Asia/Kolkata.")).toBeInTheDocument();
   expect(screen.getByText(/SYN-RN-1 · 2021-10-01 to 2026-10-20 · Reviewed v1/)).toBeInTheDocument();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
 });
 
 it("proposes a review only with evidence and a reason, citing this credential's files", async () => {
@@ -292,6 +297,9 @@ it("filters the register by expiry window and checks the window first", async ()
   const { user } = renderWithProviders(<CredentialRegister />);
   const table = await screen.findByRole("table");
   expect(within(table).getByText("Expired 3 days ago")).toBeInTheDocument();
+  expect(within(table).getByText("Expired 3 days ago").closest("tr")).toHaveClass("h-11");
+  expect(within(table).getByRole("columnheader", { name: "Staff" })).not.toHaveClass("uppercase");
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   const form = screen.getByRole("form", { name: "Register filter" });
   const input = within(form).getByLabelText("Expiring within (days)");
   await user.type(input, "400");

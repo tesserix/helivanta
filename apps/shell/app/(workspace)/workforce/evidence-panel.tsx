@@ -13,7 +13,7 @@ import {
   type EvidenceScope,
   type EvidenceUpload,
 } from "@helivanta/api";
-import { Field, useZodForm, RequestFailure } from "@helivanta/ui";
+import { Field, Panel, useZodForm, RequestFailure } from "@helivanta/ui";
 
 import { SaveError } from "./leave-balances/years-panel";
 
@@ -106,7 +106,7 @@ export function EvidencePanel({
   const full = files.length >= MAX_EVIDENCE;
   const errors = form.formState.errors;
   return (
-    <section aria-label={label} className="mt-4 rounded-xl border p-4">
+    <Panel aria-label={label} className="mt-4">
       <h5 className="mb-3 flex items-center gap-2 text-sm font-semibold">
         <FileCheck2 className="size-4 text-(--hms-accent)" />
         {label}
@@ -126,9 +126,9 @@ export function EvidencePanel({
           {files.length === 0 ? (
             <p className="text-sm text-muted-foreground">No evidence attached.</p>
           ) : (
-            <ul className="divide-y rounded-lg border text-sm">
+            <ul className="divide-y text-sm">
               {files.map((f) => (
-                <li key={f.id} className="flex flex-wrap items-center justify-between gap-3 p-3">
+                <li key={f.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
                   <span className="min-w-0 break-all">
                     {f.filename}{" "}
                     <span className="text-xs text-muted-foreground">
@@ -204,7 +204,7 @@ export function EvidencePanel({
                     upload.reset();
                     form.setValue("file", ev.target.files?.[0] ?? null, { shouldValidate: true });
                   }}
-                  className="w-full rounded-lg border bg-background p-2 text-sm file:mr-4 file:rounded-md file:border-0 file:bg-muted file:px-3 file:py-1.5 file:font-medium"
+                  className="w-full rounded-md border bg-background p-2 text-sm file:mr-4 file:rounded-md file:border-0 file:bg-muted file:px-3 file:py-1.5 file:font-medium"
                 />
               </Field>
               <p className="mt-1 text-xs text-muted-foreground">
@@ -220,6 +220,6 @@ export function EvidencePanel({
           {failure && <SaveError message={failure.message} />}
         </>
       )}
-    </section>
+    </Panel>
   );
 }

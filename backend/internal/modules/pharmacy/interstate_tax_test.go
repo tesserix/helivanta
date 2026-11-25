@@ -1,9 +1,71 @@
 package pharmacy
 
 import (
-	"github.com/stretchr/testify/require"
+	"encoding/json"
 	"testing"
+
+	"github.com/stretchr/testify/require"
+	"github.com/tesserix/helivanta/pkg/countryprofile"
 )
+
+func TestUnionTerritoryCounterUsesUTGSTInsteadOfSGST(t *testing.T) {
+	lines := []saleLine{{AmountMinor: 12500, TaxableMinor: 11160, CGSTMinor: 670, SGSTMinor: 670, SupplyNature: "taxable", RatePPM: 120000}}
+	require.NoError(t, applySaleDestination("04", "04", lines, nil))
+	encoded, err := json.Marshal(lines[0])
+	require.NoError(t, err)
+	var components map[string]any
+	require.NoError(t, json.Unmarshal(encoded, &components))
+	require.Equal(t, float64(670), components["utgst_minor"])
+	require.Equal(t, float64(0), components["sgst_minor"])
+}
+
+func TestCounterTaxDestinationsCoverAllIndianJurisdictions(t *testing.T) {
+	scheme, ok := countryprofile.Tax("IN")
+	require.True(t, ok)
+	var codes []string
+	for _, jurisdiction := range scheme.Jurisdictions {
+		codes = append(codes, jurisdiction.Code)
+	}
+	require.ElementsMatch(t, []string{
+		"01", "02", "03", "04", "05", "06", "07", "08", "09", "10",
+		"11", "12", "13", "14", "15", "16", "17", "18", "19", "20",
+		"21", "22", "23", "24", "26", "27", "29", "30", "31", "32",
+		"33", "34", "35", "36", "37", "38", "97",
+	}, codes)
+	original := saleLine{AmountMinor: 12500, TaxableMinor: 11160, CGSTMinor: 670, SGSTMinor: 670, SupplyNature: "taxable", RatePPM: 120000}
+	for _, seller := range codes {
+		t.Run(seller, func(t *testing.T) {
+			defaulted, err := saleDestination(seller, "")
+			require.NoError(t, err)
+			require.Equal(t, seller, defaulted)
+			for _, recipient := range codes {
+				t.Run(recipient, func(t *testing.T) {
+					destination, err := saleDestination(seller, recipient)
+					require.NoError(t, err)
+					require.Equal(t, recipient, destination)
+					lines := []saleLine{original}
+					require.NoError(t, applySaleDestination(seller, destination, lines, nil))
+					if seller == recipient {
+						jurisdiction, found := scheme.Jurisdiction(seller)
+						require.True(t, found)
+						want := original
+						if jurisdiction.Kind == "union_territory" {
+							want.UTGSTMinor, want.SGSTMinor = original.SGSTMinor, 0
+						}
+						require.Equal(t, want, lines[0])
+						return
+					}
+					require.EqualValues(t, 12500, lines[0].AmountMinor)
+					require.EqualValues(t, 11161, lines[0].TaxableMinor)
+					require.EqualValues(t, 1339, lines[0].IGSTMinor)
+					require.Zero(t, lines[0].CGSTMinor)
+					require.Zero(t, lines[0].SGSTMinor)
+					require.Zero(t, lines[0].UTGSTMinor)
+				})
+			}
+		})
+	}
+}
 
 func TestInterstateTaxIsOneRoundedComponent(t *testing.T) {
 	lines := []saleLine{{AmountMinor: 12500, TaxableMinor: 11160, CGSTMinor: 670, SGSTMinor: 670, SupplyNature: "taxable", RatePPM: 120000}}

@@ -45,7 +45,7 @@ func tallyHeadLabel(head string) (string, bool) {
 			return what + " taxable at " + tallyPercent(ppm), true
 		}
 		return what + ", " + label, true
-	case "cgst", "sgst", "igst":
+	case "cgst", "sgst", "igst", "utgst":
 		ppm, ok := tallyRate(rest)
 		return "Output " + strings.ToUpper(kind) + " on " + tallyPercent(ppm) + " supplies", ok
 	case "supplier":

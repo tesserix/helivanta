@@ -584,6 +584,7 @@ function SaleLines({
           <th>GST rate</th>
           <th>CGST + SGST</th>
           <th>IGST</th>
+          <th>UTGST</th>
           <th>Amount</th>
         </tr>
       </thead>
@@ -619,6 +620,7 @@ function SaleLines({
               {money(l.cgst_minor)} + {money(l.sgst_minor)}
             </td>
             <td>{money(l.igst_minor ?? 0)}</td>
+            <td>{money(l.utgst_minor ?? 0)}</td>
             <td>{money(l.amount_minor)}</td>
           </tr>
         ))}
@@ -641,6 +643,7 @@ function SaleCharges({ charges, currency }: { charges: PharmacySaleCharge[]; cur
             <th>GST rate</th>
             <th>CGST + SGST</th>
             <th>IGST</th>
+            <th>UTGST</th>
             <th>Amount</th>
           </tr>
         </thead>
@@ -655,6 +658,7 @@ function SaleCharges({ charges, currency }: { charges: PharmacySaleCharge[]; cur
                 {money(c.cgst_minor)} + {money(c.sgst_minor)}
               </td>
               <td>{money(c.igst_minor ?? 0)}</td>
+              <td>{money(c.utgst_minor ?? 0)}</td>
               <td>{money(c.amount_minor)}</td>
             </tr>
           ))}
@@ -682,6 +686,8 @@ function Totals({ sale }: { sale: PharmacySaleQuote | PharmacySale }) {
       <dd>{money(sale.sgst_minor)}</dd>
       <dt>IGST</dt>
       <dd>{money(sale.igst_minor ?? 0)}</dd>
+      <dt>UTGST</dt>
+      <dd>{money(sale.utgst_minor ?? 0)}</dd>
       <dt className="font-semibold">Total</dt>
       <dd className="font-semibold">{money(sale.total_minor)}</dd>
     </dl>

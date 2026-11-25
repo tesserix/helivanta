@@ -351,7 +351,7 @@ export function SaleStatement({ summary: s }: { summary: PharmacySaleSummary }) 
         <dt className="text-muted-foreground">Total</dt>
         <dd>
           {money(s.total_minor)} (taxable {money(s.taxable_minor)}, CGST {money(s.cgst_minor)}, SGST{" "}
-          {money(s.sgst_minor)}, IGST {money(s.igst_minor ?? 0)})
+          {money(s.sgst_minor)}, IGST {money(s.igst_minor ?? 0)}, UTGST {money(s.utgst_minor ?? 0)})
         </dd>
         <dt className="text-muted-foreground">Paid by</dt>
         <dd>{kinds(s.payments)}</dd>

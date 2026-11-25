@@ -439,7 +439,8 @@ function preview(sale: PharmacySale, units: string[], charges: boolean[]): numbe
       prorate(l.taxable_minor) +
       prorate(l.cgst_minor) +
       prorate(l.sgst_minor) +
-      prorate(l.igst_minor ?? 0)
+      prorate(l.igst_minor ?? 0) +
+      prorate(l.utgst_minor ?? 0)
     );
   }, credited);
 }
@@ -478,6 +479,7 @@ function CreditNoteDocument({ note, onNext }: { note: PharmacyCreditNote; onNext
               <th>Taxable</th>
               <th>CGST + SGST</th>
               <th>IGST</th>
+              <th>UTGST</th>
               <th>Credited</th>
             </tr>
           </thead>
@@ -493,6 +495,7 @@ function CreditNoteDocument({ note, onNext }: { note: PharmacyCreditNote; onNext
                   {money(l.cgst_minor)} + {money(l.sgst_minor)}
                 </td>
                 <td>{money(l.igst_minor ?? 0)}</td>
+                <td>{money(l.utgst_minor ?? 0)}</td>
                 <td>{money(l.amount_minor)}</td>
               </tr>
             ))}
@@ -508,6 +511,7 @@ function CreditNoteDocument({ note, onNext }: { note: PharmacyCreditNote; onNext
                 <th>Taxable</th>
                 <th>CGST + SGST</th>
                 <th>IGST</th>
+                <th>UTGST</th>
                 <th>Credited</th>
               </tr>
             </thead>
@@ -522,6 +526,7 @@ function CreditNoteDocument({ note, onNext }: { note: PharmacyCreditNote; onNext
                     {money(c.cgst_minor)} + {money(c.sgst_minor)}
                   </td>
                   <td>{money(c.igst_minor ?? 0)}</td>
+                  <td>{money(c.utgst_minor ?? 0)}</td>
                   <td>{money(c.amount_minor)}</td>
                 </tr>
               ))}

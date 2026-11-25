@@ -26,6 +26,7 @@ type interstateDocument struct {
 	CGST          int64  `json:"cgst_minor"`
 	SGST          int64  `json:"sgst_minor"`
 	IGST          int64  `json:"igst_minor"`
+	UTGST         int64  `json:"utgst_minor"`
 	Lines         []struct {
 		IGST int64 `json:"igst_minor"`
 	} `json:"lines"`

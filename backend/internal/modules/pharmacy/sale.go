@@ -277,6 +277,7 @@ type saleRecord struct {
 	CGSTMinor       int64     `gorm:"column:cgst_minor" json:"cgst_minor"`
 	SGSTMinor       int64     `gorm:"column:sgst_minor" json:"sgst_minor"`
 	IGSTMinor       int64     `gorm:"column:igst_minor" json:"igst_minor"`
+	UTGSTMinor      int64     `gorm:"column:utgst_minor" json:"utgst_minor"`
 	ActorSubject    string    `gorm:"column:actor_subject" json:"actor_subject"`
 	BuyerName       *string   `gorm:"column:buyer_name" json:"buyer_name"`
 	BuyerPhone      *string   `gorm:"column:buyer_phone" json:"buyer_phone"`
@@ -303,7 +304,7 @@ type saleRecord struct {
 func (saleRecord) TableName() string                 { return "pharmacy_sales" }
 func (r saleRecord) PageKey() (time.Time, uuid.UUID) { return r.CreatedAt, r.ID }
 
-const saleColumns = "id,invoice_number,financial_year,to_char(sale_date,'YYYY-MM-DD') AS sale_date,seller_legal_name,seller_address,seller_gstin,place_of_supply,currency,total_minor,taxable_minor,cgst_minor,sgst_minor,igst_minor,actor_subject,buyer_name,buyer_phone,patient_id,patient_hospital_id,encounter_id,admission_id,admission_occupancy_id,admission_bed_code,admission_resolved_at,discount_reason,created_at"
+const saleColumns = "id,invoice_number,financial_year,to_char(sale_date,'YYYY-MM-DD') AS sale_date,seller_legal_name,seller_address,seller_gstin,place_of_supply,currency,total_minor,taxable_minor,cgst_minor,sgst_minor,igst_minor,utgst_minor,actor_subject,buyer_name,buyer_phone,patient_id,patient_hospital_id,encounter_id,admission_id,admission_occupancy_id,admission_bed_code,admission_resolved_at,discount_reason,created_at"
 
 type saleLine struct {
 	LineNumber         int        `gorm:"column:line_number" json:"line_number"`
@@ -324,6 +325,7 @@ type saleLine struct {
 	CGSTMinor          int64      `gorm:"column:cgst_minor" json:"cgst_minor"`
 	SGSTMinor          int64      `gorm:"column:sgst_minor" json:"sgst_minor"`
 	IGSTMinor          int64      `gorm:"column:igst_minor" json:"igst_minor"`
+	UTGSTMinor         int64      `gorm:"column:utgst_minor" json:"utgst_minor"`
 	PrescriptionID     *uuid.UUID `gorm:"column:prescription_id" json:"prescription_id"`
 	PrescriptionLine   *int       `gorm:"column:prescription_line" json:"prescription_line"`
 	ListAmountMinor    int64      `gorm:"column:list_amount_minor" json:"list_amount_minor"`
@@ -595,14 +597,12 @@ func saleSellerFor(tx *gorm.DB, tenant string, outlet uuid.UUID) (saleSeller, er
 	if len(reg) == 0 || reg[0].IdentifierKind != "gstin" {
 		return saleSeller{}, errNotSellable{"the outlet has no GSTIN in force today"}
 	}
-	// A union territory levies UTGST, not SGST; until that head is modelled
-	// an invoice there would name the wrong tax, so it is not issued.
 	scheme, ok := countryprofile.Tax(o.CountryCode)
 	if !ok {
 		return saleSeller{}, errNotSellable{"this outlet's country has no tax scheme"}
 	}
-	if j, ok := scheme.Jurisdiction(reg[0].JurisdictionCode); !ok || j.Kind != "state" {
-		return saleSeller{}, errNotSellable{"counter invoices for a union territory (UTGST) are not supported yet"}
+	if _, ok := scheme.Jurisdiction(reg[0].JurisdictionCode); !ok {
+		return saleSeller{}, errNotSellable{"the outlet registration has an unsupported Indian jurisdiction"}
 	}
 	profile, err := currentInvoiceProfile(tx, tenant, outlet)
 	if err != nil {
@@ -934,6 +934,7 @@ func (h *catalogueHandlers) postSaleQuote(c *gin.Context) {
 		CGSTMinor      int64            `json:"cgst_minor"`
 		SGSTMinor      int64            `json:"sgst_minor"`
 		IGSTMinor      int64            `json:"igst_minor"`
+		UTGSTMinor     int64            `json:"utgst_minor"`
 		Lines          []saleLine       `json:"lines"`
 		Charges        []saleChargeLine `json:"charges"`
 		CeilingChecked bool             `json:"nppa_ceiling_checked"`
@@ -959,7 +960,8 @@ func (h *catalogueHandlers) postSaleQuote(c *gin.Context) {
 		quote.Currency, quote.Lines, quote.Charges = seller.currency, lines, charges
 		quote.TotalMinor, quote.TaxableMinor, quote.CGSTMinor = saleTotals(lines, charges)
 		quote.CeilingChecked = ceilingChecked(lines)
-		quote.SGSTMinor = quote.CGSTMinor
+		quote.UTGSTMinor = saleUTGST(lines, charges)
+		quote.SGSTMinor = quote.CGSTMinor - quote.UTGSTMinor
 		return nil
 	})
 	var refusal errNotSellable
@@ -1096,6 +1098,7 @@ func (h *catalogueHandlers) putSale(c *gin.Context) {
 			return err
 		}
 		igst := saleIGST(lines, charges)
+		utgst := saleUTGST(lines, charges)
 		total, taxable, half := saleTotals(lines, charges)
 		var paid int64
 		for _, t := range in.Tenders {
@@ -1119,21 +1122,15 @@ func (h *catalogueHandlers) putSale(c *gin.Context) {
 		if len(invoice) > 16 {
 			return errNotSellable{"this year's invoice series is full; record a shorter invoice prefix"}
 		}
-		if err := tx.Exec(`INSERT INTO pharmacy_sales (id,tenant_id,outlet_id,financial_year,sequence_number,invoice_number,sale_date,invoice_profile_id,
-			seller_legal_name,seller_address,seller_gstin,place_of_supply,currency,total_minor,taxable_minor,cgst_minor,sgst_minor,igst_minor,intent_sha256,actor_subject,buyer_name,buyer_phone,patient_id,patient_hospital_id,discount_reason,
-			admission_id,admission_occupancy_id,admission_bed_code,admission_resolved_at,encounter_id)
-			VALUES (?,?,?,?,?,?,?::date,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, id, p.TenantID, outlet, seller.fy, number, invoice, seller.today, seller.profile.ID,
-			seller.profile.LegalName, seller.profile.Address, seller.gstin, destination, seller.currency, total, taxable, half, half, igst, digest, p.Subject, buyerName, buyerPhone, patientID, patientHospital, in.DiscountReason,
+		if err := tx.Exec(`INSERT INTO pharmacy_sales (id,tenant_id,outlet_id,financial_year,sequence_number,invoice_number,sale_date,invoice_profile_id,seller_legal_name,seller_address,seller_gstin,place_of_supply,currency,total_minor,taxable_minor,cgst_minor,sgst_minor,igst_minor,utgst_minor,intent_sha256,actor_subject,buyer_name,buyer_phone,patient_id,patient_hospital_id,discount_reason,admission_id,admission_occupancy_id,admission_bed_code,admission_resolved_at,encounter_id) VALUES (?,?,?,?,?,?,?::date,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, id, p.TenantID, outlet, seller.fy, number, invoice, seller.today, seller.profile.ID,
+			seller.profile.LegalName, seller.profile.Address, seller.gstin, destination, seller.currency, total, taxable, half, half-utgst, igst, utgst, digest, p.Subject, buyerName, buyerPhone, patientID, patientHospital, in.DiscountReason,
 			stay.admissionID(), stay.occupancyID(), stay.bedCode(), stay.resolvedAt(), in.encounterID()).Error; err != nil {
 			return err
 		}
 		for _, l := range lines {
-			if err := tx.Exec(`INSERT INTO pharmacy_sale_lines (tenant_id,outlet_id,sale_id,line_number,product_id,batch_id,location_id,lot_number,expires_on,
-				regulatory_class,schedule_declaration_id,classification_code,supply_nature,rate_ppm,mrp_minor,pack_size,quantity_units,amount_minor,taxable_minor,cgst_minor,sgst_minor,igst_minor,
-				prescription_id,prescription_line,discount_bps,discount_minor,price_declaration_id,ceiling_minor,price_limit)
-				VALUES (?,?,?,?,?,?,?,?,?::date,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, p.TenantID, outlet, id, l.LineNumber, l.ProductID, l.BatchID, l.LocationID, l.LotNumber, l.ExpiresOn,
+			if err := tx.Exec(`INSERT INTO pharmacy_sale_lines (tenant_id,outlet_id,sale_id,line_number,product_id,batch_id,location_id,lot_number,expires_on,regulatory_class,schedule_declaration_id,classification_code,supply_nature,rate_ppm,mrp_minor,pack_size,quantity_units,amount_minor,taxable_minor,cgst_minor,sgst_minor,igst_minor,utgst_minor,prescription_id,prescription_line,discount_bps,discount_minor,price_declaration_id,ceiling_minor,price_limit) VALUES (?,?,?,?,?,?,?,?,?::date,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, p.TenantID, outlet, id, l.LineNumber, l.ProductID, l.BatchID, l.LocationID, l.LotNumber, l.ExpiresOn,
 				l.RegulatoryClass, l.declaration, l.ClassificationCode, l.SupplyNature, l.RatePPM, l.MRPMinor, l.PackSize, l.QuantityUnits, l.AmountMinor,
-				l.TaxableMinor, l.CGSTMinor, l.SGSTMinor, l.IGSTMinor, l.PrescriptionID, l.PrescriptionLine, l.DiscountBps, l.DiscountMinor,
+				l.TaxableMinor, l.CGSTMinor, l.SGSTMinor, l.IGSTMinor, l.UTGSTMinor, l.PrescriptionID, l.PrescriptionLine, l.DiscountBps, l.DiscountMinor,
 				l.PriceDeclarationID, l.CeilingMinor, l.PriceLimit).Error; err != nil {
 				return err
 			}
@@ -1153,10 +1150,9 @@ func (h *catalogueHandlers) putSale(c *gin.Context) {
 			}
 		}
 		for _, ch := range charges {
-			if err := tx.Exec(`INSERT INTO pharmacy_sale_charge_lines (tenant_id,outlet_id,sale_id,charge_number,charge_id,version_id,code,name,tax_treatment,sac_code,
-				supply_nature,rate_ppm,amount_minor,taxable_minor,cgst_minor,sgst_minor,igst_minor) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, p.TenantID, outlet, id,
+			if err := tx.Exec(`INSERT INTO pharmacy_sale_charge_lines (tenant_id,outlet_id,sale_id,charge_number,charge_id,version_id,code,name,tax_treatment,sac_code,supply_nature,rate_ppm,amount_minor,taxable_minor,cgst_minor,sgst_minor,igst_minor,utgst_minor) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, p.TenantID, outlet, id,
 				ch.ChargeNumber, ch.ChargeID, ch.VersionID, ch.Code, ch.Name, ch.TaxTreatment, ch.SACCode, ch.SupplyNature, ch.RatePPM,
-				ch.AmountMinor, ch.TaxableMinor, ch.CGSTMinor, ch.SGSTMinor, ch.IGSTMinor).Error; err != nil {
+				ch.AmountMinor, ch.TaxableMinor, ch.CGSTMinor, ch.SGSTMinor, ch.IGSTMinor, ch.UTGSTMinor).Error; err != nil {
 				return err
 			}
 		}
@@ -1246,7 +1242,7 @@ func loadSale(tx *gorm.DB, tenant string, outlet, id uuid.UUID, out *saleRecord)
 	}
 	*out = rows[0]
 	if err := tx.Raw(`SELECT line_number,product_id,batch_id,location_id,lot_number,to_char(expires_on,'YYYY-MM-DD') AS expires_on,regulatory_class,
-		classification_code,supply_nature,rate_ppm,mrp_minor,pack_size,quantity_units,amount_minor,taxable_minor,cgst_minor,sgst_minor,igst_minor,prescription_id,prescription_line,list_amount_minor,discount_bps,discount_minor,
+		classification_code,supply_nature,rate_ppm,mrp_minor,pack_size,quantity_units,amount_minor,taxable_minor,cgst_minor,sgst_minor,igst_minor,utgst_minor,prescription_id,prescription_line,list_amount_minor,discount_bps,discount_minor,
 		price_declaration_id,ceiling_minor,price_limit,
 		(SELECT COALESCE(sum(c.quantity_units),0) FROM pharmacy_credit_note_lines c WHERE c.tenant_id=l.tenant_id AND c.outlet_id=l.outlet_id
 		 AND c.sale_id=l.sale_id AND c.sale_line=l.line_number) AS returned_units

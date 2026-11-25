@@ -19,6 +19,7 @@ export type PharmacyItemSales = {
   sales_cgst_minor: number;
   sales_sgst_minor: number;
   sales_igst_minor: number;
+  sales_utgst_minor?: number;
   /** Lowest and highest MRP per pack charged; null when nothing was sold. */
   mrp_low_minor: number | null;
   mrp_high_minor: number | null;
@@ -28,6 +29,7 @@ export type PharmacyItemSales = {
   credits_cgst_minor: number;
   credits_sgst_minor: number;
   credits_igst_minor: number;
+  credits_utgst_minor?: number;
   net_units: number;
   net_minor: number;
 };

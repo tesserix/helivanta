@@ -140,8 +140,9 @@ function DayRow({ day: d }: { day: PharmacyDailyTotals }) {
         {d.sales} for {money(d.sales_minor)}
         <span className="block text-muted-foreground">
           taxable {money(d.sales_taxable_minor)}, CGST {money(d.sales_cgst_minor)}, SGST{" "}
-          {money(d.sales_sgst_minor)}, IGST {money(d.sales_igst_minor ?? 0)}; discount{" "}
-          {money(d.discount_minor)}; {d.units_sold} units
+          {money(d.sales_sgst_minor)}, IGST {money(d.sales_igst_minor ?? 0)}, UTGST{" "}
+          {money(d.sales_utgst_minor ?? 0)}; discount {money(d.discount_minor)}; {d.units_sold}{" "}
+          units
         </span>
         <span className="block text-muted-foreground">
           medicines {money(d.sales_minor - d.service_charges_minor)}, service charges{" "}
@@ -152,8 +153,8 @@ function DayRow({ day: d }: { day: PharmacyDailyTotals }) {
         {d.credit_notes} for {money(d.credits_minor)}
         <span className="block text-muted-foreground">
           taxable {money(d.credits_taxable_minor)}, CGST {money(d.credits_cgst_minor)}, SGST{" "}
-          {money(d.credits_sgst_minor)}, IGST {money(d.credits_igst_minor ?? 0)}; {d.units_returned}{" "}
-          units
+          {money(d.credits_sgst_minor)}, IGST {money(d.credits_igst_minor ?? 0)}, UTGST{" "}
+          {money(d.credits_utgst_minor ?? 0)}; {d.units_returned} units
         </span>
         <span className="block text-muted-foreground">
           medicines {money(d.credits_minor - d.service_charge_credits_minor)}, service charges{" "}

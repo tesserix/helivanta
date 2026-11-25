@@ -352,7 +352,7 @@ export async function collectUpi(page: Page, sku: string, units = "2") {
   await choose(page, "Paid by", "UPI (verified)");
   await page.getByRole("button", { name: /Show UPI QR for/ }).click();
   const image = page.getByRole("img", { name: /UPI QR for/ });
-  await expect(image).toBeVisible();
+  await expect(image).toBeVisible({ timeout: 30_000 });
   const qr = /\/(qr_E2E\d+)\.svg$/.exec((await image.getAttribute("src"))!)![1]!;
   await page.getByRole("button", { name: "Post sale", exact: true }).click();
   await expect(

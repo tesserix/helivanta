@@ -1,11 +1,23 @@
 package pharmacy
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"github.com/tesserix/helivanta/pkg/countryprofile"
 )
+
+func TestUnionTerritoryCounterUsesUTGSTInsteadOfSGST(t *testing.T) {
+	lines := []saleLine{{AmountMinor: 12500, TaxableMinor: 11160, CGSTMinor: 670, SGSTMinor: 670, SupplyNature: "taxable", RatePPM: 120000}}
+	require.NoError(t, applySaleDestination("04", "04", lines, nil))
+	encoded, err := json.Marshal(lines[0])
+	require.NoError(t, err)
+	var components map[string]any
+	require.NoError(t, json.Unmarshal(encoded, &components))
+	require.Equal(t, float64(670), components["utgst_minor"])
+	require.Equal(t, float64(0), components["sgst_minor"])
+}
 
 func TestCounterTaxDestinationsCoverAllIndianJurisdictions(t *testing.T) {
 	scheme, ok := countryprofile.Tax("IN")
@@ -34,7 +46,13 @@ func TestCounterTaxDestinationsCoverAllIndianJurisdictions(t *testing.T) {
 					lines := []saleLine{original}
 					require.NoError(t, applySaleDestination(seller, destination, lines, nil))
 					if seller == recipient {
-						require.Equal(t, original, lines[0])
+						jurisdiction, found := scheme.Jurisdiction(seller)
+						require.True(t, found)
+						want := original
+						if jurisdiction.Kind == "union_territory" {
+							want.UTGSTMinor, want.SGSTMinor = original.SGSTMinor, 0
+						}
+						require.Equal(t, want, lines[0])
 						return
 					}
 					require.EqualValues(t, 12500, lines[0].AmountMinor)
@@ -42,6 +60,7 @@ func TestCounterTaxDestinationsCoverAllIndianJurisdictions(t *testing.T) {
 					require.EqualValues(t, 1339, lines[0].IGSTMinor)
 					require.Zero(t, lines[0].CGSTMinor)
 					require.Zero(t, lines[0].SGSTMinor)
+					require.Zero(t, lines[0].UTGSTMinor)
 				})
 			}
 		})

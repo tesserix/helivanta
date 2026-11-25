@@ -2279,3 +2279,23 @@ to its existing closed head grammar and refuses export while that head is unmapp
 Existing tenant/outlet authorization, audit, numbering, stock and outbox rules
 remain authoritative. [Design, primary sources, migration and acceptance](../../design/1689-interstate-igst.md).
 This candidate does not unlock Counter or Reports in the production release policy.
+
+### All-India UTGST extension (draft, #1689)
+
+The deployed predecessor refuses sellers in UTGST jurisdictions. The draft
+extension covers all canonical Indian seller and recipient jurisdictions and
+adds explicit `utgst_minor` to quote, sale, credit, goods and charge responses.
+Same-jurisdiction supplies use CGST with SGST or UTGST according to the supplier
+jurisdiction; different jurisdictions use IGST. Delhi, Puducherry and Jammu and
+Kashmir retain the profile's SGST treatment. Rates still come from the effective
+product classification; no state-specific rate is inferred.
+
+Daily and item reports add `sales_utgst_minor` and `credits_utgst_minor`; CSV
+appends `sales_utgst` and `credits_utgst` after existing columns. Tally requires
+an explicit `utgst:<rate_ppm>` mapping, separate from SGST. Credit notes reverse
+original components even if the current registration changes. Default-zero
+columns in migration `0073_pharmacy_union_territory_gst` preserve old snapshots;
+existing field meanings, authority, limits, command identity, audit and source
+ownership are unchanged. SDK readers allow omitted UTGST during mixed rollout.
+Once UTGST documents exist, recovery requires a compatible reader. This draft
+does not imply migration, rollout or live acceptance has completed.

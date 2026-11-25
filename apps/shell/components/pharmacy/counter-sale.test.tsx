@@ -277,6 +277,33 @@ async function basketOfEight(user: ReturnType<typeof renderWithProviders>["user"
 }
 
 describe("CounterSale", () => {
+  it("shows UTGST separately from SGST for a union territory quote", async () => {
+    fixture({
+      quote: () =>
+        new Response(
+          JSON.stringify({
+            ...totals,
+            place_of_supply: "04",
+            sgst_minor: 0,
+            utgst_minor: 536,
+            lines: [{ ...line, sgst_minor: 0, utgst_minor: 536 }],
+          }),
+        ),
+    });
+    const { user } = renderWithProviders(
+      <CounterSale scope={scope} canSell canManageProfile={false} />,
+    );
+    await basketOfEight(user);
+    await chooseOption(user, screen.getByLabelText("Recipient state"), "Chandigarh");
+    await user.click(screen.getByRole("button", { name: "Price basket" }));
+    const label = await screen.findByText("UTGST", { selector: "dt" });
+    expect(label.nextElementSibling).toHaveTextContent("INR 5.36");
+    expect(screen.getByText("SGST", { selector: "dt" }).nextElementSibling).toHaveTextContent(
+      "INR 0.00",
+    );
+    expect(screen.getByRole("columnheader", { name: "UTGST" })).toBeVisible();
+  });
+
   it("prices an Odisha recipient with IGST and sends the destination on posting", async () => {
     const fetcher = fixture({
       quote: () =>

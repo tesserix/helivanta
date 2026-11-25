@@ -436,9 +436,7 @@ func TestSaleArithmetic(t *testing.T) {
 	}
 }
 
-// Review I1, I2: a wholesale licence does not license a counter sale, and a
-// union territory's invoice is not issued until UTGST is modelled.
-func TestOnlyARetailLicenceInAStateSellsAtTheCounter(t *testing.T) {
+func TestUnionTerritoryCounterStillRequiresReviewedRetailLicence(t *testing.T) {
 	w := newSaleWorld(t, false)
 	product := w.product(t, "TEST-PCM-500", "none")
 	w.shelve(t, product, "2028-06-30", 13000, 10)
@@ -456,8 +454,7 @@ func TestOnlyARetailLicenceInAStateSellsAtTheCounter(t *testing.T) {
 
 	w.licence(t)
 	code, _, out = w.sell(t, cashSale(product, 1, 1300, 1300))
-	require.Equal(t, http.StatusConflict, code)
-	require.Contains(t, out, "union territory (UTGST)")
+	require.Equal(t, http.StatusCreated, code, out)
 }
 
 // Review I6: each product refusal, and batches the shared predicate holds

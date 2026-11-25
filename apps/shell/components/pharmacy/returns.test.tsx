@@ -150,6 +150,27 @@ function fixture(sold: typeof sale = sale, note: Record<string, unknown> = {}) {
 }
 
 describe("Returns", () => {
+  it("includes the original UTGST component in a partial refund preview", async () => {
+    const base = fixture();
+    vi.stubGlobal("fetch", async (url: string, init: RequestInit = {}) => {
+      if (url.endsWith(`/sales/${saleId}`))
+        return new Response(
+          JSON.stringify({
+            ...sale,
+            place_of_supply: "04",
+            sgst_minor: 0,
+            utgst_minor: sale.sgst_minor,
+            lines: [{ ...line, sgst_minor: 0, utgst_minor: line.sgst_minor }],
+          }),
+        );
+      return base(url, init);
+    });
+    const { user } = renderWithProviders(<Returns scope={scope} canReturn />);
+    await user.click(await screen.findByRole("button", { name: "Return from TS/2627/1" }));
+    await user.type(await screen.findByLabelText("Units returned on line 1"), "3");
+    expect(screen.getByText("Refund INR 37.50")).toBeVisible();
+  });
+
   it("keeps invalid fractional quantities out of the exact-integer refund preview", async () => {
     fixture();
     const { user } = renderWithProviders(<Returns scope={scope} canReturn />);

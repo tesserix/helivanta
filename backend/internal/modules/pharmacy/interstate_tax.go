@@ -18,6 +18,19 @@ func integratedTax(amount int64, nature string, rate int64) (taxable, igst int64
 
 func applySaleDestination(seller, destination string, lines []saleLine, charges []saleChargeLine) error {
 	if destination == "" || seller == destination {
+		scheme, _ := countryprofile.Tax("IN")
+		jurisdiction, ok := scheme.Jurisdiction(seller)
+		if !ok {
+			return errNotSellable{"choose a supported Indian supplier state"}
+		}
+		if jurisdiction.Kind == "union_territory" {
+			for i := range lines {
+				lines[i].UTGSTMinor, lines[i].SGSTMinor = lines[i].CGSTMinor, 0
+			}
+			for i := range charges {
+				charges[i].UTGSTMinor, charges[i].SGSTMinor = charges[i].CGSTMinor, 0
+			}
+		}
 		return nil
 	}
 	for _, ch := range charges {
@@ -39,14 +52,24 @@ func applySaleDestination(seller, destination string, lines []saleLine, charges 
 			}
 		}
 		l.TaxableMinor, l.IGSTMinor = integratedTax(l.AmountMinor, l.SupplyNature, l.RatePPM)
-		l.CGSTMinor, l.SGSTMinor = 0, 0
+		l.CGSTMinor, l.SGSTMinor, l.UTGSTMinor = 0, 0, 0
 	}
 	for i := range charges {
 		ch := &charges[i]
 		ch.TaxableMinor, ch.IGSTMinor = integratedTax(ch.AmountMinor, ch.SupplyNature, ch.RatePPM)
-		ch.CGSTMinor, ch.SGSTMinor = 0, 0
+		ch.CGSTMinor, ch.SGSTMinor, ch.UTGSTMinor = 0, 0, 0
 	}
 	return nil
+}
+
+func saleUTGST(lines []saleLine, charges []saleChargeLine) (utgst int64) {
+	for _, line := range lines {
+		utgst += line.UTGSTMinor
+	}
+	for _, charge := range charges {
+		utgst += charge.UTGSTMinor
+	}
+	return utgst
 }
 
 func saleIGST(lines []saleLine, charges []saleChargeLine) (igst int64) {

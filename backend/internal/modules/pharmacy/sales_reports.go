@@ -40,6 +40,7 @@ type itemSalesRow struct {
 	SalesCGST      int64     `gorm:"column:sales_cgst_minor" json:"sales_cgst_minor"`
 	SalesSGST      int64     `gorm:"column:sales_sgst_minor" json:"sales_sgst_minor"`
 	SalesIGST      int64     `gorm:"column:sales_igst_minor" json:"sales_igst_minor"`
+	SalesUTGST     int64     `gorm:"column:sales_utgst_minor" json:"sales_utgst_minor"`
 	MRPLow         *int64    `gorm:"column:mrp_low_minor" json:"mrp_low_minor"`
 	MRPHigh        *int64    `gorm:"column:mrp_high_minor" json:"mrp_high_minor"`
 	UnitsReturned  int64     `gorm:"column:units_returned" json:"units_returned"`
@@ -48,6 +49,7 @@ type itemSalesRow struct {
 	CreditsCGST    int64     `gorm:"column:credits_cgst_minor" json:"credits_cgst_minor"`
 	CreditsSGST    int64     `gorm:"column:credits_sgst_minor" json:"credits_sgst_minor"`
 	CreditsIGST    int64     `gorm:"column:credits_igst_minor" json:"credits_igst_minor"`
+	CreditsUTGST   int64     `gorm:"column:credits_utgst_minor" json:"credits_utgst_minor"`
 	NetUnits       int64     `gorm:"column:net_units" json:"net_units"`
 	NetMinor       int64     `gorm:"column:net_minor" json:"net_minor"`
 }
@@ -65,19 +67,19 @@ func (r itemSalesRow) PageKey() (time.Time, uuid.UUID) { return r.CreatedAt, r.P
 var itemSalesRows = `(SELECT c.id, c.created_at, c.sku, c.brand_name, c.generic_name, c.manufacturer, c.pack_size, c.unit_of_issue, c.currency,
  COALESCE(s.units_sold,0)::bigint AS units_sold, COALESCE(s.sales_minor,0)::bigint AS sales_minor, COALESCE(s.discount_minor,0)::bigint AS discount_minor,
  COALESCE(s.sales_taxable_minor,0)::bigint AS sales_taxable_minor, COALESCE(s.sales_cgst_minor,0)::bigint AS sales_cgst_minor,
- COALESCE(s.sales_sgst_minor,0)::bigint AS sales_sgst_minor, COALESCE(s.sales_igst_minor,0)::bigint AS sales_igst_minor, s.mrp_low_minor, s.mrp_high_minor,
+ COALESCE(s.sales_sgst_minor,0)::bigint AS sales_sgst_minor, COALESCE(s.sales_igst_minor,0)::bigint AS sales_igst_minor, COALESCE(s.sales_utgst_minor,0)::bigint AS sales_utgst_minor, s.mrp_low_minor, s.mrp_high_minor,
  COALESCE(r.units_returned,0)::bigint AS units_returned, COALESCE(r.credits_minor,0)::bigint AS credits_minor,
  COALESCE(r.credits_taxable_minor,0)::bigint AS credits_taxable_minor, COALESCE(r.credits_cgst_minor,0)::bigint AS credits_cgst_minor,
- COALESCE(r.credits_sgst_minor,0)::bigint AS credits_sgst_minor, COALESCE(r.credits_igst_minor,0)::bigint AS credits_igst_minor,
+ COALESCE(r.credits_sgst_minor,0)::bigint AS credits_sgst_minor, COALESCE(r.credits_igst_minor,0)::bigint AS credits_igst_minor, COALESCE(r.credits_utgst_minor,0)::bigint AS credits_utgst_minor,
  (COALESCE(s.units_sold,0)-COALESCE(r.units_returned,0))::bigint AS net_units, (COALESCE(s.sales_minor,0)-COALESCE(r.credits_minor,0))::bigint AS net_minor
  FROM pharmacy_catalogue_products c
  LEFT JOIN (SELECT l.product_id, sum(l.quantity_units) AS units_sold, sum(l.amount_minor) AS sales_minor, sum(l.discount_minor) AS discount_minor,
-   sum(l.taxable_minor) AS sales_taxable_minor, sum(l.cgst_minor) AS sales_cgst_minor, sum(l.sgst_minor) AS sales_sgst_minor, sum(l.igst_minor) AS sales_igst_minor,
+   sum(l.taxable_minor) AS sales_taxable_minor, sum(l.cgst_minor) AS sales_cgst_minor, sum(l.sgst_minor) AS sales_sgst_minor, sum(l.igst_minor) AS sales_igst_minor, sum(l.utgst_minor) AS sales_utgst_minor,
    min(l.mrp_minor) AS mrp_low_minor, max(l.mrp_minor) AS mrp_high_minor
   FROM pharmacy_sale_lines l JOIN pharmacy_sales s ON s.tenant_id=l.tenant_id AND s.outlet_id=l.outlet_id AND s.id=l.sale_id
   WHERE s.tenant_id=? AND s.outlet_id=? AND s.sale_date BETWEEN ?::date AND ?::date AND ` + categoryOn("s", "l.product_id", "s.sale_date") + ` AND ` + lineFilters("l") + ` GROUP BY l.product_id) s ON s.product_id=c.id
  LEFT JOIN (SELECT sl.product_id, sum(cl.quantity_units) AS units_returned, sum(cl.amount_minor) AS credits_minor, sum(cl.taxable_minor) AS credits_taxable_minor,
-   sum(cl.cgst_minor) AS credits_cgst_minor, sum(cl.sgst_minor) AS credits_sgst_minor, sum(cl.igst_minor) AS credits_igst_minor
+   sum(cl.cgst_minor) AS credits_cgst_minor, sum(cl.sgst_minor) AS credits_sgst_minor, sum(cl.igst_minor) AS credits_igst_minor, sum(cl.utgst_minor) AS credits_utgst_minor
   FROM pharmacy_credit_note_lines cl
   JOIN pharmacy_credit_notes n ON n.tenant_id=cl.tenant_id AND n.outlet_id=cl.outlet_id AND n.id=cl.credit_note_id
   JOIN pharmacy_sale_lines sl ON sl.tenant_id=cl.tenant_id AND sl.outlet_id=cl.outlet_id AND sl.sale_id=cl.sale_id AND sl.line_number=cl.sale_line

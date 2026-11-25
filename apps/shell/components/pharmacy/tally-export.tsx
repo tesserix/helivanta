@@ -42,8 +42,8 @@ export function TallyExport({
       </h3>
       <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
         Sales invoices, credit notes and supplier payments as Tally accounting vouchers, with GST
-        split by rate into CGST, SGST and IGST. Supplier purchase bills are not exported yet. Every
-        preview and download is recorded.
+        split by rate into CGST, SGST, UTGST and IGST. Supplier purchase bills are not exported yet.
+        Every preview and download is recorded.
       </p>
       <form
         noValidate

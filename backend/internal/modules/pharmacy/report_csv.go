@@ -229,17 +229,17 @@ var itemSalesFile = reportFile[itemSalesRow]{
 	read:   fromReport(itemSalesReport),
 	header: []string{"product_id", "sku", "brand_name", "generic_name", "manufacturer", "pack_size", "unit_of_issue", "currency",
 		"units_sold", "sales", "discount", "sales_taxable", "sales_cgst", "sales_sgst", "mrp_low", "mrp_high",
-		"units_returned", "credits", "credits_taxable", "credits_cgst", "credits_sgst", "net_units", "net", "sales_igst", "credits_igst"},
+		"units_returned", "credits", "credits_taxable", "credits_cgst", "credits_sgst", "net_units", "net", "sales_igst", "credits_igst", "sales_utgst", "credits_utgst"},
 	row: func(r itemSalesRow, _ reportScope) ([]string, error) {
 		money, err := amounts(r.Currency, &r.SalesMinor, &r.DiscountMinor, &r.SalesTaxable, &r.SalesCGST, &r.SalesSGST, r.MRPLow, r.MRPHigh,
-			&r.CreditsMinor, &r.CreditsTaxable, &r.CreditsCGST, &r.CreditsSGST, &r.NetMinor, &r.SalesIGST, &r.CreditsIGST)
+			&r.CreditsMinor, &r.CreditsTaxable, &r.CreditsCGST, &r.CreditsSGST, &r.NetMinor, &r.SalesIGST, &r.CreditsIGST, &r.SalesUTGST, &r.CreditsUTGST)
 		if err != nil {
 			return nil, err
 		}
 		return []string{r.ProductID.String(), csvsafe.Text(r.SKU), csvsafe.Text(r.BrandName), csvsafe.Text(r.GenericName), csvsafe.Text(r.Manufacturer),
 			strconv.Itoa(r.PackSize), csvsafe.Text(r.UnitOfIssue), r.Currency,
 			units(r.UnitsSold), money[0], money[1], money[2], money[3], money[4], money[5], money[6],
-			units(r.UnitsReturned), money[7], money[8], money[9], money[10], units(r.NetUnits), money[11], money[12], money[13]}, nil
+			units(r.UnitsReturned), money[7], money[8], money[9], money[10], units(r.NetUnits), money[11], money[12], money[13], money[14], money[15]}, nil
 	},
 }
 
@@ -326,7 +326,7 @@ var dailyReportFile = reportFile[dailyRow]{
 	header: []string{"day", "currency", "sales", "sales_amount", "sales_taxable", "sales_cgst", "sales_sgst", "discount", "units_sold",
 		"credit_notes", "credits", "credits_taxable", "credits_cgst", "credits_sgst", "units_returned", "net",
 		"cash", "upi", "upi_verified", "card", "cash_refunds", "upi_refunds", "card_refunds", "admission_account", "admission_account_refunds",
-		"service_charges", "service_charges_taxable", "service_charge_credits", "service_charge_credits_taxable", "sales_igst", "credits_igst"},
+		"service_charges", "service_charges_taxable", "service_charge_credits", "service_charge_credits_taxable", "sales_igst", "credits_igst", "sales_utgst", "credits_utgst"},
 	read: func(c *gin.Context, h *catalogueHandlers, _ int, inTx func([]dailyRow, reportScope) error) bool {
 		p, outlet, ok := catalogueScope(c)
 		if !ok {
@@ -357,7 +357,7 @@ var dailyReportFile = reportFile[dailyRow]{
 			&d.CreditsMinor, &d.CreditsTaxable, &d.CreditsCGST, &d.CreditsSGST, &d.NetMinor,
 			&d.CashMinor, &d.UPIMinor, &d.UPIVerifiedMinor, &d.CardMinor, &d.CashRefundMinor, &d.UPIRefundMinor, &d.CardRefundMinor,
 			&d.AdmissionAccountMinor, &d.AdmissionAccountRefundMinor,
-			&d.ServiceChargesMinor, &d.ServiceChargesTaxableMinor, &d.ServiceChargeCreditsMinor, &d.ServiceChargeCreditsTaxableMinor, &d.SalesIGST, &d.CreditsIGST)
+			&d.ServiceChargesMinor, &d.ServiceChargesTaxableMinor, &d.ServiceChargeCreditsMinor, &d.ServiceChargeCreditsTaxableMinor, &d.SalesIGST, &d.CreditsIGST, &d.SalesUTGST, &d.CreditsUTGST)
 		if err != nil {
 			return nil, err
 		}

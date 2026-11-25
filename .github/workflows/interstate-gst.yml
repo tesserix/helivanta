@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "backend/internal/modules/pharmacy/interstate*"
+      - "backend/internal/modules/pharmacy/union_territory_gst*"
       - "backend/internal/modules/pharmacy/sale*"
       - "backend/internal/modules/pharmacy/credit_note*"
       - "backend/internal/modules/pharmacy/daily_report*"
@@ -37,4 +38,4 @@ jobs:
           go-version-file: backend/go.mod
           cache: false
       - name: GST invoices, credits, reports, ledger and predecessor compatibility
-        run: go test -race -v -count=1 -timeout 15m ./internal/modules/pharmacy -run '^(TestInterstate|TestReorderRead|TestDailyReportCSV|TestSalesByItemCSV|TestTallyLedgerMapRefuses)'
+        run: go test -race -v -count=1 -timeout 15m ./internal/modules/pharmacy -run '^(TestInterstate|TestUnionTerritory|TestAllIndia|TestCounterTaxDestinations|TestReorderRead|TestDailyReportCSV|TestSalesByItemCSV|TestTallyLedgerMapRefuses)'

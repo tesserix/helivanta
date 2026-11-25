@@ -331,7 +331,7 @@ export function ItemSales({ scope, period }: { scope: PharmacyScope; period: Per
                     {i.units_sold} units for {money(i.sales_minor)}
                     <span className="block text-muted-foreground">
                       discount {money(i.discount_minor)}; taxable {money(i.sales_taxable_minor)};
-                      IGST {money(i.sales_igst_minor ?? 0)}
+                      IGST {money(i.sales_igst_minor ?? 0)}; UTGST {money(i.sales_utgst_minor ?? 0)}
                       {mrp && `; MRP ${mrp} a pack`}
                     </span>
                   </td>

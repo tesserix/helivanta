@@ -1,7 +1,8 @@
 # Interstate counter sales (#1689)
 
-Status: implementation merged and deployed; live checkout/credit/export acceptance
-remains open. This is not a production tax-policy approval.
+Status: IGST implementation merged and deployed; the all-India UTGST extension
+is a draft. Live checkout/credit/export acceptance remains open. This is not a
+production tax-policy approval.
 
 PharmaConnect owns sales, immutable invoice tax snapshots, stock movements,
 credit notes and accounting/report projections. Shell consumes the existing v1
@@ -22,7 +23,7 @@ evidence. An admission-account sale cannot override the outlet state.
 
 ### Nationwide geographic scope
 
-This is an India-wide counter capability, not a Maharashtra-specific rule.
+The intended counter capability is India-wide, not Maharashtra-specific.
 Supplier registration and recipient selection use the canonical India GST
 jurisdiction catalogue: all 28 states and 8 union territories, plus the supported
 `97` Other Territory code. Retired codes `25` and `28`, foreign codes, and special
@@ -32,12 +33,42 @@ temporary Yes Hospital pilot is an authorization boundary for testing; it does
 not limit the geographic tax calculation or authorize other tenants to use
 unreleased retail features.
 
-The same reviewed product rate applies regardless of the selected state; changing
+The deployed predecessor still refuses sellers in UTGST jurisdictions. A
+recipient list or a calculation test does not establish checkout support there.
+The draft extension adds explicit UTGST rather than removing that guard while
+continuing to print SGST. The same reviewed product rate applies regardless of the selected state; changing
 destination chooses the appropriate component split and does not select a new
 medicine tax rate. Same-jurisdiction invoices retain the existing CGST plus
-SGST/UTGST treatment and jurisdiction label. Different supported jurisdictions
+SGST treatment, with the extension using a separate UTGST component where
+applicable. Different supported jurisdictions
 use IGST. Local licensing, registration validity and product review remain
 separate prerequisites; selecting a state cannot satisfy those requirements.
+
+The extension adds default-zero `utgst_minor` to immutable sale/credit headers,
+goods and charge lines through migration `0073_pharmacy_union_territory_gst`.
+It preserves original components on partial credits, adds report/CSV fields and
+requires explicit `utgst:<rate_ppm>` Tally mappings. API responses gain additive
+fields; SDK readers tolerate their omission during mixed rollout. No input
+accepts client-calculated tax. Database destination, rounding, source, balance,
+stock, tender and refund checks remain authoritative. No other owner, route,
+permission, cache or external dependency is introduced.
+
+The existing transaction limits and portfolio SLO/capacity assumptions apply;
+six default-zero columns add bounded row storage, with no new index or service
+cost. Migration lock/statement timeouts bound DDL waiting. Old records remain
+zero UTGST. After UTGST writes, application recovery is forward-only: rollback
+to a reader that omits UTGST would misstate financial evidence. Hosted scratch
+migration/ledger tests and protected rollout approval are required before any
+live UTGST posting.
+
+Jurisdiction kinds reuse the canonical India profile. The SQL migration retains
+the corresponding immutable jurisdiction snapshot for its financial guards;
+public-handler tests cover every seller's local/interstate quote. UTGST Act
+sections 1, 2 and 7 were checked against the [Tripura High Court-hosted statutory
+text](https://thc.nic.in/Central%20Governmental%20Acts/Union%20Territory%20Goods%20and%20Services%20Tax%20Act%2C%202017.pdf)
+on 2026-11-25; the IndiaCode source timed out. This confirms component scope,
+not a medicine rate or a facility's authority. Accountable finance/tax review
+still applies.
 
 Different supplier and recipient states use IGST; same-state sales retain the
 existing CGST/SGST calculation. Rates remain the product classification in force

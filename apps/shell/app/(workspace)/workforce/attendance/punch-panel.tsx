@@ -20,11 +20,13 @@ import {
   AccountName,
   ConfirmDialog,
   Field,
+  Panel,
   SelectControl,
   useZodForm,
   RequestFailure,
+  controlClass,
 } from "@helivanta/ui";
-import { inputClass, today } from "../roster-policy/policy-ui";
+import { today } from "../roster-policy/policy-ui";
 import { SaveError } from "../leave-balances/years-panel";
 import { CorrectionForm } from "./correction-form";
 
@@ -104,7 +106,7 @@ export function PunchForm({
             message: `This time does not exist in ${timezone} because the clocks changed.`,
           });
       })}
-      className="scroll-mt-24 space-y-6 border-b p-5"
+      className="scroll-mt-4 space-y-6 border-b p-5"
     >
       <fieldset disabled={save.isPending} className="space-y-6">
         <div className="grid gap-5 sm:grid-cols-2">
@@ -139,7 +141,7 @@ export function PunchForm({
             <input
               id="punch-date"
               type="date"
-              className={inputClass}
+              className={controlClass}
               aria-invalid={!!errors.date}
               {...form.register("date")}
             />
@@ -148,7 +150,7 @@ export function PunchForm({
             <input
               id="punch-time"
               placeholder="08:05"
-              className={inputClass}
+              className={controlClass}
               aria-invalid={!!errors.time}
               {...form.register("time")}
             />
@@ -164,7 +166,7 @@ export function PunchForm({
           <textarea
             id="punch-reason"
             rows={3}
-            className={inputClass}
+            className={controlClass}
             aria-invalid={!!errors.reason}
             {...form.register("reason")}
           />
@@ -222,10 +224,7 @@ export function PunchLedger({
   const [voiding, setVoiding] = useState<AttendancePunch | null>(null);
   const [correcting, setCorrecting] = useState<AttendancePunch | null>(null);
   return (
-    <section
-      aria-label="Punch ledger"
-      className="overflow-hidden rounded-2xl border bg-card shadow-sm"
-    >
+    <Panel flush aria-label="Punch ledger">
       <div className="flex flex-wrap items-end justify-between gap-4 border-b p-5">
         <div>
           <h3 className="font-semibold">Punch ledger</h3>
@@ -255,7 +254,7 @@ export function PunchLedger({
               <input
                 id="ledger-from"
                 type="date"
-                className={inputClass}
+                className={controlClass}
                 aria-invalid={rangeError !== undefined}
                 value={from}
                 onChange={(e) => setFrom(e.target.value)}
@@ -267,7 +266,7 @@ export function PunchLedger({
               <input
                 id="ledger-to"
                 type="date"
-                className={inputClass}
+                className={controlClass}
                 aria-invalid={rangeError !== undefined}
                 value={to}
                 onChange={(e) => setTo(e.target.value)}
@@ -385,7 +384,7 @@ export function PunchLedger({
           onClose={() => setCorrecting(null)}
         />
       )}
-    </section>
+    </Panel>
   );
 }
 
@@ -437,7 +436,7 @@ function VoidForm({
           <textarea
             id="void-reason"
             rows={2}
-            className={inputClass}
+            className={controlClass}
             aria-invalid={!!errors.reason}
             {...form.register("reason")}
           />

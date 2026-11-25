@@ -11,7 +11,14 @@ import {
   type DutyExchange,
   type Hospital,
 } from "@helivanta/api";
-import { AccountName, Field, PageHeading, SelectControl, RequestFailure } from "@helivanta/ui";
+import {
+  AccountName,
+  Field,
+  PageHeading,
+  Panel,
+  SelectControl,
+  RequestFailure,
+} from "@helivanta/ui";
 
 import { DutyExchangeForm } from "./exchange-form";
 import { DutyExchangeReview } from "./exchange-review";
@@ -26,7 +33,7 @@ export function DutyExchangesWorkspace() {
   return (
     <>
       <PageHeading
-        description="Record agreed swaps and covers on published rosters, then have a second person approve them. Approval moves the duty without reopening the roster."
+        description="Record agreed swaps and covers on published rosters, then have a second person approve them."
         actions={
           hospital && (
             <div className="w-full sm:w-72">
@@ -53,9 +60,9 @@ export function DutyExchangesWorkspace() {
       ) : hospital ? (
         <ExchangeBoard key={hospital.id} hospital={hospital} />
       ) : (
-        <p className="rounded-2xl border bg-card p-8">
-          Ask your tenant administrator for hospital access before managing duty exchanges.
-        </p>
+        <Panel as="div">
+          <p>Ask your tenant administrator for hospital access before managing duty exchanges.</p>
+        </Panel>
       )}
       {hospitals.hasMore && (
         <Button
@@ -101,14 +108,13 @@ function ExchangeBoard({ hospital }: { hospital: Hospital }) {
     opener.current?.focus();
   };
   return (
-    <section
-      aria-label="Duty exchanges"
-      className="overflow-hidden rounded-2xl border bg-card shadow-sm"
-    >
+    <Panel flush aria-label="Duty exchanges">
       <div className="flex flex-wrap items-end justify-between gap-4 border-b p-5">
         <div>
           <h3 className="font-semibold">Exchanges</h3>
-          <p className="mt-1 text-xs text-muted-foreground">Newest filings first.</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Approval moves the duty without reopening the roster. Newest filings first.
+          </p>
         </div>
         <div className="flex flex-wrap items-end gap-3">
           <div className="w-48">
@@ -205,6 +211,6 @@ function ExchangeBoard({ hospital }: { hospital: Hospital }) {
           onClose={close}
         />
       )}
-    </section>
+    </Panel>
   );
 }

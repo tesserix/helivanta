@@ -92,7 +92,7 @@ export function CorrectionForm({
             message: `This time does not exist in ${timezone} because the clocks changed.`,
           });
       })}
-      className="scroll-mt-24 space-y-6 border-t p-5"
+      className="scroll-mt-4 space-y-6 border-t p-5"
     >
       {punch && (
         <p className="text-sm">

@@ -8,7 +8,7 @@ import {
   type Hospital,
   type RosterSettings,
 } from "@helivanta/api";
-import { Field, PageHeading, SelectControl, RequestFailure } from "@helivanta/ui";
+import { Field, PageHeading, Panel, SelectControl, RequestFailure } from "@helivanta/ui";
 
 import { AttendancePolicyPanel } from "./policy-panel";
 import { DaySheet } from "./day-sheet";
@@ -27,7 +27,7 @@ export function AttendanceWorkspace() {
   return (
     <>
       <PageHeading
-        description="See who worked their rostered shifts, record punches by hand with a reason, and void wrong ones. Missing or mistimed punches are corrected through a request a second person approves. Attendance is derived from the roster, leave, overtime and punches; nothing is typed in directly. Finalised periods freeze it for payroll."
+        description="See who worked their rostered shifts, record punches by hand with a reason, and void wrong ones."
         actions={
           hospital && (
             <div className="w-full sm:w-72">
@@ -54,9 +54,9 @@ export function AttendanceWorkspace() {
       ) : hospital ? (
         <HospitalAttendance key={hospital.id} hospital={hospital} />
       ) : (
-        <p className="rounded-2xl border bg-card p-8">
-          Ask your tenant administrator for hospital access before managing attendance.
-        </p>
+        <Panel as="div">
+          <p>Ask your tenant administrator for hospital access before managing attendance.</p>
+        </Panel>
       )}
       {hospitals.hasMore && (
         <Button

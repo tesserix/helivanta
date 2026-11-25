@@ -13,8 +13,15 @@ import {
   type DutyExchangeDetail,
   type DutyExchangeEvent,
 } from "@helivanta/api";
-import { AccountName, ConfirmDialog, Field, useZodForm, RequestFailure } from "@helivanta/ui";
-import { inputClass } from "../roster-policy/policy-ui";
+import {
+  AccountName,
+  ConfirmDialog,
+  Field,
+  Panel,
+  useZodForm,
+  RequestFailure,
+  controlClass,
+} from "@helivanta/ui";
 import { SaveError } from "../leave-balances/years-panel";
 import { describeDates, describeDuty } from "./exchanges-workspace";
 
@@ -116,9 +123,9 @@ export function DutyExchangeReview({
             error={history.error}
           />
         ) : (
-          <ul className="space-y-2 text-sm">
+          <ul className="divide-y text-sm">
             {history.items.map((e) => (
-              <li key={e.id} className="rounded-xl border p-3">
+              <li key={e.id} className="py-3">
                 <p className="font-medium">
                   {DUTY_EXCHANGE_STATUSES[e.status]} · version {e.version}
                 </p>
@@ -231,51 +238,53 @@ function Decision({
     })();
   const errors = form.formState.errors;
   return (
-    <form
-      noValidate
-      autoComplete="off"
-      aria-label="Decide duty exchange"
-      onSubmit={(e) => e.preventDefault()}
-      className="space-y-4 rounded-xl border p-4"
-    >
-      <fieldset disabled={busy} className="space-y-4">
-        <Field
-          id="exchange-decision-note"
-          label="Note (required to reject or revoke)"
-          error={errors.note?.message}
-        >
-          <textarea
+    <Panel as="div">
+      <form
+        noValidate
+        autoComplete="off"
+        aria-label="Decide duty exchange"
+        onSubmit={(e) => e.preventDefault()}
+        className="space-y-4"
+      >
+        <fieldset disabled={busy} className="space-y-4">
+          <Field
             id="exchange-decision-note"
-            rows={2}
-            className={inputClass}
-            aria-invalid={!!errors.note}
-            {...form.register("note")}
-          />
-        </Field>
-      </fieldset>
-      {failed && <SaveError message={failed.error?.message ?? ""} />}
-      <div className="flex flex-wrap justify-end gap-2">
-        {available.map((act) => (
-          <Button
-            key={act}
-            type="button"
-            variant={act === "approve" ? "default" : act === "withdraw" ? "ghost" : "outline"}
-            disabled={busy}
-            onClick={() => submit(act)}
+            label="Note (required to reject or revoke)"
+            error={errors.note?.message}
           >
-            {mutations[act].isPending ? actions[act].pending : labels[act]}
-          </Button>
-        ))}
-      </div>
-      <ConfirmDialog
-        open={confirming && !mutations.revoke.isError}
-        onOpenChange={(open) => !open && setConfirming(false)}
-        title="Revoke this exchange?"
-        description="Each duty returns to the person who held it before the exchange. The exchange cannot be approved again."
-        confirmLabel="Revoke exchange"
-        busy={mutations.revoke.isPending}
-        onConfirm={() => mutations.revoke.mutate(form.getValues("note"))}
-      />
-    </form>
+            <textarea
+              id="exchange-decision-note"
+              rows={2}
+              className={controlClass}
+              aria-invalid={!!errors.note}
+              {...form.register("note")}
+            />
+          </Field>
+        </fieldset>
+        {failed && <SaveError message={failed.error?.message ?? ""} />}
+        <div className="flex flex-wrap justify-end gap-2">
+          {available.map((act) => (
+            <Button
+              key={act}
+              type="button"
+              variant={act === "approve" ? "default" : act === "withdraw" ? "ghost" : "outline"}
+              disabled={busy}
+              onClick={() => submit(act)}
+            >
+              {mutations[act].isPending ? actions[act].pending : labels[act]}
+            </Button>
+          ))}
+        </div>
+        <ConfirmDialog
+          open={confirming && !mutations.revoke.isError}
+          onOpenChange={(open) => !open && setConfirming(false)}
+          title="Revoke this exchange?"
+          description="Each duty returns to the person who held it before the exchange. The exchange cannot be approved again."
+          confirmLabel="Revoke exchange"
+          busy={mutations.revoke.isPending}
+          onConfirm={() => mutations.revoke.mutate(form.getValues("note"))}
+        />
+      </form>
+    </Panel>
   );
 }

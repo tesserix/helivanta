@@ -11,6 +11,10 @@ const renderWithProviders = (ui: Parameters<typeof renderWithNamedAccounts>[0]) 
 import { chooseOption } from "@/test/select";
 import DutyExchanges from "./page";
 
+// #1261 slice 4: cards are Panel, so no hand-painted card class survives.
+// Buttons are controls: the design system's outline button carries shadow-sm.
+const CARDS = ":is(.rounded-xl, .rounded-2xl, .shadow-sm):not(button)";
+
 const hospital = "11111111-1111-4111-8111-111111111111";
 const nurseA = "22222222-2222-4222-8222-222222222222";
 const nurseB = "33333333-3333-4333-8333-333333333333";
@@ -179,6 +183,7 @@ it("shows an empty pending queue and lists every status on request", async () =>
   expect(
     await screen.findByText("No duty exchanges have been filed in this hospital."),
   ).toBeInTheDocument();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   expect(reads.at(-1)).toMatch(/\/hr\/duty-exchanges$/);
 });
 
@@ -201,6 +206,7 @@ it("shows an exchange read-only, with duties and history, to readers", async () 
   expect(within(region).queryByText(/Reason:/)).not.toBeInTheDocument();
   expect(await within(region).findByText(accountText(/by QA Filer/))).toBeInTheDocument();
   expect(within(region).queryByRole("form", { name: "Decide duty exchange" })).toBeNull();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
 });
 
 it("files a swap from future duties only and replays the same id on retry", async () => {
@@ -246,6 +252,7 @@ it("files a swap from future duties only and replays the same id on retry", asyn
   );
   await user.click(within(form).getByRole("button", { name: "File duty exchange" }));
   expect(await within(form).findByRole("alert")).toHaveTextContent("already started");
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   await user.click(within(form).getByRole("button", { name: "File duty exchange" }));
   await waitFor(() => expect(writes).toHaveLength(2));
   expect(writes[0].url).toMatch(/\/hr\/duty-exchanges\/[0-9a-f-]{36}$/);
@@ -294,6 +301,8 @@ it("keeps a refused decision visible with the input preserved", async () => {
   await user.type(within(region).getByLabelText(/^Note/), "Ward short-staffed");
   await user.click(within(region).getByRole("button", { name: "Reject exchange" }));
   expect(await within(region).findByRole("alert")).toHaveTextContent("changed since you opened it");
+  await within(region).findByText(accountText(/by QA Filer/));
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   expect(writes[0].body).toEqual({
     decision: "reject",
     expected_version: 1,

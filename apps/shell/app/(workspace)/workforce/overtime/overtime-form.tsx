@@ -66,7 +66,7 @@ export function OvertimeForm({
       autoComplete="off"
       aria-label="Record overtime"
       onSubmit={form.handleSubmit((values) => save.mutate(toOvertimeInput(values)))}
-      className="scroll-mt-24 space-y-6 border-b p-5"
+      className="scroll-mt-4 space-y-6 border-b p-5"
     >
       <fieldset disabled={save.isPending} className="space-y-6">
         <div className="grid gap-5 sm:grid-cols-2">

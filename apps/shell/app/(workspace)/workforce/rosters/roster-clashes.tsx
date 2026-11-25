@@ -1,5 +1,5 @@
 "use client";
-import { Button } from "@tesserix/web";
+import { Button, cn } from "@tesserix/web";
 import {
   ApiError,
   useApiPagedQuery,
@@ -7,7 +7,10 @@ import {
   type Roster,
   type RosterCredentialClash,
 } from "@helivanta/api";
-import { LoadMore, RequestFailure } from "@helivanta/ui";
+import { LoadMore, RequestFailure, tableStyles } from "@helivanta/ui";
+
+const cell = "px-4 py-3";
+const head = cn(tableStyles.head, "px-4 py-3");
 
 const STANDING = { expired: "Expired", not_yet_valid: "Not yet valid" } as const;
 
@@ -45,29 +48,29 @@ export function ClashTable({ clashes }: { clashes: ReturnType<typeof useRosterCl
   return (
     <div className="space-y-3">
       <div className="overflow-x-auto">
-        <table className="min-w-full text-left text-sm">
+        <table className="min-w-full text-sm">
           <caption className="sr-only">Shifts outside reviewed credential validity</caption>
-          <thead className="text-xs text-muted-foreground">
+          <thead>
             <tr>
-              <th scope="col" className="p-2">
+              <th scope="col" className={head}>
                 Staff
               </th>
-              <th scope="col" className="p-2">
+              <th scope="col" className={head}>
                 Date
               </th>
-              <th scope="col" className="p-2">
+              <th scope="col" className={head}>
                 Credential
               </th>
             </tr>
           </thead>
           <tbody>
             {clashes.items.map((clash) => (
-              <tr key={clash.allocation_id} className="border-t align-top">
-                <th scope="row" className="p-2 font-medium">
+              <tr key={clash.allocation_id} className={cn(tableStyles.row, "align-top")}>
+                <th scope="row" className={cn(cell, "text-left font-medium")}>
                   {clash.display_name} · {clash.employee_code}
                 </th>
-                <td className="p-2">{clash.roster_date}</td>
-                <td className="p-2">
+                <td className={cell}>{clash.roster_date}</td>
+                <td className={cell}>
                   <ul className="space-y-1">
                     {clash.credentials.map((c) => (
                       <li key={c.credential_id}>

@@ -13,6 +13,10 @@ const renderWithProviders = (ui: Parameters<typeof renderWithNamedAccounts>[0]) 
 import { chooseOption } from "@/test/select";
 import Attendance from "./page";
 
+// #1261 slice 4: cards are Panel, so no hand-painted card class survives.
+// Buttons are controls: the design system's outline button carries shadow-sm.
+const CARDS = ":is(.rounded-xl, .rounded-2xl, .shadow-sm):not(button)";
+
 const hospital = "11111111-1111-4111-8111-111111111111";
 const nurse = "22222222-2222-4222-8222-222222222222";
 const periodID = "33333333-3333-4333-8333-333333333333";
@@ -231,6 +235,9 @@ it("shows versions, people and marked days, and reopens only with a reason", asy
   expect(within(detail).getByText("Version 1 · 2 days")).toBeInTheDocument();
   const people = within(detail).getByRole("region", { name: "Version 2 people" });
   expect(await within(people).findByText("Synthetic Nurse · SYN-001")).toBeInTheDocument();
+  expect(within(people).getByText("Synthetic Nurse · SYN-001").closest("tr")).toHaveClass("h-11");
+  expect(within(people).getByRole("columnheader", { name: "Staff" })).not.toHaveClass("uppercase");
+  expect(within(people).getByRole("columnheader", { name: "Payable" })).toHaveClass("text-right");
   const days = within(detail).getByRole("region", { name: "Version 2 days" });
   expect(
     await within(days).findByText("2026-10-04 · Synthetic Nurse · SYN-001 · Removed"),
@@ -243,6 +250,8 @@ it("shows versions, people and marked days, and reopens only with a reason", asy
   );
   await user.click(within(detail).getByRole("button", { name: "Show version 1" }));
   expect(await within(detail).findByRole("region", { name: "Version 1 days" })).toBeInTheDocument();
+  await within(detail).findByText(/Finalised · version 3/);
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
 
   const steps = within(detail).getByRole("form", { name: "Change period" });
   expect(within(steps).getByRole("button", { name: "Recalculate period" })).toBeInTheDocument();
@@ -280,6 +289,9 @@ it("lists every punch hospital-wide with void state and bounds the range", async
   expect(within(row).getByText("Nurse")).toBeInTheDocument();
   expect(within(row).getByText("08:05")).toBeInTheDocument();
   expect(await within(row).findByText(accountText(/^Voided by QA Lead/))).toBeInTheDocument();
+  expect(row).toHaveClass("h-11");
+  expect(within(report).getByRole("columnheader", { name: "Staff" })).not.toHaveClass("uppercase");
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   await chooseOption(
     user,
     within(report).getByRole("combobox", { name: "Staff member" }),

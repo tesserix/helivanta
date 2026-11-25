@@ -411,6 +411,10 @@ it("lists credential clashes and freezes only after they are acknowledged", asyn
   const form = await openFreeze(user);
   const row = await within(form).findByRole("row", { name: /Synthetic Nurse · SYN-001/ });
   expect(row).toHaveTextContent("Nursing registration: Expired (valid 2025-01-01 to 2026-10-18)");
+  expect(row).toHaveClass("h-11");
+  expect(within(form).getByRole("columnheader", { name: "Credential" })).not.toHaveClass(
+    "uppercase",
+  );
   await within(form).findByRole("checkbox", { name: /I acknowledge 1 shift/ });
   expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   await user.click(within(form).getByRole("button", { name: "Freeze roster" }));

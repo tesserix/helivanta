@@ -10,7 +10,14 @@ import {
   type Hospital,
   type OvertimeRequest,
 } from "@helivanta/api";
-import { AccountName, Field, PageHeading, SelectControl, RequestFailure } from "@helivanta/ui";
+import {
+  AccountName,
+  Field,
+  PageHeading,
+  Panel,
+  SelectControl,
+  RequestFailure,
+} from "@helivanta/ui";
 
 import { OvertimePolicyPanel } from "./policy-panel";
 import { OvertimeForm } from "./overtime-form";
@@ -27,7 +34,7 @@ export function OvertimeWorkspace() {
   return (
     <>
       <PageHeading
-        description="Record overtime outside rostered duty within the hospital's reviewed limits, then have a second person approve it. Only approved minutes are payable."
+        description="Record overtime outside rostered duty within the hospital's reviewed limits, then have a second person approve it."
         actions={
           hospital && (
             <div className="w-full sm:w-72">
@@ -54,9 +61,9 @@ export function OvertimeWorkspace() {
       ) : hospital ? (
         <HospitalOvertime key={hospital.id} hospital={hospital} />
       ) : (
-        <p className="rounded-2xl border bg-card p-8">
-          Ask your tenant administrator for hospital access before managing overtime.
-        </p>
+        <Panel as="div">
+          <p>Ask your tenant administrator for hospital access before managing overtime.</p>
+        </Panel>
       )}
       {hospitals.hasMore && (
         <Button
@@ -122,10 +129,7 @@ function RequestBoard({
     opener.current?.focus();
   };
   return (
-    <section
-      aria-label="Overtime requests"
-      className="overflow-hidden rounded-2xl border bg-card shadow-sm"
-    >
+    <Panel flush aria-label="Overtime requests">
       <div className="flex flex-wrap items-end justify-between gap-4 border-b p-5">
         <div>
           <h3 className="font-semibold">Requests</h3>
@@ -223,6 +227,6 @@ function RequestBoard({
           onClose={close}
         />
       )}
-    </section>
+    </Panel>
   );
 }

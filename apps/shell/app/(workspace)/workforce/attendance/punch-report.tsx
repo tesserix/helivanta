@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Button } from "@tesserix/web";
+import { Button, cn } from "@tesserix/web";
 import {
   attendancePunchReportPath,
   useApiPagedQuery,
@@ -8,11 +8,21 @@ import {
   JOB_LABELS,
   type AttendancePunchReportRow,
 } from "@helivanta/api";
-import { AccountName, Field, SelectControl, RequestFailure } from "@helivanta/ui";
-import { inputClass, today } from "../roster-policy/policy-ui";
+import {
+  AccountName,
+  Field,
+  Panel,
+  SelectControl,
+  RequestFailure,
+  controlClass,
+  tableStyles,
+} from "@helivanta/ui";
+import { today } from "../roster-policy/policy-ui";
 import { useActiveStaff } from "./punch-panel";
 
 const MAX_REPORT_DAYS = 31;
+const cell = "px-4 py-3";
+const head = cn(tableStyles.head, "px-4 py-3");
 const shiftDate = (date: string, days: number) =>
   new Date(Date.parse(`${date}T00:00:00Z`) + days * 86400000).toISOString().slice(0, 10);
 const validDate = (d: string) => /^(2[01]\d\d)-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(d);
@@ -44,10 +54,7 @@ export function PunchReport({ hospital, base }: { hospital: string; base: string
     { enabled: rangeError === undefined },
   );
   return (
-    <section
-      aria-label="Punch report"
-      className="overflow-hidden rounded-2xl border bg-card shadow-sm"
-    >
+    <Panel flush aria-label="Punch report">
       <div className="flex flex-wrap items-end justify-between gap-4 border-b p-5">
         <div>
           <h3 className="font-semibold">Punch report</h3>
@@ -75,7 +82,7 @@ export function PunchReport({ hospital, base }: { hospital: string; base: string
               <input
                 id="report-from"
                 type="date"
-                className={inputClass}
+                className={controlClass}
                 aria-invalid={rangeError !== undefined}
                 value={from}
                 onChange={(e) => setFrom(e.target.value)}
@@ -87,7 +94,7 @@ export function PunchReport({ hospital, base }: { hospital: string; base: string
               <input
                 id="report-to"
                 type="date"
-                className={inputClass}
+                className={controlClass}
                 aria-invalid={rangeError !== undefined}
                 value={to}
                 onChange={(e) => setTo(e.target.value)}
@@ -115,36 +122,36 @@ export function PunchReport({ hospital, base }: { hospital: string; base: string
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="text-left text-xs text-muted-foreground">
+            <thead>
               <tr>
-                <th className="p-3">Date</th>
-                <th className="p-3">Time</th>
-                <th className="p-3">Staff</th>
-                <th className="p-3">Job</th>
-                <th className="p-3">Direction</th>
-                <th className="p-3">Source</th>
-                <th className="p-3">Recorded</th>
-                <th className="p-3">State</th>
+                <th className={head}>Date</th>
+                <th className={head}>Time</th>
+                <th className={head}>Staff</th>
+                <th className={head}>Job</th>
+                <th className={head}>Direction</th>
+                <th className={head}>Source</th>
+                <th className={head}>Recorded</th>
+                <th className={head}>State</th>
               </tr>
             </thead>
-            <tbody className="divide-y">
+            <tbody>
               {punches.items.map((p) => (
-                <tr key={p.id} className={p.voided ? "text-muted-foreground" : undefined}>
-                  <td className="p-3">{p.local_date}</td>
-                  <td className="p-3">{zonedClock(p.punched_at, p.timezone)}</td>
-                  <td className="p-3">
+                <tr key={p.id} className={cn(tableStyles.row, p.voided && "text-muted-foreground")}>
+                  <td className={cell}>{p.local_date}</td>
+                  <td className={cell}>{zonedClock(p.punched_at, p.timezone)}</td>
+                  <td className={cell}>
                     {p.display_name} · {p.employee_code}
                   </td>
-                  <td className="p-3">{jobLabel(p.job_category)}</td>
-                  <td className="p-3">{p.direction === "in" ? "In" : "Out"}</td>
-                  <td className="p-3">
+                  <td className={cell}>{jobLabel(p.job_category)}</td>
+                  <td className={cell}>{p.direction === "in" ? "In" : "Out"}</td>
+                  <td className={cell}>
                     {p.correction_id ? "Correction" : p.source === "manual" ? "Manual" : p.source}
                   </td>
-                  <td className="p-3">
+                  <td className={cell}>
                     <AccountName subject={p.recorded_by_subject} /> ·{" "}
                     {new Date(p.recorded_at).toLocaleString()}
                   </td>
-                  <td className="p-3">
+                  <td className={cell}>
                     <AccountName subject={p.voided_by_subject}>
                       {(presentedAccountName0) => (
                         <>
@@ -168,6 +175,6 @@ export function PunchReport({ hospital, base }: { hospital: string; base: string
           </Button>
         </div>
       )}
-    </section>
+    </Panel>
   );
 }

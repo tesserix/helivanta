@@ -15,8 +15,15 @@ import {
   type OvertimeEvent,
   type OvertimeRequest,
 } from "@helivanta/api";
-import { AccountName, ConfirmDialog, Field, useZodForm, RequestFailure } from "@helivanta/ui";
-import { inputClass } from "../roster-policy/policy-ui";
+import {
+  AccountName,
+  ConfirmDialog,
+  Field,
+  Panel,
+  useZodForm,
+  RequestFailure,
+  controlClass,
+} from "@helivanta/ui";
 import { SaveError } from "../leave-balances/years-panel";
 import { describeOvertime } from "./overtime-workspace";
 
@@ -129,9 +136,9 @@ export function OvertimeReview({
             error={history.error}
           />
         ) : (
-          <ul className="space-y-2 text-sm">
+          <ul className="divide-y text-sm">
             {history.items.map((e) => (
-              <li key={e.id} className="rounded-xl border p-3">
+              <li key={e.id} className="py-3">
                 <p className="font-medium">
                   {OVERTIME_STATUSES[e.status]} · version {e.version}
                   {e.approved_minutes !== undefined
@@ -246,69 +253,71 @@ function Decision({
     })();
   const errors = form.formState.errors;
   return (
-    <form
-      noValidate
-      autoComplete="off"
-      aria-label="Decide overtime"
-      onSubmit={(e) => e.preventDefault()}
-      className="space-y-4 rounded-xl border p-4"
-    >
-      <fieldset disabled={busy} className="grid gap-4 sm:grid-cols-2">
-        {request.status === "pending" && approver && (
-          <Field
-            id="overtime-approved-minutes"
-            label={`Minutes to approve (of ${request.requested_minutes})`}
-            error={errors.approved_minutes?.message}
-          >
-            <input
+    <Panel as="div">
+      <form
+        noValidate
+        autoComplete="off"
+        aria-label="Decide overtime"
+        onSubmit={(e) => e.preventDefault()}
+        className="space-y-4"
+      >
+        <fieldset disabled={busy} className="grid gap-4 sm:grid-cols-2">
+          {request.status === "pending" && approver && (
+            <Field
               id="overtime-approved-minutes"
-              type="number"
-              inputMode="numeric"
-              className={inputClass}
-              aria-invalid={!!errors.approved_minutes}
-              {...form.register("approved_minutes", { valueAsNumber: true })}
+              label={`Minutes to approve (of ${request.requested_minutes})`}
+              error={errors.approved_minutes?.message}
+            >
+              <input
+                id="overtime-approved-minutes"
+                type="number"
+                inputMode="numeric"
+                className={controlClass}
+                aria-invalid={!!errors.approved_minutes}
+                {...form.register("approved_minutes", { valueAsNumber: true })}
+              />
+            </Field>
+          )}
+          <Field
+            id="overtime-decision-note"
+            label="Note (required to reject, revoke or approve fewer minutes)"
+            error={errors.note?.message}
+          >
+            <textarea
+              id="overtime-decision-note"
+              rows={2}
+              className={controlClass}
+              aria-invalid={!!errors.note}
+              {...form.register("note")}
             />
           </Field>
-        )}
-        <Field
-          id="overtime-decision-note"
-          label="Note (required to reject, revoke or approve fewer minutes)"
-          error={errors.note?.message}
-        >
-          <textarea
-            id="overtime-decision-note"
-            rows={2}
-            className={inputClass}
-            aria-invalid={!!errors.note}
-            {...form.register("note")}
-          />
-        </Field>
-      </fieldset>
-      {failed && <SaveError message={failed.error?.message ?? ""} />}
-      <div className="flex flex-wrap justify-end gap-2">
-        {available.map((act) => (
-          <Button
-            key={act}
-            type="button"
-            variant={act === "approve" ? "default" : act === "withdraw" ? "ghost" : "outline"}
-            disabled={busy}
-            onClick={() => submit(act)}
-          >
-            {mutations[act].isPending ? actions[act].pending : actions[act].label}
-          </Button>
-        ))}
-      </div>
-      <ConfirmDialog
-        open={confirming && !mutations.revoke.isError}
-        onOpenChange={(open) => !open && setConfirming(false)}
-        title="Revoke this overtime?"
-        description="The approved minutes stop being payable. The request cannot be approved again."
-        confirmLabel="Revoke overtime"
-        busy={mutations.revoke.isPending}
-        onConfirm={() =>
-          mutations.revoke.mutate({ ...form.getValues(), note: form.getValues("note").trim() })
-        }
-      />
-    </form>
+        </fieldset>
+        {failed && <SaveError message={failed.error?.message ?? ""} />}
+        <div className="flex flex-wrap justify-end gap-2">
+          {available.map((act) => (
+            <Button
+              key={act}
+              type="button"
+              variant={act === "approve" ? "default" : act === "withdraw" ? "ghost" : "outline"}
+              disabled={busy}
+              onClick={() => submit(act)}
+            >
+              {mutations[act].isPending ? actions[act].pending : actions[act].label}
+            </Button>
+          ))}
+        </div>
+        <ConfirmDialog
+          open={confirming && !mutations.revoke.isError}
+          onOpenChange={(open) => !open && setConfirming(false)}
+          title="Revoke this overtime?"
+          description="The approved minutes stop being payable. The request cannot be approved again."
+          confirmLabel="Revoke overtime"
+          busy={mutations.revoke.isPending}
+          onConfirm={() =>
+            mutations.revoke.mutate({ ...form.getValues(), note: form.getValues("note").trim() })
+          }
+        />
+      </form>
+    </Panel>
   );
 }

@@ -13,8 +13,8 @@ import {
   type AttendanceSettingsInput,
   type Hospital,
 } from "@helivanta/api";
-import { AccountName, Field, useZodForm, RequestFailure } from "@helivanta/ui";
-import { inputClass, today } from "../roster-policy/policy-ui";
+import { AccountName, Field, Panel, useZodForm, RequestFailure, controlClass } from "@helivanta/ui";
+import { today } from "../roster-policy/policy-ui";
 import { SaveError } from "../leave-balances/years-panel";
 
 export function AttendancePolicyPanel({
@@ -34,10 +34,7 @@ export function AttendancePolicyPanel({
   const missing = settings.error instanceof ApiError && settings.error.status === 404;
   const current = settings.data;
   return (
-    <section
-      aria-label="Attendance policy"
-      className="overflow-hidden rounded-2xl border bg-card shadow-sm"
-    >
+    <Panel flush aria-label="Attendance policy">
       <div className="flex flex-wrap items-center justify-between gap-4 border-b p-5">
         <div>
           <h3 className="font-semibold">Attendance policy</h3>
@@ -101,7 +98,7 @@ export function AttendancePolicyPanel({
       {mode === "history" && (
         <PolicyHistory path={path} hospital={hospital} onClose={() => setMode("view")} />
       )}
-    </section>
+    </Panel>
   );
 }
 
@@ -177,7 +174,7 @@ function PolicyEditor({
                 id={`attendance-${name}`}
                 type="number"
                 inputMode="numeric"
-                className={inputClass}
+                className={controlClass}
                 aria-invalid={!!errors[name]}
                 {...form.register(name, { valueAsNumber: true })}
               />
@@ -191,13 +188,13 @@ function PolicyEditor({
             <input
               id="attendance-effective"
               type="date"
-              className={inputClass}
+              className={controlClass}
               aria-invalid={!!errors.effective_on}
               {...form.register("effective_on")}
             />
           </Field>
         </div>
-        <div className="rounded-xl border bg-muted/30 p-4">
+        <Panel as="div">
           <label className="flex items-start gap-3 text-sm">
             <input
               type="checkbox"
@@ -216,7 +213,7 @@ function PolicyEditor({
             Changes create a new revision effective on or after the current one. Shifts on earlier
             dates stay derived under the revision in force on their date.
           </p>
-        </div>
+        </Panel>
       </fieldset>
       {save.isError && (
         <SaveError message={`${save.error.message} Cancel and reload to see the current policy.`} />
@@ -267,9 +264,9 @@ function PolicyHistory({
           error={history.error}
         />
       ) : (
-        <ul className="space-y-3">
+        <ul className="divide-y">
           {history.items.map((r) => (
-            <li key={r.revision_id} className="rounded-xl border p-4 text-sm">
+            <li key={r.revision_id} className="py-4 text-sm">
               <p className="font-medium">
                 v{r.version} · effective {r.effective_on}
               </p>

@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Button } from "@tesserix/web";
+import { Button, cn } from "@tesserix/web";
 import {
   formatMinutes,
   overtimeSummaryPath,
@@ -8,11 +8,13 @@ import {
   type Hospital,
   type OvertimeSummaryRow,
 } from "@helivanta/api";
-import { Field, RequestFailure } from "@helivanta/ui";
-import { inputClass, today } from "../roster-policy/policy-ui";
+import { Field, Panel, RequestFailure, controlClass, tableStyles } from "@helivanta/ui";
+import { today } from "../roster-policy/policy-ui";
 
 const cell = "px-4 py-3 align-top";
-const head = "px-4 py-3 text-left text-xs font-semibold uppercase";
+const head = cn(tableStyles.head, "px-4 py-3");
+const numberHead = cn(head, tableStyles.number);
+const numberCell = cn(cell, tableStyles.number);
 const validMonth = (m: string) => /^(2[01]\d\d)-(0[1-9]|1[0-2])$/.test(m);
 
 export function OvertimeSummary({ hospital }: { hospital: Hospital }) {
@@ -25,10 +27,7 @@ export function OvertimeSummary({ hospital }: { hospital: Hospital }) {
     { enabled: valid },
   );
   return (
-    <section
-      aria-label="Overtime by month"
-      className="overflow-hidden rounded-2xl border bg-card shadow-sm"
-    >
+    <Panel flush aria-label="Overtime by month">
       <div className="flex flex-wrap items-end justify-between gap-4 border-b p-5">
         <div>
           <h3 className="font-semibold">Overtime by month</h3>
@@ -46,7 +45,7 @@ export function OvertimeSummary({ hospital }: { hospital: Hospital }) {
             <input
               id="overtime-month"
               type="month"
-              className={inputClass}
+              className={controlClass}
               aria-invalid={!valid}
               value={month}
               onChange={(e) => setMonth(e.target.value)}
@@ -71,32 +70,34 @@ export function OvertimeSummary({ hospital }: { hospital: Hospital }) {
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="border-b bg-muted/40">
+            <thead>
               <tr>
                 <th scope="col" className={head}>
                   Staff
                 </th>
-                <th scope="col" className={head}>
+                <th scope="col" className={numberHead}>
                   Pending
                 </th>
-                <th scope="col" className={head}>
+                <th scope="col" className={numberHead}>
                   Approved requested
                 </th>
-                <th scope="col" className={head}>
+                <th scope="col" className={numberHead}>
                   Payable
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y">
+            <tbody>
               {rows.items.map((r) => (
-                <tr key={r.staff_id}>
+                <tr key={r.staff_id} className={tableStyles.row}>
                   <td className={cell}>
                     <span className="font-medium">{r.display_name}</span>
                     <span className="block text-xs text-muted-foreground">{r.employee_code}</span>
                   </td>
-                  <td className={cell}>{formatMinutes(r.pending_minutes)}</td>
-                  <td className={cell}>{formatMinutes(r.approved_requested_minutes)}</td>
-                  <td className={`${cell} font-medium`}>{formatMinutes(r.payable_minutes)}</td>
+                  <td className={numberCell}>{formatMinutes(r.pending_minutes)}</td>
+                  <td className={numberCell}>{formatMinutes(r.approved_requested_minutes)}</td>
+                  <td className={cn(numberCell, "font-medium")}>
+                    {formatMinutes(r.payable_minutes)}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -110,6 +111,6 @@ export function OvertimeSummary({ hospital }: { hospital: Hospital }) {
           </Button>
         </div>
       )}
-    </section>
+    </Panel>
   );
 }

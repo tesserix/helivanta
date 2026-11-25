@@ -334,8 +334,8 @@ An OTC sale at the counter: one command takes sellable stock earliest expiry fir
 **What a sale requires.** The outlet must have:
 
 - a reviewed **retail** drug licence valid today (wholesale does not count);
-- a GSTIN in force, registered in a state. A union territory, which levies UTGST, is refused
-  until that tax head is modelled;
+- a GSTIN in force in a supported Indian state or union territory; the country
+  profile determines the applicable SGST or UTGST component;
 - an invoice profile.
 
 Each product must:
@@ -357,7 +357,7 @@ Schedule G, H and H1 are sold only against a recorded prescription line (B-2b, b
 **Pricing and GST.** Per line:
 
 - `amount = floor(mrp × units ÷ pack)`, so a line never exceeds MRP. The database checks it.
-- Same-state CGST and SGST are equal halves of the tax inside the amount, rounded half up. Interstate unregistered-recipient goods use one IGST component, rounded half up; see [#1689](../../design/1689-interstate-igst.md).
+- Same-jurisdiction CGST and SGST or UTGST are equal halves of the tax inside the amount, rounded half up. Interstate unregistered-recipient goods use one IGST component, rounded half up; see [#1689](../../design/1689-interstate-igst.md).
 - The taxable value is the remainder.
 - The place of supply is the outlet's GSTIN state.
 - The total is the exact sum of the lines, with no round-off.
@@ -2254,7 +2254,7 @@ including filtered pages with continuation, without fetching outlet or stock
 records. This UI is compiled eligible in the release candidate; protected checks,
 matching deployment and Console activation are still required.
 
-## Interstate counter invoices (#1689, release candidate)
+## Interstate counter invoices (#1689, deployed; live acceptance open)
 
 `POST …/sales/quote` and `PUT …/sales/{id}` accept optional `place_of_supply`,
 a supported Indian jurisdiction code recording an unregistered recipient's
@@ -2278,11 +2278,11 @@ to its existing closed head grammar and refuses export while that head is unmapp
 
 Existing tenant/outlet authorization, audit, numbering, stock and outbox rules
 remain authoritative. [Design, primary sources, migration and acceptance](../../design/1689-interstate-igst.md).
-This candidate does not unlock Counter or Reports in the production release policy.
+This implementation does not unlock Counter or Reports globally in the production release policy.
 
-### All-India UTGST extension (draft, #1689)
+### All-India UTGST extension (deployed, #1689)
 
-The deployed predecessor refuses sellers in UTGST jurisdictions. The draft
+The predecessor refused sellers in UTGST jurisdictions. The deployed
 extension covers all canonical Indian seller and recipient jurisdictions and
 adds explicit `utgst_minor` to quote, sale, credit, goods and charge responses.
 Same-jurisdiction supplies use CGST with SGST or UTGST according to the supplier
@@ -2297,5 +2297,7 @@ original components even if the current registration changes. Default-zero
 columns in migration `0073_pharmacy_union_territory_gst` preserve old snapshots;
 existing field meanings, authority, limits, command identity, audit and source
 ownership are unchanged. SDK readers allow omitted UTGST during mixed rollout.
-Once UTGST documents exist, recovery requires a compatible reader. This draft
-does not imply migration, rollout or live acceptance has completed.
+Once UTGST documents exist, recovery requires a compatible reader. Migration and
+rollout completed for revision `f6a36e9635a4e1226366e04d6693416c0afc763f`;
+[deployment evidence and outstanding live acceptance](../../design/1689-interstate-igst.md#deployment-evidence-2026-11-25)
+remain distinct. Issue #1689 is open pending transaction acceptance.

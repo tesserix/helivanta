@@ -1,7 +1,7 @@
 # Interstate counter sales (#1689)
 
-Status: IGST implementation merged and deployed; the all-India UTGST extension
-is a draft. Live checkout/credit/export acceptance remains open. This is not a
+Status: IGST and the all-India UTGST extension are merged and deployed.
+Live checkout/credit/export acceptance remains open. This is not a
 production tax-policy approval.
 
 PharmaConnect owns sales, immutable invoice tax snapshots, stock movements,
@@ -33,9 +33,9 @@ temporary Yes Hospital pilot is an authorization boundary for testing; it does
 not limit the geographic tax calculation or authorize other tenants to use
 unreleased retail features.
 
-The deployed predecessor still refuses sellers in UTGST jurisdictions. A
+The predecessor refused sellers in UTGST jurisdictions. A
 recipient list or a calculation test does not establish checkout support there.
-The draft extension adds explicit UTGST rather than removing that guard while
+The deployed extension adds explicit UTGST rather than removing that guard while
 continuing to print SGST. The same reviewed product rate applies regardless of the selected state; changing
 destination chooses the appropriate component split and does not select a new
 medicine tax rate. Same-jurisdiction invoices retain the existing CGST plus
@@ -118,6 +118,31 @@ that ignores IGST is unsafe. No extra infrastructure cost or index is expected;
 release must verify migrations, scoped API behavior and actual UI before closure.
 
 ## Acceptance evidence to collect
+
+### Deployment evidence (2026-11-25)
+
+- [PR #1865](https://github.com/tesserix/helivanta/pull/1865) merged as
+  `f6a36e9635a4e1226366e04d6693416c0afc763f`; all PR checks passed.
+- [Main image build](https://github.com/tesserix/helivanta/actions/runs/45586527597)
+  built, scanned, signed and published both release images.
+- The explicitly approved [production release](https://github.com/tesserix/helivanta/actions/runs/45587574985)
+  verified those signatures and advanced `release/prod` to that revision.
+- Kargo Freight `a4a5af546b33fcd274e7c91dc749ce80cceb977a`, promotion
+  `prod.01m891bxa6bf42d99tktgn80eb.a4a5af5`, succeeded. The migration hook
+  completed with `migrations applied`; all seven application deployments reached
+  their desired two updated, ready replicas on the new image digests.
+- The refreshed owner browser session loaded the scoped QA counter, tenant and
+  owner names, synthetic invoice profile and nationwide recipient choices.
+
+This establishes deployment and a UI smoke check, not completed transaction
+acceptance. The dedicated synthetic licence has clean scanned evidence but still
+awaits independent review; the product schedule also awaits independent review.
+Stock receipt/release, posted local/interstate sales, original-component credits,
+report/CSV reconciliation and balanced Tally export remain to be verified live.
+Issue #1689 stays open. The existing tenant pilot expires at
+`2026-11-26T06:00:00Z`; this release does not extend it or unlock other tenants.
+
+### Transaction acceptance still required
 
 `TestCounterTaxDestinationsCoverAllIndianJurisdictions` verifies all 1,369
 seller/recipient combinations and omitted-destination defaults against the

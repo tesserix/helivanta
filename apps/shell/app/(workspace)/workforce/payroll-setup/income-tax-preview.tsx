@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef } from "react";
-import { Button } from "@tesserix/web";
+import { Button, cn } from "@tesserix/web";
 import {
   apiFetch,
   blankPreviewClaim,
@@ -16,9 +16,22 @@ import {
   type IncomeTaxPreview as IncomeTaxPreviewResult,
   type IncomeTaxPreviewInput,
 } from "@helivanta/api";
-import { Field, SelectControl, useFieldArray, useZodForm } from "@helivanta/ui";
-import { inputClass, today } from "../roster-policy/policy-ui";
+import {
+  Field,
+  SelectControl,
+  useFieldArray,
+  useZodForm,
+  controlClass,
+  Panel,
+  tableStyles,
+} from "@helivanta/ui";
+import { today } from "../roster-policy/policy-ui";
 import { SaveError } from "../leave-balances/years-panel";
+
+const cell = "px-4 py-3";
+const head = cn(tableStyles.head, "px-4 py-3");
+const numberHead = cn(head, tableStyles.number);
+const numberCell = cn(cell, tableStyles.number);
 
 export function IncomeTaxPreview({ base, onClose }: { base: string; onClose: () => void }) {
   const heading = useRef<HTMLHeadingElement>(null);
@@ -52,7 +65,7 @@ export function IncomeTaxPreview({ base, onClose }: { base: string; onClose: () 
       <input
         id={id}
         inputMode="decimal"
-        className={inputClass}
+        className={controlClass}
         aria-invalid={!!error}
         {...form.register(name)}
       />
@@ -79,7 +92,7 @@ export function IncomeTaxPreview({ base, onClose }: { base: string; onClose: () 
           <input
             id="income-tax-preview-on"
             type="date"
-            className={inputClass}
+            className={controlClass}
             aria-invalid={!!errors.on}
             {...form.register("on")}
           />
@@ -92,7 +105,7 @@ export function IncomeTaxPreview({ base, onClose }: { base: string; onClose: () 
           <input
             id="income-tax-preview-income"
             inputMode="decimal"
-            className={inputClass}
+            className={controlClass}
             aria-invalid={!!errors.annual_income}
             {...form.register("annual_income")}
           />
@@ -101,7 +114,7 @@ export function IncomeTaxPreview({ base, onClose }: { base: string; onClose: () 
           <input
             id="income-tax-preview-age"
             inputMode="numeric"
-            className={inputClass}
+            className={controlClass}
             aria-invalid={!!errors.age}
             {...form.register("age")}
           />
@@ -156,7 +169,7 @@ export function IncomeTaxPreview({ base, onClose }: { base: string; onClose: () 
               >
                 <input
                   id={`income-tax-preview-claim-${index}-code`}
-                  className={inputClass}
+                  className={controlClass}
                   aria-invalid={!!errors.claims?.[index]?.code}
                   {...form.register(`claims.${index}.code`)}
                 />
@@ -197,7 +210,7 @@ export function IncomeTaxPreview({ base, onClose }: { base: string; onClose: () 
       {result && (
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
           {result.results.map((r) => (
-            <div key={r.kind} className="rounded-xl border p-4 text-sm">
+            <Panel as="div" key={r.kind} className="text-sm">
               <p className="font-medium">
                 {STATUTORY_KINDS[r.kind]} · {INCOME_TAX_RESULT_STATUSES[r.status]}
               </p>
@@ -221,20 +234,20 @@ export function IncomeTaxPreview({ base, onClose }: { base: string; onClose: () 
                         ["Cess", r.cess_paise],
                       ] as const
                     ).map(([label, paise]) => (
-                      <tr key={label} className="border-b">
-                        <th scope="row" className="py-2 text-left font-normal">
+                      <tr key={label} className={tableStyles.row}>
+                        <th scope="row" className={cn(cell, "text-left font-normal")}>
                           {label}
                         </th>
-                        <td className="py-2 text-right tabular-nums">
+                        <td className={numberCell}>
                           {paise < 0 ? `− ${formatPaise(-paise)}` : formatPaise(paise)}
                         </td>
                       </tr>
                     ))}
-                    <tr>
-                      <th scope="row" className="py-2 text-left font-semibold">
+                    <tr className={tableStyles.row}>
+                      <th scope="row" className={cn(cell, "text-left font-semibold")}>
                         Tax for the year
                       </th>
-                      <td className="py-2 text-right font-semibold tabular-nums">
+                      <td className={cn(numberCell, "font-semibold")}>
                         {formatPaise(r.total_paise)}
                       </td>
                     </tr>
@@ -245,30 +258,26 @@ export function IncomeTaxPreview({ base, onClose }: { base: string; onClose: () 
                 <table className="mt-3 w-full text-xs">
                   <caption className="sr-only">Claims under {STATUTORY_KINDS[r.kind]}</caption>
                   <thead>
-                    <tr className="border-b text-muted-foreground">
-                      <th scope="col" className="py-1 text-left font-normal">
+                    <tr>
+                      <th scope="col" className={head}>
                         Claim
                       </th>
-                      <th scope="col" className="py-1 text-right font-normal">
+                      <th scope="col" className={numberHead}>
                         Claimed
                       </th>
-                      <th scope="col" className="py-1 text-right font-normal">
+                      <th scope="col" className={numberHead}>
                         Allowed
                       </th>
                     </tr>
                   </thead>
                   <tbody>
                     {r.claims.map((c, i) => (
-                      <tr key={`${c.code}-${i}`} className="border-b">
-                        <th scope="row" className="py-1 text-left font-normal">
+                      <tr key={`${c.code}-${i}`} className={tableStyles.row}>
+                        <th scope="row" className={cn(cell, "text-left font-normal")}>
                           {c.code || "House rent"} · {INCOME_TAX_CLAIM_STATUSES[c.status]}
                         </th>
-                        <td className="py-1 text-right tabular-nums">
-                          {formatPaise(c.claimed_paise)}
-                        </td>
-                        <td className="py-1 text-right tabular-nums">
-                          {formatPaise(c.allowed_paise)}
-                        </td>
+                        <td className={numberCell}>{formatPaise(c.claimed_paise)}</td>
+                        <td className={numberCell}>{formatPaise(c.allowed_paise)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -285,7 +294,7 @@ export function IncomeTaxPreview({ base, onClose }: { base: string; onClose: () 
                   year; earlier rates are never carried forward.
                 </p>
               )}
-            </div>
+            </Panel>
           ))}
         </div>
       )}

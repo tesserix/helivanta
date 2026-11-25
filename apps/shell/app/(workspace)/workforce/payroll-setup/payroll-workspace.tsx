@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Button } from "@tesserix/web";
 import { useApiPagedQuery, usePermissions, type Hospital } from "@helivanta/api";
-import { Field, PageHeading, SelectControl, RequestFailure } from "@helivanta/ui";
+import { Field, PageHeading, Panel, SelectControl, RequestFailure } from "@helivanta/ui";
 
 import { HeadsPanel } from "./heads-panel";
 import { StaffPayPanel } from "./staff-pay-panel";
@@ -14,10 +14,12 @@ export function PayrollWorkspace() {
   if (isLoading) return <p role="status">Checking payroll access…</p>;
   if (!can("workforce.payroll.view")) {
     return (
-      <p role="alert" className="rounded-2xl border bg-card p-8">
-        You do not have access to payroll. Ask your administrator to review your payroll
-        permissions.
-      </p>
+      <Panel as="div">
+        <p role="alert">
+          You do not have access to payroll. Ask your administrator to review your payroll
+          permissions.
+        </p>
+      </Panel>
     );
   }
   return <PayrollHospitalWorkspace />;
@@ -33,7 +35,7 @@ function PayrollHospitalWorkspace() {
   return (
     <>
       <PageHeading
-        description="Define the salary heads, structures and statutory contributions this hospital pays. Nothing is pre-loaded: every head, rate, cap and exemption is entered and reviewed by your payroll team, and each change becomes a dated revision."
+        description="Define the salary heads, structures and statutory contributions this hospital pays."
         actions={
           hospital && (
             <div className="w-full sm:w-72">
@@ -60,9 +62,9 @@ function PayrollHospitalWorkspace() {
       ) : hospital ? (
         <HospitalPayroll key={hospital.id} hospital={hospital} />
       ) : (
-        <p className="rounded-2xl border bg-card p-8">
-          Ask your tenant administrator for hospital access before setting up payroll.
-        </p>
+        <Panel as="div">
+          <p>Ask your tenant administrator for hospital access before setting up payroll.</p>
+        </Panel>
       )}
       {hospitals.hasMore && (
         <Button
@@ -140,7 +142,7 @@ export function ReviewCheck({
   children: ReactNode;
 }) {
   return (
-    <div className="rounded-xl border bg-muted/30 p-4">
+    <Panel as="div">
       <label className="flex items-start gap-3 text-sm">
         <input
           type="checkbox"
@@ -159,7 +161,7 @@ export function ReviewCheck({
         Changes create a new revision effective on or after the current one. Earlier periods keep
         the revision that was in force on their date.
       </p>
-    </div>
+    </Panel>
   );
 }
 
@@ -200,9 +202,9 @@ export function RevisionHistory<T extends object>({
           error={history.error}
         />
       ) : (
-        <ul className="space-y-3">
+        <ul className="divide-y">
           {history.items.map((r) => (
-            <li key={rowKey(r)} className="rounded-xl border p-4 text-sm">
+            <li key={rowKey(r)} className="py-4 text-sm">
               {render(r)}
             </li>
           ))}

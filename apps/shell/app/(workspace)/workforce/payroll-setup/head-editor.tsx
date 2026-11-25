@@ -21,8 +21,8 @@ import {
   type SalaryHeadForm,
   type SalaryHeadInput,
 } from "@helivanta/api";
-import { Field, SelectControl, useZodForm } from "@helivanta/ui";
-import { inputClass, today } from "../roster-policy/policy-ui";
+import { Field, SelectControl, useZodForm, controlClass, Panel } from "@helivanta/ui";
+import { today } from "../roster-policy/policy-ui";
 import { SaveError } from "../leave-balances/years-panel";
 import { Check, Fact, headsKey, ReviewCheck } from "./payroll-workspace";
 
@@ -88,7 +88,7 @@ export function HeadEditor({
     <Field id={`salary-head-${name}`} label={label} error={errors[name]?.message}>
       <input
         id={`salary-head-${name}`}
-        className={inputClass}
+        className={controlClass}
         inputMode={extra.inputMode}
         disabled={extra.disabled}
         aria-invalid={!!errors[name]}
@@ -147,7 +147,7 @@ export function HeadEditor({
               id="salary-head-payslip_order"
               type="number"
               inputMode="numeric"
-              className={inputClass}
+              className={controlClass}
               aria-invalid={!!errors.payslip_order}
               {...form.register("payslip_order", { valueAsNumber: true })}
             />
@@ -160,7 +160,7 @@ export function HeadEditor({
             <input
               id="salary-head-effective"
               type="date"
-              className={inputClass}
+              className={controlClass}
               aria-invalid={!!errors.effective_on}
               {...form.register("effective_on")}
             />
@@ -172,131 +172,137 @@ export function HeadEditor({
           </p>
         )}
 
-        <fieldset className="space-y-4 rounded-xl border p-4">
-          <legend className="px-1 text-sm font-semibold">Calculation</legend>
-          <div className="grid gap-5 sm:grid-cols-3">
-            {choose("basis", "Basis", options(SALARY_BASES))}
-            {value.basis === "percent" ? (
-              text("rate", "Rate (%)", { inputMode: "decimal" })
-            ) : (
-              <>
-                {choose("proration", "Proration", options(SALARY_PRORATIONS))}
-                {value.proration === "fixed_days" &&
-                  text("proration_days", "Days in a month", { inputMode: "numeric" })}
-              </>
-            )}
-          </div>
-          {value.basis === "percent" && (
-            <div role="group" aria-labelledby="salary-head-bases" className="space-y-2">
-              <p id="salary-head-bases" className="text-sm font-medium">
-                Percentage of
-              </p>
-              {others.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  Add the heads this percentage is taken from first.
-                </p>
-              ) : (
-                <div className="grid gap-2 sm:grid-cols-3">
-                  {others.map((h) => (
-                    <Check
-                      key={h.id}
-                      label={`${h.name} · ${h.code}`}
-                      checked={value.base_head_ids.includes(h.id)}
-                      onChange={(on) => set("base_head_ids", toggle(value.base_head_ids, h.id, on))}
-                    />
-                  ))}
-                </div>
-              )}
-              {errors.base_head_ids && (
-                <p role="alert" className="text-sm text-destructive">
-                  {errors.base_head_ids.message}
-                </p>
-              )}
-              <p className="text-xs text-muted-foreground">
-                Percentages are taken from the bases after their own proration, so they are not
-                prorated again.
-              </p>
-            </div>
-          )}
-          <div className="grid gap-5 sm:grid-cols-4">
-            {choose("rounding_mode", "Rounding", options(SALARY_ROUNDING_MODES))}
-            {choose("rounding_unit_paise", "Round to", options(SALARY_ROUNDING_UNITS))}
-            {text("min_amount", "Floor (₹, optional)", { inputMode: "decimal" })}
-            {text("max_amount", "Cap (₹, optional)", { inputMode: "decimal" })}
-          </div>
-          <div className="grid gap-5 sm:grid-cols-3">
-            {text("minimum_payable_days", "Minimum payable days", { inputMode: "decimal" })}
-          </div>
-          <div role="group" aria-labelledby="salary-head-months" className="space-y-2">
-            <p id="salary-head-months" className="text-sm font-medium">
-              Paid in
-            </p>
-            <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
-              {MONTH_NAMES.map((label, index) => (
-                <Check
-                  key={label}
-                  label={label}
-                  checked={value.months.includes(index + 1)}
-                  onChange={(on) => set("months", toggle(value.months, index + 1, on))}
-                />
-              ))}
-            </div>
-            {errors.months && (
-              <p role="alert" className="text-sm text-destructive">
-                {errors.months.message}
-              </p>
-            )}
-          </div>
-        </fieldset>
-
-        <fieldset className="space-y-4 rounded-xl border p-4">
-          <legend className="px-1 text-sm font-semibold">Treatment</legend>
-          <div className="flex flex-wrap gap-x-6 gap-y-2">
-            <Check
-              label="Counts toward gross"
-              checked={rules.grossAllowed && value.in_gross}
-              disabled={!rules.grossAllowed}
-              onChange={(on) => set("in_gross", on)}
-            />
-            <Check
-              label="Counts toward CTC"
-              checked={rules.ctcAllowed && value.in_ctc}
-              disabled={!rules.ctcAllowed}
-              onChange={(on) => set("in_ctc", on)}
-            />
-            <Check
-              label="Eligible for arrears"
-              checked={value.arrears_eligible}
-              onChange={(on) => set("arrears_eligible", on)}
-            />
-            <Check
-              label="Show on payslip when zero"
-              checked={value.show_when_zero}
-              onChange={(on) => set("show_when_zero", on)}
-            />
-            <Check label="Active" checked={value.active} onChange={(on) => set("active", on)} />
-          </div>
-          {value.kind === "deduction" ? (
-            <dl className="grid gap-4 text-sm sm:grid-cols-2">
-              <Fact label="Income tax" value={SALARY_TAXABILITY.not_applicable} />
-              <Fact label="Wage classification" value={SALARY_WAGE_CLASSES.outside} />
-            </dl>
-          ) : (
+        <Panel as="div">
+          <fieldset className="space-y-4">
+            <legend className="text-sm font-semibold">Calculation</legend>
             <div className="grid gap-5 sm:grid-cols-3">
-              {choose("taxability", "Income tax", options(SALARY_TAXABILITY, rules.taxability))}
-              {value.taxability === "exempt" && text("tax_note", "Exemption basis")}
-              {choose(
-                "wage_class",
-                "Wage classification",
-                options(SALARY_WAGE_CLASSES, rules.wageClasses),
+              {choose("basis", "Basis", options(SALARY_BASES))}
+              {value.basis === "percent" ? (
+                text("rate", "Rate (%)", { inputMode: "decimal" })
+              ) : (
+                <>
+                  {choose("proration", "Proration", options(SALARY_PRORATIONS))}
+                  {value.proration === "fixed_days" &&
+                    text("proration_days", "Days in a month", { inputMode: "numeric" })}
+                </>
               )}
             </div>
-          )}
-          <p className="text-xs text-muted-foreground">
-            Wage classification feeds the statutory wage test: excluded heads above half of total
-            remuneration are added back to wages.
-          </p>
-        </fieldset>
+            {value.basis === "percent" && (
+              <div role="group" aria-labelledby="salary-head-bases" className="space-y-2">
+                <p id="salary-head-bases" className="text-sm font-medium">
+                  Percentage of
+                </p>
+                {others.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    Add the heads this percentage is taken from first.
+                  </p>
+                ) : (
+                  <div className="grid gap-2 sm:grid-cols-3">
+                    {others.map((h) => (
+                      <Check
+                        key={h.id}
+                        label={`${h.name} · ${h.code}`}
+                        checked={value.base_head_ids.includes(h.id)}
+                        onChange={(on) =>
+                          set("base_head_ids", toggle(value.base_head_ids, h.id, on))
+                        }
+                      />
+                    ))}
+                  </div>
+                )}
+                {errors.base_head_ids && (
+                  <p role="alert" className="text-sm text-destructive">
+                    {errors.base_head_ids.message}
+                  </p>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Percentages are taken from the bases after their own proration, so they are not
+                  prorated again.
+                </p>
+              </div>
+            )}
+            <div className="grid gap-5 sm:grid-cols-4">
+              {choose("rounding_mode", "Rounding", options(SALARY_ROUNDING_MODES))}
+              {choose("rounding_unit_paise", "Round to", options(SALARY_ROUNDING_UNITS))}
+              {text("min_amount", "Floor (₹, optional)", { inputMode: "decimal" })}
+              {text("max_amount", "Cap (₹, optional)", { inputMode: "decimal" })}
+            </div>
+            <div className="grid gap-5 sm:grid-cols-3">
+              {text("minimum_payable_days", "Minimum payable days", { inputMode: "decimal" })}
+            </div>
+            <div role="group" aria-labelledby="salary-head-months" className="space-y-2">
+              <p id="salary-head-months" className="text-sm font-medium">
+                Paid in
+              </p>
+              <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
+                {MONTH_NAMES.map((label, index) => (
+                  <Check
+                    key={label}
+                    label={label}
+                    checked={value.months.includes(index + 1)}
+                    onChange={(on) => set("months", toggle(value.months, index + 1, on))}
+                  />
+                ))}
+              </div>
+              {errors.months && (
+                <p role="alert" className="text-sm text-destructive">
+                  {errors.months.message}
+                </p>
+              )}
+            </div>
+          </fieldset>
+        </Panel>
+
+        <Panel as="div">
+          <fieldset className="space-y-4">
+            <legend className="text-sm font-semibold">Treatment</legend>
+            <div className="flex flex-wrap gap-x-6 gap-y-2">
+              <Check
+                label="Counts toward gross"
+                checked={rules.grossAllowed && value.in_gross}
+                disabled={!rules.grossAllowed}
+                onChange={(on) => set("in_gross", on)}
+              />
+              <Check
+                label="Counts toward CTC"
+                checked={rules.ctcAllowed && value.in_ctc}
+                disabled={!rules.ctcAllowed}
+                onChange={(on) => set("in_ctc", on)}
+              />
+              <Check
+                label="Eligible for arrears"
+                checked={value.arrears_eligible}
+                onChange={(on) => set("arrears_eligible", on)}
+              />
+              <Check
+                label="Show on payslip when zero"
+                checked={value.show_when_zero}
+                onChange={(on) => set("show_when_zero", on)}
+              />
+              <Check label="Active" checked={value.active} onChange={(on) => set("active", on)} />
+            </div>
+            {value.kind === "deduction" ? (
+              <dl className="grid gap-4 text-sm sm:grid-cols-2">
+                <Fact label="Income tax" value={SALARY_TAXABILITY.not_applicable} />
+                <Fact label="Wage classification" value={SALARY_WAGE_CLASSES.outside} />
+              </dl>
+            ) : (
+              <div className="grid gap-5 sm:grid-cols-3">
+                {choose("taxability", "Income tax", options(SALARY_TAXABILITY, rules.taxability))}
+                {value.taxability === "exempt" && text("tax_note", "Exemption basis")}
+                {choose(
+                  "wage_class",
+                  "Wage classification",
+                  options(SALARY_WAGE_CLASSES, rules.wageClasses),
+                )}
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground">
+              Wage classification feeds the statutory wage test: excluded heads above half of total
+              remuneration are added back to wages.
+            </p>
+          </fieldset>
+        </Panel>
 
         <ReviewCheck
           id="salary-head-review"

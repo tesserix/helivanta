@@ -7,9 +7,9 @@ export const platformGroups = [
       {
         name: "Patient management",
         product: "Patient identity · MediCore",
-        status: "Foundation available",
+        status: "Planned",
         description:
-          "Patient registration, identifiers and demographic records. Consent and governed identity linking are planned extensions.",
+          "Patient registration, identifiers and demographic records, with consent and governed identity linking.",
       },
       {
         name: "Appointments & reception",
@@ -21,9 +21,9 @@ export const platformGroups = [
       {
         name: "Outpatient & inpatient care",
         product: "MediCore",
-        status: "Foundation available",
+        status: "Planned",
         description:
-          "Outpatient visit workflows are available. Admissions, transfers, discharge and ward and bed management are planned.",
+          "Outpatient visits, admissions, transfers, discharge, and ward and bed management.",
       },
       {
         name: "Clinical records & specialties",
@@ -51,14 +51,20 @@ export const platformGroups = [
         product: "PharmaConnect",
         status: "Foundation available",
         description:
-          "Medication references, dispensing, batch and expiry control, a stock register, and supplier payables and settlements. Quarantine release, sales and returns are planned.",
+          "Pharmacy setup, pharmacy staff, low-stock alerts and stocktakes. Medication references, dispensing, batch and expiry control, the stock register, counter sales, returns, supplier payables and reports are planned.",
+        evidence: [
+          "/pharmacy/setup",
+          "/pharmacy/staff",
+          "/pharmacy/low-stock",
+          "/pharmacy/working-stocktakes",
+        ],
       },
       {
         name: "Laboratory management",
         product: "LabConnect",
-        status: "Foundation available",
+        status: "Planned",
         description:
-          "Laboratory orders and worklists. Specimen tracking, analyser integration and validated result release are planned.",
+          "Laboratory orders and worklists, specimen tracking, analyser integration and validated result release.",
       },
       {
         name: "Imaging & radiology",
@@ -86,6 +92,7 @@ export const platformGroups = [
         status: "Available",
         description:
           "Hospital setup, hospital-scoped staff directories, employee profiles and manager or read-only access.",
+        evidence: ["/workforce", "/workforce/setup", "/workforce/access"],
       },
       {
         name: "Workforce & payroll",
@@ -166,9 +173,10 @@ export const platformGroups = [
       {
         name: "Tenant access & branding",
         product: "Shared platform",
-        status: "Foundation available",
+        status: "Available",
         description:
-          "Organisation access, roles, hospital permissions and custom logos and login themes. Self-service signup is still planned.",
+          "Self-service organisation signup, organisation access, roles, hospital permissions, and custom logos and login themes.",
+        evidence: ["/settings/branding", "/workforce/access"],
       },
       {
         name: "Documents & integrations",
@@ -221,3 +229,44 @@ export const availableGroups: readonly CatalogueGroup[] = (
 )
   .map((group) => ({ ...group, modules: group.modules.filter((m) => isAvailable(m.status)) }))
   .filter((group) => group.modules.length > 0);
+
+type ReleaseManifest = {
+  capabilities: readonly { key: string; eligible: boolean; dependencies: readonly string[] }[];
+  pages: readonly { path: string; capability: string }[];
+};
+
+// Each offered row names the shell pages behind it (#1839 D3). A page backs a
+// row only when its capability, and every capability it depends on, is
+// eligible in this release; baseline always is. Returns "<module>: <path>"
+// for each row or path that fails, so CI names what to fix.
+type EvidencedModule = { name: string; status: ModuleStatus; evidence?: readonly string[] };
+
+export function unbackedRows(
+  groups: readonly { modules: readonly EvidencedModule[] }[],
+  release: ReleaseManifest,
+): string[] {
+  const capabilities = new Map(release.capabilities.map((c) => [c.key, c]));
+  // The path guards against a dependency cycle; a capability reached twice
+  // through different dependencies is not a cycle.
+  const eligible = (key: string, path: readonly string[] = []): boolean => {
+    if (key === "baseline") return true;
+    const capability = capabilities.get(key);
+    if (!capability?.eligible || path.includes(key)) return false;
+    return capability.dependencies.every((dependency) => eligible(dependency, [...path, key]));
+  };
+  const pages = new Map(release.pages.map((page) => [page.path, page.capability]));
+  return groups.flatMap((group) =>
+    group.modules
+      .filter((m) => isAvailable(m.status))
+      .flatMap((m) => {
+        const evidence = m.evidence ?? [];
+        if (evidence.length === 0) return [`${m.name}: no evidence`];
+        return evidence
+          .filter((path) => {
+            const capability = pages.get(path);
+            return capability === undefined || !eligible(capability);
+          })
+          .map((path) => `${m.name}: ${path}`);
+      }),
+  );
+}

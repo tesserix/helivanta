@@ -51,7 +51,8 @@ it("narrates every station with the team that writes it and its catalogue status
   expect(items).toHaveLength(8);
   expect(items[0]).toHaveTextContent("Registration");
   expect(items[0]).toHaveTextContent(stations[0].owner);
-  expect(within(items[0]).getByText("Foundation available")).toBeInTheDocument();
+  expect(within(items[0]).getByText("Planned")).toBeInTheDocument();
+  expect(within(items[5]).getByText("Foundation available")).toBeInTheDocument();
   expect(within(items[6]).getByText("Planned")).toBeInTheDocument();
 });
 
@@ -106,5 +107,5 @@ it("links a planned station to the roadmap instead of badging it", () => {
   expect(
     within(billing).getByRole("link", { name: "On the roadmap: Billing & insurance" }),
   ).toHaveAttribute("href", "/roadmap#platform");
-  expect(within(narration()[0]).getByText("Foundation available")).toBeInTheDocument();
+  expect(within(narration()[5]).getByText("Foundation available")).toBeInTheDocument();
 });

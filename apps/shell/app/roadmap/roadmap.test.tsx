@@ -50,8 +50,10 @@ it("covers the whole platform catalogue with every status", () => {
   const platform = screen.getByRole("region", { name: /Different responsibilities/ });
   const inventory = within(platform).getByRole("article", { name: "Inventory & procurement" });
   expect(within(inventory).getByText("Planned")).toBeInTheDocument();
+  const pharmacy = within(platform).getByRole("article", { name: "Pharmacy management" });
+  expect(within(pharmacy).getByText("Foundation available")).toBeInTheDocument();
   const patients = within(platform).getByRole("article", { name: "Patient management" });
-  expect(within(patients).getByText("Foundation available")).toBeInTheDocument();
+  expect(within(patients).getByText("Planned")).toBeInTheDocument();
   expect(within(platform).getByText(/Availability varies by module/)).toBeInTheDocument();
 });
 

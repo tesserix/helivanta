@@ -41,8 +41,10 @@ it("covers the platform catalogue without presenting planned clinical workflows 
   }
   const inventory = within(platform).getByRole("article", { name: "Inventory & procurement" });
   expect(within(inventory).getByText("Planned")).toBeInTheDocument();
+  const pharmacy = within(platform).getByRole("article", { name: "Pharmacy management" });
+  expect(within(pharmacy).getByText("Foundation available")).toBeInTheDocument();
   const patients = within(platform).getByRole("article", { name: "Patient management" });
-  expect(within(patients).getByText("Foundation available")).toBeInTheDocument();
+  expect(within(patients).getByText("Planned")).toBeInTheDocument();
   expect(within(platform).getByText(/Availability varies by module/)).toBeInTheDocument();
 });
 

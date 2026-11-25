@@ -1,7 +1,8 @@
 # Interstate counter sales (#1689)
 
 Status: IGST and the all-India UTGST extension are merged and deployed.
-Live checkout/credit/export acceptance remains open. This is not a
+Live API checkout, credit, report/CSV and Tally acceptance passed; final
+posted-document browser verification remains open. This is not a
 production tax-policy approval.
 
 PharmaConnect owns sales, immutable invoice tax snapshots, stock movements,
@@ -117,7 +118,7 @@ After interstate writes, recovery is forward-only; rolling back to an applicatio
 that ignores IGST is unsafe. No extra infrastructure cost or index is expected;
 release must verify migrations, scoped API behavior and actual UI before closure.
 
-## Acceptance evidence to collect
+## Acceptance evidence
 
 ### Deployment evidence (2026-11-25)
 
@@ -134,15 +135,64 @@ release must verify migrations, scoped API behavior and actual UI before closure
 - The refreshed owner browser session loaded the scoped QA counter, tenant and
   owner names, synthetic invoice profile and nationwide recipient choices.
 
-This establishes deployment and a UI smoke check, not completed transaction
-acceptance. The dedicated synthetic licence has clean scanned evidence but still
-awaits independent review; the product schedule also awaits independent review.
-Stock receipt/release, posted local/interstate sales, original-component credits,
-report/CSV reconciliation and balanced Tally export remain to be verified live.
-Issue #1689 stays open. The existing tenant pilot expires at
-`2026-11-26T06:00:00Z`; this release does not extend it or unlock other tenants.
+The deployment evidence is separate from the live transaction results below.
+The existing tenant pilot expires at `2026-11-26T06:00:00Z`; this release does
+not extend it or unlock other tenants.
 
-### Transaction acceptance still required
+### Live synthetic API acceptance (2026-11-25)
+
+All commands used the deployed Global API, normal OIDC authorization-code/PKCE
+sign-in and verified tenant/outlet scope. No business table, identity projection
+or session was written directly. A dedicated role-free QA account completed the
+normal private email-verification, password-setup and TOTP-enrollment flows,
+then received explicit ordinary membership and temporary review/outlet access.
+Its independently authenticated subject reviewed the owner's synthetic licence
+and schedule declarations. The licence review retained the clean scanned passive
+test image. These test declarations assert no real licensing or clinical authority.
+
+The owner received 40 explicitly synthetic units into quarantine. Release before
+review returned `409 not_releasable`; balances remained quarantine 40/sellable 0.
+After independent review, release and identical replay left quarantine 0/sellable 40. The following invoices each sold 10 units for INR 125.00 at the synthetic
+12% classification. Amounts in the table are integer paise.
+
+| Synthetic invoice | Seller → recipient                  | Taxable | CGST | SGST | IGST | UTGST |
+| ----------------- | ----------------------------------- | ------: | ---: | ---: | ---: | ----: |
+| `T168/2627/1`     | Maharashtra → omitted (Maharashtra) |   11160 |  670 |  670 |    0 |     0 |
+| `T168/2627/2`     | Maharashtra → Odisha                |   11161 |    0 |    0 | 1339 |     0 |
+| `T168/2627/3`     | Chandigarh → Chandigarh             |   11160 |  670 |    0 |    0 |   670 |
+| `T168/2627/4`     | Chandigarh → Odisha                 |   11161 |    0 |    0 | 1339 |     0 |
+
+Every quote matched the posted invoice; identical command replay returned the
+same document and changed-destination replay returned 409. Unsupported recipient
+code `99` returned 409. Six credit notes reversed all four sales: full credits
+for invoices 1/4 and 3+7 unit partial/final credits for invoices 2/3. The original
+Maharashtra taxes remained unchanged after the synthetic registration correction
+to Chandigarh. Each original taxable/tax component reversed exactly; an additional
+return after full credit returned 409 without moving stock. The original synthetic
+Maharashtra registration was restored, and all 40 units ended in quarantine with
+zero sellable stock.
+
+Daily/item JSON and CSV agreed: four sales, six credits, 40 units each direction,
+INR 500.00 sales and credits, INR 446.42 taxable each direction, CGST 13.40,
+SGST 6.70, IGST 26.78 and UTGST 6.70 each direction; net amount/units were zero.
+Tally refused an unmapped export and separately refused one missing only UTGST.
+Explicit synthetic ledger mappings produced 10 individually balanced vouchers,
+matching debit/credit totals for every component. Repeated XML was identical.
+No accounting-system import, statutory filing, real medicine or real funds were involved.
+
+The reviewer received 404 at another outlet. Both temporary review-role and
+outlet grants were removed after acceptance; ordinary membership was retained,
+review permission disappeared and outlet access was denied. The seven pilot
+capabilities were re-enabled through audited Console at the user's request and
+verified in the SDK; authorization and absolute tenant-policy expiry still apply.
+
+The posted invoice/credit/report browser check is still pending because native
+Chrome use was interrupted by the user; extension attachment was unavailable
+without a desktop-app network policy. Earlier deployed owner-counter smoke and
+hosted browser tests passed. This does not substitute for the remaining check;
+issue #1689 stays open until it is recorded.
+
+### Automated acceptance coverage
 
 `TestCounterTaxDestinationsCoverAllIndianJurisdictions` verifies all 1,369
 seller/recipient combinations and omitted-destination defaults against the
@@ -151,7 +201,7 @@ single rounded IGST and unchanged same-jurisdiction components. This is focused
 in-process calculation evidence, not a claim that every jurisdiction pair was
 posted through the live checkout.
 
-Test Maharashtra to Odisha and the reverse; same-state/omitted destination;
+Hosted tests cover Maharashtra to Odisha and the reverse; same-state/omitted destination;
 invalid jurisdiction; mixed rates, nil/exempt and discounts; NPPA boundary;
 quote/post parity; idempotent and conflicting retries; original-rate partial and
 full credits (including concurrent over-return); totals, report/CSV and balanced

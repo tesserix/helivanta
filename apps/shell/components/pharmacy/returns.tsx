@@ -421,14 +421,14 @@ function ReturnFormFor({
 }
 
 // preview is the refund the server will credit: the cumulative pro-rata step
-// of each line's taxable value and of each tax half, rounded down, summed
+// of each line's taxable value and each original tax component, rounded down, summed
 // (#1386 C-1 decision 2).
 function preview(sale: PharmacySale, units: string[], charges: boolean[]): number {
   const credited = sale.charges.reduce((sum, c, i) => (charges[i] ? sum + c.amount_minor : sum), 0);
   return sale.lines.reduce((sum, l, i) => {
     const r = Number(units[i] || 0);
     const k = l.returned_units ?? 0;
-    if (r <= 0) return sum;
+    if (!Number.isSafeInteger(r) || r <= 0 || r > l.quantity_units - k) return sum;
     const prorate = (v: number) =>
       Number(
         (BigInt(v) * BigInt(k + r)) / BigInt(l.quantity_units) -

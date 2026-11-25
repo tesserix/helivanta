@@ -150,6 +150,17 @@ function fixture(sold: typeof sale = sale, note: Record<string, unknown> = {}) {
 }
 
 describe("Returns", () => {
+  it("keeps invalid fractional quantities out of the exact-integer refund preview", async () => {
+    fixture();
+    const { user } = renderWithProviders(<Returns scope={scope} canReturn />);
+    await user.click(await screen.findByRole("button", { name: "Return from TS/2627/1" }));
+    const units = await screen.findByLabelText("Units returned on line 1");
+    await user.type(units, "1.5");
+    expect(screen.getByText("Refund INR 0.00")).toBeVisible();
+    await user.clear(units);
+    await user.type(units, "3");
+    expect(screen.getByText("Refund INR 37.50")).toBeVisible();
+  });
   it("issues a credit note into quarantine and prints its invoice reference", async () => {
     const fetcher = fixture();
     const { user } = renderWithProviders(<Returns scope={scope} canReturn />);

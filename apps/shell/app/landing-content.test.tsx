@@ -4,6 +4,7 @@ import { beforeEach, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
 import fixture from "./landing-content.fixture.json";
 import LandingPage from "./page";
+import RoadmapPage from "./roadmap/page";
 
 // next/font is a build-time transform that throws when called outside Next.
 vi.mock("next/font/local", () => ({
@@ -42,18 +43,24 @@ function elementTexts(container: HTMLElement): Set<string> {
   );
 }
 
-// The home page's content is frozen by this inventory (#1413 spec D6): layout
-// may change and add text, but no existing string may disappear.
+// The public site's content is frozen by this inventory (#1413 spec D6, widened
+// by #1837 D9): layout may change, text may move between / and /roadmap, but
+// no existing string may disappear from the two together.
 // Regenerate deliberately with UPDATE_LANDING_CONTENT=1 when content is meant to change.
-it("keeps every piece of the home page's content", () => {
-  const { container } = renderWithProviders(<LandingPage />);
-  const nodes = textNodes(container);
+it("keeps every piece of the public site's content", () => {
+  const pages = [<LandingPage key="home" />, <RoadmapPage key="roadmap" />].map((page) => {
+    const { container, unmount } = renderWithProviders(page);
+    const found = { nodes: textNodes(container), elements: elementTexts(container) };
+    unmount();
+    return found;
+  });
+  const nodes = [...new Set(pages.flatMap((page) => page.nodes))].sort();
   if (process.env.UPDATE_LANDING_CONTENT === "1") {
     const path = resolve(process.cwd(), "app/landing-content.fixture.json");
     writeFileSync(path, `${JSON.stringify(nodes, null, 2)}\n`);
     return;
   }
-  const elements = elementTexts(container);
+  const elements = new Set(pages.flatMap((page) => [...page.elements]));
   const missing = fixture.filter((entry) => !nodes.includes(entry) && !elements.has(entry));
   expect(missing).toEqual([]);
 });

@@ -81,6 +81,14 @@ it("serves the brand files before login without opening similarly named routes",
   }
 });
 
+// #1837: the roadmap is a public page, by exact path.
+it("serves the roadmap before login without opening similarly named routes", () => {
+  expect(middleware(new NextRequest("https://helivanta.app/roadmap")).status).toBe(200);
+  for (const path of ["/roadmap/x", "/roadmaps"]) {
+    expect(middleware(new NextRequest(`https://helivanta.app${path}`)).status, path).toBe(307);
+  }
+});
+
 it("keeps only exact emergency access routes public", () => {
   for (const path of ["/ambulance", "/api/emergency/access?country=IN"]) {
     expect(middleware(new NextRequest(`https://helivanta.app${path}`)).status).toBe(200);

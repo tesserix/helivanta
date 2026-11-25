@@ -66,6 +66,7 @@ export function middleware(req: NextRequest) {
   if (
     pathname === "/" ||
     pathname === "/workspace" ||
+    pathname === "/roadmap" ||
     pathname === "/signup" ||
     pathname === "/signup/verify" ||
     pathname === "/staff/accept" ||

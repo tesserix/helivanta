@@ -134,6 +134,12 @@ the header.
   existing string fails the test.
 - The test is shown to fail by deleting one register row from the stock data.
 
+Amended 2026-11-25 by `2026-11-24-public-site-lead-with-what-exists-design.md`
+(#1837 D9): the inventory now renders `/` and `/roadmap` and asserts their
+union, so no string may disappear from the public site. The reviews
+placeholder's five strings were removed from the fixture deliberately; that
+document supersedes this one for the reviews section.
+
 ### D7. Type sizes
 
 Measured at 1440px before this change, about a quarter of the page's text was

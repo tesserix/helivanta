@@ -203,3 +203,21 @@ export function moduleStatus(name: ModuleName): ModuleStatus {
   if (!status) throw new Error(`module missing from the platform catalogue: ${name}`);
   return status;
 }
+
+export const isAvailable = (status: ModuleStatus) =>
+  status === "Available" || status === "Foundation available";
+
+// The home page lists only what a hospital can use today, and drops a group
+// with nothing in it; the roadmap renders platformGroups whole (#1837 D3).
+export type CatalogueGroup = {
+  name: string;
+  description: string;
+  color: string;
+  modules: readonly CatalogueModule[];
+};
+
+export const availableGroups: readonly CatalogueGroup[] = (
+  platformGroups as readonly CatalogueGroup[]
+)
+  .map((group) => ({ ...group, modules: group.modules.filter((m) => isAvailable(m.status)) }))
+  .filter((group) => group.modules.length > 0);

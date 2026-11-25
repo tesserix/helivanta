@@ -12,6 +12,7 @@ export default [
   hmsPublicPages([
     "app/page.tsx",
     "app/workspace/page.tsx",
+    "app/roadmap/**",
     "app/signup/**",
     "app/ambulance/**",
     "app/login/**",

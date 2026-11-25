@@ -28,11 +28,9 @@ it("sends every workspace call to action to the workspace page and keeps sign-in
   expect(starts).toHaveLength(3);
   for (const start of starts) expect(start).toHaveAttribute("href", "/workspace");
   expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/login?start=1");
-  expect(screen.getByText("SOC 2 Type II")).toBeInTheDocument();
-  expect(screen.getAllByText("Not yet certified")).toHaveLength(2);
-  expect(
-    screen.getByText(/No customer endorsements or ratings are published yet/),
-  ).toBeInTheDocument();
+  // The trust placeholders and the reviews placeholder left the home page (#1837 D4, D5).
+  expect(screen.queryByText("SOC 2 Type II")).toBeNull();
+  expect(screen.queryByText(/No customer endorsements/)).toBeNull();
   expect(screen.queryByText("YES HOSPITAL")).not.toBeInTheDocument();
 });
 
@@ -65,24 +63,6 @@ it("shows pharmacy stock checked automatically before a named person approves", 
   expect(within(stock).getByRole("list", { name: "Steps in the stock check" })).toBeVisible();
 });
 
-it("shows maintenance and compliance checked automatically before a named person decides", () => {
-  renderWithProviders(<LandingPage />);
-  const maintenance = screen.getByRole("region", {
-    name: "Maintenance and compliance check themselves",
-  });
-  expect(
-    within(maintenance).getByRole("list", { name: "Steps in the maintenance check" }),
-  ).toBeVisible();
-  expect(within(maintenance).getByText(/does not certify compliance/)).toBeVisible();
-});
-
-it("shows AI agents drafting work that a named person approves", () => {
-  renderWithProviders(<LandingPage />);
-  const ai = screen.getByRole("region", { name: "AI drafts. People decide." });
-  expect(within(ai).getByRole("group", { name: "AI scenarios" })).toBeVisible();
-  expect(within(ai).getByText(/acts only when a named person approves/)).toBeVisible();
-});
-
 it("gives reasons to try Helivanta with what is available today", () => {
   renderWithProviders(<LandingPage />);
   const why = screen.getByRole("region", { name: "Why hospitals try Helivanta" });
@@ -103,38 +83,12 @@ it("describes government and private hospital structures without claiming them a
   expect(within(sectors).getByText(/sector setup is planned/i)).toBeInTheDocument();
 });
 
-it("covers the platform catalogue without presenting planned clinical workflows as available", () => {
-  renderWithProviders(<LandingPage />);
-  const platform = screen.getByRole("region", { name: /Different responsibilities/ });
-  for (const name of [
-    "Patient management",
-    "Appointments & reception",
-    "Inventory & procurement",
-    "Billing & insurance",
-    "Staff & hospital management",
-    "CRM & referrals",
-    "Patient portal",
-    "Emergency & ambulance",
-    "Home care",
-    "Assets & facilities",
-    "Safety & quality",
-    "Reporting & administration",
-  ]) {
-    expect(within(platform).getByRole("heading", { name })).toBeInTheDocument();
-  }
-  const inventory = within(platform).getByRole("article", { name: "Inventory & procurement" });
-  expect(within(inventory).getByText("Planned")).toBeInTheDocument();
-  const patients = within(platform).getByRole("article", { name: "Patient management" });
-  expect(within(patients).getByText("Foundation available")).toBeInTheDocument();
-  expect(within(platform).getByText(/Availability varies by module/)).toBeInTheDocument();
-});
-
 it("offers public emergency call access from the homepage", () => {
   renderWithProviders(<LandingPage />);
-  expect(screen.getByRole("link", { name: "Emergency help" })).toHaveAttribute(
-    "href",
-    "/ambulance",
-  );
+  // In the nav and in the public links row above the footer (#1837 D4).
+  const links = screen.getAllByRole("link", { name: "Emergency help" });
+  expect(links).toHaveLength(2);
+  for (const link of links) expect(link).toHaveAttribute("href", "/ambulance");
 });
 
 // Anek is the public page's headline face only; body text is the shared UI
@@ -157,4 +111,58 @@ it("shows the Helivanta mark and word in the nav", () => {
   // The word is set in Anek through the stylesheet, like the headlines.
   expect(within(home).getByText("helivanta").className).toContain("home-wordmark");
   expect(home.querySelector(".rounded-xl")).toBeNull();
+});
+
+// #1837: the home page leads with what exists; the plan is one click away.
+it("renders no Planned or Future badge on the home page", () => {
+  renderWithProviders(<LandingPage />);
+  expect(screen.queryAllByText(/^(Planned|Future)$/)).toHaveLength(0);
+  expect(document.querySelector("#trust, #reviews, #next")).toBeNull();
+  // D6: no dashed placeholder card (a dashed box holding a heading). Dashed
+  // strokes inside the diagrams are drawing, not placeholders.
+  for (const dashed of document.querySelectorAll(".border-dashed"))
+    expect(dashed.querySelector("h2, h3, h4")).toBeNull();
+});
+
+it("links the roadmap from the nav and the platform section", () => {
+  renderWithProviders(<LandingPage />);
+  const nav = screen.getByRole("navigation", { name: "Main navigation" });
+  expect(within(nav).getByRole("link", { name: "Roadmap" })).toHaveAttribute("href", "/roadmap");
+  expect(within(nav).getByRole("link", { name: "How it works" })).toHaveAttribute("href", "#how");
+  const platform = screen.getByRole("region", { name: /Different responsibilities/ });
+  expect(
+    within(platform).getByRole("link", {
+      name: "The full platform and its status, module by module.",
+    }),
+  ).toHaveAttribute("href", "/roadmap");
+  expect(within(platform).getByRole("article", { name: "Patient management" })).toBeInTheDocument();
+  expect(within(platform).queryByRole("article", { name: "Inventory & procurement" })).toBeNull();
+});
+
+it("lists only the chapters available today in the chapter bar", () => {
+  renderWithProviders(<LandingPage />);
+  expect(screen.queryByText("Maintenance and AI")).toBeNull();
+  expect(screen.queryByText("What comes next")).toBeNull();
+});
+
+it("closes on one plain call to action", () => {
+  const { container } = renderWithProviders(<LandingPage />);
+  const close = screen.getByRole("region", {
+    name: "Bring your hospital onto one connected record.",
+  });
+  const links = within(close).getAllByRole("link");
+  expect(links).toHaveLength(1);
+  expect(links[0]).toHaveAccessibleName("Start your workspace");
+  expect(close.className).not.toMatch(/bg-muted|rounded/);
+  expect(container.querySelector("main")!.lastElementChild).toBe(close);
+  expect(screen.getByRole("navigation", { name: "Public pages" })).toBeInTheDocument();
+});
+
+it("sets the Today lines as plain paragraphs, not callouts", () => {
+  renderWithProviders(<LandingPage />);
+  const why = screen.getByRole("region", { name: "Why hospitals try Helivanta" });
+  for (const today of within(why).getAllByText(/^Today:/))
+    expect(today.className).not.toMatch(/border-l/);
+  const sectors = screen.getByText(/sector setup is planned/i);
+  expect(sectors.className).not.toMatch(/border-l/);
 });

@@ -1,4 +1,5 @@
 import { WEEKDAYS, type RosterConfig } from "@helivanta/api";
+import { Panel } from "@helivanta/ui";
 export const effectiveDate = (value: string) =>
   new Date(`${value}T00:00:00Z`).toLocaleDateString(undefined, {
     timeZone: "UTC",
@@ -11,7 +12,7 @@ export function ConfigurationSummary({ record }: { record: RosterConfig }) {
     return (
       <ul className="flex flex-wrap gap-2">
         {record.shifts.map((s) => (
-          <li key={s.revision_id} className="rounded-lg border bg-muted/30 px-3 py-2 text-xs">
+          <li key={s.revision_id} className="rounded-md border bg-muted/30 px-3 py-2 text-xs">
             <span className="font-medium">
               {s.name} · {s.code}
             </span>
@@ -26,7 +27,7 @@ export function ConfigurationSummary({ record }: { record: RosterConfig }) {
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
       {record.days.map((d) => (
-        <div key={d.weekday} className="rounded-xl border bg-muted/20 p-3">
+        <Panel as="div" key={d.weekday}>
           <p className="text-xs font-semibold">{WEEKDAYS[d.weekday]}</p>
           {d.weekly_off ? (
             <p className="mt-2 text-xs text-muted-foreground">Weekly off</p>
@@ -43,7 +44,7 @@ export function ConfigurationSummary({ record }: { record: RosterConfig }) {
               </div>
             ))
           )}
-        </div>
+        </Panel>
       ))}
     </div>
   );

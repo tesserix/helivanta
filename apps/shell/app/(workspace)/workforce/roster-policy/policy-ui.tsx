@@ -1,4 +1,5 @@
 import { WEEKDAYS } from "@helivanta/api";
+import { Panel } from "@helivanta/ui";
 
 // The shared control style (#1261 D1); kept under this name for its importers.
 export { controlClass as inputClass } from "@helivanta/ui";
@@ -16,7 +17,7 @@ export function ReviewBox({
   register: object;
 }) {
   return (
-    <div className="rounded-xl border bg-muted/30 p-4">
+    <Panel as="div">
       <label className="flex items-start gap-3 text-sm">
         <input
           type="checkbox"
@@ -35,6 +36,6 @@ export function ReviewBox({
         Changes create a new revision effective on or after the current one. Earlier rosters keep
         the policy they were built on.
       </p>
-    </div>
+    </Panel>
   );
 }

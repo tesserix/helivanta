@@ -19,8 +19,15 @@ import {
   type RosterInput,
   type RosterSettings,
 } from "@helivanta/api";
-import { Field, PageHeading, SelectControl, useZodForm, RequestFailure } from "@helivanta/ui";
-import { inputClass } from "../roster-policy/policy-ui";
+import {
+  Field,
+  PageHeading,
+  Panel,
+  SelectControl,
+  useZodForm,
+  RequestFailure,
+  controlClass,
+} from "@helivanta/ui";
 import { ReviewCheck, SaveError } from "./roster-ui";
 import { RosterDetail } from "./roster-detail";
 
@@ -70,9 +77,9 @@ export function RostersWorkspace() {
           correctable={correctable}
         />
       ) : (
-        <p className="rounded-2xl border bg-card p-8">
-          Ask your tenant administrator for hospital access before planning rosters.
-        </p>
+        <Panel as="div">
+          <p>Ask your tenant administrator for hospital access before planning rosters.</p>
+        </Panel>
       )}
       {hospitals.hasMore && (
         <Button
@@ -118,10 +125,7 @@ function HospitalRosters({
   };
   return (
     <div className="space-y-8">
-      <section
-        aria-label="Rosters"
-        className="overflow-hidden rounded-2xl border bg-card shadow-sm"
-      >
+      <Panel flush aria-label="Rosters">
         <div className="flex flex-wrap items-center justify-between gap-4 border-b p-5">
           <div>
             <h3 className="font-semibold">Rosters</h3>
@@ -214,7 +218,7 @@ function HospitalRosters({
             }}
           />
         )}
-      </section>
+      </Panel>
       {open && (
         <RosterDetail
           key={open}
@@ -302,7 +306,7 @@ function CreateRoster({
           <Field id="roster-name" label="Name" error={errors.name?.message}>
             <input
               id="roster-name"
-              className={inputClass}
+              className={controlClass}
               placeholder="Ward plan, weeks 42–43"
               aria-invalid={!!errors.name}
               {...form.register("name")}
@@ -312,7 +316,7 @@ function CreateRoster({
             <input
               id="roster-start"
               type="date"
-              className={inputClass}
+              className={controlClass}
               aria-invalid={!!errors.start_date}
               {...form.register("start_date")}
             />

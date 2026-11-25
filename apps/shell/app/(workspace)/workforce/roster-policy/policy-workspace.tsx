@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Button } from "@tesserix/web";
 import { useApiPagedQuery, usePermissions, type Hospital } from "@helivanta/api";
-import { Field, PageHeading, SelectControl, RequestFailure } from "@helivanta/ui";
+import { Field, PageHeading, Panel, SelectControl, RequestFailure } from "@helivanta/ui";
 import { SettingsPanel } from "./settings-panel";
 import { AssignmentsPanel } from "./assignments-panel";
 
@@ -49,9 +49,9 @@ export function PolicyWorkspace() {
           <AssignmentsPanel hospital={hospital} writable={writable} />
         </div>
       ) : (
-        <p className="rounded-2xl border bg-card p-8">
-          Ask your tenant administrator for hospital access before managing roster policy.
-        </p>
+        <Panel as="div">
+          <p>Ask your tenant administrator for hospital access before managing roster policy.</p>
+        </Panel>
       )}
       {hospitals.hasMore && (
         <Button

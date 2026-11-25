@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
+	"github.com/tesserix/helivanta/internal/testutil"
 	"gorm.io/gorm"
 )
 
@@ -170,4 +171,29 @@ func TestInterstateOdishaSellerAndChangedRegistrationDoNotRepriceCredit(t *testi
 	require.Zero(t, note.CGST)
 	require.Zero(t, note.SGST)
 	require.Equal(t, invoice.PlaceOfSupply, note.PlaceOfSupply)
+}
+
+func TestInterstateDatabaseRejectsWrongHeaderAndGoodsComponents(t *testing.T) {
+	w := newSaleWorld(t, true)
+	product := w.product(t, "TEST-IGST-TAMPER", "none")
+	w.shelve(t, product, "2028-06-30", 12500, 20)
+	id, _ := w.recordedSale(t, withDestination(cashSale(product, 10, 12500, 12500), "21"))
+	copyHeader := func(tx *gorm.DB, newID string, wrong bool) error {
+		patch := fmt.Sprintf(`{"id":%q,"invoice_number":"TS/2627/2","serial_number":2,"actor_subject":"user-editor"}`, newID)
+		if wrong {
+			patch = fmt.Sprintf(`{"id":%q,"invoice_number":"TS/2627/2","serial_number":2,"actor_subject":"user-editor","taxable_minor":11160,"cgst_minor":670,"sgst_minor":670,"igst_minor":0}`, newID)
+		}
+		return tx.Exec(`INSERT INTO pharmacy_sales SELECT (jsonb_populate_record(NULL::pharmacy_sales,to_jsonb(s)||?::jsonb)).* FROM pharmacy_sales s WHERE s.id=? AND s.tenant_id=?`, patch, id, testutil.TenantA).Error
+	}
+	err := catalogueTx(t, w.db, func(tx *gorm.DB) error { return copyHeader(tx, uuid.Must(uuid.NewV7()).String(), true) })
+	require.ErrorContains(t, err, "pharmacy_sale_gst_destination")
+	err = catalogueTx(t, w.db, func(tx *gorm.DB) error {
+		newID := uuid.Must(uuid.NewV7()).String()
+		if err := copyHeader(tx, newID, false); err != nil {
+			return err
+		}
+		patch := fmt.Sprintf(`{"sale_id":%q,"taxable_minor":11160,"cgst_minor":670,"sgst_minor":670,"igst_minor":0}`, newID)
+		return tx.Exec(`INSERT INTO pharmacy_sale_lines SELECT (jsonb_populate_record(NULL::pharmacy_sale_lines,to_jsonb(l)||?::jsonb)).* FROM pharmacy_sale_lines l WHERE l.sale_id=? AND l.tenant_id=?`, patch, id, testutil.TenantA).Error
+	})
+	require.ErrorContains(t, err, "pharmacy_sale_line_gst")
 }

@@ -3,6 +3,44 @@ package pharmacy
 
 import "github.com/google/uuid"
 
+type PurchaseTaxLineInput struct {
+	Position              int     `json:"position" binding:"min=1,max=100"`
+	SupplyNature          string  `json:"supply_nature" binding:"required,oneof=taxable nil_rated exempt outside_gst"`
+	RatePpm               int64   `json:"rate_ppm" binding:"min=0,max=1000000"`
+	AssessableMinor       int64   `json:"assessable_minor" binding:"min=0,max=1000000000000"`
+	SourceVarianceReason  *string `json:"source_variance_reason" binding:"omitempty,min=1,max=500"`
+	CgstMinor             int64   `json:"cgst_minor" binding:"min=0,max=1000000000000"`
+	CgstRecoverableMinor  int64   `json:"cgst_recoverable_minor" binding:"min=0,max=1000000000000"`
+	SgstMinor             int64   `json:"sgst_minor" binding:"min=0,max=1000000000000"`
+	SgstRecoverableMinor  int64   `json:"sgst_recoverable_minor" binding:"min=0,max=1000000000000"`
+	IgstMinor             int64   `json:"igst_minor" binding:"min=0,max=1000000000000"`
+	IgstRecoverableMinor  int64   `json:"igst_recoverable_minor" binding:"min=0,max=1000000000000"`
+	UtgstMinor            int64   `json:"utgst_minor" binding:"min=0,max=1000000000000"`
+	UtgstRecoverableMinor int64   `json:"utgst_recoverable_minor" binding:"min=0,max=1000000000000"`
+}
+
+type PurchaseTaxInput struct {
+	Replaces      *uuid.UUID             `json:"replaces" binding:"omitempty"`
+	SupplierGstin *string                `json:"supplier_gstin" binding:"omitempty,min=15,max=15"`
+	SupplierState string                 `json:"supplier_state" binding:"min=0,max=2"`
+	PlaceOfSupply string                 `json:"place_of_supply" binding:"min=0,max=2"`
+	Reason        string                 `json:"reason" binding:"required,min=1,max=500"`
+	Lines         []PurchaseTaxLineInput `json:"lines" binding:"required,min=1,max=100,dive" gorm:"-"`
+}
+
+type PurchaseTaxReceipt struct {
+	ID         uuid.UUID `json:"id" binding:"required"`
+	OutletID   uuid.UUID `json:"outlet_id" binding:"required"`
+	PayableID  uuid.UUID `json:"payable_id" binding:"required"`
+	RecordedBy string    `json:"recorded_by" binding:"required,min=1,max=200"`
+	RecordedAt string    `json:"recorded_at"`
+	PurchaseTaxInput
+}
+
+type PurchaseTaxView struct {
+	Evidence *PurchaseTaxReceipt `json:"evidence" binding:"omitempty"`
+}
+
 type TallyLedgerMapEntryInput struct {
 	Head       string `json:"head" binding:"required,min=1,max=109"`
 	LedgerName string `json:"ledger_name" binding:"required,min=1,max=100"`
@@ -44,6 +82,11 @@ type TallyExportPreview struct {
 	SupplierPaymentCount int64             `json:"supplier_payment_count" binding:"min=0,max=5000"`
 	PaymentReversalCount int64             `json:"payment_reversal_count" binding:"min=0,max=5000"`
 	Heads                []TallyExportHead `json:"heads" binding:"required,min=0,max=1000,dive" gorm:"-"`
+}
+
+type TallyPurchaseExportPreview struct {
+	PurchaseCount int64 `json:"purchase_count" binding:"min=0,max=5000"`
+	TallyExportPreview
 }
 
 type SupplierCreditAllocationInput struct {

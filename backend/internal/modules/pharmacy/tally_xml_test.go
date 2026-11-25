@@ -130,3 +130,12 @@ func TestTallyTextRefusesWhatXMLCannotCarry(t *testing.T) {
 		require.False(t, tallyText(s), "%q", s)
 	}
 }
+
+func TestTallyXMLRefusesAnOversizedFileWithoutReturningPartialBytes(t *testing.T) {
+	previous := tallyExportBytes
+	tallyExportBytes = 256
+	t.Cleanup(func() { tallyExportBytes = previous })
+	data, err := encodeTallyVouchers([]tallyVoucher{tallySaleVoucher()})
+	require.ErrorIs(t, err, errTallyTooLarge)
+	require.Nil(t, data)
+}

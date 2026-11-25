@@ -10,6 +10,10 @@ import (
 func TestTallyHeadsFollowTheClosedGrammar(t *testing.T) {
 	t.Parallel()
 	for head, label := range map[string]string{
+		"voucher_type:supplier_purchase":         "Voucher type for supplier purchases",
+		"purchases:inventory:taxable:120000":     "Inventory purchases taxable at 12%",
+		"input_cgst:120000":                      "Recoverable input CGST on 12% supplies",
+		"nonrecoverable_igst:120000":             "Nonrecoverable IGST on 12% supplies",
 		"voucher_type:sale":                      "Voucher type for sales",
 		"voucher_type:supplier_payment_reversal": "Voucher type for reversed supplier payments",
 		"tender:upi_verified":                    "Counter verified UPI",

@@ -1,7 +1,9 @@
 # Tally accounting export: sales, credit notes and supplier payments (#1690)
 
-Issue: #1690 (this slice; supplier purchase vouchers stay open, see "Not
-covered"). Decision record: [ADR-0076](../../adr/0076-pharmacy-tally-accounting-export.md).
+Historical initial slice (2026-11-21). Its purchase exclusions and intra-state
+assumptions describe that baseline, not current source. The #1689 extension
+added IGST/UTGST; the [purchase completion design](2026-11-26-tally-purchase-completion.md)
+now addresses source-invoice tax evidence and purchase vouchers for #1690. Decision record: [ADR-0076](../../adr/0076-pharmacy-tally-accounting-export.md).
 Builds on the bounded, audited exports in `report_csv.go` and `h1_register.go`,
 the sales and credit-note ledgers (`sale.sql`, `credit_notes.sql`,
 `service_charges.sql`, `admission_sale.sql`) and supplier settlements

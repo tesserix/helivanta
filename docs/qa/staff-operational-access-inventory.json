@@ -1,9 +1,9 @@
 {
   "format_version": 1,
-  "registry_sha256": "1ed1781b77e09a1e2369bd6519939bb819e1387f02c70711bca62ccdca20f953",
+  "registry_sha256": "3bd23bd1cebb552f6efb481ce5bdce9e20615276f989ac32d16b5188f5fc01d6",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
-    "total": 1256,
+    "total": 1258,
     "unclassified": 1102
   },
   "entries": [
@@ -8839,6 +8839,54 @@
       "review": null
     },
     {
+      "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id/purchase-tax",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "GET",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id/purchase-tax",
+        "permission": "pharmacy.accounts.export",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": {
+        "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id/purchase-tax",
+        "registration_sha256": "1200b3c1dd30e0e01b310d8c9166e547cd2e1abfd3fb74c2e7e3b53beb359a14",
+        "authority_kind": "governance_recovery",
+        "resource_scope": "Verified tenant and exact pharmacy outlet; source evidence for one immutable posted payable. Writes additionally require the existing outlet Editor grant.",
+        "rationale": "Owner financial administration, not an operational staff duty. The existing pharmacy.accounts.export permission remains pharmacy-owner-only in the module defaults; purchaseTaxRoutes declares that permission for both reads and writes. The shared catalogue transaction verifies and holds the exact current outlet grant, and writes require Editor access. Expected-tenant and expected-subject preconditions, forced RLS, scoped foreign keys and append-only evidence preserve the same resource boundary. This classification adds no worker, department, employment or clinical authority; restrictive operating-purpose policies deny non-governance consumption. It records source review, not hosted or production runtime acceptance. Source rechecked for invoice assessable values, explicit calculation-variance evidence and outside-GST jurisdiction minimization: these validate source facts without changing permissions, verified caller scope or Editor admission. The new tables also retain hospital-choice restrictions; all pre-existing authority seals are checked before DDL and refreshed only after the reviewed extension. Rechecked the coordinated authority extension: the migration preflights all three existing seals, adds both operating- and hospital-choice restrictions, and refreshes choice then hospital fingerprints after its own DDL. Invoice-base and source-variance validation does not change actor, tenant, grant or role authority. Line audit references are server-generated UUIDs. Migration preflight authenticates the sealed choice function via the prior hospital seal and evaluates its metadata comparison without the schema-owner TRUNCATE restriction; that runtime application-role support restriction is unchanged.",
+        "authority_sources": [
+          {
+            "path": "backend/internal/modules/pharmacy/module.go",
+            "sha256": "2ac5952cf8385f9ee7ef19a5745cb425c914bbebef4c6f7cf79e47af9eef9944",
+            "symbol": "PermAccountsExport"
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/catalogue.go",
+            "sha256": "005474856eaa3ceb5ebf57d7feecb4c9851b90fb70977add4eba918b41de63f0",
+            "symbol": "func (h *catalogueHandlers) transaction("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/purchase_tax.go",
+            "sha256": "4663a4e1b65f0af5b119169895ca73d0caf7016419624043eb7330c14d27acb1",
+            "symbol": "func purchaseTaxRoutes("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/purchase_tax.sql",
+            "sha256": "2cd91ee4389854cfad36432cacb20ebb12b4209fbdb6156fcc6f51cc945b1e2b",
+            "symbol": "CREATE POLICY tenant_isolation ON pharmacy_purchase_tax_evidence"
+          }
+        ],
+        "remaining": [
+          "Hosted DB/API and native browser acceptance are pending CI; production rollout and migrations require specific approval.",
+          "No reviewed-employment cutoff or operational staff authorization is asserted or activated by this owner financial surface."
+        ]
+      }
+    },
+    {
       "id": "http pharmacy GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id/settlements",
       "kind": "http",
       "module": "pharmacy",
@@ -12072,6 +12120,54 @@
         "counted": false
       },
       "review": null
+    },
+    {
+      "id": "http pharmacy PUT /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id/purchase-tax/:evidence",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "PUT",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id/purchase-tax/:evidence",
+        "permission": "pharmacy.accounts.export",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": {
+        "id": "http pharmacy PUT /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id/purchase-tax/:evidence",
+        "registration_sha256": "06496ed9f8ec4a46363670298234517a570d2e257b665c22f3e69532c38a9295",
+        "authority_kind": "governance_recovery",
+        "resource_scope": "Verified tenant and exact pharmacy outlet; source evidence for one immutable posted payable. Writes additionally require the existing outlet Editor grant.",
+        "rationale": "Owner financial administration, not an operational staff duty. The existing pharmacy.accounts.export permission remains pharmacy-owner-only in the module defaults; purchaseTaxRoutes declares that permission for both reads and writes. The shared catalogue transaction verifies and holds the exact current outlet grant, and writes require Editor access. Expected-tenant and expected-subject preconditions, forced RLS, scoped foreign keys and append-only evidence preserve the same resource boundary. This classification adds no worker, department, employment or clinical authority; restrictive operating-purpose policies deny non-governance consumption. It records source review, not hosted or production runtime acceptance. Source rechecked for invoice assessable values, explicit calculation-variance evidence and outside-GST jurisdiction minimization: these validate source facts without changing permissions, verified caller scope or Editor admission. The new tables also retain hospital-choice restrictions; all pre-existing authority seals are checked before DDL and refreshed only after the reviewed extension. Rechecked the coordinated authority extension: the migration preflights all three existing seals, adds both operating- and hospital-choice restrictions, and refreshes choice then hospital fingerprints after its own DDL. Invoice-base and source-variance validation does not change actor, tenant, grant or role authority. Line audit references are server-generated UUIDs. Migration preflight authenticates the sealed choice function via the prior hospital seal and evaluates its metadata comparison without the schema-owner TRUNCATE restriction; that runtime application-role support restriction is unchanged.",
+        "authority_sources": [
+          {
+            "path": "backend/internal/modules/pharmacy/module.go",
+            "sha256": "2ac5952cf8385f9ee7ef19a5745cb425c914bbebef4c6f7cf79e47af9eef9944",
+            "symbol": "PermAccountsExport"
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/catalogue.go",
+            "sha256": "005474856eaa3ceb5ebf57d7feecb4c9851b90fb70977add4eba918b41de63f0",
+            "symbol": "func (h *catalogueHandlers) transaction("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/purchase_tax.go",
+            "sha256": "4663a4e1b65f0af5b119169895ca73d0caf7016419624043eb7330c14d27acb1",
+            "symbol": "func purchaseTaxRoutes("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/purchase_tax.sql",
+            "sha256": "2cd91ee4389854cfad36432cacb20ebb12b4209fbdb6156fcc6f51cc945b1e2b",
+            "symbol": "CREATE POLICY tenant_isolation ON pharmacy_purchase_tax_evidence"
+          }
+        ],
+        "remaining": [
+          "Hosted DB/API and native browser acceptance are pending CI; production rollout and migrations require specific approval.",
+          "No reviewed-employment cutoff or operational staff authorization is asserted or activated by this owner financial surface."
+        ]
+      }
     },
     {
       "id": "http pharmacy PUT /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/supplier-credits/:credit",

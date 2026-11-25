@@ -43,6 +43,7 @@ import {
   supportedCurrencies,
 } from "./currency-amount-field";
 import { useReportState, type FormState } from "@/lib/use-list-detail";
+import { PurchaseTax } from "./purchase-tax";
 import { PayableCreditJournal } from "./payable-credit-journal";
 
 const categories = [
@@ -644,6 +645,13 @@ export function PayableHistory({
           onClick={history.loadMore}
         />
       </div>
+      {can("pharmacy.accounts.export") &&
+        !checkingAccount &&
+        subject &&
+        tenantId === scope.tenantId &&
+        doc.currency === "INR" && (
+          <PurchaseTax scope={{ ...scope, subject }} doc={doc} writable={writable} />
+        )}
       {subject && tenantId === scope.tenantId && can("pharmacy.accounts.read") ? (
         <PayableCreditJournal
           scope={{ ...scope, subject }}

@@ -8,6 +8,53 @@ const identifier = z
     /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
     "Choose a valid record.",
   );
+export const pharmacyPurchaseTaxLineInputSchema = z
+  .object({
+    position: z.number().int().min(1).max(100),
+    supply_nature: z.enum(["taxable", "nil_rated", "exempt", "outside_gst"]),
+    rate_ppm: z.number().int().min(0).max(1000000),
+    assessable_minor: z.number().int().min(0).max(1000000000000),
+    source_variance_reason: z.string().trim().min(1).max(500).nullable(),
+    cgst_minor: z.number().int().min(0).max(1000000000000),
+    cgst_recoverable_minor: z.number().int().min(0).max(1000000000000),
+    sgst_minor: z.number().int().min(0).max(1000000000000),
+    sgst_recoverable_minor: z.number().int().min(0).max(1000000000000),
+    igst_minor: z.number().int().min(0).max(1000000000000),
+    igst_recoverable_minor: z.number().int().min(0).max(1000000000000),
+    utgst_minor: z.number().int().min(0).max(1000000000000),
+    utgst_recoverable_minor: z.number().int().min(0).max(1000000000000),
+  })
+  .strict();
+
+export const pharmacyPurchaseTaxInputSchema = z
+  .object({
+    replaces: identifier.nullable(),
+    supplier_gstin: z.string().trim().toUpperCase().min(15).max(15).nullable(),
+    supplier_state: z.string().min(0).max(2),
+    place_of_supply: z.string().min(0).max(2),
+    reason: z.string().trim().min(1).max(500),
+    lines: z.array(pharmacyPurchaseTaxLineInputSchema).min(1).max(100),
+  })
+  .strict();
+
+export const pharmacyPurchaseTaxReceiptSchema = pharmacyPurchaseTaxInputSchema
+  .extend({
+    id: identifier,
+    outlet_id: identifier,
+    payable_id: identifier,
+    recorded_by: z.string().min(1).max(200),
+    recorded_at: z
+      .string()
+      .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
+  })
+  .strict();
+
+export const pharmacyPurchaseTaxViewSchema = z
+  .object({
+    evidence: pharmacyPurchaseTaxReceiptSchema.nullable(),
+  })
+  .strict();
+
 export const pharmacyTallyLedgerMapEntryInputSchema = z
   .object({
     head: z.string().min(1).max(109),
@@ -64,6 +111,12 @@ export const pharmacyTallyExportPreviewSchema = z
     supplier_payment_count: z.number().int().min(0).max(5000),
     payment_reversal_count: z.number().int().min(0).max(5000),
     heads: z.array(pharmacyTallyExportHeadSchema).min(0).max(1000),
+  })
+  .strict();
+
+export const pharmacyTallyPurchaseExportPreviewSchema = pharmacyTallyExportPreviewSchema
+  .extend({
+    purchase_count: z.number().int().min(0).max(5000),
   })
   .strict();
 

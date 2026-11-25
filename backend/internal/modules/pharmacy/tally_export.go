@@ -38,19 +38,23 @@ var (
 // tallyMapBodyBytes admits a full map even with every character \u-escaped (about 2.5 MB).
 const tallyMapBodyBytes = 3 << 20
 
+const tallyExportRows = 50000
+
 var (
-	errTallyMapConflict = errors.New("tally ledger map changed or was recorded with another intent")
-	errTallyMapFull     = errors.New("tally ledger map exceeds its entries")
-	errTallyTooLarge    = errors.New("tally export exceeds its bounds")
-	errTallyCurrency    = errors.New("tally export holds a currency other than INR")
-	errTallyUnmapped    = errors.New("tally export needs heads the ledger map does not name")
-	errTallyMapChanged  = errors.New("tally ledger map is not the one the client previewed")
+	errTallyMapConflict      = errors.New("tally ledger map changed or was recorded with another intent")
+	errTallyMapFull          = errors.New("tally ledger map exceeds its entries")
+	errTallyTooLarge         = errors.New("tally export exceeds its bounds")
+	errTallyCurrency         = errors.New("tally export holds a currency other than INR")
+	errTallyUnmapped         = errors.New("tally export needs heads the ledger map does not name")
+	errTallyPurchaseEvidence = errors.New("purchase bills need source tax evidence")
+	errTallyMapChanged       = errors.New("tally ledger map is not the one the client previewed")
 )
 
 // tallyKinds are the voucher kinds in the order a day's vouchers are written.
-var tallyKinds = [...]string{"sale", "credit_note", "supplier_payment", "supplier_payment_reversal"}
+var tallyKinds = [...]string{"sale", "credit_note", "supplier_payment", "supplier_payment_reversal", "supplier_purchase"}
 
 func tallyRoutes(s *platform.Router, h *catalogueHandlers) {
+	purchaseTaxRoutes(s, h)
 	s.PUT("/tally/ledger-maps/:map", PermAccountsExport, h.putTallyLedgerMap)
 	s.GET("/tally/ledger-maps/:map", PermAccountsExport, h.getTallyLedgerMap)
 	s.GET("/tally/preview", PermAccountsExport, h.previewTallyExport)
@@ -262,52 +266,76 @@ const tallyPeriodVouchers = `WITH docs AS (
  FROM pharmacy_settlements e JOIN pharmacy_payables b ON b.tenant_id=e.tenant_id AND b.outlet_id=e.outlet_id AND b.id=e.payable_id
  LEFT JOIN pharmacy_settlements r ON r.tenant_id=e.tenant_id AND r.outlet_id=e.outlet_id AND r.id=e.reversal_of
  WHERE e.tenant_id=@tenant AND e.outlet_id=@outlet AND e.kind IN ('payment','payment_reversal') AND e.occurred_on BETWEEN CAST(@from AS date) AND CAST(@to AS date)
+ UNION ALL
+ SELECT 4,b.id,b.issued_on,b.created_at,b.document_reference,b.currency,'',b.document_reference,b.payee_reference,b.payee_name
+ FROM pharmacy_payables b WHERE b.tenant_id=@tenant AND b.outlet_id=@outlet AND b.issued_on BETWEEN CAST(@from AS date) AND CAST(@to AS date) AND @purchases
 ),
 page AS (SELECT * FROM docs ORDER BY day,rank,created_at,id LIMIT @limit),
+purchase_evidence AS (
+ SELECT p.id AS payable_id,e.id AS evidence_id FROM page p LEFT JOIN pharmacy_purchase_tax_evidence e
+ ON e.tenant_id=@tenant AND e.outlet_id=@outlet AND e.payable_id=p.id AND NOT EXISTS(
+ SELECT 1 FROM pharmacy_purchase_tax_evidence n WHERE n.tenant_id=e.tenant_id AND n.outlet_id=e.outlet_id AND n.payable_id=e.payable_id AND n.replaces=e.id)
+ WHERE p.rank=4
+),
 parts AS (
- SELECT p.id,'line' AS part,l.line_number AS position,'goods' AS treatment,l.supply_nature AS nature,l.rate_ppm,l.taxable_minor,l.cgst_minor,l.sgst_minor,l.igst_minor,l.utgst_minor,''::text AS kind,0::bigint AS amount
+ SELECT p.rank,p.id,'line' AS part,l.line_number AS position,'goods' AS treatment,l.supply_nature AS nature,l.rate_ppm,l.taxable_minor,l.cgst_minor,l.sgst_minor,l.igst_minor,l.utgst_minor,''::text AS kind,0::bigint AS amount
  FROM page p JOIN pharmacy_sale_lines l ON l.tenant_id=@tenant AND l.outlet_id=@outlet AND l.sale_id=p.id WHERE p.rank=0
  UNION ALL
- SELECT p.id,'line',1000+c.charge_number,c.tax_treatment,c.supply_nature,c.rate_ppm,c.taxable_minor,c.cgst_minor,c.sgst_minor,c.igst_minor,c.utgst_minor,'',0
+ SELECT p.rank,p.id,'line',1000+c.charge_number,c.tax_treatment,c.supply_nature,c.rate_ppm,c.taxable_minor,c.cgst_minor,c.sgst_minor,c.igst_minor,c.utgst_minor,'',0
  FROM page p JOIN pharmacy_sale_charge_lines c ON c.tenant_id=@tenant AND c.outlet_id=@outlet AND c.sale_id=p.id WHERE p.rank=0
  UNION ALL
- SELECT p.id,'tender',t.tender_number,'','',0,0,0,0,0,0,t.kind,t.amount_minor
+ SELECT p.rank,p.id,'tender',t.tender_number,'','',0,0,0,0,0,0,t.kind,t.amount_minor
  FROM page p JOIN pharmacy_sale_tenders t ON t.tenant_id=@tenant AND t.outlet_id=@outlet AND t.sale_id=p.id WHERE p.rank=0
  UNION ALL
- SELECT p.id,'line',cl.line_number,'goods',l.supply_nature,l.rate_ppm,cl.taxable_minor,cl.cgst_minor,cl.sgst_minor,cl.igst_minor,cl.utgst_minor,'',0
+ SELECT p.rank,p.id,'line',cl.line_number,'goods',l.supply_nature,l.rate_ppm,cl.taxable_minor,cl.cgst_minor,cl.sgst_minor,cl.igst_minor,cl.utgst_minor,'',0
  FROM page p JOIN pharmacy_credit_note_lines cl ON cl.tenant_id=@tenant AND cl.outlet_id=@outlet AND cl.credit_note_id=p.id
  JOIN pharmacy_sale_lines l ON l.tenant_id=cl.tenant_id AND l.outlet_id=cl.outlet_id AND l.sale_id=cl.sale_id AND l.line_number=cl.sale_line WHERE p.rank=1
  UNION ALL
- SELECT p.id,'line',1000+cc.charge_number,c.tax_treatment,c.supply_nature,c.rate_ppm,cc.taxable_minor,cc.cgst_minor,cc.sgst_minor,cc.igst_minor,cc.utgst_minor,'',0
+ SELECT p.rank,p.id,'line',1000+cc.charge_number,c.tax_treatment,c.supply_nature,c.rate_ppm,cc.taxable_minor,cc.cgst_minor,cc.sgst_minor,cc.igst_minor,cc.utgst_minor,'',0
  FROM page p JOIN pharmacy_credit_note_charge_lines cc ON cc.tenant_id=@tenant AND cc.outlet_id=@outlet AND cc.credit_note_id=p.id
  JOIN pharmacy_sale_charge_lines c ON c.tenant_id=cc.tenant_id AND c.outlet_id=cc.outlet_id AND c.sale_id=cc.sale_id AND c.charge_number=cc.sale_charge WHERE p.rank=1
  UNION ALL
- SELECT p.id,'tender',f.refund_number,'','',0,0,0,0,0,0,f.kind,f.amount_minor
+ SELECT p.rank,p.id,'tender',f.refund_number,'','',0,0,0,0,0,0,f.kind,f.amount_minor
  FROM page p JOIN pharmacy_credit_note_refunds f ON f.tenant_id=@tenant AND f.outlet_id=@outlet AND f.credit_note_id=p.id WHERE p.rank=1
  UNION ALL
- SELECT p.id,'settlement',1,'','',0,0,0,0,0,0,e.method,e.amount_minor
- FROM page p JOIN pharmacy_settlements e ON e.tenant_id=@tenant AND e.outlet_id=@outlet AND e.id=p.id WHERE p.rank>=2
+ SELECT p.rank,p.id,'settlement',1,'','',0,0,0,0,0,0,e.method,e.amount_minor
+ FROM page p JOIN pharmacy_settlements e ON e.tenant_id=@tenant AND e.outlet_id=@outlet AND e.id=p.id WHERE p.rank IN(2,3)
+ UNION ALL
+ SELECT p.rank,p.id,'purchase_supplier',1,'','',0,0,0,0,0,0,'',b.total_minor
+ FROM page p JOIN pharmacy_payables b ON b.tenant_id=@tenant AND b.outlet_id=@outlet AND b.id=p.id WHERE p.rank=4
+ UNION ALL
+ SELECT 4,e.payable_id,'purchase_missing',1,'','',0,0,0,0,0,0,'',0 FROM purchase_evidence e WHERE e.evidence_id IS NULL
+ UNION ALL
+ SELECT 4,e.payable_id,'purchase_cost',l.position,l.category,t.supply_nature,t.rate_ppm,l.net_minor+l.landed_minor,0,0,0,0,'',0
+ FROM purchase_evidence e JOIN pharmacy_payable_lines l ON l.tenant_id=@tenant AND l.outlet_id=@outlet AND l.payable_id=e.payable_id
+ JOIN pharmacy_purchase_tax_lines t ON t.tenant_id=l.tenant_id AND t.outlet_id=l.outlet_id AND t.payable_id=l.payable_id AND t.evidence_id=e.evidence_id AND t.position=l.position
+ UNION ALL
+ SELECT 4,e.payable_id,'purchase_tax',t.position*10+x.ordinal,'','',t.rate_ppm,x.total,0,0,0,0,x.kind,x.recoverable
+ FROM purchase_evidence e JOIN pharmacy_purchase_tax_lines t ON t.tenant_id=@tenant AND t.outlet_id=@outlet AND t.payable_id=e.payable_id AND t.evidence_id=e.evidence_id
+ CROSS JOIN LATERAL(VALUES(1,'cgst',t.cgst_minor,t.cgst_recoverable_minor),(2,'sgst',t.sgst_minor,t.sgst_recoverable_minor),
+ (3,'igst',t.igst_minor,t.igst_recoverable_minor),(4,'utgst',t.utgst_minor,t.utgst_recoverable_minor))x(ordinal,kind,total,recoverable) WHERE x.total>0
 )
-SELECT p.rank,p.id,to_char(p.day,'YYYY-MM-DD') AS day,p.number,p.currency,p.related,p.bill,p.supplier,p.supplier_name,
+SELECT CAST(CAST(@tenant AS uuid) AS text) AS tenant_scope,CAST(CAST(@outlet AS uuid) AS text) AS outlet_scope,p.rank,p.id,to_char(p.day,'YYYY-MM-DD') AS day,p.number,p.currency,p.related,p.bill,p.supplier,p.supplier_name,
  COALESCE(x.part,'') AS part,COALESCE(x.treatment,'') AS treatment,COALESCE(x.nature,'') AS nature,COALESCE(x.rate_ppm,0) AS rate_ppm,
  COALESCE(x.taxable_minor,0) AS taxable_minor,COALESCE(x.cgst_minor,0) AS cgst_minor,COALESCE(x.sgst_minor,0) AS sgst_minor,COALESCE(x.igst_minor,0) AS igst_minor,COALESCE(x.utgst_minor,0) AS utgst_minor,COALESCE(x.kind,'') AS kind,COALESCE(x.amount,0) AS amount
-FROM page p LEFT JOIN parts x ON x.id=p.id
-ORDER BY p.day,p.rank,p.created_at,p.id,x.part,x.position`
+FROM page p LEFT JOIN parts x ON x.id=p.id AND x.rank=p.rank
+ORDER BY p.day,p.rank,p.created_at,p.id,x.part,x.position LIMIT CASE WHEN @purchases THEN CAST(@row_limit AS bigint) ELSE NULL END`
 
 type tallyRow struct {
-	Rank                    int
-	ID                      uuid.UUID
-	Day, Number, Currency   string
-	Related, Bill           string
-	Supplier, SupplierName  string
-	Part, Treatment, Nature string
-	RatePPM                 int64
-	TaxableMinor, CGSTMinor int64
-	SGSTMinor               int64
-	IGSTMinor               int64
-	UTGSTMinor              int64
-	Kind                    string
-	Amount                  int64
+	TenantScope, OutletScope string
+	Rank                     int
+	ID                       uuid.UUID
+	Day, Number, Currency    string
+	Related, Bill            string
+	Supplier, SupplierName   string
+	Part, Treatment, Nature  string
+	RatePPM                  int64
+	TaxableMinor, CGSTMinor  int64
+	SGSTMinor                int64
+	IGSTMinor                int64
+	UTGSTMinor               int64
+	Kind                     string
+	Amount                   int64
 }
 
 // tallyPeriod is what a period's file needs: vouchers naming heads, not ledgers.
@@ -320,13 +348,16 @@ type tallyPeriod struct {
 	names     map[string]string
 }
 
-func readTallyPeriod(tx *gorm.DB, tenant string, outlet uuid.UUID, from, to string) (tallyPeriod, error) {
+func readTallyPeriod(tx *gorm.DB, tenant string, outlet uuid.UUID, from, to string, purchases bool) (tallyPeriod, error) {
 	if err := tx.Exec(`SELECT set_config('statement_timeout','8s',true)`).Error; err != nil {
 		return tallyPeriod{}, err
 	}
 	var rows []tallyRow
-	if err := tx.Raw(tallyPeriodVouchers, map[string]any{"tenant": tenant, "outlet": outlet, "from": from, "to": to, "limit": tallyExportVouchers + 1}).Scan(&rows).Error; err != nil {
+	if err := tx.Raw(tallyPeriodVouchers, map[string]any{"tenant": tenant, "outlet": outlet, "from": from, "to": to, "limit": tallyExportVouchers + 1, "purchases": purchases, "row_limit": tallyExportRows + 1}).Scan(&rows).Error; err != nil {
 		return tallyPeriod{}, err
+	}
+	if purchases && len(rows) > tallyExportRows {
+		return tallyPeriod{}, errTallyTooLarge
 	}
 	period := tallyPeriod{suppliers: map[string]string{}}
 	for i := 0; i < len(rows); {
@@ -377,6 +408,14 @@ func readTallyPeriod(tx *gorm.DB, tenant string, outlet uuid.UUID, from, to stri
 // tallyVoucherOf posts one document's rows to heads (ADR-0076 §1); the voucher
 // balances or the period is refused, so preview and export fail alike.
 func tallyVoucherOf(rows []tallyRow) (tallyVoucher, error) {
+	if len(rows) == 0 || rows[0].Rank < 0 || rows[0].Rank >= len(tallyKinds) {
+		return tallyVoucher{}, errTallyVoucher
+	}
+	for _, row := range rows {
+		if row.Part == "purchase_missing" {
+			return tallyVoucher{}, errTallyPurchaseEvidence
+		}
+	}
 	doc := rows[0]
 	kind := tallyKinds[doc.Rank]
 	v := tallyVoucher{Date: doc.Day, Type: "voucher_type:" + kind, Number: doc.Number, RemoteID: "helivanta-" + doc.ID.String()}
@@ -385,6 +424,13 @@ func tallyVoucherOf(rows []tallyRow) (tallyVoucher, error) {
 		v.Narration = "Invoice " + doc.Number
 	case "credit_note":
 		v.Narration = "Credit note " + doc.Number + " against invoice " + doc.Related
+	case "supplier_purchase":
+		var err error
+		v.RemoteID, err = tallyPurchaseIdentity(doc.TenantScope, doc.OutletScope, doc.ID)
+		if err != nil {
+			return tallyVoucher{}, err
+		}
+		v.Narration = "Purchase bill " + doc.Number
 	case "supplier_payment":
 		v.Narration = "Payment " + doc.Number + " against bill " + doc.Bill
 	default:
@@ -399,6 +445,15 @@ func tallyVoucherOf(rows []tallyRow) (tallyVoucher, error) {
 	}
 	for _, r := range rows {
 		switch r.Part {
+		case "purchase_missing":
+			return tallyVoucher{}, errTallyPurchaseEvidence
+		case "purchase_cost":
+			post("purchases:"+r.Treatment+":"+r.Nature+":"+strconv.FormatInt(r.RatePPM, 10), true, false, r.TaxableMinor)
+		case "purchase_supplier":
+			post("supplier:"+doc.Supplier, false, true, r.Amount)
+		case "purchase_tax":
+			post(tallyTaxHead("input_"+r.Kind, r.RatePPM), true, false, r.Amount)
+			post(tallyTaxHead("nonrecoverable_"+r.Kind, r.RatePPM), true, false, r.TaxableMinor-r.Amount)
 		case "line":
 			post(tallySalesHead(r.Treatment, r.Nature, r.RatePPM), !sales, false, r.TaxableMinor)
 			post(tallyTaxHead("cgst", r.RatePPM), !sales, false, r.CGSTMinor)
@@ -434,12 +489,16 @@ func (h *catalogueHandlers) previewTallyExport(c *gin.Context) {
 	if !ok {
 		return
 	}
+	purchases, ok := tallyPurchaseOption(c)
+	if !ok {
+		return
+	}
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
 	defer cancel()
 	var period tallyPeriod
 	err := h.transaction(ctx, p, outlet, false, func(tx *gorm.DB) error {
 		var err error
-		if period, err = readTallyPeriod(tx, p.TenantID, outlet, from, to); err != nil {
+		if period, err = readTallyPeriod(tx, p.TenantID, outlet, from, to, purchases); err != nil {
 			return err
 		}
 		// The preview names suppliers, so it is a recorded disclosure too.
@@ -461,6 +520,10 @@ func (h *catalogueHandlers) previewTallyExport(c *gin.Context) {
 			row.SupplierName = &name
 		}
 		view.Heads = append(view.Heads, row)
+	}
+	if purchases {
+		respond.OK(c, TallyPurchaseExportPreview{TallyExportPreview: view, PurchaseCount: period.counts[4]})
+		return
 	}
 	respond.OK(c, view)
 }
@@ -500,13 +563,17 @@ func (h *catalogueHandlers) exportTallyVouchers(c *gin.Context) {
 	if !ok {
 		return
 	}
+	purchases, ok := tallyPurchaseOption(c)
+	if !ok {
+		return
+	}
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
 	defer cancel()
 	var period tallyPeriod
 	var data []byte
 	err := h.transaction(ctx, p, outlet, false, func(tx *gorm.DB) error {
 		var err error
-		if period, err = readTallyPeriod(tx, p.TenantID, outlet, from, to); err != nil {
+		if period, err = readTallyPeriod(tx, p.TenantID, outlet, from, to, purchases); err != nil {
 			return err
 		}
 		if fenced && !sameTallyMap(want, period.mapID) {
@@ -515,7 +582,14 @@ func (h *catalogueHandlers) exportTallyVouchers(c *gin.Context) {
 		if data, err = encodeTallyPeriod(period); err != nil {
 			return err
 		}
-		return auditRegisterRead(c, tx, "tally_vouchers", p.TenantID, p.Subject, outlet, "accounts_export", "from", from, "to", to, "ledger_map_id", tallyMapAudit(period))
+		source, err := json.Marshal(period.vouchers)
+		if err != nil {
+			return err
+		}
+		if err = tx.Exec(`INSERT INTO pharmacy_tally_export_receipts(id,tenant_id,outlet_id,from_date,to_date,ledger_map_id,sha256,source_sha256,voucher_count,purchase_bills,actor_subject) VALUES(?,?,?,?,?,?,?,?,?,?,?)`, uuid.Must(uuid.NewV7()), p.TenantID, outlet, from, to, period.mapID, fmt.Sprintf("%x", sha256.Sum256(data)), fmt.Sprintf("%x", sha256.Sum256(source)), len(period.vouchers), purchases, p.Subject).Error; err != nil {
+			return err
+		}
+		return auditRegisterRead(c, tx, "tally_vouchers", p.TenantID, p.Subject, outlet, "accounts_export", "from", from, "to", to, "ledger_map_id", tallyMapAudit(period), "sha256", fmt.Sprintf("%x", sha256.Sum256(data)), "voucher_count", strconv.Itoa(len(period.vouchers)), "purchase_bills", strconv.FormatBool(purchases))
 	})
 	if err != nil {
 		tallyError(c, err)
@@ -524,11 +598,12 @@ func (h *catalogueHandlers) exportTallyVouchers(c *gin.Context) {
 	digest := fmt.Sprintf("%x", sha256.Sum256(data))
 	audit.Log(ctx, requestid.Logger(c), slog.LevelInfo, "pharmacy.tally_export.exported", "Tally vouchers generated", "tenant_id", p.TenantID, "subject", p.Subject,
 		"pharmacy_id", currentPharmacy(ctx), "outlet_id", outlet, "from", from, "to", to, "ledger_map_id", tallyMapAudit(period), "sale_count", period.counts[0],
-		"credit_note_count", period.counts[1], "supplier_payment_count", period.counts[2], "payment_reversal_count", period.counts[3], "sha256", digest)
+		"credit_note_count", period.counts[1], "supplier_payment_count", period.counts[2], "payment_reversal_count", period.counts[3], "purchase_count", period.counts[4], "purchase_bills", purchases, "sha256", digest)
 	c.Header("Cache-Control", "private, no-store")
 	c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="pharmacy-tally-vouchers-%s-%s-%s.xml"`, outlet, from, to))
 	c.Header("X-Content-Type-Options", "nosniff")
 	c.Header("X-Export-Voucher-Count", strconv.Itoa(len(period.vouchers)))
+	c.Header("X-Export-Purchase-Bills", strconv.FormatBool(purchases))
 	c.Header("X-Export-Ledger-Map", tallyMapAudit(period))
 	c.Header("X-Export-Sha256", digest)
 	c.Data(http.StatusOK, "application/xml; charset=utf-8", data)
@@ -563,6 +638,8 @@ func encodeTallyPeriod(period tallyPeriod) ([]byte, error) {
 func tallyError(c *gin.Context, err error) {
 	var pg *pgconn.PgError
 	switch {
+	case errors.Is(err, errTallyPurchaseEvidence):
+		respond.Error(c, http.StatusConflict, "tally_purchase_tax_missing", "One or more supplier bills in this period need purchase tax evidence. Open Supplier bills and record the invoice GST breakdown before exporting.")
 	case errors.Is(err, errTallyTooLarge):
 		respond.Error(c, http.StatusRequestEntityTooLarge, "accounting_export_too_large",
 			fmt.Sprintf("a Tally export holds at most %d vouchers, %d account heads and %d MiB; narrow the period", tallyExportVouchers, tallyMapEntries, tallyExportBytes>>20))
@@ -581,4 +658,29 @@ func tallyError(c *gin.Context, err error) {
 	default:
 		catalogueError(c, err)
 	}
+}
+
+func tallyPurchaseOption(c *gin.Context) (bool, bool) {
+	values, present := c.GetQueryArray("purchase_bills")
+	if !present {
+		return false, true
+	}
+	if len(values) == 1 && (values[0] == "true" || values[0] == "false") {
+		return values[0] == "true", true
+	}
+	respond.Error(c, http.StatusBadRequest, "invalid_request", "purchase_bills must be true or false, given at most once")
+	return false, false
+}
+
+func tallyPurchaseIdentity(tenant, outlet string, bill uuid.UUID) (string, error) {
+	t, err := uuid.Parse(tenant)
+	if err != nil || t == uuid.Nil || bill == uuid.Nil {
+		return "", errTallyVoucher
+	}
+	o, err := uuid.Parse(outlet)
+	if err != nil || o == uuid.Nil {
+		return "", errTallyVoucher
+	}
+	key := "https://helivanta.com/tally/purchase/" + t.String() + "/" + o.String() + "/" + bill.String()
+	return "helivanta-" + uuid.NewSHA1(uuid.NameSpaceURL, []byte(key)).String(), nil
 }

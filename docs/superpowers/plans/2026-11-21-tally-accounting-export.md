@@ -1,5 +1,8 @@
 # Tally accounting export delivery (#1690)
 
+Historical initial delivery plan; the purchase follow-up is tracked in the
+[current plan](2026-11-26-tally-purchase-completion.md).
+
 Spec: [design](../specs/2026-11-21-tally-accounting-export-design.md),
 [ADR-0076](../../adr/0076-pharmacy-tally-accounting-export.md).
 

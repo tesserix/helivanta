@@ -548,6 +548,8 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/inventory-audit` | `pharmacy.accounts.read` | true | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id/adjustments/:entry` | `pharmacy.accounts.adjust` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id/payments/:entry` | `pharmacy.accounts.payment` | false | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id/purchase-tax/:evidence` | `pharmacy.accounts.export` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id/purchase-tax` | `pharmacy.accounts.export` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id/settlements` | `pharmacy.accounts.read` | true | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id/supplier-credit-allocations` | `pharmacy.accounts.read` | true | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id` | `pharmacy.accounts.read` | false | false |
@@ -844,6 +846,8 @@ Migration table declarations:
 - `0066_pharmacy_stocktake_hospital`: `pharmacy_stocktake_hospital_evidence`.
 - `0068_pharmacy_stocktake_hospital_choice_index`: concurrent index `pharmacy_stocktake_hospital_choice_page` on `pharmacy_staff_department_bindings (tenant_id, hospital_id, department_id, status, created_at DESC, id DESC)`.
 - `0070_pharmacy_stocktake_source_recovery`: `pharmacy_stocktake_source_invalidations`.
+- `0074_pharmacy_purchase_tax_evidence`: `pharmacy_purchase_tax_evidence`, `pharmacy_purchase_tax_lines`, `pharmacy_tally_export_receipts`.
+- `0075_pharmacy_purchase_export_day`: concurrent index `pharmacy_purchase_export_day` on `pharmacy_payables (tenant_id, outlet_id, issued_on, created_at, id)`.
 
 ## payments
 

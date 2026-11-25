@@ -24,7 +24,7 @@ import (
 
 // #1690: Tally vouchers for sales, credit notes and supplier payments (ADR-0076).
 
-const tallyPeriod = "?from=2026-10-01&to=2026-11-30"
+const tallyPeriod = "?purchase_bills=true&from=2026-10-01&to=2026-11-30"
 
 func tallyPath(suffix string) string { return payableRoot() + "/tally" + suffix }
 
@@ -94,6 +94,7 @@ type tallyPreview struct {
 	CreditNotes int64   `json:"credit_note_count"`
 	Payments    int64   `json:"supplier_payment_count"`
 	Reversals   int64   `json:"payment_reversal_count"`
+	Purchases   int64   `json:"purchase_count"`
 	Heads       []struct {
 		Head         string  `json:"head"`
 		Label        string  `json:"label"`
@@ -167,6 +168,10 @@ func tallyAuditRows(t *testing.T, w saleWorld, action string) int64 {
 }
 
 var tallyLedgers = map[string]string{
+	"voucher_type:supplier_purchase":         "Purchase",
+	"purchases:utilities:taxable:180000":     "Utilities 18%",
+	"input_cgst:180000":                      "Input CGST 9%",
+	"input_sgst:180000":                      "Input SGST 9%",
 	"voucher_type:sale":                      "Sales",
 	"voucher_type:credit_note":               "Credit Note",
 	"voucher_type:supplier_payment":          "Payment",
@@ -194,6 +199,7 @@ func TestTallyExportPostsEachDocumentByRateFromOneLedgerMap(t *testing.T) {
 	require.Equal(t, http.StatusCreated, code, out)
 	bill := payableRoot() + "/payables/" + uuid.Must(uuid.NewV7()).String()
 	require.Equal(t, 200, do(w.r, "PUT", bill, "finance", expenseBody("TEST-BILL-001")).Code)
+	recordTallyPurchaseEvidence(t, w, bill)
 	payment := uuid.Must(uuid.NewV7()).String()
 	require.Equal(t, 200, do(w.r, "PUT", bill+"/payments/"+payment, "finance", settlementBody("payment", "TEST-BANK-001", 3000, nil)).Code)
 	require.Equal(t, 200, do(w.r, "PUT", bill+"/adjustments/"+uuid.Must(uuid.NewV7()).String(), "finance", settlementBody("credit", "TEST-CREDIT", 800, nil)).Code)
@@ -245,7 +251,7 @@ func TestTallyExportPostsEachDocumentByRateFromOneLedgerMap(t *testing.T) {
 	require.Equal(t, "private, no-store", export.Header().Get("Cache-Control"))
 	require.Equal(t, "nosniff", export.Header().Get("X-Content-Type-Options"))
 	require.Equal(t, `attachment; filename="pharmacy-tally-vouchers-`+pharmaOutlet+`-2026-10-01-2026-11-30.xml"`, export.Header().Get("Content-Disposition"))
-	require.Equal(t, "5", export.Header().Get("X-Export-Voucher-Count"))
+	require.Equal(t, "6", export.Header().Get("X-Export-Voucher-Count"))
 	require.Equal(t, mapID, export.Header().Get("X-Export-Ledger-Map"))
 	require.Equal(t, fmt.Sprintf("%x", sha256.Sum256(export.Body.Bytes())), export.Header().Get("X-Export-Sha256"))
 	require.Contains(t, export.Body.String(), "<LEDGERNAME>Sales &amp; Returns 12%</LEDGERNAME>")
@@ -253,18 +259,24 @@ func TestTallyExportPostsEachDocumentByRateFromOneLedgerMap(t *testing.T) {
 	require.NoError(t, xml.Unmarshal(export.Body.Bytes(), &file))
 	require.Equal(t, "Import Data", file.Request)
 	require.Equal(t, "Vouchers", file.Report)
-	require.Len(t, file.Vouchers, 5)
+	require.Len(t, file.Vouchers, 6)
 
+	require.EqualValues(t, 1, view.Purchases)
+	require.Equal(t, []string{
+		"helivanta-" + uuid.NewSHA1(uuid.NameSpaceURL, []byte("https://helivanta.com/tally/purchase/"+testutil.TenantA+"/"+pharmaOutlet+"/"+strings.TrimPrefix(bill, payableRoot()+"/payables/"))).String() + " | Purchase | Purchase | Create | 20261001 | TEST-BILL-001 | Purchase bill TEST-BILL-001",
+		tallyDebit("Input CGST 9%", false, 900), tallyDebit("Input SGST 9%", false, 900), tallyDebit("Utilities 18%", false, 10000),
+		tallyCredit("Sundry Creditors - Acme", true, 11800),
+	}, voucherText(file, 0))
 	require.Equal(t, []string{
 		"helivanta-" + payment + " | Payment | Payment | Create | 20261015 | TEST-BANK-001 | Payment TEST-BANK-001 against bill TEST-BILL-001",
 		tallyDebit("Sundry Creditors - Acme", true, 3000),
 		tallyCredit("HDFC Current", false, 3000),
-	}, voucherText(file, 0))
+	}, voucherText(file, 1))
 	require.Equal(t, []string{
 		"helivanta-" + reversal + " | Receipt | Receipt | Create | 20261015 | TEST-REVERSAL | Reversal TEST-REVERSAL of payment TEST-BANK-001 against bill TEST-BILL-001",
 		tallyDebit("HDFC Current", false, 3000),
 		tallyCredit("Sundry Creditors - Acme", true, 3000),
-	}, voucherText(file, 1))
+	}, voucherText(file, 2))
 
 	at12, at5 := mixed.Lines[0], mixed.Lines[1]
 	require.EqualValues(t, 2500, at12.AmountMinor)
@@ -282,14 +294,14 @@ func TestTallyExportPostsEachDocumentByRateFromOneLedgerMap(t *testing.T) {
 		tallyCredit("Output SGST 6%", false, sgst(at12.AmountMinor, at12.TaxableMinor, at12.CGSTMinor)),
 		tallyCredit("Sales & Returns 12%", false, at12.TaxableMinor),
 		tallyCredit("Sales 5%", false, at5.TaxableMinor),
-	}, voucherText(file, 2))
+	}, voucherText(file, 3))
 	require.Equal(t, []string{
 		"helivanta-" + returnedID + " | Sales | Sales | Create | 20261101 | " + returned.InvoiceNumber + " | Invoice " + returned.InvoiceNumber,
 		tallyDebit("Counter Cash", false, 12500),
 		tallyCredit("Output CGST 6%", false, returned.CGSTMinor),
 		tallyCredit("Output SGST 6%", false, returned.SGSTMinor),
 		tallyCredit("Sales & Returns 12%", false, returned.TaxableMinor),
-	}, voucherText(file, 3))
+	}, voucherText(file, 4))
 	require.EqualValues(t, 5000, cn.TotalMinor)
 	require.Equal(t, []string{
 		"helivanta-" + cn.ID + " | Credit Note | Credit Note | Create | 20261101 | " + cn.CreditNoteNumber + " | Credit note " + cn.CreditNoteNumber + " against invoice " + returned.InvoiceNumber,
@@ -297,7 +309,7 @@ func TestTallyExportPostsEachDocumentByRateFromOneLedgerMap(t *testing.T) {
 		tallyDebit("Output SGST 6%", false, cn.TotalMinor-cn.TaxableMinor-cn.CGSTMinor),
 		tallyDebit("Sales & Returns 12%", false, cn.TaxableMinor),
 		tallyCredit("Counter Cash", false, 5000),
-	}, voucherText(file, 4))
+	}, voucherText(file, 5))
 	for _, private := range []string{"TEST Ravi Kumar", "TEST 4 Station Road", "TEST prescription changed", "TEST Finance operator", "TEST settlement evidence", "TEST Supplier", "TEST-CREDIT", "TEST electricity", "IGST"} {
 		require.NotContains(t, export.Body.String(), private)
 	}
@@ -308,12 +320,32 @@ func TestTallyExportPostsEachDocumentByRateFromOneLedgerMap(t *testing.T) {
 	require.Equal(t, export.Header().Get("X-Export-Sha256"), again.Header().Get("X-Export-Sha256"))
 
 	require.EqualValues(t, 2, tallyAuditRows(t, w, "accounts_export"), "every delivered file is recorded; the refused one is not")
+	var retained []struct {
+		SHA256       string `gorm:"column:sha256"`
+		SourceSHA256 string `gorm:"column:source_sha256"`
+		VoucherCount int
+		LedgerMapID  string
+	}
+	require.NoError(t, w.db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+		if err := tx.Exec(`SELECT set_config('app.pharmacy_subject','user-exporter',true),set_config('app.pharmacy_outlet',?,true),set_config('app.pharmacy_id',?,true)`, pharmaOutlet, pharmaOrganization).Error; err != nil {
+			return err
+		}
+		return tx.Raw(`SELECT sha256,source_sha256,voucher_count,ledger_map_id::text FROM pharmacy_tally_export_receipts WHERE tenant_id=? AND outlet_id=?`, testutil.TenantA, pharmaOutlet).Scan(&retained).Error
+	}))
+	require.Len(t, retained, 2, "each delivered file retains its exact digest in immutable storage")
+	for _, receipt := range retained {
+		require.Equal(t, export.Header().Get("X-Export-Sha256"), receipt.SHA256)
+		require.Len(t, receipt.SourceSHA256, 64)
+		require.Equal(t, 6, receipt.VoucherCount)
+		require.Equal(t, mapID, receipt.LedgerMapID)
+	}
+
 	require.EqualValues(t, 2, tallyAuditRows(t, w, "accounts_preview"))
 	var fields []string
 	require.NoError(t, w.db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
 		return tx.Raw(`SELECT DISTINCT array_to_string(changed_fields,',') FROM audit_events WHERE resource_type='pharmacy_tally_vouchers' AND action='accounts_export'`).Scan(&fields).Error
 	}))
-	require.Equal(t, []string{"from,to,ledger_map_id"}, fields)
+	require.Equal(t, []string{"from,to,ledger_map_id,sha256,voucher_count,purchase_bills"}, fields)
 
 	empty := w.tallyPreview(t, "?from=2026-12-01&to=2026-12-31")
 	require.Equal(t, [4]int64{0, 0, 0, 0}, [4]int64{empty.Sales, empty.CreditNotes, empty.Payments, empty.Reversals})
@@ -725,4 +757,13 @@ func TestTallyExportRefusesWhatItCannotWriteFaithfully(t *testing.T) {
 	}), "a currency the API does not yet admit, written directly")
 	refused(preview, http.StatusConflict, "tally_currency_unsupported")
 	refused(export, http.StatusConflict, "tally_currency_unsupported")
+}
+
+func recordTallyPurchaseEvidence(t *testing.T, w saleWorld, bill string) string {
+	t.Helper()
+	id := uuid.Must(uuid.NewV7()).String()
+	body := purchaseTaxBody()
+	response := do(w.r, "PUT", bill+"/purchase-tax/"+id, "exporter", body)
+	require.Equal(t, 200, response.Code, response.Body.String())
+	return body
 }

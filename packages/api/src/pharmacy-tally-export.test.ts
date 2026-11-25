@@ -73,6 +73,7 @@ const preview = {
   credit_note_count: 1,
   supplier_payment_count: 1,
   payment_reversal_count: 0,
+  purchase_count: 0,
   heads: [
     { head: "tender:cash", label: "Cash tender", ledger_name: "Cash", supplier_name: null },
     { head: "supplier:ACME", label: "Supplier ACME", ledger_name: null, supplier_name: "Acme" },
@@ -86,7 +87,7 @@ it("reads the preview for the outlet and period, pinned to the tenant", async ()
   ).resolves.toEqual(preview);
   expect(seen).toHaveLength(1);
   expect(seen[0]).toMatchObject({
-    url: `${root}/preview?from=2026-10-01&to=2026-10-31`,
+    url: `${root}/preview?from=2026-10-01&to=2026-10-31&purchase_bills=true`,
     cache: "no-store",
   });
   expect(seen[0]?.headers.get("X-Helivanta-Expected-Tenant")).toBe(scope.tenantId);
@@ -97,6 +98,7 @@ it.each<[string, Record<string, unknown>]>([
   ["another first day", { from: "2026-10-02" }],
   ["another last day", { to: "2026-10-30" }],
   ["an unknown field", { total_minor: 1 }],
+  ["a legacy preview without purchase counts", { purchase_count: undefined }],
   [
     "a repeated head",
     { heads: [preview.heads[0], { ...preview.heads[0], ledger_name: "Counter Cash" }] },
@@ -187,6 +189,7 @@ const file = (headers: Record<string, string> = {}) =>
     headers: {
       "Content-Type": "application/xml; charset=utf-8",
       "Content-Disposition": `attachment; filename="${filename}"`,
+      "X-Export-Purchase-Bills": "true",
       "X-Export-Voucher-Count": "4",
       "X-Export-Ledger-Map": mapID,
       "X-Export-Sha256": digest,
@@ -202,17 +205,25 @@ it("downloads the vouchers for the previewed ledger map and verifies the bytes",
   expect(got.vouchers).toBe(4);
   expect(new TextDecoder().decode(await readAttachmentFile(got.blob, signal))).toBe(body);
   expect(seen[0]).toMatchObject({
-    url: `${root}/vouchers.xml?from=2026-10-01&to=2026-10-31&ledger_map=${mapID}`,
+    url: `${root}/vouchers.xml?from=2026-10-01&to=2026-10-31&purchase_bills=true&ledger_map=${mapID}`,
     cache: "no-store",
   });
   expect(seen[0]?.headers.get("X-Helivanta-Expected-Tenant")).toBe(scope.tenantId);
 });
 
 it("asks for a file with no ledger map when the preview had none", async () => {
-  const seen = serve(() => file({ "X-Export-Ledger-Map": "", "X-Export-Voucher-Count": "0" }));
+  const seen = serve(() =>
+    file({
+      "X-Export-Ledger-Map": "",
+      "X-Export-Purchase-Bills": "true",
+      "X-Export-Voucher-Count": "0",
+    }),
+  );
   const got = await fetchPharmacyTallyVouchers(scope, period, null, new AbortController().signal);
   expect(got.vouchers).toBe(0);
-  expect(seen[0]?.url).toBe(`${root}/vouchers.xml?from=2026-10-01&to=2026-10-31&ledger_map=`);
+  expect(seen[0]?.url).toBe(
+    `${root}/vouchers.xml?from=2026-10-01&to=2026-10-31&purchase_bills=true&ledger_map=`,
+  );
 });
 
 it.each<Record<string, string>>([
@@ -224,10 +235,10 @@ it.each<Record<string, string>>([
   { "Content-Disposition": `inline; filename="${filename}"` },
   { "Content-Disposition": `attachment; filename="../${filename}"` },
   { "Content-Disposition": "" },
-  { "X-Export-Voucher-Count": "" },
-  { "X-Export-Voucher-Count": "-1" },
-  { "X-Export-Voucher-Count": "04" },
-  { "X-Export-Voucher-Count": "5001" },
+  { "X-Export-Purchase-Bills": "true", "X-Export-Voucher-Count": "" },
+  { "X-Export-Purchase-Bills": "true", "X-Export-Voucher-Count": "-1" },
+  { "X-Export-Purchase-Bills": "true", "X-Export-Voucher-Count": "04" },
+  { "X-Export-Purchase-Bills": "true", "X-Export-Voucher-Count": "5001" },
   { "X-Export-Ledger-Map": previous },
   { "X-Export-Ledger-Map": "" },
   { "X-Export-Sha256": "" },

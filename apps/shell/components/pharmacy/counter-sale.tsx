@@ -581,6 +581,7 @@ function SaleLines({
           {discounted && <th>List</th>}
           {discounted && <th>Discount</th>}
           <th>Taxable</th>
+          <th>GST rate</th>
           <th>CGST + SGST</th>
           <th>IGST</th>
           <th>Amount</th>
@@ -613,8 +614,9 @@ function SaleLines({
               </td>
             )}
             <td>{money(l.taxable_minor)}</td>
+            <td>{l.rate_ppm / 10000}%</td>
             <td>
-              {money(l.cgst_minor)} + {money(l.sgst_minor)} ({l.rate_ppm / 10000}%)
+              {money(l.cgst_minor)} + {money(l.sgst_minor)}
             </td>
             <td>{money(l.igst_minor ?? 0)}</td>
             <td>{money(l.amount_minor)}</td>
@@ -636,6 +638,7 @@ function SaleCharges({ charges, currency }: { charges: PharmacySaleCharge[]; cur
             <th className="py-2">Service charge</th>
             <th>SAC</th>
             <th>Taxable</th>
+            <th>GST rate</th>
             <th>CGST + SGST</th>
             <th>IGST</th>
             <th>Amount</th>
@@ -647,8 +650,9 @@ function SaleCharges({ charges, currency }: { charges: PharmacySaleCharge[]; cur
               <td className="py-2">{c.name}</td>
               <td>{c.sac_code ?? "With the medicines"}</td>
               <td>{money(c.taxable_minor)}</td>
+              <td>{c.rate_ppm / 10000}%</td>
               <td>
-                {money(c.cgst_minor)} + {money(c.sgst_minor)} ({c.rate_ppm / 10000}%)
+                {money(c.cgst_minor)} + {money(c.sgst_minor)}
               </td>
               <td>{money(c.igst_minor ?? 0)}</td>
               <td>{money(c.amount_minor)}</td>

@@ -33,6 +33,7 @@ const item = {
   sales_taxable_minor: 7902,
   sales_cgst_minor: 474,
   sales_sgst_minor: 474,
+  sales_igst_minor: 0,
   mrp_low_minor: 12500,
   mrp_high_minor: 13000,
   units_returned: 2,
@@ -40,6 +41,7 @@ const item = {
   credits_taxable_minor: 2232,
   credits_cgst_minor: 134,
   credits_sgst_minor: 134,
+  credits_igst_minor: 0,
   net_units: 5,
   net_minor: 6350,
 };

@@ -6,6 +6,7 @@ import { Button, Input } from "@tesserix/web";
 import {
   ApiError,
   apiFetch,
+  countryProfile,
   newPharmacyId,
   pharmacyKey,
   pharmacyRoot,
@@ -223,6 +224,10 @@ function Counter({
   );
   const [basket, setBasket] = useState<BasketLine[]>([]);
   const [quote, setQuote] = useState<PharmacySaleQuote | null>(null);
+  const destinationForm = useZodForm(z.object({ place_of_supply: z.string() }), {
+    place_of_supply: "",
+  });
+  const destination = destinationForm.watch("place_of_supply");
   const [posted, setPosted] = useState<PharmacySale | null>(null);
   const [paymentHeld, setPaymentHeld] = useState(false);
   // A post whose outcome is unknown may have committed: until a settled
@@ -271,6 +276,7 @@ function Counter({
         method: "POST",
         body: JSON.stringify({
           lines: lines.map(lineBody),
+          ...(destination ? { place_of_supply: destination } : {}),
           ...(chargeIds.length > 0
             ? { charges: chargeIds.map((id) => ({ charge_id: id })), channel: chargeChannel }
             : {}),
@@ -298,6 +304,7 @@ function Counter({
         products={products.items}
         onNext={() => {
           setPosted(null);
+          destinationForm.setValue("place_of_supply", "");
           setPicked([]);
           changeBasket([]);
         }}
@@ -318,6 +325,29 @@ function Counter({
   return (
     <Panel>
       <h3 className="font-semibold">Counter sale</h3>
+      <FormSelectField
+        control={destinationForm.control}
+        name="place_of_supply"
+        label="Recipient state"
+        id="counter-recipient-state"
+        disabled={held || price.isPending}
+        onValueChange={() => {
+          setQuote(null);
+          price.reset();
+        }}
+        options={[
+          { value: "", label: "Not recorded — use outlet state" },
+          ...(countryProfile("IN")?.tax?.jurisdictions ?? []).map((j) => ({
+            value: j.code,
+            label: j.name,
+          })),
+        ]}
+      />
+      <p className="mt-1 text-sm text-muted-foreground">
+        For an unregistered recipient, record their state here. If delivery and billing differ, use
+        the delivery state. Interstate goods use IGST; registered business, SEZ and export sales are
+        not supported here.
+      </p>
       <p className="mt-1 text-sm text-muted-foreground">
         A Schedule G, H or H1 medicine is dispensed against a recorded prescription. A product with
         an NPPA ceiling in force is priced within it; one with no price control declared sells at
@@ -506,6 +536,7 @@ function Counter({
             scope={scope}
             timeZone={timeZone}
             quote={quote}
+            placeOfSupply={destination}
             basket={basket}
             chargeChannel={chargeChannel}
             onPosted={(sale) => {
@@ -550,7 +581,9 @@ function SaleLines({
           {discounted && <th>List</th>}
           {discounted && <th>Discount</th>}
           <th>Taxable</th>
+          <th>GST rate</th>
           <th>CGST + SGST</th>
+          <th>IGST</th>
           <th>Amount</th>
         </tr>
       </thead>
@@ -581,9 +614,11 @@ function SaleLines({
               </td>
             )}
             <td>{money(l.taxable_minor)}</td>
+            <td>{l.rate_ppm / 10000}%</td>
             <td>
-              {money(l.cgst_minor)} + {money(l.sgst_minor)} ({l.rate_ppm / 10000}%)
+              {money(l.cgst_minor)} + {money(l.sgst_minor)}
             </td>
+            <td>{money(l.igst_minor ?? 0)}</td>
             <td>{money(l.amount_minor)}</td>
           </tr>
         ))}
@@ -603,7 +638,9 @@ function SaleCharges({ charges, currency }: { charges: PharmacySaleCharge[]; cur
             <th className="py-2">Service charge</th>
             <th>SAC</th>
             <th>Taxable</th>
+            <th>GST rate</th>
             <th>CGST + SGST</th>
+            <th>IGST</th>
             <th>Amount</th>
           </tr>
         </thead>
@@ -613,9 +650,11 @@ function SaleCharges({ charges, currency }: { charges: PharmacySaleCharge[]; cur
               <td className="py-2">{c.name}</td>
               <td>{c.sac_code ?? "With the medicines"}</td>
               <td>{money(c.taxable_minor)}</td>
+              <td>{c.rate_ppm / 10000}%</td>
               <td>
-                {money(c.cgst_minor)} + {money(c.sgst_minor)} ({c.rate_ppm / 10000}%)
+                {money(c.cgst_minor)} + {money(c.sgst_minor)}
               </td>
+              <td>{money(c.igst_minor ?? 0)}</td>
               <td>{money(c.amount_minor)}</td>
             </tr>
           ))}
@@ -641,6 +680,8 @@ function Totals({ sale }: { sale: PharmacySaleQuote | PharmacySale }) {
       <dd>{money(sale.cgst_minor)}</dd>
       <dt>SGST</dt>
       <dd>{money(sale.sgst_minor)}</dd>
+      <dt>IGST</dt>
+      <dd>{money(sale.igst_minor ?? 0)}</dd>
       <dt className="font-semibold">Total</dt>
       <dd className="font-semibold">{money(sale.total_minor)}</dd>
     </dl>
@@ -719,6 +760,7 @@ const tenderSchema = z
   });
 
 function TenderForm({
+  placeOfSupply,
   scope,
   timeZone,
   quote,
@@ -734,6 +776,7 @@ function TenderForm({
   scope: PharmacyScope;
   timeZone?: string;
   quote: PharmacySaleQuote;
+  placeOfSupply: string;
   basket: BasketLine[];
   /** Ward-delivery charges bill an admission; counter charges never do. */
   chargeChannel: "counter" | "ward_delivery" | null;
@@ -792,6 +835,7 @@ function TenderForm({
         method: "PUT",
         body: JSON.stringify({
           lines: basket.map(lineBody),
+          ...(placeOfSupply ? { place_of_supply: placeOfSupply } : {}),
           // The versions the quote priced: terms approved since are refused, not billed unseen.
           ...(quote.charges.length > 0
             ? {
@@ -1093,7 +1137,10 @@ function Invoice({
           {sale.seller_legal_name}, {sale.seller_address}
         </p>
         <p className="text-sm">
-          GSTIN {sale.seller_gstin} · Place of supply {sale.place_of_supply} · Date {sale.sale_date}
+          GSTIN {sale.seller_gstin} · Place of supply{" "}
+          {countryProfile("IN")?.tax?.jurisdictions.find((j) => j.code === sale.place_of_supply)
+            ?.name ?? sale.place_of_supply}{" "}
+          ({sale.place_of_supply}) · Date {sale.sale_date}
         </p>
         <SaleLines lines={sale.lines} currency={sale.currency} products={products} />
         <SaleCharges charges={sale.charges} currency={sale.currency} />

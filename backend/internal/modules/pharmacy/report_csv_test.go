@@ -92,11 +92,13 @@ func TestSalesByItemCSV(t *testing.T) {
 		require.Equal(t, rupees(j.SalesTaxable), r["sales_taxable"])
 		require.Equal(t, rupees(j.SalesCGST), r["sales_cgst"])
 		require.Equal(t, rupees(j.SalesSGST), r["sales_sgst"])
+		require.Equal(t, rupees(j.SalesIGST), r["sales_igst"])
 		require.Equal(t, strconv.FormatInt(j.UnitsReturned, 10), r["units_returned"])
 		require.Equal(t, rupees(j.CreditsMinor), r["credits"])
 		require.Equal(t, rupees(j.CreditsTaxable), r["credits_taxable"])
 		require.Equal(t, rupees(j.CreditsCGST), r["credits_cgst"])
 		require.Equal(t, rupees(j.CreditsSGST), r["credits_sgst"])
+		require.Equal(t, rupees(j.CreditsIGST), r["credits_igst"])
 		require.Equal(t, strconv.FormatInt(j.NetUnits, 10), r["net_units"])
 		require.Equal(t, rupees(j.NetMinor), r["net"])
 	}

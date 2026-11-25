@@ -22,6 +22,7 @@ type dailyDay struct {
 	SalesTaxable     int64  `json:"sales_taxable_minor"`
 	SalesCGST        int64  `json:"sales_cgst_minor"`
 	SalesSGST        int64  `json:"sales_sgst_minor"`
+	SalesIGST        int64  `json:"sales_igst_minor"`
 	DiscountMinor    int64  `json:"discount_minor"`
 	UnitsSold        int64  `json:"units_sold"`
 	CreditNotes      int64  `json:"credit_notes"`
@@ -29,6 +30,7 @@ type dailyDay struct {
 	CreditsTaxable   int64  `json:"credits_taxable_minor"`
 	CreditsCGST      int64  `json:"credits_cgst_minor"`
 	CreditsSGST      int64  `json:"credits_sgst_minor"`
+	CreditsIGST      int64  `json:"credits_igst_minor"`
 	UnitsReturned    int64  `json:"units_returned"`
 	NetMinor         int64  `json:"net_minor"`
 	CashMinor        int64  `json:"cash_minor"`

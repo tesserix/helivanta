@@ -357,7 +357,7 @@ Schedule G, H and H1 are sold only against a recorded prescription line (B-2b, b
 **Pricing and GST.** Per line:
 
 - `amount = floor(mrp × units ÷ pack)`, so a line never exceeds MRP. The database checks it.
-- CGST and SGST are equal halves of the tax inside the amount, rounded half up.
+- Same-state CGST and SGST are equal halves of the tax inside the amount, rounded half up. Interstate unregistered-recipient goods use one IGST component, rounded half up; see [#1689](../../design/1689-interstate-igst.md).
 - The taxable value is the remainder.
 - The place of supply is the outlet's GSTIN state.
 - The total is the exact sum of the lines, with no round-off.
@@ -470,9 +470,9 @@ Drugs Rules 1945, Rule 65(3)(1): every supply of a drug, other than Schedule X, 
 
 ### The daily sales report (#1386 C-3, #1060)
 
-| Route                           | Behaviour                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `GET …/reports/daily?from=&to=` | One row per outlet date and currency with a sale or credit note, oldest first, for a period of at most 366 days. Each row has the sales' count, total, taxable value, CGST, SGST, discount and units; the credit notes' count, total, taxable value, CGST, SGST and units; the net; tenders and refunds by kind, with verified UPI (`upi_verified_minor`) apart from reference-only UPI. Requires `pharmacy.sale.read` (pharmacist, owner) |
+| Route                           | Behaviour                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `GET …/reports/daily?from=&to=` | One row per outlet date and currency with a sale or credit note, oldest first, for a period of at most 366 days. Each row has the sales' count, total, taxable value, CGST, SGST, IGST, discount and units; the credit notes' count, total, taxable value, CGST, SGST, IGST and units; the net; tenders and refunds by kind, with verified UPI (`upi_verified_minor`) apart from reference-only UPI. Requires `pharmacy.sale.read` (pharmacist, owner) |
 
 - **A read of posted records.** Sales and credit notes are insert-only, so the report is summed afresh and cannot drift. A credit note counts on its own date, not its sale's.
 - **Never across currencies.** A row is one day and one currency.
@@ -483,10 +483,10 @@ Drugs Rules 1945, Rule 65(3)(1): every supply of a drug, other than Schedule X, 
 
 ### Sales by item, and the receipts and refunds register (#1060)
 
-| Route                                                                                                                             | Behaviour                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| --------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `GET …/reports/items?from=&to=&product_id=&category_id=&subcategory_id=&lot_number=&prescriber_registration=&prescriber_council=` | Paged, oldest product first: one row per product with a sale line or a credit-note line in the period (at most 366 outlet days). Units, amount charged after discount, discount, taxable value, CGST, SGST and the lowest and highest MRP per pack sold; units and amounts returned; net units and amount. `product_id` narrows to one product; `category_id` and `subcategory_id` to an item category, `lot_number` to one lot and the prescriber pair to one prescriber (see below). Requires `pharmacy.sale.read`, and `pharmacy.prescription.read` with a prescriber |
-| `GET …/reports/receipts?from=&to=&kind=`                                                                                          | Paged, oldest first: every tender on a sale (`receipt`) and refund on a credit note (`refund`) with its date, document number, kind, payment reference and amount. `kind` is `cash`, `upi`, `upi_verified`, `card` or `admission_account`. Requires `pharmacy.sale.read`                                                                                                                                                                                                                                                                                                 |
+| Route                                                                                                                             | Behaviour                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| --------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `GET …/reports/items?from=&to=&product_id=&category_id=&subcategory_id=&lot_number=&prescriber_registration=&prescriber_council=` | Paged, oldest product first: one row per product with a sale line or a credit-note line in the period (at most 366 outlet days). Units, amount charged after discount, discount, taxable value, CGST, SGST, IGST and the lowest and highest MRP per pack sold; units and amounts returned; net units and amount. `product_id` narrows to one product; `category_id` and `subcategory_id` to an item category, `lot_number` to one lot and the prescriber pair to one prescriber (see below). Requires `pharmacy.sale.read`, and `pharmacy.prescription.read` with a prescriber |
+| `GET …/reports/receipts?from=&to=&kind=`                                                                                          | Paged, oldest first: every tender on a sale (`receipt`) and refund on a credit note (`refund`) with its date, document number, kind, payment reference and amount. `kind` is `cash`, `upi`, `upi_verified`, `card` or `admission_account`. Requires `pharmacy.sale.read`                                                                                                                                                                                                                                                                                                       |
 
 - **Reads of posted records,** like the daily report: each document counts on its own outlet date, a return on the credit note's.
 - **They reconcile.** Items plus the daily report's service charges equal its sales and credits, including credited charges; receipts per day and kind equal its tenders and refunds. The tests prove this for cash, UPI and card receipts and cash refunds; verified-UPI and admission-account rows use the same joins but are not separately exercised.
@@ -678,7 +678,7 @@ A discount recorded on the invoice at the time of supply is outside the value of
   - That permission has no system role; a tenant administrator assigns it.
   - A discounted sale needs `discount_reason` (5–200 characters), and only a discounted sale may carry one.
   - A discount above the ceiling, or one that leaves nothing to charge, is 409 `not_sellable`.
-- **Arithmetic.** Each batch line's discount is `floor(list amount × bps ÷ 10000)`, and the line charges the rest, with CGST and SGST inside it. The invoice shows each line's `list_amount_minor`, `discount_bps` and `discount_minor`, and the sale's `discount_minor` and `discount_reason`.
+- **Arithmetic.** Each batch line's discount is `floor(list amount × bps ÷ 10000)`, and the line charges the rest, with CGST/SGST or IGST inside it. The invoice shows each line's `list_amount_minor`, `discount_bps` and `discount_minor`, and the sale's `discount_minor` and `discount_reason`.
 - **Database guarantees.** A line's discount must be its rounded percentage, its list amount must be within MRP, and something must be charged. The discount must be within the ceiling in force when the line is written, so a ceiling lowered after a quote refuses that sale. A discounted sale must record its reason.
 - **Not covered.** Fixed-amount discounts, whole-sale discounts, approval by a second person, and promotions or schemes.
 
@@ -1117,15 +1117,15 @@ read retain catalogue-read permission. That grant-level read is bound to Setup;
 it discloses only the current caller’s reader/editor level and no catalogue data.
 A tenant or hospital affiliation does not replace that grant.
 
-| Method/path | Input and result |
-| --- | --- |
-| GET `/catalogue/reorder-products` | Bounded active product identities: `id`, `outlet_id`, `sku`, `brand_name`, `unit_of_issue`, `version`, `status`. Keyset pagination defaults to 50, maximum 200. |
-| GET `/catalogue/reorder-products/{id}` | One current product identity/version, including inactive status, for an explicit editor reload. No query fields. |
-| GET `/catalogue/products/{id}/reorder-level` | `{level: receipt or null}`; an existing product with no level returns null; an inaccessible product returns 404. |
+| Method/path                                             | Input and result                                                                                                                                                                                                                |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET `/catalogue/reorder-products`                       | Bounded active product identities: `id`, `outlet_id`, `sku`, `brand_name`, `unit_of_issue`, `version`, `status`. Keyset pagination defaults to 50, maximum 200.                                                                 |
+| GET `/catalogue/reorder-products/{id}`                  | One current product identity/version, including inactive status, for an explicit editor reload. No query fields.                                                                                                                |
+| GET `/catalogue/products/{id}/reorder-level`            | `{level: receipt or null}`; an existing product with no level returns null; an inaccessible product returns 404.                                                                                                                |
 | PUT `/catalogue/products/{id}/reorder-levels/{command}` | UUIDv7 command, strict `{minimum_units, expected_version, product_version}`. Minimum is 0–1,000,000,000 integer issue units or explicit null to disable. Initial expected version is 0. Returns an immutable receipt, HTTP 200. |
-| GET `/catalogue/products/{id}/reorder-levels/{command}` | Original immutable receipt under current authority, or 404; unchanged after later revisions. |
-| GET `/stock/low-products` | Standard bounded keyset envelope; only `limit` and `cursor`, each once and nonempty. Default 50, maximum 200. |
-| GET `/stock/low-products/overview` | One exact whole-set `low_stock` count, `outlet_id`, `observed_at`, `local_date` and `time_zone`. No query fields. |
+| GET `/catalogue/products/{id}/reorder-levels/{command}` | Original immutable receipt under current authority, or 404; unchanged after later revisions.                                                                                                                                    |
+| GET `/stock/low-products`                               | Standard bounded keyset envelope; only `limit` and `cursor`, each once and nonempty. Default 50, maximum 200.                                                                                                                   |
+| GET `/stock/low-products/overview`                      | One exact whole-set `low_stock` count, `outlet_id`, `observed_at`, `local_date` and `time_zone`. No query fields.                                                                                                               |
 
 Canonical command, receipt and list-row fields derive from
 `contracts/pharmacy.json`. Receipt carries the command/product/outlet IDs,
@@ -2045,7 +2045,7 @@ write a map, reader otherwise. Cross-tenant and foreign-outlet requests are 404.
 
 A ledger map is an immutable, versioned record naming a Tally ledger for each
 closed account head: voucher type, tender, sales goods or own-service by
-treatment and `rate_ppm`, CGST/SGST by rate, supplier payment method and
+treatment and `rate_ppm`, CGST/SGST/IGST by rate, supplier payment method and
 supplier. A PUT names the map it `replaces` (null for the first) and the entries
 to set; the server stores the complete merged map. A stale `replaces` or second
 successor is `409 tally_ledger_map_conflict`, an identical replay returns the
@@ -2062,8 +2062,8 @@ preview returns document counts, the current map id and every head the period
 needs with its label, mapped ledger name or null and, for suppliers, the latest
 supplier name. The export writes TallyPrime import XML: one balanced accounting
 voucher per sale, credit note, supplier payment and payment reversal, with GST
-split into CGST and SGST per recorded rate. No record can carry IGST, so none is
-written. It refuses `409 tally_ledgers_unmapped` while any head lacks a name,
+split into CGST/SGST or IGST per recorded rate and invoice destination. An IGST
+ledger must be mapped before interstate vouchers can be exported. It refuses `409 tally_ledgers_unmapped` while any head lacks a name,
 `409 tally_currency_unsupported` for non-INR records and
 `413 accounting_export_too_large` beyond 5,000 vouchers or 8 MiB; it never writes
 a placeholder or a cut-off file. An optional single `ledger_map` names the map
@@ -2253,3 +2253,29 @@ outcome checks. The dashboard advertises current work from either model,
 including filtered pages with continuation, without fetching outlet or stock
 records. This UI is compiled eligible in the release candidate; protected checks,
 matching deployment and Console activation are still required.
+
+## Interstate counter invoices (#1689, release candidate)
+
+`POST …/sales/quote` and `PUT …/sales/{id}` accept optional `place_of_supply`,
+a supported Indian jurisdiction code recording an unregistered recipient's
+state (delivery state if different). Omission uses the supplier state. No buyer
+GSTIN/B2B, SEZ or export determination is implemented. Quotes return the resolved
+state; the counter posts an override only when the operator recorded one. Destination participates in command
+identity, so a changed replay conflicts. Unknown codes return `409 not_sellable`;
+malformed lengths return `400 invalid_request`. Admission-account invoices cannot
+override the supplier state. Independently taxed own-service charges on
+interstate invoices return `409 not_sellable`, pending service place-of-supply
+rules; principal-supply charges retain their existing same-rate requirement.
+
+Documents, goods/charge lines, credit notes, worklist and reports add integer
+`igst_minor` (daily/item reports: `sales_igst_minor` and `credits_igst_minor`).
+Historical rows read zero. GST inside a gross amount is rounded once for IGST;
+it is not twice a rounded CGST half. NPPA ceiling checks use that same split.
+Partial credits reverse each original component by cumulative pro-rata difference,
+independent of today's rate or seller registration. CSV appends `sales_igst` and
+`credits_igst`, preserving existing column positions. Tally adds `igst:<rate_ppm>`
+to its existing closed head grammar and refuses export while that head is unmapped.
+
+Existing tenant/outlet authorization, audit, numbering, stock and outbox rules
+remain authoritative. [Design, primary sources, migration and acceptance](../../design/1689-interstate-igst.md).
+This candidate does not unlock Counter or Reports in the production release policy.

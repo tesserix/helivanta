@@ -6909,6 +6909,11 @@
           "id": "0071_pharmacy_low_stock_scope_read",
           "sql_sha256": "4fb9f81488ffa98a510742100f911f2cd56d480ef78656897b4250c1a791c930",
           "creates_tables": []
+        },
+        {
+          "id": "0072_pharmacy_interstate_igst",
+          "sql_sha256": "ddc170ce7a2aaedcb240e89e7c79da127d88d418a9b6fb11665f29668b2836d3",
+          "creates_tables": []
         }
       ]
     },

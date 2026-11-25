@@ -47,6 +47,7 @@ export type PharmacySaleSummary = {
   taxable_minor: number;
   cgst_minor: number;
   sgst_minor: number;
+  igst_minor: number;
   discount_minor: number;
   lines: {
     line_number: number;

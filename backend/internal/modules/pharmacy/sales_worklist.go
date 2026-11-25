@@ -219,6 +219,7 @@ type saleSummary struct {
 	TaxableMinor           int64               `gorm:"column:taxable_minor" json:"taxable_minor"`
 	CGSTMinor              int64               `gorm:"column:cgst_minor" json:"cgst_minor"`
 	SGSTMinor              int64               `gorm:"column:sgst_minor" json:"sgst_minor"`
+	IGSTMinor              int64               `gorm:"column:igst_minor" json:"igst_minor"`
 	DiscountMinor          int64               `gorm:"-" json:"discount_minor"`
 	Lines                  []summaryLine       `gorm:"-" json:"lines"`
 	Charges                []summaryCharge     `gorm:"-" json:"charges"`
@@ -277,7 +278,7 @@ func (h *catalogueHandlers) getSaleSummary(c *gin.Context) {
 
 func loadSaleSummary(tx *gorm.DB, tenant string, outlet, id uuid.UUID, s *saleSummary) error {
 	res := tx.Raw(`SELECT s.id, s.invoice_number, to_char(s.sale_date,'YYYY-MM-DD') AS sale_date, `+saleCustomer+` AS customer, s.admission_bed_code, `+saleLinkage+` AS linkage,
- s.currency, s.total_minor, s.taxable_minor, s.cgst_minor, s.sgst_minor FROM pharmacy_sales s WHERE s.tenant_id=? AND s.outlet_id=? AND s.id=?`, tenant, outlet, id).Scan(s)
+ s.currency, s.total_minor, s.taxable_minor, s.cgst_minor, s.sgst_minor,s.igst_minor FROM pharmacy_sales s WHERE s.tenant_id=? AND s.outlet_id=? AND s.id=?`, tenant, outlet, id).Scan(s)
 	if res.Error != nil {
 		return res.Error
 	}

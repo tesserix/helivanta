@@ -90,6 +90,7 @@ const summary: PharmacySaleSummary = {
   taxable_minor: 2232,
   cgst_minor: 134,
   sgst_minor: 134,
+  igst_minor: 0,
   discount_minor: 0,
   lines: [
     {

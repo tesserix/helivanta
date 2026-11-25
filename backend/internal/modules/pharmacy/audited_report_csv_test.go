@@ -142,9 +142,9 @@ func TestDailyReportCSV(t *testing.T) {
 	require.Len(t, rows, 2)
 	for i, d := range days {
 		want := map[string]string{"day": d.Day, "currency": "INR", "sales": strconv.FormatInt(d.Sales, 10), "sales_amount": rupees(d.SalesMinor),
-			"sales_taxable": rupees(d.SalesTaxable), "sales_cgst": rupees(d.SalesCGST), "sales_sgst": rupees(d.SalesSGST), "discount": rupees(d.DiscountMinor),
+			"sales_taxable": rupees(d.SalesTaxable), "sales_cgst": rupees(d.SalesCGST), "sales_sgst": rupees(d.SalesSGST), "sales_igst": rupees(d.SalesIGST), "discount": rupees(d.DiscountMinor),
 			"units_sold": strconv.FormatInt(d.UnitsSold, 10), "credit_notes": strconv.FormatInt(d.CreditNotes, 10), "credits": rupees(d.CreditsMinor),
-			"credits_taxable": rupees(d.CreditsTaxable), "credits_cgst": rupees(d.CreditsCGST), "credits_sgst": rupees(d.CreditsSGST),
+			"credits_taxable": rupees(d.CreditsTaxable), "credits_cgst": rupees(d.CreditsCGST), "credits_sgst": rupees(d.CreditsSGST), "credits_igst": rupees(d.CreditsIGST),
 			"units_returned": strconv.FormatInt(d.UnitsReturned, 10), "net": rupees(d.NetMinor), "cash": rupees(d.CashMinor), "upi": rupees(d.UPIMinor),
 			"upi_verified": rupees(d.UPIVerifiedMinor), "card": rupees(d.CardMinor), "cash_refunds": rupees(d.CashRefundMinor),
 			"upi_refunds": rupees(d.UPIRefundMinor), "card_refunds": rupees(d.CardRefundMinor), "admission_account": rupees(d.AdmissionAccountMinor),

@@ -412,11 +412,12 @@ type saleChargeLine struct {
 	TaxableMinor  int64     `gorm:"column:taxable_minor" json:"taxable_minor"`
 	CGSTMinor     int64     `gorm:"column:cgst_minor" json:"cgst_minor"`
 	SGSTMinor     int64     `gorm:"column:sgst_minor" json:"sgst_minor"`
+	IGSTMinor     int64     `gorm:"column:igst_minor" json:"igst_minor"`
 	CreditedMinor int64     `gorm:"column:credited_minor" json:"credited_minor"`
 }
 
 const saleChargeColumns = `SELECT c.charge_number, c.charge_id, c.version_id, c.code, c.name, c.tax_treatment, c.sac_code, c.supply_nature, c.rate_ppm,
-	c.amount_minor, c.taxable_minor, c.cgst_minor, c.sgst_minor,
+	c.amount_minor, c.taxable_minor, c.cgst_minor, c.sgst_minor,c.igst_minor,
 	(SELECT COALESCE(sum(k.amount_minor),0) FROM pharmacy_credit_note_charge_lines k WHERE k.tenant_id=c.tenant_id AND k.outlet_id=c.outlet_id
 	 AND k.sale_id=c.sale_id AND k.sale_charge=c.charge_number) AS credited_minor
 	FROM pharmacy_sale_charge_lines c`

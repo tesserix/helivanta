@@ -193,6 +193,7 @@ export type PharmacySaleLine = {
   taxable_minor: number;
   cgst_minor: number;
   sgst_minor: number;
+  igst_minor: number;
   /** The prescription line a G, H or H1 line dispenses (#1386 B-2b); null for OTC. */
   prescription_id: string | null;
   prescription_line: number | null;
@@ -225,15 +226,18 @@ export type PharmacySaleCharge = {
   taxable_minor: number;
   cgst_minor: number;
   sgst_minor: number;
+  igst_minor: number;
   /** Credited on a credit note so far: 0 or the whole amount. */
   credited_minor: number;
 };
 export type PharmacySaleQuote = {
+  place_of_supply?: string;
   currency: string;
   total_minor: number;
   taxable_minor: number;
   cgst_minor: number;
   sgst_minor: number;
+  igst_minor: number;
   lines: PharmacySaleLine[];
   charges: PharmacySaleCharge[];
   /** True when every line's product had a price-control declaration in force (#1371). */
@@ -298,6 +302,7 @@ export type PharmacyCreditNoteLine = {
   taxable_minor: number;
   cgst_minor: number;
   sgst_minor: number;
+  igst_minor: number;
 };
 export type PharmacyCreditNote = {
   id: string;
@@ -316,6 +321,7 @@ export type PharmacyCreditNote = {
   taxable_minor: number;
   cgst_minor: number;
   sgst_minor: number;
+  igst_minor: number;
   reason: string;
   recipient_name: string;
   recipient_address: string;

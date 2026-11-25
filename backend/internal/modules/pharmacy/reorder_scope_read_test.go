@@ -22,10 +22,16 @@ type priorLowStockReadModule struct{ *pharmacy.Module }
 
 func (m priorLowStockReadModule) Migrations() []tenantdb.Migration {
 	migrations := m.Module.Migrations()
-	if migrations[len(migrations)-1].ID != lowStockReadMigration {
-		panic("low-stock migration must be the final predecessor under test")
+	return migrations[:lowStockReadMigrationIndex(migrations)]
+}
+
+func lowStockReadMigrationIndex(migrations []tenantdb.Migration) int {
+	for i, migration := range migrations {
+		if migration.ID == lowStockReadMigration {
+			return i
+		}
 	}
-	return migrations[:len(migrations)-1]
+	panic("low-stock migration missing from registered history")
 }
 
 type lowStockPolicy struct {
@@ -45,7 +51,7 @@ func TestReorderReadPolicyMigrationPreservesVisibilityAndWrites(t *testing.T) {
 		t.Run(ownership, func(t *testing.T) {
 			module := pharmacy.New()
 			migrations := module.Migrations()
-			migration := migrations[len(migrations)-1]
+			migration := migrations[lowStockReadMigrationIndex(migrations)]
 			require.Equal(t, lowStockReadMigration, migration.ID)
 			r, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{
 				Modules: []platform.Module{priorLowStockReadModule{module}},
@@ -175,7 +181,7 @@ func TestReorderReadMigrationRefusesUnrelatedSourceDrift(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			module := pharmacy.New()
 			migrations := module.Migrations()
-			migration := migrations[len(migrations)-1]
+			migration := migrations[lowStockReadMigrationIndex(migrations)]
 			_, db, _, _ := testutil.NewHarness(t, testutil.HarnessOptions{Modules: []platform.Module{priorLowStockReadModule{module}}})
 			require.NoError(t, db.Migrate(t.Context(), []tenantdb.Migration{{ID: "test_low_stock_source_drift", SQL: tc.sql}}))
 			state := func() string {

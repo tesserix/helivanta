@@ -316,11 +316,15 @@ func (h *catalogueHandlers) getPriceControl(c *gin.Context) {
 // of label and price list). It reports whether the ceiling, not the MRP,
 // set the amount. Searching the counter's own split keeps the check and the
 // invoice from disagreeing by a rounding paisa.
-func withinCeiling(list, ceiling, bps int64, nature string, ratePPM int64) (int64, bool) {
+func withinCeiling(list, ceiling, bps int64, nature string, ratePPM int64, interstate ...bool) (int64, bool) {
 	fits := func(amount int64) bool {
 		_, charged := discountLine(amount, bps)
 		_, before, _ := taxInside(amount, nature, ratePPM)
 		_, after, _ := taxInside(charged, nature, ratePPM)
+		if len(interstate) > 0 && interstate[0] {
+			before, _ = integratedTax(amount, nature, ratePPM)
+			after, _ = integratedTax(charged, nature, ratePPM)
+		}
 		return before <= ceiling && after <= ceiling
 	}
 	if fits(list) {

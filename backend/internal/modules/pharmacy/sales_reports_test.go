@@ -28,6 +28,7 @@ type itemRow struct {
 	SalesTaxable   int64  `json:"sales_taxable_minor"`
 	SalesCGST      int64  `json:"sales_cgst_minor"`
 	SalesSGST      int64  `json:"sales_sgst_minor"`
+	SalesIGST      int64  `json:"sales_igst_minor"`
 	MRPLow         *int64 `json:"mrp_low_minor"`
 	MRPHigh        *int64 `json:"mrp_high_minor"`
 	UnitsReturned  int64  `json:"units_returned"`
@@ -35,6 +36,7 @@ type itemRow struct {
 	CreditsTaxable int64  `json:"credits_taxable_minor"`
 	CreditsCGST    int64  `json:"credits_cgst_minor"`
 	CreditsSGST    int64  `json:"credits_sgst_minor"`
+	CreditsIGST    int64  `json:"credits_igst_minor"`
 	NetUnits       int64  `json:"net_units"`
 	NetMinor       int64  `json:"net_minor"`
 }

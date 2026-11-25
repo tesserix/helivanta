@@ -35,6 +35,7 @@ const line = {
   taxable_minor: 11159,
   cgst_minor: 670,
   sgst_minor: 670,
+  igst_minor: 0,
   prescription_id: null,
   prescription_line: null,
   list_amount_minor: 12500,
@@ -56,6 +57,7 @@ const sale = {
   taxable_minor: 11160,
   cgst_minor: 670,
   sgst_minor: 670,
+  igst_minor: 0,
   actor_subject: "user-pharmacist",
   buyer_name: null,
   buyer_phone: null,
@@ -111,6 +113,7 @@ function fixture(sold: typeof sale = sale, note: Record<string, unknown> = {}) {
           taxable_minor: 3348,
           cgst_minor: 201,
           sgst_minor: 201,
+          igst_minor: 0,
           reason: "TEST prescription changed",
           recipient_name: "TEST Ravi Kumar",
           recipient_address: "TEST 4 Station Road",
@@ -131,6 +134,7 @@ function fixture(sold: typeof sale = sale, note: Record<string, unknown> = {}) {
               taxable_minor: 3348,
               cgst_minor: 201,
               sgst_minor: 201,
+              igst_minor: 0,
             },
           ],
           charges: [],
@@ -146,6 +150,17 @@ function fixture(sold: typeof sale = sale, note: Record<string, unknown> = {}) {
 }
 
 describe("Returns", () => {
+  it("keeps invalid fractional quantities out of the exact-integer refund preview", async () => {
+    fixture();
+    const { user } = renderWithProviders(<Returns scope={scope} canReturn />);
+    await user.click(await screen.findByRole("button", { name: "Return from TS/2627/1" }));
+    const units = await screen.findByLabelText("Units returned on line 1");
+    await user.type(units, "1.5");
+    expect(screen.getByText("Refund INR 0.00")).toBeVisible();
+    await user.clear(units);
+    await user.type(units, "3");
+    expect(screen.getByText("Refund INR 37.50")).toBeVisible();
+  });
   it("issues a credit note into quarantine and prints its invoice reference", async () => {
     const fetcher = fixture();
     const { user } = renderWithProviders(<Returns scope={scope} canReturn />);
@@ -277,6 +292,7 @@ describe("Returns", () => {
       taxable_minor: 4238,
       cgst_minor: 381,
       sgst_minor: 381,
+      igst_minor: 0,
       credited_minor: 0,
     };
     const credited = {
@@ -337,6 +353,7 @@ describe("Returns", () => {
           taxable_minor: 4238,
           cgst_minor: 381,
           sgst_minor: 381,
+          igst_minor: 0,
           credited_minor: 5000,
         },
       ],

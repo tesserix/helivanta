@@ -498,7 +498,7 @@ func TestTallyLedgerMapRefusesHeadsAndNamesTallyCannotTake(t *testing.T) {
 		"unknown field":     `{"replaces":null,"entries":[{"head":"tender:cash","ledger_name":"Cash"}],"actor_subject":"user-owner"}`,
 		"two objects":       `{"replaces":null,"entries":[{"head":"tender:cash","ledger_name":"Cash"}]}{}`,
 		"duplicate head":    `{"replaces":null,"entries":[{"head":"tender:cash","ledger_name":"Cash"},{"head":"tender:cash","ledger_name":"Till"}]}`,
-		"IGST head":         entry("igst:120000", "Output IGST"),
+		"invalid IGST rate": entry("igst:1000001", "Output IGST"),
 		"cheque tender":     entry("tender:cheque", "Cheques"),
 		"lower supplier":    entry("supplier:acme", "Acme"),
 		"padded rate":       entry("sales_goods:taxable:012", "Sales"),

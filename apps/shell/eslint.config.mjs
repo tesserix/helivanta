@@ -4,7 +4,6 @@ import {
   hmsReadRetries,
   hmsWorkspacePages,
 } from "@helivanta/config/eslint";
-import { SURFACE_LEGACY } from "./surface-legacy.mjs";
 
 export default [
   ...hmsEslint(import.meta.dirname, { design: true }),
@@ -24,7 +23,6 @@ export default [
   ...hmsWorkspacePages(
     ["app/(workspace)/**", "components/**"],
     ["components/login-branding.tsx", "components/landing/**"],
-    SURFACE_LEGACY,
   ),
   // A read retry or refresh goes through RequestFailure, QueryState or
   // RefreshButton, so a refusal is never drawn as an outage (#1595).

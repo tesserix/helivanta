@@ -32,6 +32,10 @@ const row = {
   superseded: false,
   arrival_recorded: false,
 };
+// #1262: cards are Panel, so no hand-painted card class survives.
+// Buttons and design-system inputs are controls: they carry shadow-sm.
+const CARDS =
+  ":is(.rounded-xl, .rounded-2xl, .shadow-sm):not(button, input, textarea, [role=combobox])";
 const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status });
 function fixture(permissions = ["emergency.receiving.read", "emergency.receiving.act"]) {
   const fetcher = vi.fn(async (url: string, init?: RequestInit) => {
@@ -79,10 +83,19 @@ it("keeps a receiver acceptance path, lease and reference unchanged across an un
   const { user } = renderWithProviders(<EmergencyReceivingWorkspace />);
   await user.click(await screen.findByRole("button", { name: "Open Synthetic Campus" }));
   await user.click(await screen.findByRole("button", { name: "Open pre-alert" }));
-  await user.type(
-    await screen.findByLabelText("Clinical communication reference"),
-    "TEST-VOICE-ACCEPTANCE",
+  const reference = await screen.findByLabelText("Clinical communication reference");
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
+  // The zod schema (reference max 120), not native maxLength, refuses an overlong reference (#1262).
+  expect(reference).not.toHaveAttribute("maxlength");
+  await user.click(reference);
+  await user.paste("A".repeat(121));
+  await user.click(screen.getByRole("button", { name: "Confirm hospital acceptance" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "Enter a communication reference without personal details and an acceptance window of 1–120 minutes.",
   );
+  expect(fetcher.mock.calls.some(([, init]) => init?.method === "PUT")).toBe(false);
+  await user.clear(reference);
+  await user.type(reference, "TEST-VOICE-ACCEPTANCE");
   await user.click(screen.getByRole("button", { name: "Confirm hospital acceptance" }));
   await screen.findByText(/TEST receiving uncertainty/);
   expect(screen.getByLabelText("Clinical communication reference")).toBeDisabled();
@@ -129,6 +142,36 @@ it("records the authority level chosen from the campus authority menu", async ()
   );
   const [, init] = fetcher.mock.calls.find(([, call]) => call?.method === "PUT")!;
   expect(JSON.parse(String(init!.body))).toMatchObject({ level: "manager" });
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
+});
+
+it("refuses an overlong campus name or policy reference through zod, not native maxLength", async () => {
+  const fetcher = fixture(["emergency.receiving.read", "emergency.receiving.manage"]);
+  const { user } = renderWithProviders(<EmergencyReceivingWorkspace />);
+  await user.click(await screen.findByText("Add receiving campus"));
+  const name = screen.getByLabelText("Campus name");
+  const policy = screen.getByLabelText("Approved receiving policy reference");
+  expect(name).not.toHaveAttribute("maxlength");
+  expect(policy).not.toHaveAttribute("maxlength");
+  const save = screen.getByRole("button", { name: "Save campus revision" });
+  await user.click(name);
+  await user.paste("A".repeat(151));
+  await user.type(policy, "TEST-POLICY-1");
+  await user.click(save);
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "Enter a campus name, approved policy reference and expiry.",
+  );
+  await user.clear(name);
+  await user.type(name, "Synthetic Campus Two");
+  await user.clear(policy);
+  await user.click(policy);
+  await user.paste("A".repeat(121));
+  await user.click(save);
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "Enter a campus name, approved policy reference and expiry.",
+  );
+  expect(fetcher.mock.calls.some(([, init]) => init?.method === "PUT")).toBe(false);
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
 });
 
 it("offers to check campus access again when it is refused, and lists campuses once granted", async () => {
@@ -147,4 +190,7 @@ it("offers to check campus access again when it is refused, and lists campuses o
   granted = true;
   await user.click(screen.getByRole("button", { name: "Check access again" }));
   expect(await screen.findByRole("button", { name: "Open Synthetic Campus" })).toBeEnabled();
+  await user.click(screen.getByRole("button", { name: "Open Synthetic Campus" }));
+  expect(await screen.findByText(/Share these identifiers/)).toBeInTheDocument();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
 });

@@ -20,7 +20,14 @@ import {
   type EmergencyReceivingRequestInput,
   type EmergencyReceivingReceipt,
 } from "@helivanta/api";
-import { LoadMore, RequestFailure, firstError, formatTime, SelectControl } from "@helivanta/ui";
+import {
+  LoadMore,
+  Panel,
+  RequestFailure,
+  firstError,
+  formatTime,
+  SelectControl,
+} from "@helivanta/ui";
 import { useEmergencyCommand, EmergencyCommandFailure } from "./emergency-command";
 const invalidates = [
   ["emergency", "receiving"],
@@ -68,7 +75,7 @@ export function ReceivingTripStatus({ request }: { request?: EmergencyReceivingR
       </p>
     );
   return (
-    <div className="space-y-2 rounded-lg border p-4">
+    <Panel as="div" className="space-y-2">
       <Badge>{EMERGENCY_RECEIVING_STATES[request.status]}</Badge>
       <p className="font-medium">{request.destination_name ?? "Receiving decision pending"}</p>
       <p className="break-all text-sm text-muted-foreground">Campus: {request.facility_id}</p>
@@ -81,7 +88,7 @@ export function ReceivingTripStatus({ request }: { request?: EmergencyReceivingR
         </p>
       )}
       {request.superseded && <p role="status">This pre-alert was superseded.</p>}
-    </div>
+    </Panel>
   );
 }
 export function EmergencyReceivingDispatch({
@@ -115,10 +122,7 @@ export function EmergencyReceivingDispatch({
     ["on_scene", "transporting", "arrived"].includes(row.state) &&
     current?.status !== "handover_received";
   return (
-    <section
-      aria-label="Receiving hospital plan"
-      className="space-y-4 rounded-xl border bg-card p-4"
-    >
+    <Panel aria-label="Receiving hospital plan" className="space-y-4">
       <h3 className="font-semibold">Receiving hospital plan</h3>
       <p className="text-sm text-muted-foreground">
         A service link permits a pre-alert. Only a current hospital acceptance permits transport.
@@ -147,7 +151,7 @@ export function EmergencyReceivingDispatch({
         />
       )}
       <LoadMore hasMore={links.hasMore} isLoading={links.isFetchingMore} onClick={links.loadMore} />
-    </section>
+    </Panel>
   );
 }
 function PreAlertForm({
@@ -207,6 +211,7 @@ function PreAlertForm({
     return <p role="status">Pre-alert recorded. Refreshing the current hospital plan…</p>;
   return (
     <form
+      noValidate
       onSubmit={(event) => {
         event.preventDefault();
         void submit();
@@ -232,7 +237,6 @@ function PreAlertForm({
         Pre-alert communication reference
         <Input
           id={`${prefix}-reference`}
-          maxLength={120}
           value={reference}
           disabled={save.frozen || unavailable}
           onChange={(event) => setReference(event.target.value)}
@@ -279,27 +283,29 @@ export function EmergencyReceivingPartners({ base }: { base: EmergencyBase }) {
   if (!allowed) return null;
   const supervisor = base.access_level === "supervisor";
   return (
-    <section className="space-y-4 rounded-xl border bg-card p-5">
+    <Panel className="space-y-4">
       <h3 className="text-lg font-semibold">Receiving service links</h3>
       {links.isError ? (
         <p role="alert">Service links unavailable. Refresh before changing them.</p>
       ) : (
-        links.items.map((link) => (
-          <div key={link.id} className="space-y-2 rounded-lg border p-4">
-            <Badge>{EMERGENCY_RECEIVING_LINK_STATES[link.status]}</Badge>
-            <p>{link.destination_name ?? "Receiving manager confirmation pending"}</p>
-            <p className="break-all text-sm text-muted-foreground">
-              Campus {link.facility_id} · expires {formatTime(link.valid_until)}
-            </p>
-            {supervisor && ["approved", "proposed"].includes(link.status) && (
-              <ProviderLinkRevoke baseID={base.id} link={link} />
-            )}
-          </div>
-        ))
+        <ul className="divide-y">
+          {links.items.map((link) => (
+            <li key={link.id} className="space-y-2 py-4">
+              <Badge>{EMERGENCY_RECEIVING_LINK_STATES[link.status]}</Badge>
+              <p>{link.destination_name ?? "Receiving manager confirmation pending"}</p>
+              <p className="break-all text-sm text-muted-foreground">
+                Campus {link.facility_id} · expires {formatTime(link.valid_until)}
+              </p>
+              {supervisor && ["approved", "proposed"].includes(link.status) && (
+                <ProviderLinkRevoke baseID={base.id} link={link} />
+              )}
+            </li>
+          ))}
+        </ul>
       )}
       <LoadMore hasMore={links.hasMore} isLoading={links.isFetchingMore} onClick={links.loadMore} />
       {supervisor && <LinkProposal baseID={base.id} />}
-    </section>
+    </Panel>
   );
 }
 function LinkProposal({ baseID }: { baseID: string }) {
@@ -346,9 +352,10 @@ function LinkProposal({ baseID }: { baseID: string }) {
     }
   }
   return (
-    <details className="rounded-lg border p-4">
+    <details className="border-t pt-4">
       <summary className="cursor-pointer font-medium">Propose a receiving service link</summary>
       <form
+        noValidate
         className="mt-4 grid gap-4 sm:grid-cols-2"
         onSubmit={(event) => {
           event.preventDefault();
@@ -378,7 +385,6 @@ function LinkProposal({ baseID }: { baseID: string }) {
           <Input
             id={`${prefix}-policy`}
             value={policy}
-            maxLength={120}
             disabled={save.frozen}
             onChange={(event) => setPolicy(event.target.value)}
           />
@@ -436,6 +442,7 @@ function ProviderLinkRevoke({ baseID, link }: { baseID: string; link: EmergencyR
     return <p role="status">Revocation recorded. Refreshing the link…</p>;
   return (
     <form
+      noValidate
       className="space-y-3"
       onSubmit={(event) => {
         event.preventDefault();

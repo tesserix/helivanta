@@ -15,7 +15,7 @@ import {
   type EmergencyBase,
   type EmergencyBaseInput,
 } from "@helivanta/api";
-import { ConfirmDialog, Field, FormSelectField, useZodForm } from "@helivanta/ui";
+import { ConfirmDialog, Field, FormSelectField, Panel, useZodForm } from "@helivanta/ui";
 import type { z } from "zod";
 import { EmergencyClinicalAdmin } from "./emergency-review";
 
@@ -54,7 +54,7 @@ export function EmergencyBaseAdmin({ base }: { base?: EmergencyBase }) {
     onSuccess: () => setRevokeSubject(null),
   });
   return (
-    <section className="space-y-5 rounded-xl border bg-card p-5">
+    <Panel className="space-y-5">
       <h3 className="font-semibold">
         {base ? `Configure ${base.name}` : "Configure an operating base"}
       </h3>
@@ -173,6 +173,6 @@ export function EmergencyBaseAdmin({ base }: { base?: EmergencyBase }) {
           if (revokeSubject) revoke.mutate(revokeSubject);
         }}
       />
-    </section>
+    </Panel>
   );
 }

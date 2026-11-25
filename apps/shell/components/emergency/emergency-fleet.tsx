@@ -31,6 +31,7 @@ import {
   FormSelectField,
   useZodForm,
   LoadMore,
+  Panel,
   formatTime,
   ConfirmDialog,
   RefreshButton,
@@ -72,7 +73,7 @@ export function EmergencyFleet({
     vehicles.retry();
   };
   return (
-    <section className="min-w-0 space-y-4 rounded-xl border bg-card p-5">
+    <Panel className="min-w-0 space-y-4">
       <header className="space-y-2">
         <h2 className="text-xl font-semibold">Fleet readiness</h2>
         <p className="text-sm text-muted-foreground">
@@ -93,7 +94,7 @@ export function EmergencyFleet({
       ) : (
         <ul className="grid gap-4 lg:grid-cols-2">
           {listed.map((v) => (
-            <li key={v.id} className="min-w-0 space-y-3 rounded-xl border p-4">
+            <Panel as="li" key={v.id} className="min-w-0 space-y-3">
               <div className="flex flex-wrap justify-between gap-2">
                 <h3 className="break-all font-semibold">{v.code}</h3>
                 <Badge variant={v.dispatchable ? "secondary" : "outline"}>
@@ -145,7 +146,7 @@ export function EmergencyFleet({
                     constraint={constraint}
                   />
                 ))}
-            </li>
+            </Panel>
           ))}
         </ul>
       )}
@@ -184,7 +185,7 @@ export function EmergencyFleet({
           vehicle={checking}
         />
       )}
-    </section>
+    </Panel>
   );
 }
 function VehicleForm({ base, vehicle }: { base: string; vehicle?: EmergencyVehicle }) {
@@ -212,91 +213,93 @@ function VehicleForm({ base, vehicle }: { base: string; vehicle?: EmergencyVehic
     (data) => form.reset({ ...data, certified_until: emergencyTimeInput(data.certified_until) }),
   );
   return (
-    <details open={!!vehicle} className="rounded-lg border p-4">
-      <summary className="cursor-pointer font-medium">
-        {vehicle ? `Vehicle policy · ${vehicle.code}` : "Configure vehicle"}
-      </summary>
-      <p className="my-3 text-sm text-muted-foreground">
-        A supervisor must verify certification and enter the medical lead’s approved readiness
-        policy. No clinical threshold is supplied by the application.
-      </p>
-      <form
-        noValidate
-        onSubmit={form.handleSubmit((values) => save.mutate(values))}
-        className="space-y-4"
-      >
-        <fieldset disabled={save.frozen} className="grid gap-4 sm:grid-cols-2">
-          <Field
-            id="fleet-code"
-            label="Vehicle operational code"
-            error={form.formState.errors.code?.message}
-          >
-            <Input id="fleet-code" {...form.register("code")} />
-          </Field>
-          <FormSelectField
-            control={form.control}
-            name="vehicle_class"
-            id="fleet-class"
-            label="Certified vehicle class"
-            options={options(emergencyFleetChoices.classes)}
-          />
-          <Field
-            id="fleet-certification"
-            label="Vehicle certification valid until"
-            error={form.formState.errors.certified_until?.message}
-          >
-            <Input
+    <Panel as="div">
+      <details open={!!vehicle}>
+        <summary className="cursor-pointer font-medium">
+          {vehicle ? `Vehicle policy · ${vehicle.code}` : "Configure vehicle"}
+        </summary>
+        <p className="my-3 text-sm text-muted-foreground">
+          A supervisor must verify certification and enter the medical lead’s approved readiness
+          policy. No clinical threshold is supplied by the application.
+        </p>
+        <form
+          noValidate
+          onSubmit={form.handleSubmit((values) => save.mutate(values))}
+          className="space-y-4"
+        >
+          <fieldset disabled={save.frozen} className="grid gap-4 sm:grid-cols-2">
+            <Field
+              id="fleet-code"
+              label="Vehicle operational code"
+              error={form.formState.errors.code?.message}
+            >
+              <Input id="fleet-code" {...form.register("code")} />
+            </Field>
+            <FormSelectField
+              control={form.control}
+              name="vehicle_class"
+              id="fleet-class"
+              label="Certified vehicle class"
+              options={options(emergencyFleetChoices.classes)}
+            />
+            <Field
               id="fleet-certification"
-              type="datetime-local"
-              {...form.register("certified_until", { setValueAs: emergencyLocalTime })}
-            />
-          </Field>
-          <Field
-            id="fleet-policy"
-            label="Vehicle policy reference"
-            error={form.formState.errors.policy_reference?.message}
-          >
-            <Input id="fleet-policy" {...form.register("policy_reference")} />
-          </Field>
-          <Field
-            id="fleet-oxygen"
-            label="Minimum oxygen pressure (bar)"
-            error={form.formState.errors.oxygen_min_bar?.message}
-          >
-            <Input
+              label="Vehicle certification valid until"
+              error={form.formState.errors.certified_until?.message}
+            >
+              <Input
+                id="fleet-certification"
+                type="datetime-local"
+                {...form.register("certified_until", { setValueAs: emergencyLocalTime })}
+              />
+            </Field>
+            <Field
+              id="fleet-policy"
+              label="Vehicle policy reference"
+              error={form.formState.errors.policy_reference?.message}
+            >
+              <Input id="fleet-policy" {...form.register("policy_reference")} />
+            </Field>
+            <Field
               id="fleet-oxygen"
-              type="number"
-              {...form.register("oxygen_min_bar", { valueAsNumber: true })}
-            />
-          </Field>
-          <Field
-            id="fleet-validity"
-            label="Readiness validity (minutes)"
-            error={form.formState.errors.readiness_minutes?.message}
-          >
-            <Input
+              label="Minimum oxygen pressure (bar)"
+              error={form.formState.errors.oxygen_min_bar?.message}
+            >
+              <Input
+                id="fleet-oxygen"
+                type="number"
+                {...form.register("oxygen_min_bar", { valueAsNumber: true })}
+              />
+            </Field>
+            <Field
               id="fleet-validity"
-              type="number"
-              {...form.register("readiness_minutes", { valueAsNumber: true })}
-            />
-          </Field>
-          <label className="flex min-h-11 items-center gap-3">
-            <input type="checkbox" {...form.register("retired")} />
-            Vehicle retired
-          </label>
-        </fieldset>
-        <EmergencyCommandFailure message={save.error?.message} uncertain={save.uncertain} />
-        <Button type="submit" disabled={save.isPending}>
-          Save vehicle
-        </Button>
-        {save.data && (
-          <p role="status">
-            Saved configuration version {save.data.version}. A policy change requires a new
-            readiness observation.
-          </p>
-        )}
-      </form>
-    </details>
+              label="Readiness validity (minutes)"
+              error={form.formState.errors.readiness_minutes?.message}
+            >
+              <Input
+                id="fleet-validity"
+                type="number"
+                {...form.register("readiness_minutes", { valueAsNumber: true })}
+              />
+            </Field>
+            <label className="flex min-h-11 items-center gap-3">
+              <input type="checkbox" {...form.register("retired")} />
+              Vehicle retired
+            </label>
+          </fieldset>
+          <EmergencyCommandFailure message={save.error?.message} uncertain={save.uncertain} />
+          <Button type="submit" disabled={save.isPending}>
+            Save vehicle
+          </Button>
+          {save.data && (
+            <p role="status">
+              Saved configuration version {save.data.version}. A policy change requires a new
+              readiness observation.
+            </p>
+          )}
+        </form>
+      </details>
+    </Panel>
   );
 }
 function CrewForm({ base }: { base: string }) {
@@ -307,52 +310,56 @@ function CrewForm({ base }: { base: string }) {
   const [selected, setSelected] = useState<EmergencyCrew | null>(null);
   const [creation, setCreation] = useState(0);
   return (
-    <details className="space-y-4 rounded-lg border p-4">
-      <summary className="cursor-pointer font-medium">Verify crew credentials</summary>
-      <p className="my-3 text-sm text-muted-foreground">
-        Choose the verified staff account and record the evidence reference. This is an attributed
-        supervisor verification; it does not claim a workforce or licensing-authority integration.
-      </p>
-      {crew.isError && (
-        <RequestFailure
-          message="Could not load crew credentials."
-          retry={crew.retry}
-          error={crew.error}
+    <Panel as="div">
+      <details className="space-y-4">
+        <summary className="cursor-pointer font-medium">Verify crew credentials</summary>
+        <p className="my-3 text-sm text-muted-foreground">
+          Choose the verified staff account and record the evidence reference. This is an attributed
+          supervisor verification; it does not claim a workforce or licensing-authority integration.
+        </p>
+        {crew.isError && (
+          <RequestFailure
+            message="Could not load crew credentials."
+            retry={crew.retry}
+            error={crew.error}
+          />
+        )}
+        <ul className="my-3 space-y-2">
+          {(isRefusal(crew.error) ? [] : crew.items).map((person) => (
+            <li className="flex flex-wrap items-center justify-between gap-2" key={person.id}>
+              <span className="break-all text-sm">
+                <AccountName subject={person.subject} /> · {person.qualification} ·{" "}
+                {person.suspended
+                  ? "Suspended"
+                  : `valid until ${formatTime(person.certified_until)}`}
+              </span>
+              <Button
+                className="h-auto min-h-11 max-w-full break-all whitespace-normal text-left"
+                variant="outline"
+                onClick={() => setSelected(person)}
+              >
+                Review <AccountName subject={person.subject} />
+              </Button>
+            </li>
+          ))}
+        </ul>
+        <LoadMore hasMore={crew.hasMore} isLoading={crew.isFetchingMore} onClick={crew.loadMore} />
+        <CrewEditor
+          key={`${selected?.id ?? "new"}-${selected?.version ?? 0}-${creation}`}
+          base={base}
+          person={selected ?? undefined}
         />
-      )}
-      <ul className="my-3 space-y-2">
-        {(isRefusal(crew.error) ? [] : crew.items).map((person) => (
-          <li className="flex flex-wrap items-center justify-between gap-2" key={person.id}>
-            <span className="break-all text-sm">
-              <AccountName subject={person.subject} /> · {person.qualification} ·{" "}
-              {person.suspended ? "Suspended" : `valid until ${formatTime(person.certified_until)}`}
-            </span>
-            <Button
-              className="h-auto min-h-11 max-w-full break-all whitespace-normal text-left"
-              variant="outline"
-              onClick={() => setSelected(person)}
-            >
-              Review <AccountName subject={person.subject} />
-            </Button>
-          </li>
-        ))}
-      </ul>
-      <LoadMore hasMore={crew.hasMore} isLoading={crew.isFetchingMore} onClick={crew.loadMore} />
-      <CrewEditor
-        key={`${selected?.id ?? "new"}-${selected?.version ?? 0}-${creation}`}
-        base={base}
-        person={selected ?? undefined}
-      />
-      <Button
-        variant="outline"
-        onClick={() => {
-          setSelected(null);
-          setCreation((value) => value + 1);
-        }}
-      >
-        Verify another person
-      </Button>
-    </details>
+        <Button
+          variant="outline"
+          onClick={() => {
+            setSelected(null);
+            setCreation((value) => value + 1);
+          }}
+        >
+          Verify another person
+        </Button>
+      </details>
+    </Panel>
   );
 }
 function CrewEditor({ base, person }: { base: string; person?: EmergencyCrew }) {
@@ -458,105 +465,111 @@ function DutyForm({ base, vehicles }: { base: string; vehicles: EmergencyVehicle
     },
   );
   return (
-    <details className="space-y-4 rounded-lg border p-4">
-      <summary className="cursor-pointer font-medium">Manage duty</summary>
-      <p className="my-3 text-sm text-muted-foreground">
-        Two separately verified people are required. End the previous duty explicitly before
-        reallocating its vehicle or people. Maximum shift length is 24 hours; readiness expires
-        earlier where required.
-      </p>
-      <form
-        noValidate
-        onSubmit={form.handleSubmit((values) => save.mutate(values))}
-        className="space-y-4"
-      >
-        <fieldset disabled={save.frozen} className="grid gap-4 sm:grid-cols-2">
-          <FormSelectField
-            control={form.control}
-            name="vehicle_id"
-            id="duty-vehicle"
-            label="Duty vehicle"
-            options={vehicles.map((v) => ({ value: v.id, label: v.code }))}
-          />
-          <Field
-            id="duty-driver"
-            label="Duty driver"
-            error={form.formState.errors.driver_subject?.message}
-          >
-            <Controller
+    <Panel as="div">
+      <details className="space-y-4">
+        <summary className="cursor-pointer font-medium">Manage duty</summary>
+        <p className="my-3 text-sm text-muted-foreground">
+          Two separately verified people are required. End the previous duty explicitly before
+          reallocating its vehicle or people. Maximum shift length is 24 hours; readiness expires
+          earlier where required.
+        </p>
+        <form
+          noValidate
+          onSubmit={form.handleSubmit((values) => save.mutate(values))}
+          className="space-y-4"
+        >
+          <fieldset disabled={save.frozen} className="grid gap-4 sm:grid-cols-2">
+            <FormSelectField
               control={form.control}
-              name="driver_subject"
-              render={({ field, fieldState }) => (
-                <MemberAccountSelect
-                  id="duty-driver"
-                  value={field.value}
-                  onValueChange={field.onChange}
-                  aria-invalid={fieldState.invalid}
-                  disabled={save.frozen}
-                />
-              )}
+              name="vehicle_id"
+              id="duty-vehicle"
+              label="Duty vehicle"
+              options={vehicles.map((v) => ({ value: v.id, label: v.code }))}
             />
-          </Field>
-          <Field
-            id="duty-clinician"
-            label="Duty clinician"
-            error={form.formState.errors.clinician_subject?.message}
-          >
-            <Controller
-              control={form.control}
-              name="clinician_subject"
-              render={({ field, fieldState }) => (
-                <MemberAccountSelect
-                  id="duty-clinician"
-                  value={field.value}
-                  onValueChange={field.onChange}
-                  aria-invalid={fieldState.invalid}
-                  disabled={save.frozen}
-                />
-              )}
-            />
-          </Field>
-          <Field id="duty-end" label="Duty ends at" error={form.formState.errors.ends_at?.message}>
-            <Input
+            <Field
+              id="duty-driver"
+              label="Duty driver"
+              error={form.formState.errors.driver_subject?.message}
+            >
+              <Controller
+                control={form.control}
+                name="driver_subject"
+                render={({ field, fieldState }) => (
+                  <MemberAccountSelect
+                    id="duty-driver"
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    aria-invalid={fieldState.invalid}
+                    disabled={save.frozen}
+                  />
+                )}
+              />
+            </Field>
+            <Field
+              id="duty-clinician"
+              label="Duty clinician"
+              error={form.formState.errors.clinician_subject?.message}
+            >
+              <Controller
+                control={form.control}
+                name="clinician_subject"
+                render={({ field, fieldState }) => (
+                  <MemberAccountSelect
+                    id="duty-clinician"
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    aria-invalid={fieldState.invalid}
+                    disabled={save.frozen}
+                  />
+                )}
+              />
+            </Field>
+            <Field
               id="duty-end"
-              type="datetime-local"
-              {...form.register("ends_at", { setValueAs: emergencyLocalTime })}
-            />
-          </Field>
-        </fieldset>
-        <EmergencyCommandFailure message={save.error?.message} uncertain={save.uncertain} />
-        <Button type="submit" disabled={save.isPending}>
-          Start duty
-        </Button>
-      </form>
-      {duties.isError && (
-        <RequestFailure
-          message="Could not load duties."
-          retry={duties.retry}
-          error={duties.error}
+              label="Duty ends at"
+              error={form.formState.errors.ends_at?.message}
+            >
+              <Input
+                id="duty-end"
+                type="datetime-local"
+                {...form.register("ends_at", { setValueAs: emergencyLocalTime })}
+              />
+            </Field>
+          </fieldset>
+          <EmergencyCommandFailure message={save.error?.message} uncertain={save.uncertain} />
+          <Button type="submit" disabled={save.isPending}>
+            Start duty
+          </Button>
+        </form>
+        {duties.isError && (
+          <RequestFailure
+            message="Could not load duties."
+            retry={duties.retry}
+            error={duties.error}
+          />
+        )}
+        <ul className="divide-y">
+          {(isRefusal(duties.error) ? [] : duties.items).map((d) => (
+            <li key={d.id} className="py-3">
+              <p className="break-all text-sm">
+                {vehicles.find((v) => v.id === d.vehicle_id)?.code ?? d.vehicle_id} ·{" "}
+                <AccountName subject={d.driver_subject} /> /{" "}
+                <AccountName subject={d.clinician_subject} />
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Ends {formatTime(d.ends_at)} · {d.ended_at ? "Ended" : "Open"}
+              </p>
+              {!d.ended_at && <EndDuty base={base} duty={d.id} />}
+            </li>
+          ))}
+        </ul>
+        <LoadMore
+          hasMore={duties.hasMore}
+          isLoading={duties.isFetchingMore}
+          onClick={duties.loadMore}
         />
-      )}
-      <ul className="space-y-3">
-        {(isRefusal(duties.error) ? [] : duties.items).map((d) => (
-          <li key={d.id} className="my-3 rounded-lg border p-3">
-            <p className="break-all text-sm">
-              {vehicles.find((v) => v.id === d.vehicle_id)?.code ?? d.vehicle_id} ·{" "}
-              <AccountName subject={d.driver_subject} /> /{" "}
-              <AccountName subject={d.clinician_subject} />
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Ends {formatTime(d.ends_at)} · {d.ended_at ? "Ended" : "Open"}
-            </p>
-            {!d.ended_at && <EndDuty base={base} duty={d.id} />}
-          </li>
-        ))}
-      </ul>
-      <LoadMore
-        hasMore={duties.hasMore}
-        isLoading={duties.isFetchingMore}
-        onClick={duties.loadMore}
-      />
-    </details>
+      </details>
+    </Panel>
   );
 }
 function EndDuty({ base, duty }: { base: string; duty: string }) {
@@ -608,7 +621,7 @@ function ReadinessForm({ base, vehicle }: { base: string; vehicle: EmergencyVehi
     },
   );
   return (
-    <section className="space-y-4 rounded-lg border p-4">
+    <Panel className="space-y-4">
       <h3 className="font-medium">Readiness observation · {vehicle.code}</h3>
       <p className="text-sm text-muted-foreground">
         Record actual measurements and checks under {vehicle.policy_reference}. Unchecked items
@@ -649,7 +662,7 @@ function ReadinessForm({ base, vehicle }: { base: string; vehicle: EmergencyVehi
           Record readiness
         </Button>
       </form>
-    </section>
+    </Panel>
   );
 }
 function ClearConstraint({ base, constraint }: { base: string; constraint: EmergencyConstraint }) {
@@ -664,7 +677,7 @@ function ClearConstraint({ base, constraint }: { base: string; constraint: Emerg
   );
   const id = `clear-${constraint.id}-${constraint.code}`;
   return (
-    <details className="rounded-lg border p-3">
+    <details className="border-t pt-3">
       <summary className="cursor-pointer text-sm">
         Review {emergencyFleetChoices.blockers[constraint.code]}
       </summary>

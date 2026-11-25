@@ -25,8 +25,7 @@ const COLOUR_MESSAGE =
 // beyond the scale and pill-shaped primary actions are how each page drifted
 // to its own look. Overlays that need rounded-xl live in packages/ui.
 // Arbitrary radii and pills are banned everywhere. 2xl and 3xl are banned
-// outside the workspace; inside it #1275's surface rule already rejects them,
-// and SURFACE_LEGACY files keep that exemption until their zone tidy-up.
+// outside the workspace; inside it #1275's surface rule already rejects them.
 // Bare `rounded` (4px) is off the scale too.
 const ARBITRARY_RADIUS = String.raw`/(^|[\s:])rounded(-[trblse]{1,2})?(-\[[^\]]*\])?(\s|$)/`;
 const LARGE_RADIUS = String.raw`/(^|[\s:])rounded(-[trblse]{1,2})?-(2xl|3xl)(\s|$)/`;
@@ -140,26 +139,26 @@ export function hmsPublicPages(files) {
 /**
  * Workspace pages and their components get the heading and surface rules on
  * top of every design rule. Spread after hmsEslint(dir, { design: true }).
- * Tests stay exempt, as they are from the design rules. `legacy` lists files
- * not yet moved to Panel (#1275 spec D4): they keep every rule but the
- * surface one. Rule options do not merge across config objects, so each set
- * of files gets its own complete list.
+ * Tests stay exempt, as they are from the design rules. There is no
+ * per-file surface exemption: every zone paints its cards through Panel
+ * (#1262 spec D3).
  */
-export function hmsWorkspacePages(files, ignores = [], legacy = []) {
-  const syntax = (surface) => ({
-    "no-restricted-syntax": [
-      "error",
-      SANITIZE_SYNTAX,
-      ...DESIGN_SYNTAX,
-      ...MARKETING_SYNTAX,
-      ...WORKSPACE_SYNTAX,
-      ...(surface ? SURFACE_SYNTAX : []),
-    ],
-  });
-  const tests = "**/*.test.{ts,tsx,mjs}";
+export function hmsWorkspacePages(files, ignores = []) {
   return [
-    { files, ignores: [tests, ...ignores, ...legacy], rules: syntax(true) },
-    ...(legacy.length ? [{ files: legacy, ignores: [tests], rules: syntax(false) }] : []),
+    {
+      files,
+      ignores: ["**/*.test.{ts,tsx,mjs}", ...ignores],
+      rules: {
+        "no-restricted-syntax": [
+          "error",
+          SANITIZE_SYNTAX,
+          ...DESIGN_SYNTAX,
+          ...MARKETING_SYNTAX,
+          ...WORKSPACE_SYNTAX,
+          ...SURFACE_SYNTAX,
+        ],
+      },
+    },
   ];
 }
 
@@ -168,7 +167,7 @@ export const READ_RETRY_RULE = "helivanta/no-hand-rolled-retry";
 /**
  * Read retries and refreshes go through RequestFailure, QueryState or
  * RefreshButton (#1595). Its own rule rather than a no-restricted-syntax
- * entry, so a legacy list is a plain ignores and doesn't fork the design rules.
+ * entry, so an exemption is a plain ignores and doesn't fork the design rules.
  */
 export function hmsReadRetries(files, ignores = []) {
   return {

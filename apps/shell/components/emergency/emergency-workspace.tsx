@@ -10,7 +10,7 @@ import {
   type EmergencyBase,
   type EmergencyCase,
 } from "@helivanta/api";
-import { formatTime, isRefusal, LoadMore, PageHeading, RequestFailure } from "@helivanta/ui";
+import { formatTime, isRefusal, LoadMore, PageHeading, Panel, RequestFailure } from "@helivanta/ui";
 import { EmergencyBaseAdmin } from "./emergency-base-admin";
 import { EmergencyIntake } from "./emergency-intake";
 import { EmergencyFleet } from "./emergency-fleet";
@@ -46,7 +46,7 @@ export function EmergencyWorkspace() {
       )}
       <ul className="grid gap-3 sm:grid-cols-2">
         {listed.map((item) => (
-          <li className="min-w-0 space-y-3 rounded-xl border bg-card p-5" key={item.id}>
+          <Panel as="li" className="min-w-0 space-y-3" key={item.id}>
             <h2 className="font-semibold">{item.name}</h2>
             <p className="text-sm text-muted-foreground">
               {item.timezone} · {item.access_level ?? "No case access"}
@@ -71,7 +71,7 @@ export function EmergencyWorkspace() {
                 </Button>
               </Can>
             </div>
-          </li>
+          </Panel>
         ))}
       </ul>
       <LoadMore hasMore={bases.hasMore} isLoading={bases.isFetchingMore} onClick={bases.loadMore} />
@@ -108,30 +108,32 @@ function EmergencyBaseCases({ base }: { base: EmergencyBase }) {
         <RequestFailure message="Could not load reports." retry={cases.retry} error={cases.error} />
       ) : (
         <>
-          <ul className="divide-y rounded-xl border bg-card">
-            {!cases.isPending && cases.items.length === 0 && (
-              <li className="p-5">No reports received at this base.</li>
-            )}
-            {cases.items.map((row) => (
-              <li key={row.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
-                <div>
-                  <Link
-                    className="break-all font-medium text-primary underline"
-                    href={`/emergency/bases/${base.id}/cases/${row.id}`}
-                  >
-                    {row.case_number}
-                  </Link>
-                  <p className="text-sm text-muted-foreground">
-                    Received {formatTime(row.created_at)} · {row.requested_service}
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <Badge variant="secondary">{row.status}</Badge>
-                  <Badge variant="outline">Untriaged</Badge>
-                </div>
-              </li>
-            ))}
-          </ul>
+          <Panel flush>
+            <ul className="divide-y">
+              {!cases.isPending && cases.items.length === 0 && (
+                <li className="p-5">No reports received at this base.</li>
+              )}
+              {cases.items.map((row) => (
+                <li key={row.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
+                  <div>
+                    <Link
+                      className="break-all font-medium text-primary underline"
+                      href={`/emergency/bases/${base.id}/cases/${row.id}`}
+                    >
+                      {row.case_number}
+                    </Link>
+                    <p className="text-sm text-muted-foreground">
+                      Received {formatTime(row.created_at)} · {row.requested_service}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Badge variant="secondary">{row.status}</Badge>
+                    <Badge variant="outline">Untriaged</Badge>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </Panel>
           <LoadMore
             hasMore={cases.hasMore}
             isLoading={cases.isFetchingMore}

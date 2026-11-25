@@ -38,6 +38,11 @@ afterEach(() => {
   localStorage.clear();
 });
 
+// #1262: cards are Panel, so no hand-painted card class survives.
+// Buttons and design-system inputs are controls: they carry shadow-sm.
+const CARDS =
+  ":is(.rounded-xl, .rounded-2xl, .shadow-sm):not(button, input, textarea, [role=combobox])";
+
 it("does not offer review on a role without explicit clinical access", async () => {
   vi.stubGlobal(
     "fetch",
@@ -61,6 +66,7 @@ it("does not offer review on a role without explicit clinical access", async () 
   expect(
     screen.queryByRole("button", { name: "Record transport requirement" }),
   ).not.toBeInTheDocument();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
 });
 
 it("retries the exact review after an ambiguous response and makes no dispatch claim", async () => {
@@ -141,6 +147,7 @@ it("loads current verification before submitting a versioned privilege change", 
     await screen.findByLabelText("Clinical privilege approval reference"),
     "SYN-PRIVILEGE",
   );
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   await user.type(screen.getByLabelText("Clinical review access expires at"), "2026-10-20T12:00");
   await user.click(screen.getByLabelText("Clinical review access enabled"));
   await user.click(screen.getByRole("button", { name: "Save clinical review access" }));

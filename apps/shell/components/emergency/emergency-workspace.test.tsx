@@ -46,6 +46,10 @@ const record = {
   closure_reason: null,
   closed_at: null,
 };
+// #1262: cards are Panel, so no hand-painted card class survives.
+// Buttons and design-system inputs are controls: they carry shadow-sm.
+const CARDS =
+  ":is(.rounded-xl, .rounded-2xl, .shadow-sm):not(button, input, textarea, [role=combobox])";
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 const page = (data: unknown[]) => ({ data, page: { has_more: false, next_cursor: null } });
@@ -79,6 +83,7 @@ it("opens only an explicitly granted base and shows metadata without caller deta
     screen.getByText(/Review received reports, fleet readiness and current dispatch status/),
   ).toBeInTheDocument();
   expect(screen.queryByLabelText("Caller name (optional)")).not.toBeInTheDocument();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
 });
 
 it("does not expose case actions to a tenant administrator with no base grant", async () => {
@@ -121,12 +126,14 @@ it("retries a failed intake with the same case ID and preserves the report", asy
     }),
   );
   const { user } = renderWithProviders(<EmergencyIntake base={base} />);
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   await user.type(screen.getByLabelText("Incident location (optional)"), "Synthetic Gate C");
   await user.click(screen.getByRole("button", { name: "Receive report" }));
   expect(await screen.findByText("Protected data unavailable")).toBeInTheDocument();
   expect(screen.getByLabelText("Incident location (optional)")).toHaveValue("Synthetic Gate C");
   await user.click(screen.getByRole("button", { name: "Receive report" }));
   expect(await screen.findByRole("link", { name: /Open received case/ })).toBeInTheDocument();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   expect(paths).toHaveLength(2);
   expect(paths[0]).toEqual(paths[1]);
 });
@@ -203,6 +210,50 @@ it("requires confirmation before revoking a grant and accepts an empty 204 respo
     ),
   );
   expect(await screen.findByText("Access revoked")).toBeInTheDocument();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
+});
+
+it("draws the case report, closure review and history as panels", async () => {
+  const detail = {
+    ...record,
+    contact: null,
+    incident: { location_text: "Synthetic Gate C", patient_description: "" },
+    contact_expired: false,
+    closure_explanation: null,
+  };
+  const event = {
+    id: "0199abc0-0000-7000-8000-000000000003",
+    case_id: record.id,
+    version: 1,
+    state: "received",
+    reason: null,
+    actor_subject: "synthetic-dispatcher",
+    occurred_at: "2026-10-18T00:00:00Z",
+    created_at: "2026-10-18T00:00:00Z",
+  };
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((url: string) =>
+      Promise.resolve(
+        json(
+          url.includes("permissions")
+            ? { data: ["emergency.case.read", "emergency.case.close"] }
+            : url.endsWith("/access")
+              ? { level: "supervisor" }
+              : url.endsWith("/timeline")
+                ? page([event])
+                : url.endsWith("/assessments") || url.endsWith("/dispatches")
+                  ? page([])
+                  : detail,
+        ),
+      ),
+    ),
+  );
+  renderWithProviders(<EmergencyCaseDetailPanel baseID={base.id} caseID={record.id} />);
+  expect(await screen.findByText("Protected report")).toBeInTheDocument();
+  expect(await screen.findByText("Supervisor review and closure")).toBeInTheDocument();
+  expect(await screen.findByText(/version 1/)).toBeInTheDocument();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
 });
 
 it("shows refused operating bases as a refusal, without the server's text or a retry", async () => {

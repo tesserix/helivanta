@@ -143,9 +143,10 @@ not extend it or unlock other tenants.
 
 All commands used the deployed Global API, normal OIDC authorization-code/PKCE
 sign-in and verified tenant/outlet scope. No business table, identity projection
-or session was written directly. A dedicated role-free QA account completed the
-normal private email-verification, password-setup and TOTP-enrollment flows,
-then received explicit ordinary membership and temporary review/outlet access.
+or session was written directly. A dedicated QA account was created without
+roles and completed normal private email-verification, password-setup and
+TOTP-enrollment flows. Ordinary membership and temporary review/outlet access
+were granted explicitly and separately.
 Its independently authenticated subject reviewed the owner's synthetic licence
 and schedule declarations. The licence review retained the clean scanned passive
 test image. These test declarations assert no real licensing or clinical authority.

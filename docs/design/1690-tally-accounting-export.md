@@ -1,7 +1,9 @@
 # PharmaConnect: exporting accounts to Tally
 
-Status: the sales/credit/payment core is deployed to the pilot. Purchase tax
-capture and purchase vouchers are in development and need release acceptance.
+Status: purchase tax capture and the sales/credit/purchase/payment export are
+deployed to the bounded pilot at `23acb1b2`. Live owner UI/API acceptance passed
+on 25 November 2026; actual TallyPrime company import remains unverified. See
+the [release evidence](https://github.com/tesserix/helivanta/issues/1690#issuecomment-7175881252).
 Issue: [#1690](https://github.com/tesserix/helivanta/issues/1690).
 
 ## Who can use it

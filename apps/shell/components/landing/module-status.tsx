@@ -29,14 +29,15 @@ export function ModuleStatusLabel({ status }: { status: ModuleStatus }) {
 
 // A module's status where a board names it: the badge, or on the home page a
 // link to the roadmap when the module is not available yet (#1837).
-export function ModuleStatusOrRoadmap({ status }: { status: ModuleStatus }) {
+export function ModuleStatusOrRoadmap({ name }: { name: ModuleName }) {
+  const status = moduleStatus(name);
   if (useRoadmapLinks() && !isAvailable(status))
     return (
       <Link
         href="/roadmap#platform"
         className="shrink-0 text-[13px] font-medium underline underline-offset-4"
       >
-        On the roadmap
+        On the roadmap<span className="sr-only">: {name}</span>
       </Link>
     );
   return <ModuleStatusLabel status={status} />;
@@ -61,7 +62,7 @@ export function Availability({ modules, note }: AvailabilityProps) {
         {modules.map((name) => (
           <li key={name} className="flex items-center justify-between gap-4 py-2.5 text-base">
             <span className="text-foreground">{name}</span>
-            <ModuleStatusOrRoadmap status={moduleStatus(name)} />
+            <ModuleStatusOrRoadmap name={name} />
           </li>
         ))}
       </ul>

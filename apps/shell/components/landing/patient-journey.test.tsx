@@ -102,9 +102,9 @@ it("links a planned station to the roadmap instead of badging it", () => {
   );
   const billing = narration()[6];
   expect(within(billing).queryByText("Planned")).toBeNull();
-  expect(within(billing).getByRole("link", { name: "On the roadmap" })).toHaveAttribute(
-    "href",
-    "/roadmap#platform",
-  );
+  // The module rides in the name, so a links list tells the roadmap links apart.
+  expect(
+    within(billing).getByRole("link", { name: "On the roadmap: Billing & insurance" }),
+  ).toHaveAttribute("href", "/roadmap#platform");
   expect(within(narration()[0]).getByText("Foundation available")).toBeInTheDocument();
 });

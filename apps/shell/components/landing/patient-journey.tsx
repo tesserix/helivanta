@@ -4,7 +4,6 @@ import { useRef } from "react";
 import { motion } from "framer-motion";
 import { Check } from "lucide-react";
 import { cn } from "@tesserix/web";
-import { moduleStatus } from "@/app/platform-catalog";
 import { ModuleStatusOrRoadmap } from "./module-status";
 import { journeyNote, patient, stations } from "./patient-journey-data";
 import { PlayToggle, useStoryPlayer } from "./story-player";
@@ -60,7 +59,7 @@ export function PatientJourney() {
               {station.text}
             </p>
             <div className="mt-3">
-              <ModuleStatusOrRoadmap status={moduleStatus(station.module)} />
+              <ModuleStatusOrRoadmap name={station.module} />
             </div>
           </li>
         ))}

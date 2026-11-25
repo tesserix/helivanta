@@ -18,9 +18,11 @@ import {
   SelectControl,
   useZodForm,
   firstError,
+  Panel,
   RequestFailure,
+  controlClass,
 } from "@helivanta/ui";
-import { ReviewBox, inputClass, today } from "./policy-ui";
+import { ReviewBox, today } from "./policy-ui";
 
 export function AssignmentsPanel({
   hospital,
@@ -43,10 +45,7 @@ export function AssignmentsPanel({
     opener.current?.focus();
   };
   return (
-    <section
-      aria-label="Weekly template assignments"
-      className="overflow-hidden rounded-2xl border bg-card shadow-sm"
-    >
+    <Panel flush aria-label="Weekly template assignments">
       <div className="flex flex-wrap items-center justify-between gap-4 border-b p-5">
         <div>
           <h3 className="font-semibold">Weekly template assignments</h3>
@@ -144,7 +143,7 @@ export function AssignmentsPanel({
         />
       )}
       {history && <AssignmentHistory base={base} record={history} onClose={close} />}
-    </section>
+    </Panel>
   );
 }
 function AssignmentEditor({
@@ -218,7 +217,7 @@ function AssignmentEditor({
         if (!staffID) return setStaffError("Choose a staff member.");
         save.mutate(input);
       })}
-      className="scroll-mt-24 space-y-6 border-t p-5"
+      className="scroll-mt-4 space-y-6 border-t p-5"
     >
       <fieldset disabled={save.isPending} className="space-y-6">
         <div className="grid gap-5 sm:grid-cols-2">
@@ -226,7 +225,7 @@ function AssignmentEditor({
             <Field id="assignment-staff" label="Staff member">
               <input
                 id="assignment-staff"
-                className={inputClass}
+                className={controlClass}
                 value={`${record.display_name} · ${record.employee_code}`}
                 disabled
               />
@@ -273,7 +272,7 @@ function AssignmentEditor({
             <input
               id="assignment-effective"
               type="date"
-              className={inputClass}
+              className={controlClass}
               aria-invalid={!!errors.effective_on}
               {...form.register("effective_on")}
             />
@@ -340,10 +339,7 @@ function AssignmentEditor({
         />
       )}
       {save.isError && (
-        <p
-          role="alert"
-          className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive"
-        >
+        <p role="alert" className="text-sm text-destructive">
           {save.error.message} Your input is preserved. Cancel and reload to see current
           assignments.
         </p>
@@ -393,9 +389,9 @@ function AssignmentHistory({
           error={history.error}
         />
       ) : (
-        <ul className="space-y-3">
+        <ul className="divide-y">
           {history.items.map((r) => (
-            <li key={r.revision_id} className="rounded-xl border p-4 text-sm">
+            <li key={r.revision_id} className="py-4 text-sm">
               <p className="font-medium">
                 v{r.version} · {r.template_name} ({r.template_code})
               </p>

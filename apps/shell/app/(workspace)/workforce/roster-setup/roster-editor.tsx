@@ -18,10 +18,12 @@ import {
   useZodForm,
   useLeaveGuard,
   GuardedLink,
+  Panel,
   RequestFailure,
+  controlClass,
 } from "@helivanta/ui";
 import { WeeklyFields } from "./weekly-fields";
-import { inputClass, configNoun } from "./roster-ui";
+import { configNoun } from "./roster-ui";
 
 export function RosterEditor({
   path,
@@ -97,9 +99,9 @@ export function RosterEditor({
   for (const s of record?.shifts ?? []) snapshots.set(s.revision_id, s);
   for (const s of shifts.items) snapshots.set(s.revision_id, { ...s, shift_id: s.id });
   return (
-    <section
+    <Panel
       ref={section}
-      className="mt-6 scroll-mt-24 rounded-2xl border bg-card p-6 shadow-sm"
+      className="mt-6 scroll-mt-4"
       aria-label={`${record ? "Edit" : "Add"} ${configNoun[kind]}`}
     >
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
@@ -124,7 +126,7 @@ export function RosterEditor({
             <Field id="config-name" label="Name" error={form.formState.errors.name?.message}>
               <input
                 id="config-name"
-                className={inputClass}
+                className={controlClass}
                 aria-invalid={!!form.formState.errors.name}
                 aria-describedby={form.formState.errors.name ? "config-name-error" : undefined}
                 {...form.register("name")}
@@ -133,7 +135,7 @@ export function RosterEditor({
             <Field id="config-code" label="Code" error={form.formState.errors.code?.message}>
               <input
                 id="config-code"
-                className={inputClass}
+                className={controlClass}
                 disabled={!!record}
                 aria-invalid={!!form.formState.errors.code}
                 aria-describedby={form.formState.errors.code ? "config-code-error" : undefined}
@@ -149,7 +151,7 @@ export function RosterEditor({
             <input
               id="config-effective"
               type="date"
-              className={`${inputClass} sm:max-w-sm`}
+              className={`${controlClass} sm:max-w-sm`}
               aria-invalid={!!form.formState.errors.effective_on}
               aria-describedby={
                 form.formState.errors.effective_on ? "config-effective-error" : undefined
@@ -213,15 +215,12 @@ export function RosterEditor({
                   before adding membership.
                 </p>
               )}
-              <ul className="space-y-2">
+              <ul className="divide-y">
                 {selected.map((id) => {
                   const s = snapshots.get(id);
                   const current = shifts.items.some((c) => c.revision_id === id && c.active);
                   return (
-                    <li
-                      key={id}
-                      className="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3"
-                    >
+                    <li key={id} className="flex flex-wrap items-center justify-between gap-3 py-3">
                       <div>
                         <p className="text-sm font-medium">
                           {s?.name ?? "Saved shift"} · {s?.code ?? "Historical choice"}
@@ -288,7 +287,7 @@ export function RosterEditor({
             <textarea
               id="config-description"
               rows={3}
-              className={inputClass}
+              className={controlClass}
               {...form.register("description")}
             />
           </Field>
@@ -300,7 +299,7 @@ export function RosterEditor({
             />
             Available for new rosters
           </label>
-          <div className="rounded-xl border bg-muted/30 p-4">
+          <Panel as="div">
             <label className="flex items-start gap-3 text-sm">
               <input
                 type="checkbox"
@@ -321,13 +320,10 @@ export function RosterEditor({
               Changes create a new revision. Published rosters keep their original rules. Changing
               the effective date or reactivating a configuration requires current active references.
             </p>
-          </div>
+          </Panel>
         </fieldset>
         {save.isError && (
-          <p
-            role="alert"
-            className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive"
-          >
+          <p role="alert" className="text-sm text-destructive">
             {save.error.message} Your input is preserved. Cancel and refresh configurations to load
             current values.
           </p>
@@ -346,6 +342,6 @@ export function RosterEditor({
           </Button>
         </div>
       </form>
-    </section>
+    </Panel>
   );
 }

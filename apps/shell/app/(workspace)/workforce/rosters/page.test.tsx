@@ -6,6 +6,10 @@ import { renderWithProviders } from "@helivanta/api/testing";
 import { chooseOption } from "@/test/select";
 import Rosters from "./page";
 
+// #1261 slice 3: cards are Panel, so no hand-painted card class survives.
+// Buttons are controls: the design system's outline button carries shadow-sm.
+const CARDS = ":is(.rounded-xl, .rounded-2xl, .shadow-sm):not(button)";
+
 const hospital = "11111111-1111-4111-8111-111111111111";
 const rosterID = "22222222-2222-4222-8222-222222222222";
 const nurse = "33333333-3333-4333-8333-333333333333";
@@ -225,6 +229,7 @@ it("requires review, then creates whole weeks starting on the configured weekday
   await user.type(screen.getByLabelText("Name"), "Synthetic Ward");
   await user.click(screen.getByRole("button", { name: "Create roster" }));
   expect(await screen.findByText("Confirm that you reviewed the roster.")).toBeInTheDocument();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   expect(writes).toHaveLength(0);
   await user.click(screen.getByRole("checkbox", { name: "I reviewed the roster name and period" }));
   await user.click(screen.getByRole("button", { name: "Create roster" }));
@@ -247,6 +252,13 @@ it("shows readers the grid and history without write actions", async () => {
   const grid = await screen.findByRole("region", { name: "Allocations" });
   expect(await within(grid).findByText(/DAY 08:00–16:00 · WARD/)).toBeInTheDocument();
   expect(within(grid).getByRole("rowheader", { name: /Synthetic Nurse/ })).toBeInTheDocument();
+  expect(
+    within(grid)
+      .getByRole("rowheader", { name: /Synthetic Nurse/ })
+      .closest("tr"),
+  ).toHaveClass("h-11");
+  expect(within(grid).getByRole("columnheader", { name: "Staff" })).not.toHaveClass("uppercase");
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   for (const name of [
     "Change shifts",
     "Populate",
@@ -257,6 +269,7 @@ it("shows readers the grid and history without write actions", async () => {
     expect(screen.queryByRole("button", { name })).not.toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "Roster history" }));
   expect(await screen.findByText(/Cover the ward/)).toBeInTheDocument();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   await user.click(screen.getByRole("button", { name: "View roster as of v2" }));
   expect(await screen.findByText("Allocations as of v2")).toBeInTheDocument();
   expect(await screen.findByText("No shifts are allocated in this version.")).toBeInTheDocument();
@@ -335,6 +348,7 @@ it("preserves the change and highlights the overlapping allocation on 409", asyn
   const list = screen.getByRole("list", { name: "Shifts to add" });
   expect(list).toHaveTextContent("2026-10-19");
   expect(list).toHaveTextContent("overlaps an existing shift");
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
 });
 
 it("asks for a reason and confirmation before discarding", async () => {
@@ -397,6 +411,8 @@ it("lists credential clashes and freezes only after they are acknowledged", asyn
   const form = await openFreeze(user);
   const row = await within(form).findByRole("row", { name: /Synthetic Nurse · SYN-001/ });
   expect(row).toHaveTextContent("Nursing registration: Expired (valid 2025-01-01 to 2026-10-18)");
+  await within(form).findByRole("checkbox", { name: /I acknowledge 1 shift/ });
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   await user.click(within(form).getByRole("button", { name: "Freeze roster" }));
   expect(
     await within(form).findByText("Acknowledge the credential clashes before freezing."),

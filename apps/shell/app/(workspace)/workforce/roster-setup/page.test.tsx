@@ -4,6 +4,12 @@ import { afterEach, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
 import RosterSetup from "./page";
 import { NavigationGuardProvider } from "@helivanta/ui";
+import type { RosterConfig } from "@helivanta/api";
+import { ConfigurationSummary } from "./roster-summary";
+
+// #1261 slice 3: cards are Panel, so no hand-painted card class survives.
+// Buttons are controls: the design system's outline button carries shadow-sm.
+const CARDS = ":is(.rounded-xl, .rounded-2xl, .shadow-sm):not(button)";
 
 const router = vi.hoisted(() => ({ push: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => router }));
@@ -92,6 +98,7 @@ it("reopens saved membership, requires review and preserves a conflict for same-
   await user.click(screen.getByRole("button", { name: "Save configuration" }));
   expect(await screen.findByRole("alert")).toHaveTextContent("changed");
   expect(screen.getByLabelText("Name")).toHaveValue("Synthetic Area Revised");
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   await user.click(screen.getByRole("button", { name: "Save configuration" }));
   await waitFor(() => expect(writes).toHaveLength(2));
   expect(writes[0]).toEqual(writes[1]);
@@ -112,6 +119,7 @@ it("reads immutable membership history and hides management controls from reader
       "SYN-DAY",
     ),
   );
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
 });
 it("uses shared selectors for weekly allocation and restores choices after toggling weekly off", async () => {
   mock();
@@ -136,6 +144,7 @@ it("uses shared selectors for weekly allocation and restores choices after toggl
   await user.click(screen.getByRole("checkbox", { name: "Monday weekly off" }));
   expect(day).toHaveTextContent("SYN-DAY");
   expect(day).toHaveTextContent("Synthetic Area");
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
 });
 
 it("preserves roster input on Cancel until explicitly discarded and restores focus", async () => {
@@ -396,6 +405,7 @@ it("removes a rejected second weekly shift and preserves the first allocation", 
     screen.getByRole("combobox", { name: "Monday second shift" }),
     /SYN-DAY/,
   );
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   await user.click(
     screen.getByRole("checkbox", { name: "I reviewed the effective date and scheduling rules" }),
   );
@@ -486,4 +496,38 @@ it("shows refused shift choices in the editor as a refusal, with no retry", asyn
     await screen.findByText("This wasn't found, or you don't have access to it."),
   ).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+});
+
+it("summarises a weekly template day by day without hand-painted cards", () => {
+  renderWithProviders(
+    <ConfigurationSummary
+      record={
+        {
+          ...area,
+          kind: "weekly_template",
+          created_at: "2026-10-14T00:00:00Z",
+          updated_at: "2026-10-14T00:00:00Z",
+          shifts: [],
+          days: [
+            { weekday: 0, weekly_off: true, allocations: [] },
+            {
+              weekday: 1,
+              weekly_off: false,
+              allocations: [
+                {
+                  shift_revision_id: revision,
+                  area_revision_id: areaRevision,
+                  area_name: "Synthetic Area",
+                  shift,
+                },
+              ],
+            },
+          ],
+        } as RosterConfig
+      }
+    />,
+  );
+  expect(screen.getByText("Weekly off")).toBeInTheDocument();
+  expect(screen.getByText("1. Synthetic Day · SYN-DAY")).toBeInTheDocument();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
 });

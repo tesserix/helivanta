@@ -14,8 +14,14 @@ import {
   type RosterConfig,
   type Staff,
 } from "@helivanta/api";
-import { Field, SelectControl, useZodForm, firstError, RequestFailure } from "@helivanta/ui";
-import { inputClass } from "../roster-policy/policy-ui";
+import {
+  Field,
+  SelectControl,
+  useZodForm,
+  firstError,
+  RequestFailure,
+  controlClass,
+} from "@helivanta/ui";
 import { ReviewCheck, SaveError, useRosterWrite } from "./roster-ui";
 
 type Mode = RosterChangeInput["mode"];
@@ -183,15 +189,15 @@ export function ChangeEditor({
           </Button>
         )}
         {added.length > 0 && (
-          <ul aria-label="Shifts to add" className="space-y-2">
+          <ul aria-label="Shifts to add" className="divide-y">
             {added.map((a) => {
               const config = areaOf(a.area_revision_id);
               const shift = config?.shifts.find((s) => s.revision_id === a.shift_revision_id);
               return (
                 <li
                   key={a.id}
-                  className={`flex items-center justify-between gap-4 rounded-xl border p-3 text-sm ${
-                    conflicts.has(a.id) ? "border-destructive bg-destructive/5" : ""
+                  className={`flex items-center justify-between gap-4 py-3 text-sm ${
+                    conflicts.has(a.id) ? "text-destructive" : ""
                   }`}
                 >
                   <span>
@@ -229,7 +235,7 @@ export function ChangeEditor({
           <textarea
             id="change-reason"
             rows={2}
-            className={inputClass}
+            className={controlClass}
             aria-invalid={!!errors.reason}
             {...form.register("reason")}
           />

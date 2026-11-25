@@ -14,8 +14,16 @@ import {
   type RosterSettings,
   type RosterSettingsInput,
 } from "@helivanta/api";
-import { AccountName, Field, SelectControl, useZodForm, RequestFailure } from "@helivanta/ui";
-import { ReviewBox, inputClass, today, weekdayOptions } from "./policy-ui";
+import {
+  AccountName,
+  Field,
+  Panel,
+  SelectControl,
+  useZodForm,
+  RequestFailure,
+  controlClass,
+} from "@helivanta/ui";
+import { ReviewBox, today, weekdayOptions } from "./policy-ui";
 
 export function SettingsPanel({ hospital, writable }: { hospital: Hospital; writable: boolean }) {
   const path = `/workforce/hospitals/${hospital.id}/hr/roster-settings`;
@@ -25,10 +33,7 @@ export function SettingsPanel({ hospital, writable }: { hospital: Hospital; writ
   const missing = settings.error instanceof ApiError && settings.error.status === 404;
   const current = settings.data;
   return (
-    <section
-      aria-label="Roster settings"
-      className="overflow-hidden rounded-2xl border bg-card shadow-sm"
-    >
+    <Panel flush aria-label="Roster settings">
       <div className="flex flex-wrap items-center justify-between gap-4 border-b p-5">
         <div>
           <h3 className="font-semibold">Roster settings</h3>
@@ -86,7 +91,7 @@ export function SettingsPanel({ hospital, writable }: { hospital: Hospital; writ
       {mode === "history" && (
         <SettingsHistory path={path} hospital={hospital} onClose={() => setMode("view")} />
       )}
-    </section>
+    </Panel>
   );
 }
 function Fact({ label, value }: { label: string; value: string }) {
@@ -144,7 +149,7 @@ function SettingsEditor({
           <Field id="settings-timezone" label="Timezone" error={errors.timezone?.message}>
             <input
               id="settings-timezone"
-              className={inputClass}
+              className={controlClass}
               placeholder="Asia/Kolkata"
               aria-invalid={!!errors.timezone}
               {...form.register("timezone")}
@@ -158,7 +163,7 @@ function SettingsEditor({
             <input
               id="settings-effective"
               type="date"
-              className={inputClass}
+              className={controlClass}
               aria-invalid={!!errors.effective_on}
               {...form.register("effective_on")}
             />
@@ -196,10 +201,7 @@ function SettingsEditor({
         </ReviewBox>
       </fieldset>
       {save.isError && (
-        <p
-          role="alert"
-          className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive"
-        >
+        <p role="alert" className="text-sm text-destructive">
           {save.error.message} Your input is preserved. Cancel and reload to see current settings.
         </p>
       )}
@@ -248,9 +250,9 @@ function SettingsHistory({
           error={history.error}
         />
       ) : (
-        <ul className="space-y-3">
+        <ul className="divide-y">
           {history.items.map((r) => (
-            <li key={r.revision_id} className="rounded-xl border p-4 text-sm">
+            <li key={r.revision_id} className="py-4 text-sm">
               <p className="font-medium">
                 v{r.version} · effective {r.effective_on}
               </p>

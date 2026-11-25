@@ -11,16 +11,17 @@ import {
 import {
   Field,
   PageHeading,
+  Panel,
   SelectControl,
   useConfirmLeave,
   RequestFailure,
   isRefusal,
   RefreshButton,
+  controlClass,
 } from "@helivanta/ui";
 import { RosterEditor } from "./roster-editor";
 import { ConfigurationSummary, effectiveDate } from "./roster-summary";
-
-import { inputClass, configNoun } from "./roster-ui";
+import { configNoun } from "./roster-ui";
 
 export function RosterWorkspace() {
   const confirmLeave = useConfirmLeave();
@@ -34,7 +35,7 @@ export function RosterWorkspace() {
   return (
     <>
       <PageHeading
-        description="Organize areas, shift groups and weekly patterns. Earlier scheduling rules stay intact."
+        description="Organize areas, shift groups and weekly patterns."
         actions={
           <>
             <div className="grid w-full gap-4 sm:w-auto sm:grid-cols-2">
@@ -74,9 +75,9 @@ export function RosterWorkspace() {
       ) : hospital ? (
         <ConfigCatalog key={`${hospital.id}:${kind}`} hospital={hospital} kind={kind} />
       ) : (
-        <p className="rounded-2xl border bg-card p-8">
-          Ask your tenant administrator for hospital access before managing roster setup.
-        </p>
+        <Panel as="div">
+          <p>Ask your tenant administrator for hospital access before managing roster setup.</p>
+        </Panel>
       )}
       {hospitals.hasMore && (
         <Button
@@ -120,7 +121,7 @@ function ConfigCatalog({ hospital, kind }: { hospital: Hospital; kind: RosterCon
   );
   return (
     <>
-      <section className="overflow-hidden rounded-2xl border bg-card shadow-sm">
+      <Panel flush>
         <div className="flex flex-wrap items-center justify-between gap-4 border-b p-5">
           <div>
             <h3 className="font-semibold">{hospital.name}</h3>
@@ -148,7 +149,7 @@ function ConfigCatalog({ hospital, kind }: { hospital: Hospital; kind: RosterCon
           <Field id="config-search" label="Filter loaded configurations">
             <input
               id="config-search"
-              className={inputClass}
+              className={controlClass}
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
               placeholder="Search name or code"
@@ -256,7 +257,7 @@ function ConfigCatalog({ hospital, kind }: { hospital: Hospital; kind: RosterCon
             </RefreshButton>
           </div>
         </div>
-      </section>
+      </Panel>
       {editing && !refused && (
         <RosterEditor
           key={`${editing === "new" ? "new" : editing.id}:${editorSession}`}
@@ -301,11 +302,7 @@ function ConfigHistory({
     heading.current?.focus();
   }, []);
   return (
-    <section
-      ref={section}
-      className="mt-6 scroll-mt-24 rounded-2xl border bg-card p-6 shadow-sm"
-      aria-label="Roster configuration history"
-    >
+    <Panel ref={section} className="mt-6 scroll-mt-4" aria-label="Roster configuration history">
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
           <h3 ref={heading} tabIndex={-1} className="text-xl font-semibold outline-none">
@@ -328,9 +325,9 @@ function ConfigHistory({
           error={history.error}
         />
       ) : (
-        <ul className="space-y-4">
+        <ul className="divide-y">
           {history.items.map((r) => (
-            <li key={r.id} className="rounded-xl border p-4">
+            <li key={r.id} className="py-4">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <p className="font-semibold">{r.name}</p>
                 <p className="text-xs text-muted-foreground">
@@ -358,6 +355,6 @@ function ConfigHistory({
           Load earlier revisions
         </Button>
       )}
-    </section>
+    </Panel>
   );
 }

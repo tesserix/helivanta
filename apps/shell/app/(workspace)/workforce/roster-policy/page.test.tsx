@@ -4,6 +4,10 @@ import { afterEach, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
 import RosterPolicy from "./page";
 
+// #1261 slice 3: cards are Panel, so no hand-painted card class survives.
+// Buttons are controls: the design system's outline button carries shadow-sm.
+const CARDS = ":is(.rounded-xl, .rounded-2xl, .shadow-sm):not(button)";
+
 const hospital = "11111111-1111-4111-8111-111111111111";
 const staffID = "22222222-2222-4222-8222-222222222222";
 const pinned = "33333333-3333-4333-8333-333333333333";
@@ -101,6 +105,7 @@ it("treats missing settings as unconfigured, requires review and preserves a rej
   await user.click(screen.getByRole("button", { name: "Save roster settings" }));
   expect(await screen.findByRole("alert")).toHaveTextContent("input is preserved");
   expect(screen.getByLabelText("Timezone")).toHaveValue("Asia/Kolkata");
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   expect(writes[0]).toMatchObject({
     url: expect.stringContaining(`/workforce/hospitals/${hospital}/hr/roster-settings`),
     body: { expected_version: 0, timezone: "Asia/Kolkata", reviewed: true },
@@ -115,6 +120,7 @@ it("shows the reviewed policy read-only to readers", async () => {
   expect(screen.queryByRole("button", { name: "Edit roster settings" })).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Assign weekly template" })).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Edit Synthetic Nurse" })).not.toBeInTheDocument();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
 });
 it("keeps a superseded pinned revision selectable and sends it with the expected version", async () => {
   const writes = mock({ configured: true });
@@ -130,6 +136,7 @@ it("keeps a superseded pinned revision selectable and sends it with the expected
       name: "I reviewed the template, effective date and population mode",
     }),
   );
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   await user.click(screen.getByRole("button", { name: "Save assignment" }));
   await waitFor(() => expect(writes).toHaveLength(1));
   expect(writes[0]).toEqual({

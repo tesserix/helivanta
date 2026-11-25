@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Button } from "@tesserix/web";
+import { Button, cn } from "@tesserix/web";
 import {
   ROSTER_AUTO_POPULATION,
   ROSTER_MODES,
@@ -18,13 +18,21 @@ import {
   type RosterStatusInput,
   type StaffRosterAssignment,
 } from "@helivanta/api";
-import { AccountName, ConfirmDialog, Field, useZodForm, RequestFailure } from "@helivanta/ui";
-import { inputClass } from "../roster-policy/policy-ui";
+import {
+  AccountName,
+  ConfirmDialog,
+  Field,
+  Panel,
+  useZodForm,
+  RequestFailure,
+  controlClass,
+  tableStyles,
+} from "@helivanta/ui";
 import { ChangeEditor } from "./roster-change";
 import { ClashPanel, ClashTable, outstandingClashes, useRosterClashes } from "./roster-clashes";
 import { ReviewCheck, SaveError, useRosterWrite } from "./roster-ui";
 
-type Panel =
+type Pane =
   "change" | "populate" | "freeze" | "unfreeze" | "discard" | "history" | "clashes" | null;
 
 export function RosterDetail({
@@ -44,22 +52,19 @@ export function RosterDetail({
 }) {
   const path = `${base}/rosters/${rosterID}`;
   const roster = useApiQuery<Roster>(["workforce", "rosters", hospital.id, rosterID], path);
-  const [panel, setPanel] = useState<Panel>(null);
+  const [panel, setPanel] = useState<Pane>(null);
   const [asOf, setAsOf] = useState<number | null>(null);
   const [removals, setRemovals] = useState<Set<string>>(new Set());
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => heading.current?.focus(), []);
   const current = roster.data;
   const draft = current?.status === "draft";
-  const show = (next: Panel) => {
+  const show = (next: Pane) => {
     setRemovals(new Set());
     setPanel(next);
   };
   return (
-    <section
-      aria-label="Roster detail"
-      className="overflow-hidden rounded-2xl border bg-card shadow-sm"
-    >
+    <Panel flush aria-label="Roster detail">
       <div className="flex flex-wrap items-center justify-between gap-4 border-b p-5">
         <div>
           <h3 ref={heading} tabIndex={-1} className="font-semibold outline-none">
@@ -196,7 +201,7 @@ export function RosterDetail({
           />
         </>
       )}
-    </section>
+    </Panel>
   );
 }
 
@@ -263,11 +268,11 @@ function AllocationGrid({
           <table className="min-w-full border-separate border-spacing-0 text-xs">
             <thead>
               <tr>
-                <th scope="col" className="sticky left-0 bg-card p-2 text-left">
+                <th scope="col" className={cn(tableStyles.head, "left-0 z-20 p-2")}>
                   Staff
                 </th>
                 {dates.map((d) => (
-                  <th key={d} scope="col" className="min-w-28 p-2 text-left font-medium">
+                  <th key={d} scope="col" className={cn(tableStyles.head, "min-w-28 p-2")}>
                     {d}
                   </th>
                 ))}
@@ -275,8 +280,8 @@ function AllocationGrid({
             </thead>
             <tbody>
               {rows.map((row) => (
-                <tr key={row.name}>
-                  <th scope="row" className="sticky left-0 border-t bg-card p-2 text-left">
+                <tr key={row.name} className={tableStyles.row}>
+                  <th scope="row" className="sticky left-0 border-t bg-background p-2 text-left">
                     {row.name}
                   </th>
                   {dates.map((d) => (
@@ -546,7 +551,7 @@ function StatusPanel({
             <textarea
               id={`${action}-reason`}
               rows={2}
-              className={inputClass}
+              className={controlClass}
               aria-invalid={!!errors.reason}
               {...form.register("reason")}
             />
@@ -562,7 +567,7 @@ function StatusPanel({
               </p>
             )}
             {clashesReady && clashIDs.length > 0 && (
-              <div className="rounded-xl border bg-muted/30 p-4">
+              <Panel as="div">
                 <label className="flex items-start gap-3 text-sm">
                   <input
                     type="checkbox"
@@ -582,7 +587,7 @@ function StatusPanel({
                     {ackError}
                   </p>
                 )}
-              </div>
+              </Panel>
             )}
           </div>
         )}
@@ -658,11 +663,11 @@ function HistoryPanel({
           error={history.error}
         />
       ) : (
-        <ul className="space-y-3">
+        <ul className="divide-y">
           {history.items.map((r) => (
             <li
               key={r.id}
-              className="flex flex-wrap items-center justify-between gap-4 rounded-xl border p-4 text-sm"
+              className="flex flex-wrap items-center justify-between gap-4 py-4 text-sm"
             >
               <div>
                 <p className="font-medium">

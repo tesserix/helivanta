@@ -1,4 +1,8 @@
 import { useApiMutation, apiFetch, type RosterChangeResult } from "@helivanta/api";
+import { Panel } from "@helivanta/ui";
+
+// One save failure across Workforce; re-exported so roster imports stay local.
+export { SaveError } from "../leave-balances/years-panel";
 
 export function ReviewCheck({
   id,
@@ -12,7 +16,7 @@ export function ReviewCheck({
   register: object;
 }) {
   return (
-    <div className="rounded-xl border bg-muted/30 p-4">
+    <Panel as="div">
       <label className="flex items-start gap-3 text-sm">
         <input
           type="checkbox"
@@ -27,18 +31,7 @@ export function ReviewCheck({
           {error}
         </p>
       )}
-    </div>
-  );
-}
-
-export function SaveError({ message }: { message: string }) {
-  return (
-    <p
-      role="alert"
-      className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive"
-    >
-      {message} Your input is preserved.
-    </p>
+    </Panel>
   );
 }
 

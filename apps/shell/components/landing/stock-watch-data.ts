@@ -189,4 +189,4 @@ export const stockModules: readonly ModuleName[] = [
 ];
 
 export const stockNote =
-  "Available today in the pharmacy: every batch with what can be dispensed, what is held in quarantine and how soon it expires. Reorder levels, the automatic check, the agent's drafts and release from quarantine are planned, and every agent will act only when a named person approves.";
+  "In this release: reorder levels for each product, an outlet's low-stock warnings, and stocktakes. The batch view of what can be dispensed, release from quarantine and the agent's drafts are on the roadmap, and every agent will act only when a named person approves.";

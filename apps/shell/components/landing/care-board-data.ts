@@ -59,7 +59,7 @@ export const stories: readonly Story[] = [
       },
     ],
     modules: ["Pharmacy management", "Inventory & procurement"],
-    note: "Dispensing with batch and expiry records is available as a foundation. Ward indents and store replenishment are planned.",
+    note: "Not in this release. Dispensing, ward indents and store replenishment are on the roadmap.",
   },
   {
     id: "purchase",
@@ -121,7 +121,7 @@ export const stories: readonly Story[] = [
       "Laboratory management",
       "Pharmacy management",
     ],
-    note: "Lab orders are available as a foundation. Ambulance handoffs and validated result release are planned.",
+    note: "Not in this release. Lab orders, ambulance handoffs and validated result release are on the roadmap.",
   },
   {
     id: "transfer",
@@ -138,7 +138,7 @@ export const stories: readonly Story[] = [
       },
     ],
     modules: ["Staff & hospital management", "Workforce & payroll"],
-    note: "Hospital-scoped staff access is available. Access that changes with a posting is planned.",
+    note: "In this release: hospital-scoped staff access and postings. Access that changes with a posting is planned.",
   },
   {
     id: "overview",

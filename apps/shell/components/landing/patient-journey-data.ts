@@ -103,4 +103,4 @@ export const stations: readonly Station[] = [
 ];
 
 export const journeyNote =
-  "Registration, visits, lab orders and dispensing are available as foundations. Validated result release, prescriptions, hospital billing and follow-up booking are planned.";
+  "Not in this release. Registration, visits, lab orders, dispensing, result release, prescriptions, hospital billing and follow-up booking are on the roadmap.";

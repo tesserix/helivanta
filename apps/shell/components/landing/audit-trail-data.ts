@@ -77,4 +77,4 @@ export const trail: readonly TrailEntry[] = [
 export const trailModules: readonly ModuleName[] = ["Pharmacy management", "Finance & accounts"];
 
 export const trailNote =
-  "Available today in the pharmacy: receipts with batch and expiry, quarantine, count corrections, supplier payables and settlements, and reader access with logged exports. Release from quarantine, dispensing from released stock and hospital-wide finance are planned.";
+  "Not in this release. Receipts with batch and expiry, quarantine, count corrections, supplier payables, logged exports, release from quarantine, dispensing and hospital-wide finance are on the roadmap.";

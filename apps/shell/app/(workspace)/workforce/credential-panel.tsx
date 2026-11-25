@@ -38,6 +38,7 @@ import {
   LoadMore,
   formatDateTime,
   useZodForm,
+  Panel,
   RequestFailure,
 } from "@helivanta/ui";
 import { inputClass } from "./roster-policy/policy-ui";
@@ -121,10 +122,7 @@ export function StaffCredentialPanel({
   const close = () => setView(null);
   const data = record.data;
   return (
-    <section
-      aria-labelledby="staff-credentials-heading"
-      className="mt-6 scroll-mt-24 overflow-hidden rounded-2xl border bg-card shadow-sm"
-    >
+    <Panel flush aria-labelledby="staff-credentials-heading" className="mt-6 scroll-mt-4">
       <header className="flex items-start justify-between gap-4 border-b px-6 py-5">
         <div>
           <h3
@@ -168,18 +166,20 @@ export function StaffCredentialPanel({
                     : "Set this pharmacy's time zone in its credential register to see whether credentials are in date."}
               </p>
               {data.credentials.length === 0 ? (
-                <p className="rounded-xl border p-6 text-sm">
-                  No credentials are enrolled. Add licences and registrations in the enrollment form
-                  first.
-                </p>
+                <Panel as="div">
+                  <p className="text-sm">
+                    No credentials are enrolled. Add licences and registrations in the enrollment
+                    form first.
+                  </p>
+                </Panel>
               ) : (
-                <ul className="divide-y rounded-xl border" aria-label="Credentials">
+                <ul className="divide-y" aria-label="Credentials">
                   {data.credentials.map((cred) => {
                     const pending = cred.pending;
                     const mine = pending?.proposed_by_subject === subject;
                     const shown = cred.reviewed ?? cred;
                     return (
-                      <li key={cred.id} className="space-y-2 p-4">
+                      <li key={cred.id} className="space-y-2 py-4">
                         <div className="flex flex-wrap items-start justify-between gap-3">
                           <div>
                             <p className="font-medium">
@@ -295,11 +295,11 @@ export function StaffCredentialPanel({
           )
         )}
       </div>
-    </section>
+    </Panel>
   );
 }
 
-function Panel({
+function ActionPanel({
   label,
   onClose,
   children,
@@ -311,7 +311,7 @@ function Panel({
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => heading.current?.focus(), []);
   return (
-    <div role="region" aria-label={label} className="space-y-4 rounded-xl border p-4 sm:p-5">
+    <Panel as="div" role="region" aria-label={label} className="space-y-4">
       <div className="flex items-center justify-between gap-4">
         <h4 ref={heading} tabIndex={-1} className="font-semibold outline-none">
           {label}
@@ -321,7 +321,7 @@ function Panel({
         </Button>
       </div>
       {children}
-    </div>
+    </Panel>
   );
 }
 
@@ -382,7 +382,7 @@ function ProposeForm({
       { shouldValidate: form.formState.isSubmitted },
     );
   return (
-    <Panel label={`Propose review of ${credential.type}`} onClose={onClose}>
+    <ActionPanel label={`Propose review of ${credential.type}`} onClose={onClose}>
       <form
         noValidate
         autoComplete="off"
@@ -429,7 +429,6 @@ function ProposeForm({
           <textarea
             id="credential-reason"
             rows={3}
-            maxLength={500}
             className={inputClass}
             {...form.register("reason")}
           />
@@ -439,7 +438,7 @@ function ProposeForm({
           {save.isPending ? "Proposing…" : "Propose review"}
         </Button>
       </form>
-    </Panel>
+    </ActionPanel>
   );
 }
 
@@ -600,7 +599,7 @@ function DecisionForm({
     )();
   };
   return (
-    <Panel label={`Review proposal for ${credential.type}`} onClose={onClose}>
+    <ActionPanel label={`Review proposal for ${credential.type}`} onClose={onClose}>
       <Proposal review={review} current={credential} />
       <form
         noValidate
@@ -619,7 +618,6 @@ function DecisionForm({
           <textarea
             id="credential-decision-note"
             rows={2}
-            maxLength={500}
             disabled={busy}
             className={inputClass}
             {...form.register("note")}
@@ -635,7 +633,7 @@ function DecisionForm({
           </Button>
         </div>
       </form>
-    </Panel>
+    </ActionPanel>
   );
 }
 
@@ -662,7 +660,7 @@ function WithdrawForm({
   );
   useAccessChange(guard, withdraw.error);
   return (
-    <Panel label={`Withdraw proposal for ${credential.type}`} onClose={onClose}>
+    <ActionPanel label={`Withdraw proposal for ${credential.type}`} onClose={onClose}>
       <Proposal review={review} current={credential} />
       <form
         noValidate
@@ -678,7 +676,6 @@ function WithdrawForm({
           <textarea
             id="credential-withdraw-note"
             rows={2}
-            maxLength={500}
             disabled={withdraw.isPending}
             className={inputClass}
             {...form.register("note")}
@@ -689,7 +686,7 @@ function WithdrawForm({
           {withdraw.isPending ? "Withdrawing…" : "Withdraw proposal"}
         </Button>
       </form>
-    </Panel>
+    </ActionPanel>
   );
 }
 
@@ -708,7 +705,7 @@ function History({
   });
   useAccessChange(guard, history.error);
   return (
-    <Panel label={`Review history for ${credential.type}`} onClose={onClose}>
+    <ActionPanel label={`Review history for ${credential.type}`} onClose={onClose}>
       {history.isPending ? (
         <p role="status">Loading review history…</p>
       ) : history.isError ? (
@@ -752,6 +749,6 @@ function History({
         isLoading={history.isFetchingMore}
         onClick={history.loadMore}
       />
-    </Panel>
+    </ActionPanel>
   );
 }

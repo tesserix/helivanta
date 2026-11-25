@@ -14,6 +14,10 @@ import {
 import { StaffDocumentPanel } from "./document-panel";
 import Workforce from "./page";
 
+// #1261 slice 1: cards are Panel, so no hand-painted card class survives.
+// Buttons are controls: the design system's outline button carries shadow-sm.
+const CARDS = ":is(.rounded-xl, .rounded-2xl, .shadow-sm):not(button)";
+
 const tenant = "33333333-3333-4333-8333-333333333333";
 const hospital: Hospital = {
   id: "11111111-1111-4111-8111-111111111111",
@@ -242,6 +246,7 @@ it("loads document choices without fetching protected enrollment and respects un
   expect(await screen.findByRole("heading", { name: "Staff documents" })).toBeInTheDocument();
   expect(await screen.findByText(/File storage is not available/)).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Upload file" })).toBeDisabled();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   expect(requests.some((request) => request.url.endsWith("/enrollment"))).toBe(false);
   for (const request of requests.filter((request) => request.url.includes("/document"))) {
     expect(new Headers(request.init?.headers).get("X-Helivanta-Expected-Tenant")).toBe(tenant);

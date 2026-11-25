@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Button } from "@tesserix/web";
+import { Button, cn } from "@tesserix/web";
 import {
   apiFetch,
   useApiMutation,
@@ -22,12 +22,14 @@ import {
   Field,
   isRefusal,
   PageHeading,
+  Panel,
   RefreshButton,
   RequestFailure,
   SelectControl,
   useConfirmLeave,
   useZodForm,
   controlClass,
+  tableStyles,
 } from "@helivanta/ui";
 
 export default function HRSetup() {
@@ -41,7 +43,7 @@ export default function HRSetup() {
   return (
     <>
       <PageHeading
-        description="The departments, designations, grades and other lists staff records choose from. Every change keeps its revision history."
+        description="The departments, designations, grades and other lists staff records choose from."
         actions={
           hospital && (
             <div className="w-full sm:w-72">
@@ -68,9 +70,9 @@ export default function HRSetup() {
       ) : hospital ? (
         <MasterCatalog key={hospital.id} hospital={hospital} />
       ) : (
-        <p className="rounded-2xl border bg-card p-8">
-          Ask your tenant administrator for hospital access before using HR setup.
-        </p>
+        <Panel as="div">
+          <p>Ask your tenant administrator for hospital access before using HR setup.</p>
+        </Panel>
       )}
       {hospitals.hasMore && (
         <Button
@@ -117,7 +119,7 @@ function MasterCatalog({ hospital }: { hospital: Hospital }) {
   };
   return (
     <>
-      <section className="overflow-hidden rounded-2xl border bg-card shadow-sm">
+      <Panel flush>
         <div className="flex flex-wrap items-center justify-between gap-4 border-b p-5">
           <div>
             <h3 className="font-semibold">{hospital.name}</h3>
@@ -198,18 +200,26 @@ function MasterCatalog({ hospital }: { hospital: Hospital }) {
               <caption className="sr-only">
                 {HR_MASTER_LABELS[kind]} at {hospital.name}
               </caption>
-              <thead className="bg-muted/40 text-xs text-muted-foreground">
+              <thead>
                 <tr>
                   {["Name", "Code", "Status", "Revision", "Actions"].map((label) => (
-                    <th key={label} scope="col" className="px-5 py-3 font-medium">
+                    <th
+                      key={label}
+                      scope="col"
+                      className={cn(
+                        tableStyles.head,
+                        "px-5 py-3",
+                        label === "Revision" && tableStyles.number,
+                      )}
+                    >
                       {label}
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y">
+              <tbody>
                 {rows.map((row) => (
-                  <tr key={row.id} className="hover:bg-muted/25">
+                  <tr key={row.id} className={tableStyles.row}>
                     <td className="px-5 py-4">
                       <span className="font-medium">{row.name}</span>
                       {row.description && (
@@ -230,7 +240,7 @@ function MasterCatalog({ hospital }: { hospital: Hospital }) {
                         {row.active ? "Active" : "Retired"}
                       </span>
                     </td>
-                    <td className="px-5 py-4">{row.version}</td>
+                    <td className={cn("px-5 py-4", tableStyles.number)}>{row.version}</td>
                     <td className="px-5 py-4">
                       <div className="flex gap-1">
                         {departmentsReleased &&
@@ -315,7 +325,7 @@ function MasterCatalog({ hospital }: { hospital: Hospital }) {
             )}
           </div>
         </div>
-      </section>
+      </Panel>
       {departmentsReleased &&
         mapping &&
         kind === "department" &&
@@ -391,9 +401,9 @@ function MasterEditor({
     form.setFocus("name");
   }, [form]);
   return (
-    <section
+    <Panel
       ref={section}
-      className="mt-6 scroll-mt-24 rounded-2xl border bg-card p-6 shadow-sm"
+      className="mt-6 scroll-mt-4"
       aria-label={record ? "Edit HR setup" : "Add HR setup"}
     >
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
@@ -468,7 +478,7 @@ function MasterEditor({
         {save.isError && (
           <p
             role="alert"
-            className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive"
+            className="rounded-md border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive"
           >
             {save.error.message} Your input is preserved. To load current values, cancel changes and
             refresh setup.
@@ -480,7 +490,7 @@ function MasterEditor({
           </Button>
         </div>
       </form>
-    </section>
+    </Panel>
   );
 }
 
@@ -504,11 +514,7 @@ function MasterHistory({
     heading.current?.focus();
   }, []);
   return (
-    <section
-      ref={section}
-      className="mt-6 scroll-mt-24 rounded-2xl border bg-card p-6 shadow-sm"
-      aria-label="HR revision history"
-    >
+    <Panel ref={section} className="mt-6 scroll-mt-4" aria-label="HR revision history">
       <div className="mb-5 flex items-start justify-between gap-4">
         <div>
           <h3 ref={heading} tabIndex={-1} className="text-xl font-semibold">
@@ -531,9 +537,9 @@ function MasterHistory({
           error={history.error}
         />
       ) : (
-        <ol className="space-y-3">
+        <ol className="divide-y">
           {history.items.map((revision) => (
-            <li key={revision.id} className="rounded-xl border p-4">
+            <li key={revision.id} className="py-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="font-medium">{revision.name}</p>
                 <span className="text-xs text-muted-foreground">
@@ -560,6 +566,6 @@ function MasterHistory({
           Load earlier revisions
         </Button>
       )}
-    </section>
+    </Panel>
   );
 }

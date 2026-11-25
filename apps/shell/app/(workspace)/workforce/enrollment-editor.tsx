@@ -3,14 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@tesserix/web";
 import {
-  UserRound,
-  Phone,
-  MapPin,
-  Stethoscope,
-  GraduationCap,
-  BriefcaseBusiness,
-} from "lucide-react";
-import {
   apiFetch,
   enrollmentRequestOptions,
   withStaffIntakeScope,
@@ -44,6 +36,7 @@ import {
 import {
   Field,
   FormSelectField,
+  Panel,
   useZodForm,
   useFieldArray,
   type FieldPath,
@@ -54,12 +47,12 @@ import {
 } from "@helivanta/ui";
 
 const sections = [
-  { id: "identity", title: "Identity & contact", icon: UserRound },
-  { id: "employment", title: "Employment", icon: BriefcaseBusiness },
-  { id: "addresses", title: "Addresses", icon: MapPin },
-  { id: "emergency", title: "Emergency contacts", icon: Phone },
-  { id: "credentials", title: "Professional credentials", icon: Stethoscope },
-  { id: "history", title: "Qualifications & experience", icon: GraduationCap },
+  { id: "identity", title: "Identity & contact" },
+  { id: "employment", title: "Employment" },
+  { id: "addresses", title: "Addresses" },
+  { id: "emergency", title: "Emergency contacts" },
+  { id: "credentials", title: "Professional credentials" },
+  { id: "history", title: "Qualifications & experience" },
 ] as const;
 
 export function EnrollmentEditor({
@@ -110,9 +103,9 @@ export function EnrollmentEditor({
   }, [query.error, onContextChanged]);
   if (staff && query.isPending)
     return (
-      <section className="mt-6 rounded-2xl border bg-card p-8" role="status">
+      <Panel className="mt-6" role="status">
         Loading protected enrollment…
-      </section>
+      </Panel>
     );
   if (staff && (!query.data || query.isError))
     return (
@@ -509,24 +502,18 @@ export function EnrollmentForm({
     </Button>
   );
   const sectionHeading = (id: (typeof sections)[number]["id"], subtitle: string) => {
-    const { title, icon: Icon } = sections.find((section) => section.id === id)!;
+    const { title } = sections.find((section) => section.id === id)!;
     return (
-      <div className="mb-5 flex gap-3">
-        <span className="mt-0.5 rounded-xl bg-(--hms-accent-dim) p-2.5 text-(--hms-accent)">
-          <Icon className="h-5 w-5" aria-hidden="true" />
-        </span>
-        <div>
-          <h4 className="font-semibold">{title}</h4>
-          <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
-        </div>
+      <div className="mb-5">
+        <h4 className="font-semibold">{title}</h4>
+        <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
       </div>
     );
   };
-  const cardClass = "scroll-mt-24 rounded-2xl border bg-card p-5 sm:p-6";
-  const rowClass = "grid gap-4 rounded-xl border bg-muted/15 p-4 sm:grid-cols-2 lg:grid-cols-3";
+  const rowClass = "grid gap-4 sm:grid-cols-2 lg:grid-cols-3";
   if (accessChanged) return null;
   return (
-    <section ref={sectionRef} aria-labelledby="staff-editor-heading" className="mt-8 scroll-mt-24">
+    <section ref={sectionRef} aria-labelledby="staff-editor-heading" className="mt-8 scroll-mt-4">
       <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
           <h3 id="staff-editor-heading" className="text-xl font-semibold">
@@ -564,7 +551,7 @@ export function EnrollmentForm({
         className="space-y-5"
       >
         <fieldset disabled={save.isPending} className="contents">
-          <section id="staff-identity" className={cardClass}>
+          <Panel id="staff-identity" className="scroll-mt-4">
             {sectionHeading(
               "identity",
               "Full name and employee code are required. Collect other details only when needed.",
@@ -600,8 +587,8 @@ export function EnrollmentForm({
               Phone numbers include country codes. Blood group is optional and reported; it is not a
               verified clinical result or a donor assessment.
             </p>
-          </section>
-          <section id="staff-employment" className={cardClass}>
+          </Panel>
+          <Panel id="staff-employment" className="scroll-mt-4">
             {sectionHeading(
               "employment",
               hrIntake
@@ -658,7 +645,7 @@ export function EnrollmentForm({
               {field("profile.confirmation_date", "Confirmation date", "date")}
               {masterField("exit_reason", "Exit reason")}
             </div>
-          </section>
+          </Panel>
           {masters?.hasMore && (
             <Button
               type="button"
@@ -695,14 +682,14 @@ export function EnrollmentForm({
               error={supervisors.error}
             />
           )}
-          <section id="staff-addresses" className={cardClass}>
+          <Panel id="staff-addresses" className="scroll-mt-4">
             {sectionHeading(
               "addresses",
               "Keep one current and one permanent address, with international country codes.",
             )}
             <div className="space-y-4">
               {addresses.fields.map((row, i) => (
-                <div key={row.fieldKey} className={rowClass}>
+                <Panel as="div" key={row.fieldKey} className={rowClass}>
                   {select(`addresses.${i}.use`, "Address type", [
                     { value: "current", label: "Current" },
                     { value: "permanent", label: "Permanent" },
@@ -732,7 +719,7 @@ export function EnrollmentForm({
                       </Button>
                     )}
                   </div>
-                </div>
+                </Panel>
               ))}
             </div>
             <Button
@@ -753,22 +740,22 @@ export function EnrollmentForm({
             >
               Add address
             </Button>
-          </section>
-          <section id="staff-emergency" className={cardClass}>
+          </Panel>
+          <Panel id="staff-emergency" className="scroll-mt-4">
             {sectionHeading(
               "emergency",
               "Name the person to contact, their relationship and the order in which to call.",
             )}
             <div className="space-y-4">
               {contacts.fields.map((row, i) => (
-                <div key={row.fieldKey} className={rowClass}>
+                <Panel as="div" key={row.fieldKey} className={rowClass}>
                   {field(`emergency_contacts.${i}.name`, "Contact name")}
                   {childMasterField("relationship", i)}
                   {field(`emergency_contacts.${i}.phone`, "Emergency phone", "tel")}
                   {field(`emergency_contacts.${i}.email`, "Emergency email", "email")}
                   {field(`emergency_contacts.${i}.priority`, "Contact priority", "number")}
                   <div className="self-end">{remove("contact", () => contacts.remove(i))}</div>
-                </div>
+                </Panel>
               ))}
             </div>
             <Button
@@ -793,15 +780,15 @@ export function EnrollmentForm({
             >
               Add emergency contact
             </Button>
-          </section>
-          <section id="staff-credentials" className={cardClass}>
+          </Panel>
+          <Panel id="staff-credentials" className="scroll-mt-4">
             {sectionHeading(
               "credentials",
               "Record professional registration and validity. Review and privileging remain separate.",
             )}
             <div className="space-y-4">
               {credentials.fields.map((row, i) => (
-                <div key={row.fieldKey} className={rowClass}>
+                <Panel as="div" key={row.fieldKey} className={rowClass}>
                   {field(`credentials.${i}.type`, "Credential type")}
                   {field(`credentials.${i}.number`, "Registration number")}
                   {field(`credentials.${i}.issuer`, "Issuing authority")}
@@ -812,7 +799,7 @@ export function EnrollmentForm({
                   <div className="self-end">
                     {remove("credential", () => credentials.remove(i))}
                   </div>
-                </div>
+                </Panel>
               ))}
             </div>
             <Button
@@ -825,15 +812,15 @@ export function EnrollmentForm({
             >
               Add credential
             </Button>
-          </section>
-          <section id="staff-history" className={cardClass}>
+          </Panel>
+          <Panel id="staff-history" className="scroll-mt-4">
             {sectionHeading(
               "history",
               "Record relevant qualifications and previous employment, without salary or unnecessary identifiers.",
             )}
             <div className="space-y-4">
               {qualifications.fields.map((row, i) => (
-                <div key={row.fieldKey} className={rowClass}>
+                <Panel as="div" key={row.fieldKey} className={rowClass}>
                   {childMasterField("qualification", i)}
                   {field(`qualifications.${i}.institution`, "Institution")}
                   {field(`qualifications.${i}.country`, "Qualification country")}
@@ -841,7 +828,7 @@ export function EnrollmentForm({
                   <div className="self-end">
                     {remove("qualification", () => qualifications.remove(i))}
                   </div>
-                </div>
+                </Panel>
               ))}
             </div>
             <Button
@@ -858,7 +845,7 @@ export function EnrollmentForm({
             </Button>
             <div className="mt-6 space-y-4">
               {experiences.fields.map((row, i) => (
-                <div key={row.fieldKey} className={rowClass}>
+                <Panel as="div" key={row.fieldKey} className={rowClass}>
                   {field(`experiences.${i}.employer`, "Previous employer")}
                   {field(`experiences.${i}.role`, "Previous role")}
                   {field(`experiences.${i}.start_date`, "Experience start date", "date")}
@@ -866,7 +853,7 @@ export function EnrollmentForm({
                   <div className="self-end">
                     {remove("experience", () => experiences.remove(i))}
                   </div>
-                </div>
+                </Panel>
               ))}
             </div>
             <Button
@@ -879,9 +866,9 @@ export function EnrollmentForm({
             >
               Add experience
             </Button>
-          </section>
+          </Panel>
         </fieldset>
-        <div className="sticky bottom-3 z-10 flex flex-wrap items-center justify-between gap-4 rounded-xl border bg-card/95 p-4 shadow-lg backdrop-blur">
+        <div className="flex flex-wrap items-center justify-between gap-4 border-t pt-4">
           <div className="max-w-xl text-sm text-muted-foreground">
             {save.isError ? (
               <p role="alert" className="text-destructive">

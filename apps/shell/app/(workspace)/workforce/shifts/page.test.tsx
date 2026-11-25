@@ -4,6 +4,10 @@ import { afterEach, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
 import Shifts from "./page";
 import { NavigationGuardProvider } from "@helivanta/ui";
+
+// #1261 slice 1: cards are Panel, so no hand-painted card class survives.
+// Buttons are controls: the design system's outline button carries shadow-sm.
+const CARDS = ":is(.rounded-xl, .rounded-2xl, .shadow-sm):not(button)";
 const hospital = "11111111-1111-4111-8111-111111111111";
 const shift = {
   id: "shift-1",
@@ -86,12 +90,15 @@ it("shows protected revision timing and hides management controls from readers",
     </NavigationGuardProvider>,
   );
   expect(await screen.findByText("Synthetic Night")).toBeInTheDocument();
+  expect(screen.getByText("Synthetic Night").closest("tr")).toHaveClass("h-11");
+  expect(screen.getByRole("columnheader", { name: "Revision" })).toHaveClass("text-right");
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   expect(screen.queryByRole("button", { name: "Add shift" })).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Edit Synthetic Night" })).not.toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "History for Synthetic Night" }));
-  expect(await screen.findByRole("region", { name: "Shift revision history" })).toHaveTextContent(
-    "22:00",
-  );
+  const history = await screen.findByRole("region", { name: "Shift revision history" });
+  expect(history).toHaveTextContent("22:00");
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
 });
 it("focuses the add form and rejects zero-duration shifts before submitting", async () => {
   const writes = mock();

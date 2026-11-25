@@ -11,6 +11,10 @@ import type { Hospital } from "@helivanta/api";
 import { chooseOption } from "@/test/select";
 import CredentialReminders from "./credential-reminders/page";
 
+// #1261 slice 1: cards are Panel, so no hand-painted card class survives.
+// Buttons are controls: the design system's outline button carries shadow-sm.
+const CARDS = ":is(.rounded-xl, .rounded-2xl, .shadow-sm):not(button)";
+
 // Synthetic staff and credentials only.
 const tenant = "33333333-3333-4333-8333-333333333333";
 const hospital: Hospital = {
@@ -140,6 +144,8 @@ it("lists open reminders, acknowledges one and filters by status", async () => {
   const { user } = renderWithProviders(<CredentialReminders />);
   const table = await screen.findByRole("table");
   expect(within(table).getByText("30 days before expiry")).toBeInTheDocument();
+  expect(within(table).getByText("30 days before expiry").closest("tr")).toHaveClass("h-11");
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   expect(within(table).queryByText(/SYN-RN/)).toBeNull();
   await user.click(
     within(table).getByRole("button", {

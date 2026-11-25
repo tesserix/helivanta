@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Button } from "@tesserix/web";
+import { Button, cn } from "@tesserix/web";
 import {
   ApiError,
   credentialRegisterFilterSchema,
@@ -17,11 +17,13 @@ import {
   Field,
   LoadMore,
   PageHeading,
+  Panel,
   SelectControl,
   useZodForm,
   RequestFailure,
+  tableStyles,
+  controlClass,
 } from "@helivanta/ui";
-import { inputClass } from "../roster-policy/policy-ui";
 import { credentialPlace, standingText, useAccessChange } from "../credential-panel";
 
 export function CredentialRegisterWorkspace() {
@@ -35,7 +37,7 @@ export function CredentialRegisterWorkspace() {
   return (
     <>
       <PageHeading
-        description="Every reviewed licence and registration, soonest expiry first, in the hospital calendar. Only approved reviews appear here."
+        description="Every reviewed licence and registration, soonest expiry first, in the hospital calendar."
         actions={
           hospital && (
             <div className="w-full sm:w-72">
@@ -68,10 +70,12 @@ export function CredentialRegisterWorkspace() {
           />
         </section>
       ) : (
-        <p className="rounded-2xl border bg-card p-8">
-          Ask your tenant administrator for hospital management access to view the credential
-          register.
-        </p>
+        <Panel as="div">
+          <p>
+            Ask your tenant administrator for hospital management access to view the credential
+            register.
+          </p>
+        </Panel>
       )}
       {hospitals.hasMore && (
         <Button
@@ -111,9 +115,9 @@ export function CredentialRegister({
   useAccessChange(onContextChanged, rows.error);
   if (!allowed)
     return (
-      <p role="alert" className="rounded-2xl border bg-card p-8">
-        You need enrollment management access to view the credential register.
-      </p>
+      <Panel as="div" role="alert">
+        <p>You need enrollment management access to view the credential register.</p>
+      </Panel>
     );
   const zoneUnset =
     rows.error instanceof ApiError && rows.error.detail.reason === "time_zone_unset";
@@ -139,21 +143,22 @@ export function CredentialRegister({
                 id="register-within"
                 inputMode="numeric"
                 placeholder="All reviewed credentials"
-                className={inputClass}
+                className={controlClass}
                 {...form.register("within")}
               />
             </Field>
           </div>
           <Button type="submit">Show credentials</Button>
         </fieldset>
+        <p className="text-sm text-muted-foreground">Only approved reviews appear here.</p>
         {filterBlocked && <p className="text-sm text-muted-foreground">{filterBlocked}</p>}
       </form>
       {rows.isPending ? (
         <p role="status">Loading credentials…</p>
       ) : zoneUnset ? (
-        <p role="alert" className="rounded-xl border p-6 text-sm">
-          {rows.error?.message}
-        </p>
+        <Panel as="div" role="alert">
+          <p className="text-sm">{rows.error?.message}</p>
+        </Panel>
       ) : rows.isError ? (
         <RequestFailure
           message="Could not load the credential register."
@@ -161,29 +166,31 @@ export function CredentialRegister({
           error={rows.error}
         />
       ) : rows.items.length === 0 ? (
-        <p className="rounded-xl border p-6 text-sm">
-          {within === null
-            ? `No credentials have been reviewed at this ${credentialPlace(owner)} yet.`
-            : "No reviewed credentials expire in this window."}
-        </p>
+        <Panel as="div">
+          <p className="text-sm">
+            {within === null
+              ? `No credentials have been reviewed at this ${credentialPlace(owner)} yet.`
+              : "No reviewed credentials expire in this window."}
+          </p>
+        </Panel>
       ) : (
-        <div className="overflow-x-auto rounded-2xl border bg-card">
+        <Panel flush className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <caption className="sr-only">Reviewed credentials at {ownerName}</caption>
-            <thead className="bg-muted/40 text-xs text-muted-foreground">
+            <thead>
               <tr>
                 {["Staff", "Credential", "Number", "Valid from", "Valid until", "Status"].map(
                   (label) => (
-                    <th key={label} scope="col" className="px-4 py-3 font-medium">
+                    <th key={label} scope="col" className={cn(tableStyles.head, "px-4 py-3")}>
                       {label}
                     </th>
                   ),
                 )}
               </tr>
             </thead>
-            <tbody className="divide-y">
+            <tbody>
               {rows.items.map((row) => (
-                <tr key={`${row.staff_id}:${row.credential_id}`}>
+                <tr key={`${row.staff_id}:${row.credential_id}`} className={tableStyles.row}>
                   <td className="px-4 py-3">
                     {row.display_name}
                     <span className="block font-mono text-xs text-muted-foreground">
@@ -207,7 +214,7 @@ export function CredentialRegister({
             isLoading={rows.isFetchingMore}
             onClick={rows.loadMore}
           />
-        </div>
+        </Panel>
       )}
     </div>
   );

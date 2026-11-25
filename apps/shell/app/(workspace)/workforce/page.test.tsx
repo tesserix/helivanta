@@ -5,6 +5,10 @@ import { afterEach, expect, it, vi } from "vitest";
 import { releaseSnapshotForTest, renderWithProviders } from "@helivanta/api/testing";
 import Workforce from "./page";
 
+// #1261 slice 1: cards are Panel, so no hand-painted card class survives.
+// Buttons are controls: the design system's outline button carries shadow-sm.
+const CARDS = ":is(.rounded-xl, .rounded-2xl, .shadow-sm):not(button)";
+
 const hospital = "11111111-1111-4111-8111-111111111111";
 const page = (data: unknown[]) => ({ data, page: { has_more: false, next_cursor: null } });
 afterEach(() => vi.unstubAllGlobals());
@@ -175,6 +179,7 @@ it("lets a tenant administrator explicitly create and grant their first hospital
     </NavigationGuardProvider>,
   );
   await user.click(await screen.findByText("Add a hospital"));
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   await user.type(screen.getByLabelText("Hospital name"), "YES Main Hospital");
   await user.click(screen.getByLabelText("Grant me staff manager access to this hospital"));
   await user.click(screen.getByRole("button", { name: "Create hospital" }));

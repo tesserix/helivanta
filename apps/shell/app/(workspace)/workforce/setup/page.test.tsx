@@ -6,6 +6,10 @@ import { releaseSnapshotForTest, renderWithProviders } from "@helivanta/api/test
 import { NavigationGuardProvider } from "@helivanta/ui";
 import HRSetup from "./page";
 
+// #1261 slice 1: cards are Panel, so no hand-painted card class survives.
+// Buttons are controls: the design system's outline button carries shadow-sm.
+const CARDS = ":is(.rounded-xl, .rounded-2xl, .shadow-sm):not(button)";
+
 const hospital = "11111111-1111-4111-8111-111111111111";
 const page = (data: unknown[]) => ({ data, page: { has_more: false, next_cursor: null } });
 afterEach(() => vi.unstubAllGlobals());
@@ -124,6 +128,9 @@ it("allows catalog reading without exposing management controls", async () => {
   mockSetup({ allowed: false });
   mountSetup();
   expect(await screen.findByText("Synthetic Department")).toBeInTheDocument();
+  expect(screen.getByText("Synthetic Department").closest("tr")).toHaveClass("h-11");
+  expect(screen.getByRole("columnheader", { name: "Revision" })).toHaveClass("text-right");
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   expect(screen.queryByRole("button", { name: "Add setup record" })).not.toBeInTheDocument();
   expect(
     screen.queryByRole("button", { name: "Edit Synthetic Department" }),

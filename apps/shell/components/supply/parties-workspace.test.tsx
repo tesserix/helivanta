@@ -12,6 +12,11 @@ const renderWithProviders = (ui: Parameters<typeof renderWithNamedAccounts>[0]) 
 import { PartiesWorkspace } from "./parties-workspace";
 const id = "0199e000-0000-7000-8000-000000000020";
 const page = (data: unknown[]) => ({ data, page: { has_more: false, next_cursor: null } });
+// #1260: cards are Panel, so no hand-painted card class survives.
+// Controls are not cards: the design system's outline button, Input and
+// Textarea carry shadow-sm, and a select trigger is a button-like combobox.
+const CARDS =
+  ":is(.rounded-xl, .rounded-2xl, .shadow-sm):not(button, input, textarea, [role=combobox])";
 afterEach(() => vi.unstubAllGlobals());
 function fixture(
   roles: string[] = [],
@@ -113,6 +118,7 @@ it("does not query the directory without permission", async () => {
   const fetcher = fixture([], false);
   renderWithProviders(<PartiesWorkspace />);
   expect(await screen.findByText("Supply access required")).toBeInTheDocument();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   expect(fetcher.mock.calls.some(([url]) => url.includes("/supply/"))).toBe(false);
 });
 it("keeps private detail requests behind explicit access", async () => {
@@ -120,6 +126,10 @@ it("keeps private detail requests behind explicit access", async () => {
   renderWithProviders(<PartiesWorkspace />);
   await userEvent.click(await screen.findByRole("button", { name: /TEST Private Supplier/ }));
   expect(await screen.findByText("Private profile access required")).toBeInTheDocument();
+  // #1260: the directory description is one sentence; the privacy rule sits in the notice.
+  expect(screen.getByText("Your organisations and supplier records.")).toBeInTheDocument();
+  expect(screen.getByText(/^Profiles stay private unless access is granted\./)).toBeInTheDocument();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   expect(fetcher.mock.calls.some(([url]) => url.endsWith(`/parties/${id}`))).toBe(false);
 });
 it("focuses the new profile and preserves the aggregate identity after a failed save", async () => {
@@ -140,6 +150,7 @@ it("focuses the new profile and preserves the aggregate identity after a failed 
   await user.type(screen.getByLabelText("Business registration number"), "TEST-REG-001");
   await user.click(screen.getByRole("button", { name: "Save draft profile" }));
   expect(await screen.findByText("TEST save unavailable")).toBeInTheDocument();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   await user.click(screen.getByRole("button", { name: "Save draft profile" }));
   await waitFor(() =>
     expect(fetcher.mock.calls.filter(([, init]) => init?.method === "PUT")).toHaveLength(2),
@@ -191,6 +202,7 @@ it("adds each structured collection and preserves the remaining contact after re
   await user.type(screen.getByLabelText("Tax jurisdiction"), "TEST-MH");
   await user.click(screen.getByRole("button", { name: "Save draft profile" }));
   expect(await screen.findByText("TEST save unavailable")).toBeInTheDocument();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   const writes = fetcher.mock.calls.filter(([, init]) => init?.method === "PUT");
   expect(writes).toHaveLength(1);
   const saved = JSON.parse(writes[0][1]?.body as string);
@@ -204,12 +216,43 @@ it("adds each structured collection and preserves the remaining contact after re
   }
 });
 
+it("lists recorded contacts, addresses and tax declarations as divided rows", async () => {
+  const base = fixture(["auditor"]);
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      const response = await base(url, init);
+      if (!url.endsWith(`/supply/parties/${id}`)) return response;
+      return new Response(
+        JSON.stringify({
+          ...(await response.json()),
+          contacts: [{ id: "TEST-contact", name: "TEST Contact", role: "finance", email: "" }],
+          addresses: [
+            { id: "TEST-address", kind: "billing", line1: "TEST Road", city: "TEST City" },
+          ],
+          tax_registrations: [
+            { id: "TEST-tax", kind: "gstin", number: "TEST-GST", jurisdiction: "TEST-MH" },
+          ],
+        }),
+      );
+    }),
+  );
+  renderWithProviders(<PartiesWorkspace />);
+  await userEvent.click(await screen.findByRole("button", { name: /TEST Private Supplier/ }));
+  expect(await screen.findByText("TEST Contact · finance")).toBeInTheDocument();
+  expect(screen.getByText(/TEST Road, TEST City/)).toBeInTheDocument();
+  expect(screen.getByText(/TEST-GST/)).toBeInTheDocument();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
+});
+
 it("integrates corporate structure only for an owned organisation", async () => {
   const fetcher = fixture(["auditor"], true, true);
   renderWithProviders(<PartiesWorkspace />);
   await userEvent.click(await screen.findByRole("button", { name: /TEST Private Supplier/ }));
   expect(await screen.findByRole("region", { name: "Organisation structure" })).toBeInTheDocument();
+  expect(await screen.findByText("No premises recorded.")).toBeInTheDocument();
   expect(screen.queryByRole("region", { name: "Organisation access" })).not.toBeInTheDocument();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   expect(fetcher.mock.calls.some(([url]) => url.endsWith("/grants"))).toBe(false);
 });
 it("does not load corporate structure or access management for a counterparty", async () => {
@@ -228,6 +271,7 @@ it("shows assigned sales territories without requesting the private organisation
   renderWithProviders(<PartiesWorkspace />);
   await userEvent.click(await screen.findByRole("button", { name: /TEST Private Supplier/ }));
   expect(await screen.findByRole("region", { name: "Sales territories" })).toBeInTheDocument();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   expect(
     fetcher.mock.calls.some(
       ([url]) =>
@@ -246,6 +290,7 @@ it("opens a support-only workspace without requesting ordinary grants or the pri
   expect(
     await screen.findByRole("region", { name: "Support access requests" }),
   ).toBeInTheDocument();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   expect(
     fetcher.mock.calls.some(
       ([url]) =>
@@ -263,6 +308,7 @@ it("opens driver operations without loading private legal or organisation data",
   expect(
     await screen.findByRole("region", { name: "Organisation operations" }),
   ).toBeInTheDocument();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   expect(
     fetcher.mock.calls.some(
       ([url]) =>
@@ -315,6 +361,7 @@ it("refreshes directory and drops the private profile after its own administrato
   await user.click(
     await screen.findByRole("button", { name: "Review revocation QA Owner administrator" }),
   );
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   await user.click(screen.getByRole("button", { name: "Confirm revoke earlier grant" }));
   await waitFor(() =>
     expect(screen.queryByRole("button", { name: "Edit profile" })).not.toBeInTheDocument(),

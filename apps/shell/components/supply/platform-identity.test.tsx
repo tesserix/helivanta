@@ -107,6 +107,11 @@ it("clears confirmation when the workspace scope changes", async () => {
   await waitFor(() => expect(screen.queryByText("TEST-source-org")).not.toBeInTheDocument());
   expect(screen.getByRole("button", { name: "Check workspace identity" })).toBeEnabled();
 });
+// #1260: cards are Panel, so no hand-painted card class survives.
+// Controls are not cards: the design system's outline button, Input and
+// Textarea carry shadow-sm, and a select trigger is a button-like combobox.
+const CARDS =
+  ":is(.rounded-xl, .rounded-2xl, .shadow-sm):not(button, input, textarea, [role=combobox])";
 afterEach(() => vi.unstubAllGlobals());
 
 it("checks workspace identity on request without treating it as permission to trade", async () => {
@@ -121,6 +126,7 @@ it("checks workspace identity on request without treating it as permission to tr
   await userEvent.click(screen.getByRole("button", { name: "Check workspace identity" }));
   expect(await screen.findByText("Workspace identity confirmed")).toBeInTheDocument();
   expect(screen.getByText("Trading approval is separate")).toBeInTheDocument();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   const headers = new Headers(fetcher.mock.calls[0]?.[1]?.headers);
   expect(headers.get("X-Helivanta-Expected-Tenant")).toBe(scope.tenantId);
   expect(screen.getByRole("button", { name: "Check again" })).toBeEnabled();

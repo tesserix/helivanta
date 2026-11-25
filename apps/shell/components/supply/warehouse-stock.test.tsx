@@ -4,6 +4,11 @@ import { afterEach, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
 import { WarehouseStock } from "./warehouse-stock";
 
+// #1260: cards are Panel, so no hand-painted card class survives.
+// Controls are not cards: the design system's outline button, Input and
+// Textarea carry shadow-sm, and a select trigger is a button-like combobox.
+const CARDS =
+  ":is(.rounded-xl, .rounded-2xl, .shadow-sm):not(button, input, textarea, [role=combobox])";
 afterEach(() => vi.unstubAllGlobals());
 const scope = {
   tenantId: "11111111-1111-4111-8111-111111111111",
@@ -84,8 +89,63 @@ it("recovers a lost receipt response without posting the count again", async () 
   await user.type(screen.getByLabelText("Reason"), "TEST physical receipt counted");
   await user.click(screen.getByRole("button", { name: "Record receipt" }));
   await screen.findByRole("button", { name: "Recover receipt" });
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   expect(screen.getByLabelText("Packs counted")).toBeDisabled();
   await user.click(screen.getByRole("button", { name: "Recover receipt" }));
   await screen.findByText("Receipt recorded in quarantine.");
   await waitFor(() => expect(writes).toBe(1));
+});
+
+it("lists receipts as 44px table rows with a sentence-case header and right-aligned counts", async () => {
+  const receipt = {
+    id: "019a55c0-1111-7111-8111-111111111118",
+    owner_tenant_id: scope.tenantId,
+    party_id: scope.partyId,
+    premise_id: scope.premiseId,
+    input: {
+      product_version_id: product.version_id,
+      lot_number: "TEST-LOT",
+      expires_on: "2030-12-31",
+      quantity_units: 10,
+      unit_code: "pack",
+      source_reference: "TEST-GRN:1",
+      reason: "TEST physical count",
+    },
+    stock_status: "quarantine",
+    available_units: 0,
+    product_identity_verified: false,
+    actor_subject: "TEST-receiver",
+    created_at: "2026-11-08T00:00:00Z",
+  };
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string) => {
+      if (url.endsWith("permissions"))
+        return Response.json({
+          tenant_id: scope.tenantId,
+          subject: scope.subject,
+          data: ["supply.operations.read"],
+        });
+      if (url.endsWith("/inspection"))
+        return Response.json({ error: "not_found", message: "unavailable" }, { status: 404 });
+      return Response.json({ data: [receipt], page: { has_more: false, next_cursor: null } });
+    }),
+  );
+  renderWithProviders(
+    <WarehouseStock
+      scope={scope}
+      location={location}
+      roles={["inventory"]}
+      canWrite={false}
+      onClose={() => {}}
+    />,
+  );
+  const count = await screen.findByRole("cell", { name: "10 pack" });
+  expect(count.closest("tr")).toHaveClass("h-11");
+  expect(count).toHaveClass("text-right");
+  expect(screen.getByRole("columnheader", { name: "Count" })).toHaveClass("text-right");
+  expect(screen.getByRole("columnheader", { name: "Lot" })).not.toHaveClass("uppercase");
+  await userEvent.click(screen.getByRole("button", { name: "Inspect stock" }));
+  await screen.findByText("Current stock inspection is unavailable.");
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
 });

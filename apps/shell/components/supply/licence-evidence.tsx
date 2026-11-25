@@ -27,6 +27,7 @@ import {
   LoadMore,
   ConfirmDialog,
   formatDateTime,
+  Panel,
   RequestFailure,
 } from "@helivanta/ui";
 
@@ -167,10 +168,7 @@ export function LicenceEvidence({ scope, licence, roles, onClose }: Props) {
     });
   }
   return (
-    <section
-      aria-label="Licence evidence"
-      className="scroll-mt-32 rounded-2xl border bg-card p-4 sm:p-6"
-    >
+    <Panel aria-label="Licence evidence" className="scroll-mt-32">
       <header className="flex items-start justify-between gap-4">
         <div>
           <h5 ref={heading} tabIndex={-1} className="text-lg font-semibold outline-none">
@@ -199,39 +197,44 @@ export function LicenceEvidence({ scope, licence, roles, onClose }: Props) {
       ) : (
         <>
           {write && (
-            <form
-              className="my-5 space-y-3 rounded-xl border bg-muted/20 p-4"
-              onSubmit={(event) => void form.handleSubmit(() => perform({ kind: "upload" }))(event)}
-            >
-              <Field
-                label="Licence evidence image"
-                id="licence-evidence-file"
-                error={form.formState.errors.file?.message}
+            <Panel as="div" className="my-5">
+              <form
+                noValidate
+                className="space-y-3"
+                onSubmit={(event) =>
+                  void form.handleSubmit(() => perform({ kind: "upload" }))(event)
+                }
               >
-                <input
-                  ref={input}
+                <Field
+                  label="Licence evidence image"
                   id="licence-evidence-file"
-                  type="file"
-                  accept="image/png,image/jpeg"
-                  disabled={mutation.isPending}
-                  className="w-full min-w-0 rounded-md border p-2 text-sm"
-                  onChange={(event) => {
-                    prepared.current = null;
-                    setRetryable(false);
-                    mutation.reset();
-                    form.setValue("file", event.target.files?.[0] ?? null, {
-                      shouldValidate: true,
-                    });
-                  }}
-                />
-              </Field>
-              <p className="text-xs text-muted-foreground">
-                PNG or JPEG · Up to 10 MiB · Saved against revision {licence.version}
-              </p>
-              <Button type="submit" disabled={mutation.isPending}>
-                {mutation.isPending ? "Working…" : retryable ? "Retry upload" : "Upload evidence"}
-              </Button>
-            </form>
+                  error={form.formState.errors.file?.message}
+                >
+                  <input
+                    ref={input}
+                    id="licence-evidence-file"
+                    type="file"
+                    accept="image/png,image/jpeg"
+                    disabled={mutation.isPending}
+                    className="w-full min-w-0 rounded-md border p-2 text-sm"
+                    onChange={(event) => {
+                      prepared.current = null;
+                      setRetryable(false);
+                      mutation.reset();
+                      form.setValue("file", event.target.files?.[0] ?? null, {
+                        shouldValidate: true,
+                      });
+                    }}
+                  />
+                </Field>
+                <p className="text-xs text-muted-foreground">
+                  PNG or JPEG · Up to 10 MiB · Saved against revision {licence.version}
+                </p>
+                <Button type="submit" disabled={mutation.isPending}>
+                  {mutation.isPending ? "Working…" : retryable ? "Retry upload" : "Upload evidence"}
+                </Button>
+              </form>
+            </Panel>
           )}
           {mutation.isError && (
             <p role="alert" className="my-3 text-sm text-destructive">
@@ -333,6 +336,6 @@ export function LicenceEvidence({ scope, licence, roles, onClose }: Props) {
           if (revoking) perform({ kind: "revoke", file: revoking });
         }}
       />
-    </section>
+    </Panel>
   );
 }

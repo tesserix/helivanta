@@ -11,6 +11,11 @@ const base = {
   observed_at: "2026-10-18T18:45:00Z",
   premise_status: "active",
 } as const;
+// #1260: cards are Panel, so no hand-painted card class survives.
+// Controls are not cards: the design system's outline button, Input and
+// Textarea carry shadow-sm, and a select trigger is a button-like combobox.
+const CARDS =
+  ":is(.rounded-xl, .rounded-2xl, .shadow-sm):not(button, input, textarea, [role=combobox])";
 
 it.each<[NonNullable<SupplyLicense["renewal"]>["date_status"], number, string]>([
   ["current", 181, "Expiry in 181 days"],
@@ -25,6 +30,7 @@ it.each<[NonNullable<SupplyLicense["renewal"]>["date_status"], number, string]>(
   expect(
     screen.getByText(/Licence verification and trading approval are separate/),
   ).toBeInTheDocument();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
 });
 
 it("does not infer a current state from absent or malformed server metadata", () => {

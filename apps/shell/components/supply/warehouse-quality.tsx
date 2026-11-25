@@ -18,7 +18,7 @@ import {
   type WholesaleQualityInput,
   type WholesaleIdentityInput,
 } from "@helivanta/api";
-import { Field, RequestFailure, useZodForm } from "@helivanta/ui";
+import { Field, Panel, RequestFailure, useZodForm } from "@helivanta/ui";
 import { Button, Input, Textarea } from "@tesserix/web";
 
 type Props = {
@@ -128,10 +128,7 @@ function StockInspection({
   const independent =
     receipt.actor_subject !== scope.subject && identity?.actor_subject !== scope.subject;
   return (
-    <section
-      aria-label={`Stock inspection ${receipt.input.lot_number}`}
-      className="space-y-3 rounded-md border p-3"
-    >
+    <Panel aria-label={`Stock inspection ${receipt.input.lot_number}`} className="space-y-3">
       <h4 className="font-medium">Inspect lot {receipt.input.lot_number}</h4>
       {message && <p role="status">{message}</p>}
       {identity ? (
@@ -281,6 +278,6 @@ function StockInspection({
           }}
         />
       )}
-    </section>
+    </Panel>
   );
 }

@@ -9,6 +9,11 @@ const scope = {
   partyId: "0199e000-0000-7000-8000-000000000001",
 };
 const page = (data: unknown[]) => ({ data, page: { has_more: false, next_cursor: null } });
+// #1260: cards are Panel, so no hand-painted card class survives.
+// Controls are not cards: the design system's outline button, Input and
+// Textarea carry shadow-sm, and a select trigger is a button-like combobox.
+const CARDS =
+  ":is(.rounded-xl, .rounded-2xl, .shadow-sm):not(button, input, textarea, [role=combobox])";
 afterEach(() => vi.unstubAllGlobals());
 beforeEach(() => localStorage.clear());
 
@@ -48,6 +53,7 @@ it("shows a server-calculated expiry notice in the saved premise timezone and fo
   expect(screen.getByText(/Date notice only/)).toBeInTheDocument();
   await userEvent.click(screen.getByRole("button", { name: "Edit licence TEST-RENEWAL" }));
   await waitFor(() => expect(screen.getByLabelText("Licence type code")).toHaveFocus());
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
 });
 
 it("clears renewal notices during refresh and after a failed request", async () => {
@@ -156,6 +162,7 @@ it("focuses a new independent premise and preserves the ID after a failed save",
   await user.type(screen.getByLabelText("Postal code"), "TEST-001");
   await user.click(screen.getByRole("button", { name: "Save premise" }));
   expect(await screen.findByText("TEST registry unavailable")).toBeInTheDocument();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   await user.click(screen.getByRole("button", { name: "Save premise" }));
   await waitFor(() =>
     expect(fetcher.mock.calls.filter(([, init]) => init?.method === "PUT")).toHaveLength(2),
@@ -250,6 +257,7 @@ it("shows the actual licence validity in each retained revision", async () => {
   const history = await screen.findByRole("region", { name: "Registration revision history" });
   expect(history).toHaveTextContent("Expires 2031-12-31");
   expect(history).toHaveTextContent("Expires 2030-12-31");
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
 });
 
 it("marks existing evidence historical immediately after its licence is revised", async () => {
@@ -329,6 +337,7 @@ it("marks existing evidence historical immediately after its licence is revised"
   await user.click(screen.getByRole("button", { name: "Save licence declaration" }));
   expect(await screen.findByText(/Current revision 2/)).toBeInTheDocument();
   expect(await screen.findByText(/Revision 1.*historical/)).toBeInTheDocument();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
 });
 
 it("keeps declaration labels separate from the independently loaded review status", async () => {
@@ -390,6 +399,7 @@ it("opens owned warehouse bins without copying the premises master", async () =>
     "TEST Warehouse",
   );
   expect(await screen.findByText("No bins recorded for this premise.")).toBeInTheDocument();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
 });
 
 it("selects an owned branch for a warehouse through the reusable selector", async () => {

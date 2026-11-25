@@ -28,6 +28,7 @@ import {
   FormSelectField,
   FormAccountSelectField,
   LoadMore,
+  Panel,
   useZodForm,
   RequestFailure,
   RefreshButton,
@@ -76,7 +77,7 @@ function SupportPanel({ scope, admin }: { scope: SupplyRegistryScope; admin: boo
     request: { headers: supplyHeaders(scope) },
   });
   return (
-    <section aria-label="Support access requests" className="space-y-5 rounded-xl border p-5">
+    <Panel aria-label="Support access requests" className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h4 className="font-semibold">Support access</h4>
@@ -120,9 +121,9 @@ function SupportPanel({ scope, admin }: { scope: SupplyRegistryScope; admin: boo
               No support access requests are available.
             </p>
           )}
-          <ul className="space-y-3">
+          <ul className="divide-y">
             {rows.items.map((row) => (
-              <li key={row.id} className="space-y-3 rounded-lg border p-4">
+              <li key={row.id} className="space-y-3 py-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
                     <h5 className="break-words font-medium">{row.ticket_reference}</h5>
@@ -214,7 +215,7 @@ function SupportPanel({ scope, admin }: { scope: SupplyRegistryScope; admin: boo
         {Intl.DateTimeFormat().resolvedOptions().timeZone}). Diagnostic sessions cannot edit
         records.
       </p>
-    </section>
+    </Panel>
   );
 }
 function SupportEditor({
@@ -276,146 +277,155 @@ function SupportEditor({
   );
   const error = (name: keyof SupplySupportInput) => form.formState.errors[name]?.message;
   return (
-    <form
-      noValidate
-      aria-label="Support request form"
-      className="space-y-4 rounded-xl bg-muted/30 p-4"
-      onSubmit={form.handleSubmit((value) => {
-        if (!save.isPending && !premises.isError && policy.ready) save.mutate(value);
-      })}
-    >
-      <h5 className="font-medium">New support access request</h5>
-      <AccessWindowPolicyStatus policy={policy} />
-      <div className="grid gap-4 sm:grid-cols-2">
-        <FormAccountSelectField
-          control={form.control}
-          name="beneficiary_subject"
-          id="support-beneficiary"
-          label="Support beneficiary"
-          options={subjects.map((subject) => ({ value: subject, label: subject }))}
-          disabled={save.isPending}
+    <Panel as="div">
+      <form
+        noValidate
+        aria-label="Support request form"
+        className="space-y-4"
+        onSubmit={form.handleSubmit((value) => {
+          if (!save.isPending && !premises.isError && policy.ready) save.mutate(value);
+        })}
+      >
+        <h5 className="font-medium">New support access request</h5>
+        <AccessWindowPolicyStatus policy={policy} />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <FormAccountSelectField
+            control={form.control}
+            name="beneficiary_subject"
+            id="support-beneficiary"
+            label="Support beneficiary"
+            options={subjects.map((subject) => ({ value: subject, label: subject }))}
+            disabled={save.isPending}
+          />
+          <FormSelectField
+            control={form.control}
+            name="premise_id"
+            id="support-premise"
+            label="Location to investigate"
+            options={premises.items
+              .filter(
+                (row) =>
+                  row.status === "active" &&
+                  (supplyAccessScopePolicy.premise_kinds as readonly string[]).includes(row.kind),
+              )
+              .map((row) => ({ value: row.id, label: `${row.code} · ${row.name}` }))}
+            disabled={
+              save.isPending ||
+              premises.isPending ||
+              premises.isError ||
+              !can("supply.premise.read")
+            }
+          />
+        </div>
+        {!can("iam.member.manage") && (
+          <p className="text-sm text-muted-foreground">
+            Tenant administrator permission is required to choose a new tenant member. Existing
+            support beneficiaries remain selectable.
+          </p>
+        )}
+        {members.isError && (
+          <RequestFailure
+            message="Could not load trusted tenant members."
+            retry={members.retry}
+            error={members.error}
+          />
+        )}
+        {premises.isError && (
+          <RequestFailure
+            message="Could not load support locations."
+            retry={premises.retry}
+            error={premises.error}
+          />
+        )}
+        {!can("supply.premise.read") && (
+          <p className="text-sm text-muted-foreground">
+            Location read permission is required to request support access.
+          </p>
+        )}
+        <LoadMore
+          hasMore={members.hasMore}
+          isLoading={members.isFetchingMore}
+          onClick={members.loadMore}
         />
-        <FormSelectField
-          control={form.control}
-          name="premise_id"
-          id="support-premise"
-          label="Location to investigate"
-          options={premises.items
-            .filter(
-              (row) =>
-                row.status === "active" &&
-                (supplyAccessScopePolicy.premise_kinds as readonly string[]).includes(row.kind),
-            )
-            .map((row) => ({ value: row.id, label: `${row.code} · ${row.name}` }))}
-          disabled={
-            save.isPending || premises.isPending || premises.isError || !can("supply.premise.read")
-          }
+        <LoadMore
+          hasMore={premises.hasMore}
+          isLoading={premises.isFetchingMore}
+          onClick={premises.loadMore}
         />
-      </div>
-      {!can("iam.member.manage") && (
-        <p className="text-sm text-muted-foreground">
-          Tenant administrator permission is required to choose a new tenant member. Existing
-          support beneficiaries remain selectable.
-        </p>
-      )}
-      {members.isError && (
-        <RequestFailure
-          message="Could not load trusted tenant members."
-          retry={members.retry}
-          error={members.error}
-        />
-      )}
-      {premises.isError && (
-        <RequestFailure
-          message="Could not load support locations."
-          retry={premises.retry}
-          error={premises.error}
-        />
-      )}
-      {!can("supply.premise.read") && (
-        <p className="text-sm text-muted-foreground">
-          Location read permission is required to request support access.
-        </p>
-      )}
-      <LoadMore
-        hasMore={members.hasMore}
-        isLoading={members.isFetchingMore}
-        onClick={members.loadMore}
-      />
-      <LoadMore
-        hasMore={premises.hasMore}
-        isLoading={premises.isFetchingMore}
-        onClick={premises.loadMore}
-      />
-      <Field id="support-ticket" label="Support ticket reference" error={error("ticket_reference")}>
-        <Input
+        <Field
           id="support-ticket"
-          {...form.register("ticket_reference")}
-          disabled={save.isPending}
-          aria-invalid={!!error("ticket_reference")}
-          aria-describedby={error("ticket_reference") ? "support-ticket-error" : undefined}
-        />
-      </Field>
-      <Field id="support-reason" label="Reason for investigation" error={error("reason")}>
-        <Input
-          id="support-reason"
-          {...form.register("reason")}
-          disabled={save.isPending}
-          aria-invalid={!!error("reason")}
-          aria-describedby={error("reason") ? "support-reason-error" : undefined}
-        />
-      </Field>
-      <div className="grid gap-4 sm:grid-cols-2">
-        {(["valid_from", "expires_at"] as const).map((name) => (
-          <Field
-            key={name}
-            id={`support-${name}`}
-            label={name === "valid_from" ? "Support starts at" : "Support expires at"}
-            error={error(name)}
-          >
-            <Input
-              id={`support-${name}`}
-              type="datetime-local"
-              value={dateTimeInputValue(form.watch(name))}
-              onChange={(event) =>
-                form.setValue(name, dateTimeInputISO(event.target.value), {
-                  shouldDirty: true,
-                  shouldValidate: true,
-                })
-              }
-              disabled={save.isPending}
-              aria-invalid={!!error(name)}
-              aria-describedby={error(name) ? `support-${name}-error` : undefined}
-            />
-          </Field>
-        ))}
-      </div>
-      {policy.data && (
-        <p className="text-xs text-muted-foreground">
-          Choose a window of no more than {accessWindowLabel(policy.data.max_support_hours)}.
-          Another administrator must approve; the requester and beneficiary cannot approve this
-          request. The server checks the current policy when saving or approving.
-        </p>
-      )}
-      {save.error && (
-        <p role="alert" className="text-sm text-destructive">
-          {save.error.message}
-        </p>
-      )}
-      <div className="flex flex-wrap gap-2">
-        <Button
-          type="submit"
-          disabled={
-            save.isPending || premises.isError || !can("supply.premise.read") || !policy.ready
-          }
+          label="Support ticket reference"
+          error={error("ticket_reference")}
         >
-          {save.isPending ? "Recording…" : "Submit support request"}
-        </Button>
-        <Button type="button" variant="ghost" disabled={save.isPending} onClick={onDone}>
-          Cancel support request
-        </Button>
-      </div>
-    </form>
+          <Input
+            id="support-ticket"
+            {...form.register("ticket_reference")}
+            disabled={save.isPending}
+            aria-invalid={!!error("ticket_reference")}
+            aria-describedby={error("ticket_reference") ? "support-ticket-error" : undefined}
+          />
+        </Field>
+        <Field id="support-reason" label="Reason for investigation" error={error("reason")}>
+          <Input
+            id="support-reason"
+            {...form.register("reason")}
+            disabled={save.isPending}
+            aria-invalid={!!error("reason")}
+            aria-describedby={error("reason") ? "support-reason-error" : undefined}
+          />
+        </Field>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {(["valid_from", "expires_at"] as const).map((name) => (
+            <Field
+              key={name}
+              id={`support-${name}`}
+              label={name === "valid_from" ? "Support starts at" : "Support expires at"}
+              error={error(name)}
+            >
+              <Input
+                id={`support-${name}`}
+                type="datetime-local"
+                value={dateTimeInputValue(form.watch(name))}
+                onChange={(event) =>
+                  form.setValue(name, dateTimeInputISO(event.target.value), {
+                    shouldDirty: true,
+                    shouldValidate: true,
+                  })
+                }
+                disabled={save.isPending}
+                aria-invalid={!!error(name)}
+                aria-describedby={error(name) ? `support-${name}-error` : undefined}
+              />
+            </Field>
+          ))}
+        </div>
+        {policy.data && (
+          <p className="text-xs text-muted-foreground">
+            Choose a window of no more than {accessWindowLabel(policy.data.max_support_hours)}.
+            Another administrator must approve; the requester and beneficiary cannot approve this
+            request. The server checks the current policy when saving or approving.
+          </p>
+        )}
+        {save.error && (
+          <p role="alert" className="text-sm text-destructive">
+            {save.error.message}
+          </p>
+        )}
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="submit"
+            disabled={
+              save.isPending || premises.isError || !can("supply.premise.read") || !policy.ready
+            }
+          >
+            {save.isPending ? "Recording…" : "Submit support request"}
+          </Button>
+          <Button type="button" variant="ghost" disabled={save.isPending} onClick={onDone}>
+            Cancel support request
+          </Button>
+        </div>
+      </form>
+    </Panel>
   );
 }
 function SupportDecision({
@@ -578,10 +588,7 @@ function SupportDiagnostics({
     );
   if (!result.data) return <p role="status">Loading read-only diagnostics…</p>;
   return (
-    <section
-      aria-label="Read-only support diagnostics"
-      className="space-y-3 rounded-lg border bg-background p-4"
-    >
+    <Panel aria-label="Read-only support diagnostics" className="space-y-3">
       <h6 className="font-medium">Read-only location diagnostics</h6>
       <p className="text-sm text-muted-foreground">
         Approved ticket {row.ticket_reference} · Expires {formatAbsoluteTime(row.expires_at)}
@@ -604,7 +611,7 @@ function SupportDiagnostics({
             </div>
           ))}
       </dl>
-    </section>
+    </Panel>
   );
 }
 function SupportHistory({ scope, id }: { scope: SupplyRegistryScope; id: string }) {

@@ -27,6 +27,7 @@ import {
   FormSelectField,
   FormAccountSelectField,
   LoadMore,
+  Panel,
   useZodForm,
   RequestFailure,
   RefreshButton,
@@ -102,7 +103,7 @@ function OperationsPanel({ scope, roles }: { scope: SupplyRegistryScope; roles: 
     });
   }
   return (
-    <section aria-label="Organisation operations" className="space-y-5 rounded-xl border p-5">
+    <Panel aria-label="Organisation operations" className="space-y-5">
       <div>
         <h4 className="font-semibold">Location operations</h4>
         <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
@@ -271,7 +272,7 @@ function OperationsPanel({ scope, roles }: { scope: SupplyRegistryScope; roles: 
           ))
         )}
       </div>
-    </section>
+    </Panel>
   );
 }
 function DeliveryPanel({
@@ -319,7 +320,7 @@ function DeliveryPanel({
     });
   }
   return (
-    <section aria-label="Delivery tasks" className="space-y-4 rounded-xl border p-4">
+    <Panel aria-label="Delivery tasks" className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h5 tabIndex={-1} className="font-medium">
@@ -371,9 +372,9 @@ function DeliveryPanel({
               No delivery tasks are currently available.
             </p>
           )}
-          <ul className="space-y-3">
+          <ul className="divide-y">
             {rows.items.map((row) => (
-              <li className="space-y-3 rounded-lg border p-4" key={row.id}>
+              <li className="space-y-3 py-4" key={row.id}>
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="break-words font-medium">
@@ -525,7 +526,7 @@ function DeliveryPanel({
             />
           )}
       </div>
-    </section>
+    </Panel>
   );
 }
 function DeliveryEditor({
@@ -606,169 +607,171 @@ function DeliveryEditor({
   const error = (name: keyof SupplyDeliveryTaskInput) => form.formState.errors[name]?.message;
   const cancelled = mode === "cancel";
   return (
-    <form
-      noValidate
-      aria-label="Delivery task form"
-      className="space-y-4 rounded-xl bg-muted/30 p-4"
-      onSubmit={form.handleSubmit((value) => {
-        if (!save.isPending && (!drivers.isError || cancelled)) save.mutate(value);
-      })}
-    >
-      <h6 className="font-medium">
-        {cancelled
-          ? "Cancel delivery task"
-          : mode === "reassign"
-            ? "Reassign delivery driver"
-            : row
-              ? "Edit delivery task"
-              : "New delivery task"}
-      </h6>
-      <div className="grid gap-4 sm:grid-cols-2">
-        {(
-          [
-            ["code", "Task code"],
-            ["source_reference", "Business handoff reference"],
-            ["destination_business_name", "Destination business"],
-            ["destination_line1", "Destination address"],
-            ["destination_line2", "Address line 2"],
-            ["destination_city", "Destination city"],
-            ["destination_region", "Destination state or province"],
-            ["destination_postal_code", "Destination postal code"],
-            ["business_contact_name", "Business contact name"],
-            ["business_contact_phone", "Business contact phone"],
-            ["handling_notes", "Handling instructions"],
-          ] as const
-        ).map(([name, title]) => (
-          <Field key={name} id={`delivery-${name}`} label={title} error={error(name)}>
+    <Panel as="div">
+      <form
+        noValidate
+        aria-label="Delivery task form"
+        className="space-y-4"
+        onSubmit={form.handleSubmit((value) => {
+          if (!save.isPending && (!drivers.isError || cancelled)) save.mutate(value);
+        })}
+      >
+        <h6 className="font-medium">
+          {cancelled
+            ? "Cancel delivery task"
+            : mode === "reassign"
+              ? "Reassign delivery driver"
+              : row
+                ? "Edit delivery task"
+                : "New delivery task"}
+        </h6>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {(
+            [
+              ["code", "Task code"],
+              ["source_reference", "Business handoff reference"],
+              ["destination_business_name", "Destination business"],
+              ["destination_line1", "Destination address"],
+              ["destination_line2", "Address line 2"],
+              ["destination_city", "Destination city"],
+              ["destination_region", "Destination state or province"],
+              ["destination_postal_code", "Destination postal code"],
+              ["business_contact_name", "Business contact name"],
+              ["business_contact_phone", "Business contact phone"],
+              ["handling_notes", "Handling instructions"],
+            ] as const
+          ).map(([name, title]) => (
+            <Field key={name} id={`delivery-${name}`} label={title} error={error(name)}>
+              <Input
+                id={`delivery-${name}`}
+                {...form.register(name)}
+                readOnly={!!row && ["code", "source_reference"].includes(name)}
+                disabled={save.isPending || cancelled}
+                aria-invalid={!!error(name)}
+                aria-describedby={error(name) ? `delivery-${name}-error` : undefined}
+              />
+            </Field>
+          ))}
+          <Field id="delivery-packages" label="Package count" error={error("package_count")}>
             <Input
-              id={`delivery-${name}`}
-              {...form.register(name)}
-              readOnly={!!row && ["code", "source_reference"].includes(name)}
+              id="delivery-packages"
+              type="number"
+              min={1}
+              {...form.register("package_count", { valueAsNumber: true })}
               disabled={save.isPending || cancelled}
-              aria-invalid={!!error(name)}
-              aria-describedby={error(name) ? `delivery-${name}-error` : undefined}
+              aria-invalid={!!error("package_count")}
+              aria-describedby={error("package_count") ? "delivery-packages-error" : undefined}
             />
           </Field>
-        ))}
-        <Field id="delivery-packages" label="Package count" error={error("package_count")}>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Origin: {location.code} · Country: {location.country_code}. Use a business delivery
+          destination; clinical and patient records are not part of this task.
+        </p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {(["window_start", "window_end", "assignment_expires_at"] as const).map((name) => (
+            <Field
+              key={name}
+              id={`delivery-${name}`}
+              label={
+                name === "window_start"
+                  ? "Delivery window starts"
+                  : name === "window_end"
+                    ? "Delivery window ends"
+                    : "Driver assignment expires"
+              }
+              error={error(name)}
+            >
+              <Input
+                id={`delivery-${name}`}
+                type="datetime-local"
+                disabled={save.isPending || cancelled}
+                value={dateTimeInputValue(form.watch(name))}
+                onChange={(event) =>
+                  form.setValue(name, dateTimeInputISO(event.target.value), {
+                    shouldDirty: true,
+                    shouldValidate: true,
+                  })
+                }
+                aria-invalid={!!error(name)}
+                aria-describedby={error(name) ? `delivery-${name}-error` : undefined}
+              />
+            </Field>
+          ))}
+        </div>
+        <FormAccountSelectField
+          control={form.control}
+          name="driver_subject"
+          id="delivery-driver"
+          label="Assigned driver"
+          disabled={save.isPending || cancelled || drivers.isPending || drivers.isError}
+          options={[
+            { value: "", label: "No driver assigned" },
+            ...driverOptions.map((subject) => ({ value: subject, label: subject })),
+          ]}
+        />
+        <LoadMore
+          hasMore={drivers.hasMore}
+          isLoading={drivers.isFetchingMore}
+          onClick={drivers.loadMore}
+        />
+        {drivers.isError && (
+          <RequestFailure
+            message="Could not load eligible drivers. Refresh before assigning or reassigning this task."
+            retry={drivers.retry}
+            error={drivers.error}
+          />
+        )}
+        <FormSelectField
+          control={form.control}
+          name="status"
+          id="delivery-status"
+          label="Task state"
+          disabled={save.isPending || cancelled || mode === "reassign"}
+          options={
+            cancelled
+              ? [{ value: "cancelled", label: "Cancelled" }]
+              : mode === "reassign"
+                ? [{ value: "assigned", label: "Assigned to replacement driver" }]
+                : [
+                    { value: "draft", label: "Draft" },
+                    { value: "assigned", label: "Assigned" },
+                  ]
+          }
+        />
+        <Field
+          id="delivery-change-reason"
+          label="Reason for scheduling or change"
+          error={error("change_reason")}
+        >
           <Input
-            id="delivery-packages"
-            type="number"
-            min={1}
-            {...form.register("package_count", { valueAsNumber: true })}
-            disabled={save.isPending || cancelled}
-            aria-invalid={!!error("package_count")}
-            aria-describedby={error("package_count") ? "delivery-packages-error" : undefined}
+            id="delivery-change-reason"
+            {...form.register("change_reason")}
+            disabled={save.isPending}
+            aria-invalid={!!error("change_reason")}
+            aria-describedby={error("change_reason") ? "delivery-change-reason-error" : undefined}
           />
         </Field>
-      </div>
-      <p className="text-sm text-muted-foreground">
-        Origin: {location.code} · Country: {location.country_code}. Use a business delivery
-        destination; clinical and patient records are not part of this task.
-      </p>
-      <div className="grid gap-4 sm:grid-cols-2">
-        {(["window_start", "window_end", "assignment_expires_at"] as const).map((name) => (
-          <Field
-            key={name}
-            id={`delivery-${name}`}
-            label={
-              name === "window_start"
-                ? "Delivery window starts"
-                : name === "window_end"
-                  ? "Delivery window ends"
-                  : "Driver assignment expires"
-            }
-            error={error(name)}
-          >
-            <Input
-              id={`delivery-${name}`}
-              type="datetime-local"
-              disabled={save.isPending || cancelled}
-              value={dateTimeInputValue(form.watch(name))}
-              onChange={(event) =>
-                form.setValue(name, dateTimeInputISO(event.target.value), {
-                  shouldDirty: true,
-                  shouldValidate: true,
-                })
-              }
-              aria-invalid={!!error(name)}
-              aria-describedby={error(name) ? `delivery-${name}-error` : undefined}
-            />
-          </Field>
-        ))}
-      </div>
-      <FormAccountSelectField
-        control={form.control}
-        name="driver_subject"
-        id="delivery-driver"
-        label="Assigned driver"
-        disabled={save.isPending || cancelled || drivers.isPending || drivers.isError}
-        options={[
-          { value: "", label: "No driver assigned" },
-          ...driverOptions.map((subject) => ({ value: subject, label: subject })),
-        ]}
-      />
-      <LoadMore
-        hasMore={drivers.hasMore}
-        isLoading={drivers.isFetchingMore}
-        onClick={drivers.loadMore}
-      />
-      {drivers.isError && (
-        <RequestFailure
-          message="Could not load eligible drivers. Refresh before assigning or reassigning this task."
-          retry={drivers.retry}
-          error={drivers.error}
-        />
-      )}
-      <FormSelectField
-        control={form.control}
-        name="status"
-        id="delivery-status"
-        label="Task state"
-        disabled={save.isPending || cancelled || mode === "reassign"}
-        options={
-          cancelled
-            ? [{ value: "cancelled", label: "Cancelled" }]
-            : mode === "reassign"
-              ? [{ value: "assigned", label: "Assigned to replacement driver" }]
-              : [
-                  { value: "draft", label: "Draft" },
-                  { value: "assigned", label: "Assigned" },
-                ]
-        }
-      />
-      <Field
-        id="delivery-change-reason"
-        label="Reason for scheduling or change"
-        error={error("change_reason")}
-      >
-        <Input
-          id="delivery-change-reason"
-          {...form.register("change_reason")}
-          disabled={save.isPending}
-          aria-invalid={!!error("change_reason")}
-          aria-describedby={error("change_reason") ? "delivery-change-reason-error" : undefined}
-        />
-      </Field>
-      {save.error && (
-        <p role="alert" className="text-sm text-destructive">
-          {save.error.message} Close this form and reload tasks if the assignment or version
-          changed.
-        </p>
-      )}
-      <div className="flex flex-wrap gap-2">
-        <Button type="submit" disabled={save.isPending || (drivers.isError && !cancelled)}>
-          {save.isPending
-            ? "Recording…"
-            : cancelled
-              ? "Confirm task cancellation"
-              : "Save delivery task"}
-        </Button>
-        <Button type="button" variant="ghost" disabled={save.isPending} onClick={onDone}>
-          Close task form
-        </Button>
-      </div>
-    </form>
+        {save.error && (
+          <p role="alert" className="text-sm text-destructive">
+            {save.error.message} Close this form and reload tasks if the assignment or version
+            changed.
+          </p>
+        )}
+        <div className="flex flex-wrap gap-2">
+          <Button type="submit" disabled={save.isPending || (drivers.isError && !cancelled)}>
+            {save.isPending
+              ? "Recording…"
+              : cancelled
+                ? "Confirm task cancellation"
+                : "Save delivery task"}
+          </Button>
+          <Button type="button" variant="ghost" disabled={save.isPending} onClick={onDone}>
+            Close task form
+          </Button>
+        </div>
+      </form>
+    </Panel>
   );
 }
 function DeliveryAction({
@@ -805,52 +808,54 @@ function DeliveryAction({
     },
   );
   return (
-    <form
-      noValidate
-      aria-label="Driver delivery update"
-      className="space-y-3 rounded-xl bg-muted/30 p-4"
-      onSubmit={form.handleSubmit((value) => {
-        if (row.allowed_actions.includes(value.action) && !save.isPending) save.mutate(value);
-      })}
-    >
-      <h6 className="font-medium">
-        {action === "start"
-          ? "Start delivery"
-          : action === "deliver"
-            ? "Confirm delivery"
-            : "Report delivery exception"}{" "}
-        · {row.code}
-      </h6>
-      <Field
-        id="delivery-action-reason"
-        label="Handoff or exception note"
-        error={form.formState.errors.reason?.message}
+    <Panel as="div">
+      <form
+        noValidate
+        aria-label="Driver delivery update"
+        className="space-y-3"
+        onSubmit={form.handleSubmit((value) => {
+          if (row.allowed_actions.includes(value.action) && !save.isPending) save.mutate(value);
+        })}
       >
-        <Input
+        <h6 className="font-medium">
+          {action === "start"
+            ? "Start delivery"
+            : action === "deliver"
+              ? "Confirm delivery"
+              : "Report delivery exception"}{" "}
+          · {row.code}
+        </h6>
+        <Field
           id="delivery-action-reason"
-          {...form.register("reason")}
-          disabled={save.isPending}
-          aria-invalid={!!form.formState.errors.reason}
-        />
-      </Field>
-      <p className="text-xs text-muted-foreground">
-        This update applies to your current assignment. A reassignment, expiry or revoked role
-        prevents submission.
-      </p>
-      {save.error && (
-        <p role="alert" className="text-sm text-destructive">
-          {save.error.message} Reload your assigned tasks before continuing.
+          label="Handoff or exception note"
+          error={form.formState.errors.reason?.message}
+        >
+          <Input
+            id="delivery-action-reason"
+            {...form.register("reason")}
+            disabled={save.isPending}
+            aria-invalid={!!form.formState.errors.reason}
+          />
+        </Field>
+        <p className="text-xs text-muted-foreground">
+          This update applies to your current assignment. A reassignment, expiry or revoked role
+          prevents submission.
         </p>
-      )}
-      <div className="flex flex-wrap gap-2">
-        <Button type="submit" disabled={save.isPending}>
-          {save.isPending ? "Recording…" : "Record delivery update"}
-        </Button>
-        <Button type="button" variant="ghost" disabled={save.isPending} onClick={onDone}>
-          Cancel delivery update
-        </Button>
-      </div>
-    </form>
+        {save.error && (
+          <p role="alert" className="text-sm text-destructive">
+            {save.error.message} Reload your assigned tasks before continuing.
+          </p>
+        )}
+        <div className="flex flex-wrap gap-2">
+          <Button type="submit" disabled={save.isPending}>
+            {save.isPending ? "Recording…" : "Record delivery update"}
+          </Button>
+          <Button type="button" variant="ghost" disabled={save.isPending} onClick={onDone}>
+            Cancel delivery update
+          </Button>
+        </div>
+      </form>
+    </Panel>
   );
 }
 function DeliveryHistory({

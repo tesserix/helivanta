@@ -2,7 +2,7 @@
 
 import { ShieldCheck } from "lucide-react";
 import { useSupplyPlatformIdentity, type SupplyRegistryScope } from "@helivanta/api";
-import { formatDateTime, RequestFailure, RefreshButton } from "@helivanta/ui";
+import { formatDateTime, Panel, RequestFailure, RefreshButton } from "@helivanta/ui";
 
 export function PlatformIdentity({
   scope,
@@ -13,10 +13,7 @@ export function PlatformIdentity({
 }) {
   const check = useSupplyPlatformIdentity(scope, partyVersion);
   return (
-    <section
-      className="space-y-4 rounded-2xl border bg-card p-5 sm:p-6"
-      aria-label="Workspace identity"
-    >
+    <Panel className="space-y-4" aria-label="Workspace identity">
       <div className="flex items-start gap-3">
         <ShieldCheck className="mt-0.5 size-5 shrink-0 text-(--hms-accent)" aria-hidden="true" />
         <div className="space-y-2">
@@ -63,14 +60,14 @@ export function PlatformIdentity({
           Check workspace identity
         </RefreshButton>
       )}
-      <div className="rounded-xl border bg-muted/30 p-4 text-sm leading-6">
+      <Panel as="div" className="text-sm leading-6">
         <p className="font-medium">Trading approval is separate</p>
         <p className="mt-1 text-muted-foreground">
           A confirmed platform account does not approve this legal organisation, its licences, a
           trading relationship or access to another hospital’s records. Those checks remain
           required.
         </p>
-      </div>
-    </section>
+      </Panel>
+    </Panel>
   );
 }

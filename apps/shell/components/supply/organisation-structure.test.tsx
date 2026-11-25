@@ -8,6 +8,11 @@ const scope = {
   subject: "TEST-owner",
   partyId: "0199e000-0000-7000-8000-000000000001",
 };
+// #1260: cards are Panel, so no hand-painted card class survives.
+// Controls are not cards: the design system's outline button, Input and
+// Textarea carry shadow-sm, and a select trigger is a button-like combobox.
+const CARDS =
+  ":is(.rounded-xl, .rounded-2xl, .shadow-sm):not(button, input, textarea, [role=combobox])";
 afterEach(() => vi.unstubAllGlobals());
 it("does not request private organisation structure without permission", async () => {
   const fetcher = vi.fn(
@@ -56,6 +61,7 @@ it("shows the parent name in the saved relationship without exposing opaque IDs"
   );
   renderWithProviders(<OrganisationStructure scope={scope} roles={["auditor"]} country="IN" />);
   expect(await screen.findByText(/TEST Parent Organisation/)).toBeInTheDocument();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   expect(
     screen.queryByRole("button", { name: "Edit corporate relationship" }),
   ).not.toBeInTheDocument();
@@ -123,6 +129,7 @@ it("shows territory creation with labelled fields and no permission inheritance"
   expect(screen.getByLabelText("Territory code")).toHaveFocus();
   expect(screen.getByLabelText("Territory name")).toBeInTheDocument();
   expect(screen.getByText(/Assignments describe sales coverage/)).toBeInTheDocument();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
 });
 
 it("preserves an explicit null parent and expected version across failed retries", async () => {
@@ -212,6 +219,7 @@ it("keeps a new territory identity stable and validates mandatory fields before 
   await user.type(screen.getByLabelText("State or province"), "Punjab");
   await user.click(screen.getByRole("button", { name: "Save sales territory" }));
   expect(await screen.findByText("TEST territory unavailable")).toBeInTheDocument();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   await user.click(screen.getByRole("button", { name: "Save sales territory" }));
   await waitFor(() => expect(writes).toHaveLength(2));
   expect(writes[0]).toEqual(writes[1]);
@@ -259,6 +267,7 @@ it("keeps purchasing read-only and sales restricted to assigned coverage without
     <OrganisationStructure scope={scope} roles={["purchasing"]} country="IN" />,
   );
   expect(await screen.findByText("TEST-TERRITORY · TEST Regional coverage")).toBeInTheDocument();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   expect(screen.queryByRole("button", { name: "Add sales territory" })).not.toBeInTheDocument();
   unmount();
   renderWithProviders(<OrganisationStructure scope={scope} roles={["sales"]} country="IN" />);

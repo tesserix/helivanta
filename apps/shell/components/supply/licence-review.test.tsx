@@ -11,6 +11,11 @@ const scope = {
   licenseId: "0199e000-0000-7000-8000-000000000002",
 };
 const licence = { id: scope.licenseId, version: 1, number: "TEST-LICENCE" };
+// #1260: cards are Panel, so no hand-painted card class survives.
+// Controls are not cards: the design system's outline button, Input and
+// Textarea carry shadow-sm, and a select trigger is a button-like combobox.
+const CARDS =
+  ":is(.rounded-xl, .rounded-2xl, .shadow-sm):not(button, input, textarea, [role=combobox])";
 afterEach(() => vi.unstubAllGlobals());
 it("shows the effective decision and keeps auditors read-only despite broad global permissions", async () => {
   vi.stubGlobal(
@@ -54,6 +59,7 @@ it("shows the effective decision and keeps auditors read-only despite broad glob
   expect(screen.getByText(/does not approve trading/)).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Submit for review" })).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Verify licence" })).not.toBeInTheDocument();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
 });
 
 it("records an independent decision with source versions and retries the same command after refusal", async () => {
@@ -160,7 +166,18 @@ it("records an independent decision with source versions and retries the same co
   await user.click(screen.getByRole("combobox", { name: "Independent verification method" }));
   await user.click(screen.getByRole("option", { name: "Direct authority contact" }));
   await user.type(screen.getByLabelText("Authority-check reference"), "TEST-REF-001");
-  await user.type(screen.getByLabelText("Review reason"), "TEST independent authority check");
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
+  // The zod schema (reason max 2000), not native maxLength, refuses an overlong reason (#1260).
+  const reason = screen.getByLabelText("Review reason");
+  expect(reason).not.toHaveAttribute("maxlength");
+  await user.click(reason);
+  await user.paste("x".repeat(2001));
+  await user.click(screen.getByRole("button", { name: "Verify licence" }));
+  expect(await screen.findByRole("alert")).toBeInTheDocument();
+  expect(document.getElementById("review-reason-error")).toBeInTheDocument();
+  expect(writes).toHaveLength(0);
+  await user.clear(reason);
+  await user.type(reason, "TEST independent authority check");
   await user.click(screen.getByRole("button", { name: "Verify licence" }));
   expect(await screen.findByRole("alert")).toHaveTextContent("TEST review conflict");
   await user.click(screen.getByRole("button", { name: "Verify licence" }));
@@ -208,4 +225,5 @@ it("clears private review controls and offers a workspace refresh when the signe
   ).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Refresh workspace" })).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Prepare submission" })).not.toBeInTheDocument();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
 });

@@ -24,6 +24,7 @@ import {
   Field,
   FormSelectField,
   LoadMore,
+  Panel,
   formatDateTime,
   useZodForm,
   RequestFailure,
@@ -72,7 +73,7 @@ export function WarehouseBins({
   }
   if (!allowed) return null;
   return (
-    <section aria-label="Warehouse bins" className="space-y-5 rounded-xl border bg-card p-5">
+    <Panel aria-label="Warehouse bins" className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h5 tabIndex={-1} className="font-semibold">
@@ -182,7 +183,7 @@ export function WarehouseBins({
           )}
         </>
       )}
-    </section>
+    </Panel>
   );
 }
 function BinEditor({
@@ -229,73 +230,75 @@ function BinEditor({
     },
   );
   return (
-    <form
-      noValidate
-      aria-label="Storage bin form"
-      onSubmit={form.handleSubmit((value) => save.mutate(value))}
-      className="space-y-5 rounded-xl border bg-background p-5"
-    >
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h6 className="font-semibold">{row ? "Edit bin" : "New bin"}</h6>
-        <Button type="button" variant="ghost" disabled={save.isPending} onClick={onClose}>
-          Close bin form
-        </Button>
-      </div>
-      <fieldset disabled={save.isPending} className="grid gap-4 sm:grid-cols-2">
-        {(
-          [
-            ["code", "Bin code"],
-            ["name", "Bin name"],
-            ["aisle", "Aisle"],
-            ["rack", "Rack"],
-            ["shelf", "Shelf"],
-          ] as const
-        ).map(([name, text]) => (
-          <Field
-            key={name}
-            id={`bin-${name}`}
-            label={text}
-            error={form.formState.errors[name]?.message}
-          >
-            <Input
+    <Panel as="div">
+      <form
+        noValidate
+        aria-label="Storage bin form"
+        onSubmit={form.handleSubmit((value) => save.mutate(value))}
+        className="space-y-5"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h6 className="font-semibold">{row ? "Edit bin" : "New bin"}</h6>
+          <Button type="button" variant="ghost" disabled={save.isPending} onClick={onClose}>
+            Close bin form
+          </Button>
+        </div>
+        <fieldset disabled={save.isPending} className="grid gap-4 sm:grid-cols-2">
+          {(
+            [
+              ["code", "Bin code"],
+              ["name", "Bin name"],
+              ["aisle", "Aisle"],
+              ["rack", "Rack"],
+              ["shelf", "Shelf"],
+            ] as const
+          ).map(([name, text]) => (
+            <Field
+              key={name}
               id={`bin-${name}`}
-              {...form.register(name)}
-              aria-invalid={!!form.formState.errors[name]}
-              aria-describedby={form.formState.errors[name] ? `bin-${name}-error` : undefined}
-            />
-          </Field>
-        ))}
-        <FormSelectField
-          control={form.control}
-          name="storage_class"
-          id="bin-storage-class"
-          label="Storage class"
-          options={supplyBinFieldsSchema.shape.storage_class.options.map((value) => ({
-            value,
-            label: label(value),
-          }))}
-        />
-        <FormSelectField
-          control={form.control}
-          name="status"
-          id="bin-status"
-          label="Bin status"
-          options={supplyBinFieldsSchema.shape.status.options.map((value) => ({
-            value,
-            label: label(value),
-          }))}
-        />
-      </fieldset>
-      {save.isError && (
-        <p role="alert" className="text-sm text-destructive">
-          {save.error.message} Your draft is retained; refresh the list if another user changed this
-          bin.
-        </p>
-      )}
-      <Button type="submit" disabled={save.isPending}>
-        {save.isPending ? "Saving…" : "Save bin"}
-      </Button>
-    </form>
+              label={text}
+              error={form.formState.errors[name]?.message}
+            >
+              <Input
+                id={`bin-${name}`}
+                {...form.register(name)}
+                aria-invalid={!!form.formState.errors[name]}
+                aria-describedby={form.formState.errors[name] ? `bin-${name}-error` : undefined}
+              />
+            </Field>
+          ))}
+          <FormSelectField
+            control={form.control}
+            name="storage_class"
+            id="bin-storage-class"
+            label="Storage class"
+            options={supplyBinFieldsSchema.shape.storage_class.options.map((value) => ({
+              value,
+              label: label(value),
+            }))}
+          />
+          <FormSelectField
+            control={form.control}
+            name="status"
+            id="bin-status"
+            label="Bin status"
+            options={supplyBinFieldsSchema.shape.status.options.map((value) => ({
+              value,
+              label: label(value),
+            }))}
+          />
+        </fieldset>
+        {save.isError && (
+          <p role="alert" className="text-sm text-destructive">
+            {save.error.message} Your draft is retained; refresh the list if another user changed
+            this bin.
+          </p>
+        )}
+        <Button type="submit" disabled={save.isPending}>
+          {save.isPending ? "Saving…" : "Save bin"}
+        </Button>
+      </form>
+    </Panel>
   );
 }
 function BinHistory({
@@ -317,7 +320,7 @@ function BinHistory({
     { request: { headers: supplyHeaders(scope) } },
   );
   return (
-    <section aria-label="Bin revision history" className="space-y-4 rounded-xl border p-4">
+    <Panel aria-label="Bin revision history" className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h6 className="font-semibold">Bin revision history</h6>
         <Button variant="ghost" onClick={onClose}>
@@ -363,6 +366,6 @@ function BinHistory({
           />
         </>
       )}
-    </section>
+    </Panel>
   );
 }

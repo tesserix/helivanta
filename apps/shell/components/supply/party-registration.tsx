@@ -31,6 +31,7 @@ import {
   Field,
   FormSelectField,
   LoadMore,
+  Panel,
   useZodForm,
   formatDateTime,
   type FieldValues,
@@ -125,7 +126,7 @@ export function PartyRegistration({
         </div>
       )}
       {can("supply.premise.read") && (
-        <section aria-label="Organisation premises" className="rounded-xl border p-4 sm:p-5">
+        <Panel aria-label="Organisation premises">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <h5 className="flex items-center gap-2 font-semibold">
               <Building2 className="size-4" />
@@ -231,10 +232,10 @@ export function PartyRegistration({
             isLoading={premises.isFetchingMore}
             onClick={premises.loadMore}
           />
-        </section>
+        </Panel>
       )}
       {can("supply.license.read") && (
-        <section aria-label="Declared licences" className="rounded-xl border p-4 sm:p-5">
+        <Panel aria-label="Declared licences">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <h5 className="flex items-center gap-2 font-semibold">
               <FileCheck2 className="size-4" />
@@ -341,7 +342,7 @@ export function PartyRegistration({
             isLoading={licenses.isFetchingMore}
             onClick={licenses.loadMore}
           />
-        </section>
+        </Panel>
       )}
       <div ref={target} className="scroll-mt-32">
         {premise !== undefined && editPremise && (
@@ -469,124 +470,126 @@ function PremiseEditor({
     },
   );
   return (
-    <form
-      noValidate
-      onSubmit={form.handleSubmit((value) => save.mutate(value))}
-      className="space-y-5 rounded-xl border bg-background p-5"
-      aria-label="Premise registration"
-    >
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h5 className="font-semibold">{row ? "Edit premise" : "New premise"}</h5>
-        <Button type="button" variant="ghost" disabled={save.isPending} onClick={onClose}>
-          Close premise form
-        </Button>
-      </div>
-      <p className="text-sm text-muted-foreground">
-        {profile?.name} · Operating location for this organisation. A hospital affiliation is
-        optional.
-      </p>
-      <fieldset
-        disabled={save.isPending || branchUnavailable}
-        className="grid gap-4 sm:grid-cols-2"
+    <Panel as="div">
+      <form
+        noValidate
+        onSubmit={form.handleSubmit((value) => save.mutate(value))}
+        className="space-y-5"
+        aria-label="Premise registration"
       >
-        <RegistryInput form={form} name="code" label="Premise code" />
-        <RegistryInput form={form} name="name" label="Premise name" />
-        <FormSelectField
-          control={form.control}
-          name="kind"
-          id="premise-kind"
-          label="Premise type"
-          options={supplyPremiseFieldsSchema.shape.kind.options.map((value) => ({
-            value,
-            label: label(value),
-          }))}
-        />
-        <FormSelectField
-          control={form.control}
-          name="status"
-          id="premise-status"
-          label="Premise status"
-          options={supplyPremiseFieldsSchema.shape.status.options.map((value) => ({
-            value,
-            label: label(value),
-          }))}
-        />
-        {owned && (
-          <div className="space-y-2 sm:col-span-2">
-            <FormSelectField
-              control={form.control}
-              name="branch_premise_id"
-              id="premise-branch"
-              label="Operating branch"
-              emptyValue={null}
-              disabled={!storage && !branchId}
-              options={[
-                { value: "", label: "Standalone location" },
-                ...branches.map((p) => ({
-                  value: p.id,
-                  label: `${p.code} · ${p.name}${p.status === "inactive" ? " · Inactive" : ""}`,
-                  disabled: !storage,
-                })),
-              ]}
-            />
-            <p className="text-sm text-muted-foreground">
-              Group a warehouse or depot under this organisation’s branch. This does not change
-              permissions or trading approval.
-            </p>
-            {!storage && branchId && (
-              <p role="alert">Clear the branch assignment before saving a non-storage premise.</p>
-            )}
-            {missingBranch && selectedBranch.isPending && !premises.isError && (
-              <p role="status">Loading selected branch…</p>
-            )}
-            {missingBranch && selectedBranch.isError && !premises.isError && (
-              <RequestFailure
-                message="Could not load the selected branch. Refresh before saving."
-                retry={() => {
-                  void selectedBranch.refetch();
-                }}
-                error={selectedBranch.error}
-              />
-            )}
-            <LoadMore
-              hasMore={premises.hasMore}
-              isLoading={premises.isFetchingMore}
-              onClick={premises.loadMore}
-            />
-          </div>
-        )}
-        <RegistryInput form={form} name="line1" label="Address line 1" />
-        <RegistryInput form={form} name="line2" label="Address line 2" />
-        <RegistryInput form={form} name="city" label="City" />
-        <RegistryInput form={form} name="region" label="State or province" />
-        <RegistryInput form={form} name="postal_code" label="Postal code" />
-        <FormSelectField
-          control={form.control}
-          name="time_zone"
-          id="premise-time-zone"
-          label="Operating time zone"
-          options={(profile?.timezones ?? []).map((value) => ({ value, label: value }))}
-        />
-      </fieldset>
-      {owned && premises.isError && (
-        <RequestFailure
-          message="Could not load branches. Refresh before saving."
-          retry={premises.retry}
-          error={premises.error}
-        />
-      )}
-      {save.isError && (
-        <p role="alert" className="text-sm text-destructive">
-          {save.error.message}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h5 className="font-semibold">{row ? "Edit premise" : "New premise"}</h5>
+          <Button type="button" variant="ghost" disabled={save.isPending} onClick={onClose}>
+            Close premise form
+          </Button>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          {profile?.name} · Operating location for this organisation. A hospital affiliation is
+          optional.
         </p>
-      )}
-      <Button
-        type="submit"
-        disabled={save.isPending || branchUnavailable || (!storage && !!branchId)}
-      >
-        {save.isPending ? "Saving…" : "Save premise"}
-      </Button>
-    </form>
+        <fieldset
+          disabled={save.isPending || branchUnavailable}
+          className="grid gap-4 sm:grid-cols-2"
+        >
+          <RegistryInput form={form} name="code" label="Premise code" />
+          <RegistryInput form={form} name="name" label="Premise name" />
+          <FormSelectField
+            control={form.control}
+            name="kind"
+            id="premise-kind"
+            label="Premise type"
+            options={supplyPremiseFieldsSchema.shape.kind.options.map((value) => ({
+              value,
+              label: label(value),
+            }))}
+          />
+          <FormSelectField
+            control={form.control}
+            name="status"
+            id="premise-status"
+            label="Premise status"
+            options={supplyPremiseFieldsSchema.shape.status.options.map((value) => ({
+              value,
+              label: label(value),
+            }))}
+          />
+          {owned && (
+            <div className="space-y-2 sm:col-span-2">
+              <FormSelectField
+                control={form.control}
+                name="branch_premise_id"
+                id="premise-branch"
+                label="Operating branch"
+                emptyValue={null}
+                disabled={!storage && !branchId}
+                options={[
+                  { value: "", label: "Standalone location" },
+                  ...branches.map((p) => ({
+                    value: p.id,
+                    label: `${p.code} · ${p.name}${p.status === "inactive" ? " · Inactive" : ""}`,
+                    disabled: !storage,
+                  })),
+                ]}
+              />
+              <p className="text-sm text-muted-foreground">
+                Group a warehouse or depot under this organisation’s branch. This does not change
+                permissions or trading approval.
+              </p>
+              {!storage && branchId && (
+                <p role="alert">Clear the branch assignment before saving a non-storage premise.</p>
+              )}
+              {missingBranch && selectedBranch.isPending && !premises.isError && (
+                <p role="status">Loading selected branch…</p>
+              )}
+              {missingBranch && selectedBranch.isError && !premises.isError && (
+                <RequestFailure
+                  message="Could not load the selected branch. Refresh before saving."
+                  retry={() => {
+                    void selectedBranch.refetch();
+                  }}
+                  error={selectedBranch.error}
+                />
+              )}
+              <LoadMore
+                hasMore={premises.hasMore}
+                isLoading={premises.isFetchingMore}
+                onClick={premises.loadMore}
+              />
+            </div>
+          )}
+          <RegistryInput form={form} name="line1" label="Address line 1" />
+          <RegistryInput form={form} name="line2" label="Address line 2" />
+          <RegistryInput form={form} name="city" label="City" />
+          <RegistryInput form={form} name="region" label="State or province" />
+          <RegistryInput form={form} name="postal_code" label="Postal code" />
+          <FormSelectField
+            control={form.control}
+            name="time_zone"
+            id="premise-time-zone"
+            label="Operating time zone"
+            options={(profile?.timezones ?? []).map((value) => ({ value, label: value }))}
+          />
+        </fieldset>
+        {owned && premises.isError && (
+          <RequestFailure
+            message="Could not load branches. Refresh before saving."
+            retry={premises.retry}
+            error={premises.error}
+          />
+        )}
+        {save.isError && (
+          <p role="alert" className="text-sm text-destructive">
+            {save.error.message}
+          </p>
+        )}
+        <Button
+          type="submit"
+          disabled={save.isPending || branchUnavailable || (!storage && !!branchId)}
+        >
+          {save.isPending ? "Saving…" : "Save premise"}
+        </Button>
+      </form>
+    </Panel>
   );
 }
 function LicenseEditor({
@@ -650,85 +653,89 @@ function LicenseEditor({
     },
   );
   return (
-    <form
-      noValidate
-      onSubmit={form.handleSubmit((value) => save.mutate(value))}
-      className="space-y-5 rounded-xl border bg-background p-5"
-      aria-label="Licence declaration"
-    >
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h5 className="font-semibold">{row ? "Edit licence declaration" : "Declare a licence"}</h5>
-        <Button type="button" variant="ghost" disabled={save.isPending} onClick={onClose}>
-          Close licence form
-        </Button>
-      </div>
-      <p className="text-sm leading-6 text-muted-foreground">
-        Copy the issuing authority’s details and complete dates. This saves a private declaration
-        and does not verify the licence.
-      </p>
-      <fieldset disabled={save.isPending} className="grid gap-4 sm:grid-cols-2">
-        <RegistryInput form={form} name="kind" label="Licence type code" />
-        <RegistryInput form={form} name="number" label="Licence number" />
-        <RegistryInput form={form} name="issuing_authority" label="Issuing authority" />
-        <RegistryInput form={form} name="jurisdiction" label="Licence jurisdiction" />
-        <FormSelectField
-          control={form.control}
-          name="premise_id"
-          id="license-premise"
-          label="Licensed premise"
-          options={options.map((p) => ({
-            value: p.id,
-            label: `${p.code} · ${p.name}${p.status === "inactive" ? " · Inactive" : ""}`,
-          }))}
-        />
-        <div className="sm:col-span-2">
-          {missingPremise && selectedPremise.isPending && (
-            <p role="status">Loading selected premise…</p>
-          )}
-          {missingPremise && selectedPremise.isError && (
-            <RequestFailure
-              message="Could not load the selected premise. Your access may have changed."
-              retry={selectedPremise.refetch}
-              error={selectedPremise.error}
-            />
-          )}
-          <LoadMore
-            hasMore={hasMorePremises}
-            isLoading={loadingPremises}
-            onClick={loadMorePremises}
-          />
-        </div>
-        <RegistryInput form={form} name="issued_on" label="Issue date" type="date" />
-        <RegistryInput form={form} name="expires_on" label="Expiry date" type="date" />
-        <fieldset className="space-y-3 sm:col-span-2">
-          <legend className="mb-2 text-sm font-medium">Declared product categories</legend>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {supplyLicenseFieldsSchema.shape.product_categories.element.options.map((value) => (
-              <label key={value} className="flex items-center gap-2 text-sm">
-                <input type="checkbox" value={value} {...form.register("product_categories")} />
-                {label(value)}
-              </label>
-            ))}
-          </div>
-          {form.formState.errors.product_categories?.message && (
-            <p role="alert" className="text-sm text-destructive">
-              {form.formState.errors.product_categories.message}
-            </p>
-          )}
-        </fieldset>
-      </fieldset>
-      {save.isError && (
-        <p role="alert" className="text-sm text-destructive">
-          {save.error.message}
-        </p>
-      )}
-      <Button
-        type="submit"
-        disabled={save.isPending || (missingPremise && !selectedPremise.isSuccess)}
+    <Panel as="div">
+      <form
+        noValidate
+        onSubmit={form.handleSubmit((value) => save.mutate(value))}
+        className="space-y-5"
+        aria-label="Licence declaration"
       >
-        {save.isPending ? "Saving…" : "Save licence declaration"}
-      </Button>
-    </form>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h5 className="font-semibold">
+            {row ? "Edit licence declaration" : "Declare a licence"}
+          </h5>
+          <Button type="button" variant="ghost" disabled={save.isPending} onClick={onClose}>
+            Close licence form
+          </Button>
+        </div>
+        <p className="text-sm leading-6 text-muted-foreground">
+          Copy the issuing authority’s details and complete dates. This saves a private declaration
+          and does not verify the licence.
+        </p>
+        <fieldset disabled={save.isPending} className="grid gap-4 sm:grid-cols-2">
+          <RegistryInput form={form} name="kind" label="Licence type code" />
+          <RegistryInput form={form} name="number" label="Licence number" />
+          <RegistryInput form={form} name="issuing_authority" label="Issuing authority" />
+          <RegistryInput form={form} name="jurisdiction" label="Licence jurisdiction" />
+          <FormSelectField
+            control={form.control}
+            name="premise_id"
+            id="license-premise"
+            label="Licensed premise"
+            options={options.map((p) => ({
+              value: p.id,
+              label: `${p.code} · ${p.name}${p.status === "inactive" ? " · Inactive" : ""}`,
+            }))}
+          />
+          <div className="sm:col-span-2">
+            {missingPremise && selectedPremise.isPending && (
+              <p role="status">Loading selected premise…</p>
+            )}
+            {missingPremise && selectedPremise.isError && (
+              <RequestFailure
+                message="Could not load the selected premise. Your access may have changed."
+                retry={selectedPremise.refetch}
+                error={selectedPremise.error}
+              />
+            )}
+            <LoadMore
+              hasMore={hasMorePremises}
+              isLoading={loadingPremises}
+              onClick={loadMorePremises}
+            />
+          </div>
+          <RegistryInput form={form} name="issued_on" label="Issue date" type="date" />
+          <RegistryInput form={form} name="expires_on" label="Expiry date" type="date" />
+          <fieldset className="space-y-3 sm:col-span-2">
+            <legend className="mb-2 text-sm font-medium">Declared product categories</legend>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {supplyLicenseFieldsSchema.shape.product_categories.element.options.map((value) => (
+                <label key={value} className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" value={value} {...form.register("product_categories")} />
+                  {label(value)}
+                </label>
+              ))}
+            </div>
+            {form.formState.errors.product_categories?.message && (
+              <p role="alert" className="text-sm text-destructive">
+                {form.formState.errors.product_categories.message}
+              </p>
+            )}
+          </fieldset>
+        </fieldset>
+        {save.isError && (
+          <p role="alert" className="text-sm text-destructive">
+            {save.error.message}
+          </p>
+        )}
+        <Button
+          type="submit"
+          disabled={save.isPending || (missingPremise && !selectedPremise.isSuccess)}
+        >
+          {save.isPending ? "Saving…" : "Save licence declaration"}
+        </Button>
+      </form>
+    </Panel>
   );
 }
 function RegistryInput<T extends FieldValues>({
@@ -770,7 +777,7 @@ function RegistryHistory({
     `${supplyRegistryRoot(scope, record.kind)}/${record.id}/revisions`,
   );
   return (
-    <section className="rounded-xl border p-5" aria-label="Registration revision history">
+    <Panel aria-label="Registration revision history">
       <div className="mb-4 flex items-center justify-between gap-3">
         <h5 className="font-semibold">Revision history</h5>
         <Button variant="ghost" onClick={onClose}>
@@ -840,6 +847,6 @@ function RegistryHistory({
         isLoading={history.isFetchingMore}
         onClick={history.loadMore}
       />
-    </section>
+    </Panel>
   );
 }

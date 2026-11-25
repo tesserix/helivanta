@@ -28,6 +28,7 @@ import {
   FormSelectField,
   FormAccountSelectField,
   LoadMore,
+  Panel,
   useZodForm,
   firstError,
   RequestFailure,
@@ -85,7 +86,7 @@ function AccessPanel({ scope }: { scope: SupplyRegistryScope }) {
   }, [grants.error, legacy.error, denied]);
   if (grants.isError || legacy.isError)
     return (
-      <section aria-label="Organisation access" className="rounded-xl border p-3 sm:p-5">
+      <Panel aria-label="Organisation access">
         <RequestFailure
           message="Organisation access management is unavailable. Your access may have changed."
           retry={() => {
@@ -94,7 +95,7 @@ function AccessPanel({ scope }: { scope: SupplyRegistryScope }) {
           }}
           error={firstError(grants.error, legacy.error)}
         />
-      </section>
+      </Panel>
     );
   function edit(row: Grant | null) {
     setEditing(row);
@@ -105,7 +106,7 @@ function AccessPanel({ scope }: { scope: SupplyRegistryScope }) {
   }
   const available = !grants.isError && !legacy.isError;
   return (
-    <section aria-label="Organisation access" className="space-y-5 rounded-xl border p-3 sm:p-5">
+    <Panel aria-label="Organisation access" className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h4 className="font-semibold">Organisation access</h4>
@@ -133,45 +134,44 @@ function AccessPanel({ scope }: { scope: SupplyRegistryScope }) {
           {grants.items.length === 0 && (
             <p className="text-sm text-muted-foreground">No time-limited grants recorded.</p>
           )}
-          {grants.items.map((row) => (
-            <article
-              key={row.id}
-              className="flex flex-wrap justify-between gap-3 rounded-lg border p-4"
-            >
-              <div className="min-w-0">
-                <p className="break-words font-medium">
-                  <AccountName subject={row.subject} />
-                </p>
-                <p className="text-sm capitalize">
-                  {label(row.role)} · {row.effective_status} · Version {row.version}
-                </p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {row.premise_id ? "Location-scoped" : "Organisation-wide"} ·{" "}
-                  {timestamp(row.valid_from)} to {timestamp(row.expires_at)}
-                </p>
-                <p className="mt-1 break-words text-sm text-muted-foreground">{row.reason}</p>
-              </div>
-              <div className="flex flex-wrap items-start gap-2">
-                {row.status !== "revoked" && (
+          <div className="divide-y">
+            {grants.items.map((row) => (
+              <article key={row.id} className="flex flex-wrap justify-between gap-3 py-4">
+                <div className="min-w-0">
+                  <p className="break-words font-medium">
+                    <AccountName subject={row.subject} />
+                  </p>
+                  <p className="text-sm capitalize">
+                    {label(row.role)} · {row.effective_status} · Version {row.version}
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {row.premise_id ? "Location-scoped" : "Organisation-wide"} ·{" "}
+                    {timestamp(row.valid_from)} to {timestamp(row.expires_at)}
+                  </p>
+                  <p className="mt-1 break-words text-sm text-muted-foreground">{row.reason}</p>
+                </div>
+                <div className="flex flex-wrap items-start gap-2">
+                  {row.status !== "revoked" && (
+                    <Button
+                      variant="outline"
+                      onClick={() => edit(row)}
+                      aria-label="Manage account grant"
+                    >
+                      Manage grant
+                    </Button>
+                  )}
                   <Button
-                    variant="outline"
-                    onClick={() => edit(row)}
-                    aria-label="Manage account grant"
+                    variant="ghost"
+                    onClick={() => setHistory(history === row.id ? null : row.id)}
+                    aria-label="Account grant history"
                   >
-                    Manage grant
+                    History
                   </Button>
-                )}
-                <Button
-                  variant="ghost"
-                  onClick={() => setHistory(history === row.id ? null : row.id)}
-                  aria-label="Account grant history"
-                >
-                  History
-                </Button>
-              </div>
-              {history === row.id && <GrantHistory scope={scope} id={row.id} />}
-            </article>
-          ))}
+                </div>
+                {history === row.id && <GrantHistory scope={scope} id={row.id} />}
+              </article>
+            ))}
+          </div>
           <LoadMore
             hasMore={grants.hasMore}
             isLoading={grants.isFetchingMore}
@@ -217,9 +217,11 @@ function AccessPanel({ scope }: { scope: SupplyRegistryScope }) {
             {legacy.items.length === 0 && (
               <p className="text-sm text-muted-foreground">No earlier grants recorded.</p>
             )}
-            {legacy.items.map((row) => (
-              <LegacyRow key={row.id} scope={scope} row={row} />
-            ))}
+            <div className="divide-y">
+              {legacy.items.map((row) => (
+                <LegacyRow key={row.id} scope={scope} row={row} />
+              ))}
+            </div>
             <LoadMore
               hasMore={legacy.hasMore}
               isLoading={legacy.isFetchingMore}
@@ -233,7 +235,7 @@ function AccessPanel({ scope }: { scope: SupplyRegistryScope }) {
         Effective access status is evaluated by the server. Every time-limited grant requires a
         recorded reason.
       </p>
-    </section>
+    </Panel>
   );
 }
 function LegacyRow({ scope, row }: { scope: SupplyRegistryScope; row: LegacyGrant }) {
@@ -252,7 +254,7 @@ function LegacyRow({ scope, row }: { scope: SupplyRegistryScope; row: LegacyGran
     },
   );
   return (
-    <div className="space-y-2 rounded-lg border p-3">
+    <div className="space-y-2 py-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="break-words text-sm">
           <AccountName subject={row.subject} /> · {label(row.role)} · No expiry
@@ -406,181 +408,183 @@ function GrantEditor({
     (!grant || can("supply.premise.read")) &&
     (selected.isError || selected.isPending);
   return (
-    <form
-      noValidate
-      onSubmit={form.handleSubmit((values) => {
-        if (!unavailable && !mutation.isPending && (!requiresPolicy(values) || policy.ready))
-          mutation.mutate(values);
-      })}
-      className="space-y-4 rounded-xl bg-muted/30 p-4"
-    >
-      <h5 className="font-medium">{grant ? "Manage access grant" : "New time-limited grant"}</h5>
-      <AccessWindowPolicyStatus policy={policy} />
-      {policy.data && (
-        <p className="text-xs text-muted-foreground">
-          New or extended non-administrator access is limited to{" "}
-          {accessWindowLabel(policy.data.max_grant_hours)}. Existing access may be shortened or
-          revoked. The server checks the current policy when saving.
-        </p>
-      )}
-      {!can("iam.member.manage") && !grant && (
-        <p className="text-sm text-muted-foreground">
-          Tenant administrator permission is required to select a new member. You may reuse an
-          existing granted member.
-        </p>
-      )}
-      {members.isError && (
-        <RequestFailure
-          message="Could not load trusted tenant members. Existing granted members remain selectable."
-          retry={members.retry}
-          error={members.error}
-        />
-      )}
-      <div className="grid gap-4 sm:grid-cols-2">
-        <FormAccountSelectField
-          control={form.control}
-          name="subject"
-          id="grant-subject"
-          label="Tenant member"
-          disabled={!!grant || mutation.isPending}
-          options={subjects.map((subject) => ({ value: subject, label: subject }))}
-        />
+    <Panel as="div">
+      <form
+        noValidate
+        onSubmit={form.handleSubmit((values) => {
+          if (!unavailable && !mutation.isPending && (!requiresPolicy(values) || policy.ready))
+            mutation.mutate(values);
+        })}
+        className="space-y-4"
+      >
+        <h5 className="font-medium">{grant ? "Manage access grant" : "New time-limited grant"}</h5>
+        <AccessWindowPolicyStatus policy={policy} />
+        {policy.data && (
+          <p className="text-xs text-muted-foreground">
+            New or extended non-administrator access is limited to{" "}
+            {accessWindowLabel(policy.data.max_grant_hours)}. Existing access may be shortened or
+            revoked. The server checks the current policy when saving.
+          </p>
+        )}
+        {!can("iam.member.manage") && !grant && (
+          <p className="text-sm text-muted-foreground">
+            Tenant administrator permission is required to select a new member. You may reuse an
+            existing granted member.
+          </p>
+        )}
+        {members.isError && (
+          <RequestFailure
+            message="Could not load trusted tenant members. Existing granted members remain selectable."
+            retry={members.retry}
+            error={members.error}
+          />
+        )}
+        <div className="grid gap-4 sm:grid-cols-2">
+          <FormAccountSelectField
+            control={form.control}
+            name="subject"
+            id="grant-subject"
+            label="Tenant member"
+            disabled={!!grant || mutation.isPending}
+            options={subjects.map((subject) => ({ value: subject, label: subject }))}
+          />
+          <FormSelectField
+            control={form.control}
+            name="role"
+            id="grant-role"
+            label="Organisation role"
+            disabled={!!grant || mutation.isPending}
+            onValueChange={(role) => {
+              if ((supplyAccessScopePolicy.global_only as readonly string[]).includes(role))
+                form.setValue("premise_id", null, { shouldDirty: true, shouldValidate: true });
+            }}
+            options={supplyAccessGrantFieldsSchema.shape.role.options.map((role) => ({
+              value: role,
+              label: label(role),
+            }))}
+          />
+        </div>
+        {can("iam.member.manage") && !grant && (
+          <LoadMore
+            hasMore={members.hasMore}
+            isLoading={members.isFetchingMore}
+            onClick={members.loadMore}
+          />
+        )}
         <FormSelectField
           control={form.control}
-          name="role"
-          id="grant-role"
-          label="Organisation role"
-          disabled={!!grant || mutation.isPending}
-          onValueChange={(role) => {
-            if ((supplyAccessScopePolicy.global_only as readonly string[]).includes(role))
-              form.setValue("premise_id", null, { shouldDirty: true, shouldValidate: true });
-          }}
-          options={supplyAccessGrantFieldsSchema.shape.role.options.map((role) => ({
-            value: role,
-            label: label(role),
-          }))}
-        />
-      </div>
-      {can("iam.member.manage") && !grant && (
-        <LoadMore
-          hasMore={members.hasMore}
-          isLoading={members.isFetchingMore}
-          onClick={members.loadMore}
-        />
-      )}
-      <FormSelectField
-        control={form.control}
-        name="premise_id"
-        id="grant-premise"
-        label="Location scope"
-        emptyValue={null}
-        disabled={
-          !!grant ||
-          globalOnly ||
-          mutation.isPending ||
-          premises.isPending ||
-          premises.isError ||
-          !can("supply.premise.read")
-        }
-        options={[
-          ...(!locationRequired || grant ? [{ value: "", label: "Entire organisation" }] : []),
-          ...(grant?.premise_id && !premiseOptions.some((row) => row.id === grant.premise_id)
-            ? [{ value: grant.premise_id, label: "Current assigned location" }]
-            : []),
-          ...premiseOptions.map((row) => ({ value: row.id, label: `${row.code} · ${row.name}` })),
-        ]}
-      />
-      <LoadMore
-        hasMore={premises.hasMore}
-        isLoading={premises.isFetchingMore}
-        onClick={premises.loadMore}
-      />
-      {premises.isError && (
-        <RequestFailure
-          message="Could not load location scopes. Refresh before choosing a location."
-          retry={premises.retry}
-          error={premises.error}
-        />
-      )}
-      {unavailable && (
-        <p role="alert" className="text-sm text-destructive">
-          The selected location is unavailable. Reload access before saving.
-        </p>
-      )}
-      <div className="grid gap-4 sm:grid-cols-2">
-        {(["valid_from", "expires_at"] as const).map((name) => (
-          <Field
-            key={name}
-            id={`grant-${name}`}
-            label={name === "valid_from" ? "Valid from" : "Expires at"}
-            error={error(name)}
-          >
-            <Input
-              id={`grant-${name}`}
-              type="datetime-local"
-              disabled={mutation.isPending || (!!grant && name === "valid_from")}
-              value={dateInput(form.watch(name))}
-              onChange={(event) =>
-                form.setValue(name, isoInput(event.target.value), {
-                  shouldDirty: true,
-                  shouldValidate: true,
-                })
-              }
-              aria-invalid={!!error(name)}
-              aria-describedby={error(name) ? `grant-${name}-error` : undefined}
-            />
-          </Field>
-        ))}
-      </div>
-      <Field id="grant-reason" label="Reason for access" error={error("reason")}>
-        <Input
-          id="grant-reason"
-          {...form.register("reason")}
-          disabled={mutation.isPending}
-          aria-invalid={!!error("reason")}
-          aria-describedby={error("reason") ? "grant-reason-error" : undefined}
-        />
-      </Field>
-      {grant && (
-        <FormSelectField
-          control={form.control}
-          name="status"
-          id="grant-status"
-          label="Grant status"
-          disabled={mutation.isPending}
+          name="premise_id"
+          id="grant-premise"
+          label="Location scope"
+          emptyValue={null}
+          disabled={
+            !!grant ||
+            globalOnly ||
+            mutation.isPending ||
+            premises.isPending ||
+            premises.isError ||
+            !can("supply.premise.read")
+          }
           options={[
-            { value: "active", label: "Active within validity period" },
-            { value: "revoked", label: "Revoke access" },
+            ...(!locationRequired || grant ? [{ value: "", label: "Entire organisation" }] : []),
+            ...(grant?.premise_id && !premiseOptions.some((row) => row.id === grant.premise_id)
+              ? [{ value: grant.premise_id, label: "Current assigned location" }]
+              : []),
+            ...premiseOptions.map((row) => ({ value: row.id, label: `${row.code} · ${row.name}` })),
           ]}
         />
-      )}
-      {mutation.error && (
-        <div className="space-y-2">
+        <LoadMore
+          hasMore={premises.hasMore}
+          isLoading={premises.isFetchingMore}
+          onClick={premises.loadMore}
+        />
+        {premises.isError && (
+          <RequestFailure
+            message="Could not load location scopes. Refresh before choosing a location."
+            retry={premises.retry}
+            error={premises.error}
+          />
+        )}
+        {unavailable && (
           <p role="alert" className="text-sm text-destructive">
-            {mutation.error.message}
+            The selected location is unavailable. Reload access before saving.
           </p>
-          <RefreshButton refresh={refresh} error={null}>
-            Reload organisation grants
-          </RefreshButton>
+        )}
+        <div className="grid gap-4 sm:grid-cols-2">
+          {(["valid_from", "expires_at"] as const).map((name) => (
+            <Field
+              key={name}
+              id={`grant-${name}`}
+              label={name === "valid_from" ? "Valid from" : "Expires at"}
+              error={error(name)}
+            >
+              <Input
+                id={`grant-${name}`}
+                type="datetime-local"
+                disabled={mutation.isPending || (!!grant && name === "valid_from")}
+                value={dateInput(form.watch(name))}
+                onChange={(event) =>
+                  form.setValue(name, isoInput(event.target.value), {
+                    shouldDirty: true,
+                    shouldValidate: true,
+                  })
+                }
+                aria-invalid={!!error(name)}
+                aria-describedby={error(name) ? `grant-${name}-error` : undefined}
+              />
+            </Field>
+          ))}
         </div>
-      )}
-      <div className="flex flex-wrap gap-2">
-        <Button
-          type="submit"
-          disabled={
-            mutation.isPending ||
-            (requiresPolicy(form.watch()) && !policy.ready) ||
-            unavailable ||
-            (!grant && !subjects.includes(form.watch("subject")))
-          }
-        >
-          {mutation.isPending ? "Saving…" : "Save access grant"}
-        </Button>
-        <Button type="button" variant="ghost" disabled={mutation.isPending} onClick={onDone}>
-          Cancel grant changes
-        </Button>
-      </div>
-    </form>
+        <Field id="grant-reason" label="Reason for access" error={error("reason")}>
+          <Input
+            id="grant-reason"
+            {...form.register("reason")}
+            disabled={mutation.isPending}
+            aria-invalid={!!error("reason")}
+            aria-describedby={error("reason") ? "grant-reason-error" : undefined}
+          />
+        </Field>
+        {grant && (
+          <FormSelectField
+            control={form.control}
+            name="status"
+            id="grant-status"
+            label="Grant status"
+            disabled={mutation.isPending}
+            options={[
+              { value: "active", label: "Active within validity period" },
+              { value: "revoked", label: "Revoke access" },
+            ]}
+          />
+        )}
+        {mutation.error && (
+          <div className="space-y-2">
+            <p role="alert" className="text-sm text-destructive">
+              {mutation.error.message}
+            </p>
+            <RefreshButton refresh={refresh} error={null}>
+              Reload organisation grants
+            </RefreshButton>
+          </div>
+        )}
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="submit"
+            disabled={
+              mutation.isPending ||
+              (requiresPolicy(form.watch()) && !policy.ready) ||
+              unavailable ||
+              (!grant && !subjects.includes(form.watch("subject")))
+            }
+          >
+            {mutation.isPending ? "Saving…" : "Save access grant"}
+          </Button>
+          <Button type="button" variant="ghost" disabled={mutation.isPending} onClick={onDone}>
+            Cancel grant changes
+          </Button>
+        </div>
+      </form>
+    </Panel>
   );
 }
 function GrantHistory({ scope, id }: { scope: SupplyRegistryScope; id: string }) {

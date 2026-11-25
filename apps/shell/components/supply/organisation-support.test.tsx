@@ -16,6 +16,11 @@ const scope = {
   subject: "TEST-owner",
   partyId: "0199e000-0000-7000-8000-000000000001",
 };
+// #1260: cards are Panel, so no hand-painted card class survives.
+// Controls are not cards: the design system's outline button, Input and
+// Textarea carry shadow-sm, and a select trigger is a button-like combobox.
+const CARDS =
+  ":is(.rounded-xl, .rounded-2xl, .shadow-sm):not(button, input, textarea, [role=combobox])";
 beforeEach(() => {
   vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-10-17T12:00:00Z"));
 });
@@ -94,6 +99,7 @@ it("uses only server allowed actions and displays whitelisted diagnostics withou
   ).toBeInTheDocument();
   expect(await screen.findByText(/quarantine bin count/i)).toBeInTheDocument();
   expect(screen.queryByText("TEST MUST NEVER DISPLAY")).not.toBeInTheDocument();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   expect(screen.queryByRole("button", { name: "Request support access" })).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: /Review support/ })).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: /History support/ })).not.toBeInTheDocument();
@@ -300,6 +306,7 @@ it("creates a scoped request from trusted options with one stable identity acros
   });
   await user.click(screen.getByRole("button", { name: "Submit support request" }));
   expect(await screen.findByText("TEST support request unavailable")).toBeInTheDocument();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   await user.click(screen.getByRole("button", { name: "Submit support request" }));
   await waitFor(() => expect(writes).toHaveLength(2));
   expect(writes[0]).toEqual(writes[1]);

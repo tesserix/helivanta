@@ -14,10 +14,15 @@ import {
   type WholesaleReceiptInput,
   type WholesaleStockScope,
 } from "@helivanta/api";
-import { Field, RequestFailure, useZodForm } from "@helivanta/ui";
-import { Button, Input, Textarea } from "@tesserix/web";
+import { Field, Panel, RequestFailure, tableStyles, useZodForm } from "@helivanta/ui";
+import { Button, Input, Textarea, cn } from "@tesserix/web";
 
 import { WarehouseQuality } from "./warehouse-quality";
+
+const cell = "px-4 py-3";
+const head = cn(tableStyles.head, "px-4 py-3");
+const numberHead = cn(head, tableStyles.number);
+const numberCell = cn(cell, tableStyles.number);
 
 type Props = {
   scope: WholesaleStockScope;
@@ -121,7 +126,7 @@ function WarehouseStockPanel({ scope, location, roles, canWrite, onClose }: Prop
   const receipts = query.data?.pages.flatMap((page) => page.data) ?? [];
   const frozen = Boolean(attempt) || save.isPending || recovery.isPending;
   return (
-    <section className="space-y-4 rounded-md border p-4" aria-label="Warehouse stock">
+    <Panel className="space-y-4" aria-label="Warehouse stock">
       <div className="flex items-center justify-between">
         <h3 className="font-medium">Physical receipts · {location.code}</h3>
         <Button variant="ghost" onClick={onClose}>
@@ -135,26 +140,26 @@ function WarehouseStockPanel({ scope, location, roles, canWrite, onClose }: Prop
         <table className="w-full text-left text-sm">
           <thead>
             <tr>
-              <th>Source document line</th>
-              <th>Lot</th>
-              <th>Count</th>
-              <th>Expiry</th>
-              <th>Intake state</th>
-              <th>Inspection</th>
+              <th className={head}>Source document line</th>
+              <th className={head}>Lot</th>
+              <th className={numberHead}>Count</th>
+              <th className={head}>Expiry</th>
+              <th className={head}>Intake state</th>
+              <th className={head}>Inspection</th>
             </tr>
           </thead>
           <tbody>
             {receipts.map((receipt) => (
               <Fragment key={receipt.id}>
-                <tr>
-                  <td>{receipt.input.source_reference}</td>
-                  <td>{receipt.input.lot_number}</td>
-                  <td>
+                <tr className={tableStyles.row}>
+                  <td className={cell}>{receipt.input.source_reference}</td>
+                  <td className={cell}>{receipt.input.lot_number}</td>
+                  <td className={numberCell}>
                     {receipt.input.quantity_units} {receipt.input.unit_code}
                   </td>
-                  <td>{receipt.input.expires_on}</td>
-                  <td>Received in quarantine</td>
-                  <td>
+                  <td className={cell}>{receipt.input.expires_on}</td>
+                  <td className={cell}>Received in quarantine</td>
+                  <td className={cell}>
                     <Button
                       type="button"
                       variant="outline"
@@ -165,8 +170,8 @@ function WarehouseStockPanel({ scope, location, roles, canWrite, onClose }: Prop
                   </td>
                 </tr>
                 {selected === receipt.id && (
-                  <tr>
-                    <td colSpan={6}>
+                  <tr className="border-b border-border">
+                    <td colSpan={6} className={cell}>
                       <WarehouseQuality
                         scope={scope}
                         receipt={receipt}
@@ -341,6 +346,6 @@ function WarehouseStockPanel({ scope, location, roles, canWrite, onClose }: Prop
           )}
         </form>
       )}
-    </section>
+    </Panel>
   );
 }

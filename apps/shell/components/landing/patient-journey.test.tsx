@@ -90,3 +90,16 @@ it("describes the decorative corridor for assistive technology", () => {
   renderWithProviders(<PatientJourney />);
   expect(screen.getByRole("figure")).toHaveAccessibleName(/One patient walks through the hospital/);
 });
+
+// #1837: on the home page a station that is not available yet points to the
+// roadmap instead of carrying a status badge.
+it("links a planned station to the roadmap instead of badging it", () => {
+  renderWithProviders(<PatientJourney roadmapLinks />);
+  const billing = narration()[6];
+  expect(within(billing).queryByText("Planned")).toBeNull();
+  expect(within(billing).getByRole("link", { name: "On the roadmap" })).toHaveAttribute(
+    "href",
+    "/roadmap#platform",
+  );
+  expect(within(narration()[0]).getByText("Foundation available")).toBeInTheDocument();
+});

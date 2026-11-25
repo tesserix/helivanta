@@ -4,7 +4,8 @@ import { useRef } from "react";
 import { motion } from "framer-motion";
 import { Check } from "lucide-react";
 import { cn } from "@tesserix/web";
-import { moduleStatus } from "@/app/platform-catalog";
+import Link from "next/link";
+import { isAvailable, moduleStatus } from "@/app/platform-catalog";
 import { ModuleStatusLabel } from "./module-status";
 import { journeyNote, patient, stations } from "./patient-journey-data";
 import { PlayToggle, useStoryPlayer } from "./story-player";
@@ -13,7 +14,9 @@ const WALK_S = 1.1;
 
 const along = (index: number) => `${(index / (stations.length - 1)) * 100}%`;
 
-export function PatientJourney() {
+// On the home page a station that is not available yet links to the roadmap
+// instead of carrying a status badge (#1837).
+export function PatientJourney({ roadmapLinks = false }: { roadmapLinks?: boolean }) {
   const boardRef = useRef<HTMLDivElement>(null);
   const player = useStoryPlayer(boardRef, stations.length);
   const current = player.animated ? player.step : undefined;
@@ -60,7 +63,16 @@ export function PatientJourney() {
               {station.text}
             </p>
             <div className="mt-3">
-              <ModuleStatusLabel status={moduleStatus(station.module)} />
+              {roadmapLinks && !isAvailable(moduleStatus(station.module)) ? (
+                <Link
+                  href="/roadmap#platform"
+                  className="text-[13px] font-medium underline underline-offset-4"
+                >
+                  On the roadmap
+                </Link>
+              ) : (
+                <ModuleStatusLabel status={moduleStatus(station.module)} />
+              )}
             </div>
           </li>
         ))}

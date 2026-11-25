@@ -12,6 +12,9 @@ const scope = {
   employmentEpoch: 2,
 };
 const page = (data: unknown[]) => ({ data, page: { has_more: false, next_cursor: null } });
+// #1261 slice 7: no boxed rows or hand-painted cards survive.
+const BOXES =
+  ":is(.rounded-xl, .rounded-2xl, .shadow-sm, .rounded-md.border):not(button, input, textarea, [role=combobox])";
 afterEach(() => vi.unstubAllGlobals());
 it("retains the same upload intent and bytes after an uncertain registration", async () => {
   vi.stubGlobal("crypto", webcrypto);
@@ -229,6 +232,7 @@ it("retains a scan retry attempt on uncertainty and requires confirmation to rev
   await user.click(await screen.findByRole("button", { name: "Retry scan" }));
   await user.click(await screen.findByRole("button", { name: "Retry same file action" }));
   await screen.findByRole("button", { name: "Download" });
+  expect(document.body.querySelectorAll(BOXES)).toHaveLength(0);
   expect(retries).toHaveLength(2);
   expect(retries[1]).toBe(retries[0]);
   expect(retries[0]).toContain("/retries/2?");

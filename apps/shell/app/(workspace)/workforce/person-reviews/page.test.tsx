@@ -295,6 +295,9 @@ function fixture({
   return { writes, reads, releaseEvidence };
 }
 
+// #1261 slice 7: no boxed rows or hand-painted cards survive.
+const BOXES =
+  ":is(.rounded-xl, .rounded-2xl, .shadow-sm, .rounded-md.border):not(button, input, textarea, [role=combobox])";
 it("requires an independent human finding before approving through the scoped reviewer inbox", async () => {
   const { writes, reads } = fixture();
   const { user } = renderWithProviders(
@@ -308,6 +311,11 @@ it("requires an independent human finding before approving through the scoped re
   expect(within(detail).getByText("synthetic-identity.png")).toBeInTheDocument();
   await user.click(within(detail).getByRole("button", { name: "Approve finding" }));
   expect(writes).toHaveLength(0);
+  // The zod schema, not native validation, refuses the empty reason (#1261 slice 7).
+  expect(await within(detail).findByText("Enter a reason for this decision.")).toBeVisible();
+  expect(within(detail).getByLabelText("Decision reason")).not.toHaveAttribute("required");
+  expect(within(detail).getByLabelText("Decision reason")).not.toHaveAttribute("maxlength");
+  expect(document.body.querySelectorAll(BOXES)).toHaveLength(0);
   await user.type(
     within(detail).getByLabelText("Decision reason"),
     "Synthetic independent examination",
@@ -600,12 +608,23 @@ it("allows revocation after the identity source changes without releasing stale 
 });
 
 it("explains missing finding fields without exposing schema terminology", async () => {
-  const { writes } = fixture({ manager: true });
+  const { writes, reads } = fixture({ manager: true });
   const { user } = renderWithProviders(
     <NavigationGuardProvider>
       <PersonReviews />
     </NavigationGuardProvider>,
   );
+  // The zod contract, not native maxLength, refuses an overlong Staff ID (#1261 slice 7).
+  await screen.findByRole("button", { name: "Prepare review for Synthetic Joiner" });
+  const code = screen.getByLabelText("Staff ID");
+  expect(code).not.toHaveAttribute("maxlength");
+  await user.click(code);
+  await user.paste("A".repeat(41));
+  await user.click(screen.getByRole("button", { name: "Search staff" }));
+  expect(
+    await screen.findByText("Enter a valid Staff ID, or leave it empty to browse."),
+  ).toBeVisible();
+  expect(reads.some((url) => url.includes("A".repeat(41)))).toBe(false);
   await user.click(
     await screen.findByRole("button", { name: "Prepare review for Synthetic Joiner" }),
   );
@@ -622,6 +641,17 @@ it("explains missing finding fields without exposing schema terminology", async 
     within(preparation).getByText("Enter a valid finding expiry date and time."),
   ).toBeVisible();
   expect(within(preparation).queryByText(/Too small|Invalid ISO/)).not.toBeInTheDocument();
+  for (const label of [
+    "Hospital policy reference",
+    "Observation and finding reference",
+    "Observation date (UTC)",
+    "Finding valid until (local time)",
+  ]) {
+    expect(within(preparation).getByLabelText(label)).not.toHaveAttribute("required");
+    expect(within(preparation).getByLabelText(label)).not.toHaveAttribute("maxlength");
+  }
+  await within(preparation).findByRole("checkbox", { name: /synthetic-identity\.png/ });
+  expect(document.body.querySelectorAll(BOXES)).toHaveLength(0);
   expect(writes).toHaveLength(0);
 });
 

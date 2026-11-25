@@ -47,7 +47,7 @@ export default function EmploymentReviews() {
   );
   return (
     <>
-      <PageHeading description="Examine appointment or contract terms and selected evidence. Approved terms require separate employment activation and access decisions." />
+      <PageHeading description="Examine appointment or contract terms and selected evidence." />
       {!hydrated || switching || identity.isPending || identity.isFetching ? (
         <p role="status">Checking your workspace…</p>
       ) : identity.isError || !identity.data?.tenant_id || !identity.data.subject ? (

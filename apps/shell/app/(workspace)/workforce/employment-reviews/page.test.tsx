@@ -256,12 +256,19 @@ it.each([401, 403, 404, 409])(
     expect(writes).toHaveLength(0);
   },
 );
+// #1261 slice 7: no boxed rows or hand-painted cards survive.
+const BOXES =
+  ":is(.rounded-xl, .rounded-2xl, .shadow-sm, .rounded-md.border):not(button, input, textarea, [role=combobox])";
 it("requires the reason and both human attestations", async () => {
   const { writes } = fixture();
   const { user } = await open();
   await user.click(await screen.findByRole("button", { name: "Approve terms" }));
   expect(writes).toHaveLength(0);
   expect(await screen.findByText("Enter a reason for this decision.")).toBeVisible();
+  // The zod schema, not native validation, carries the reason rules (#1261 slice 7).
+  expect(screen.getByLabelText("Decision reason")).not.toHaveAttribute("required");
+  expect(screen.getByLabelText("Decision reason")).not.toHaveAttribute("maxlength");
+  expect(document.body.querySelectorAll(BOXES)).toHaveLength(0);
   await user.type(screen.getByLabelText("Decision reason"), "Synthetic review");
   await user.click(screen.getByRole("button", { name: "Approve terms" }));
   expect(

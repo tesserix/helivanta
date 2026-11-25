@@ -96,7 +96,6 @@ export function ManagerPersonReviewPreparation({
             <Field id="person-target-code" label="Staff ID" error={searchError}>
               <Input
                 id="person-target-code"
-                maxLength={40}
                 value={input}
                 disabled={busy}
                 onChange={(event) => setInput(event.target.value)}
@@ -387,12 +386,7 @@ function PreparationForm({
               label="Hospital policy reference"
               error={form.formState.errors.policy_reference && "Enter a hospital policy reference."}
             >
-              <Input
-                id="person-policy-reference"
-                required
-                maxLength={300}
-                {...form.register("policy_reference")}
-              />
+              <Input id="person-policy-reference" {...form.register("policy_reference")} />
             </Field>
             <Field
               id="person-finding-reference"
@@ -402,12 +396,7 @@ function PreparationForm({
                 "Enter an observation and finding reference."
               }
             >
-              <Input
-                id="person-finding-reference"
-                required
-                maxLength={500}
-                {...form.register("finding_reference")}
-              />
+              <Input id="person-finding-reference" {...form.register("finding_reference")} />
             </Field>
             <Field
               id="person-observed-on"
@@ -418,12 +407,7 @@ function PreparationForm({
                   : form.formState.errors.observed_on?.message
               }
             >
-              <Input
-                id="person-observed-on"
-                type="date"
-                required
-                {...form.register("observed_on")}
-              />
+              <Input id="person-observed-on" type="date" {...form.register("observed_on")} />
             </Field>
             <Field
               id="person-valid-until"
@@ -437,7 +421,6 @@ function PreparationForm({
               <Input
                 id="person-valid-until"
                 type="datetime-local"
-                required
                 {...form.register("valid_until", {
                   setValueAs: (value) => {
                     const parsed = new Date(value);
@@ -515,17 +498,19 @@ function PreparationForm({
                     record. Ask authorized Staff intake staff to attach it.
                   </p>
                 ) : (
-                  files.data.data.map((file) => (
-                    <label key={file.id} className="flex items-center gap-3 rounded-md border p-3">
-                      <input type="checkbox" value={file.id} {...form.register("document_ids")} />
-                      <span className="min-w-0 break-words">
-                        {file.filename}
-                        <span className="ml-2 text-xs text-muted-foreground">
-                          {Math.ceil(file.size / 1024)} KB · {file.content_type}
+                  <div className="divide-y">
+                    {files.data.data.map((file) => (
+                      <label key={file.id} className="flex items-center gap-3 py-3">
+                        <input type="checkbox" value={file.id} {...form.register("document_ids")} />
+                        <span className="min-w-0 break-words">
+                          {file.filename}
+                          <span className="ml-2 text-xs text-muted-foreground">
+                            {Math.ceil(file.size / 1024)} KB · {file.content_type}
+                          </span>
                         </span>
-                      </span>
-                    </label>
-                  ))
+                      </label>
+                    ))}
+                  </div>
                 )}
                 <div className="flex gap-2">
                   {cursors.length > 1 && (

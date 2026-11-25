@@ -274,9 +274,9 @@ function BindingWorkspace({
       ) : (
         <>
           {rows.length === 0 && <p>No evidence bound to this terms revision.</p>}
-          <ul className="space-y-3">
+          <ul className="divide-y">
             {rows.map((row) => (
-              <li key={row.id} className="space-y-3 rounded-md border p-3">
+              <li key={row.id} className="space-y-3 py-3">
                 <p className="break-all font-medium">{row.filename}</p>
                 <p className="text-sm text-muted-foreground">
                   {row.status === "attached" ? "Attached" : "Withdrawn"} · evidence revision{" "}
@@ -478,7 +478,7 @@ function BindingCommand({
           />
         )}
         <Field id={`${field}-reason`} label="Reason" error={form.formState.errors.reason?.message}>
-          <Input id={`${field}-reason`} maxLength={500} {...form.register("reason")} />
+          <Input id={`${field}-reason`} {...form.register("reason")} />
         </Field>
       </fieldset>
       {action.kind === "attach" &&

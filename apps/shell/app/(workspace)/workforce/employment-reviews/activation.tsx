@@ -188,8 +188,6 @@ export function EmploymentActivation({ scope, review, onBusy, onAccessLost }: Pr
               >
                 <Input
                   id={id + "-reason"}
-                  required
-                  maxLength={500}
                   disabled={pending || frozen !== null}
                   aria-invalid={Boolean(form.formState.errors.reason)}
                   aria-describedby={form.formState.errors.reason ? id + "-reason-error" : undefined}

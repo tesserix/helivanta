@@ -46,7 +46,7 @@ export default function PersonReviews() {
   );
   return (
     <>
-      <PageHeading description="Review person findings under the hospital’s identity policy. Employment and access require separate approval." />
+      <PageHeading description="Review person findings under the hospital’s identity policy." />
       {!hydrated || switching || identity.isPending || identity.isFetching ? (
         <p role="status">Checking your workspace…</p>
       ) : identity.isError || !identity.data?.tenant_id || !identity.data.subject ? (

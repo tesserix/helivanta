@@ -201,6 +201,9 @@ it.each([false, true])(
     await waitFor(() => expect(onSubmitted).toHaveBeenCalled());
   },
 );
+// #1261 slice 7: no boxed rows or hand-painted cards survive.
+const BOXES =
+  ":is(.rounded-xl, .rounded-2xl, .shadow-sm, .rounded-md.border):not(button, input, textarea, [role=combobox])";
 it("shows clear required policy and reason guidance before any write", async () => {
   const fetcher = vi.fn(async () =>
     Response.json({ data: [], page: { has_more: false, next_cursor: null } }),
@@ -223,6 +226,12 @@ it("shows clear required policy and reason guidance before any write", async () 
   );
   expect(await screen.findByText("Enter the hospital employment policy reference.")).toBeVisible();
   expect(screen.getByText("Enter a reason for this submission.")).toBeVisible();
+  // The zod schema, not native validation, carries these rules (#1261 slice 7).
+  for (const label of ["Hospital employment policy", "Submission reason"]) {
+    expect(screen.getByLabelText(label)).not.toHaveAttribute("required");
+    expect(screen.getByLabelText(label)).not.toHaveAttribute("maxlength");
+  }
+  expect(document.body.querySelectorAll(BOXES)).toHaveLength(0);
   expect(fetcher.mock.calls).toHaveLength(1);
 });
 

@@ -396,12 +396,10 @@ function ReviewFinding({
             >
               <Input
                 id="person-decision-reason"
-                required
                 aria-invalid={Boolean(form.formState.errors.reason)}
                 aria-describedby={
                   form.formState.errors.reason ? "person-decision-reason-error" : undefined
                 }
-                maxLength={500}
                 {...form.register("reason")}
               />
             </Field>

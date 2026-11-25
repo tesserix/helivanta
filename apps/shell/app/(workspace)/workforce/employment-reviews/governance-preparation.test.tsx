@@ -19,6 +19,9 @@ const target = {
   created_at: "2026-11-01T00:00:00Z",
 };
 const page = (data: unknown[]) => ({ data, page: { has_more: false, next_cursor: null } });
+// #1261 slice 7: no boxed rows or hand-painted cards survive.
+const BOXES =
+  ":is(.rounded-xl, .rounded-2xl, .shadow-sm, .rounded-md.border):not(button, input, textarea, [role=combobox])";
 afterEach(() => vi.unstubAllGlobals());
 it("selects an applicant and saves hospital terms with exact governance replay", async () => {
   const writes: Record<string, unknown>[] = [];
@@ -67,7 +70,18 @@ it("selects an applicant and saves hospital terms with exact governance replay",
     </NavigationGuardProvider>,
   );
   expect(fetcher).not.toHaveBeenCalled();
+  // The zod schema, not native maxLength, refuses an overlong Staff code (#1261 slice 7).
+  const code = screen.getByLabelText("Staff code (leave empty to browse)");
+  expect(code).not.toHaveAttribute("maxlength");
+  await user.click(code);
+  await user.paste("A".repeat(41));
   await user.click(screen.getByRole("button", { name: "Find Staff" }));
+  expect(await screen.findByRole("alert")).toBeInTheDocument();
+  expect(fetcher).not.toHaveBeenCalled();
+  await user.clear(code);
+  await user.click(screen.getByRole("button", { name: "Find Staff" }));
+  await screen.findByRole("button", { name: "Select Synthetic applicant" });
+  expect(document.body.querySelectorAll(BOXES)).toHaveLength(0);
   await user.click(await screen.findByRole("button", { name: "Select Synthetic applicant" }));
   await user.click(await screen.findByRole("button", { name: "Prepare employment terms" }));
   const form = screen.getByRole("form", { name: "Employment terms draft" });
@@ -286,6 +300,7 @@ it("opens evidence from the selected canonical terms revision", async () => {
   await user.click(await screen.findByRole("button", { name: "Select Synthetic applicant" }));
   await user.click(await screen.findByRole("button", { name: "Terms history for SYN-TERMS" }));
   await screen.findByText("Terms revision 1 · draft");
+  expect(document.body.querySelectorAll(BOXES)).toHaveLength(0);
   await user.click(await screen.findByRole("button", { name: "Review evidence for SYN-TERMS" }));
   await screen.findByText("No evidence bound to this terms revision.");
   expect(

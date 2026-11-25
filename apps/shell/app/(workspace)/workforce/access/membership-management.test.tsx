@@ -5,6 +5,10 @@ import { NavigationGuardProvider, AccountPresentationsProvider } from "@helivant
 import { MembershipManagement } from "./membership-management";
 
 const scope = { tenantId: "11111111-1111-4111-8111-111111111111", subject: "synthetic-admin" };
+
+// #1261 slice 7: no boxed rows or hand-painted cards survive.
+const BOXES =
+  ":is(.rounded-xl, .rounded-2xl, .shadow-sm, .rounded-md.border):not(button, input, textarea, [role=combobox])";
 const candidate = {
   id: "22222222-2222-4222-8222-222222222222",
   subject: "synthetic-target",
@@ -183,6 +187,8 @@ it("recovers ordinary membership from the retained removal and current epoch", a
   expect(history).not.toHaveTextContent(prior.id);
   expect(history).not.toHaveTextContent(prior.basis_id);
   await user.click(await screen.findByRole("button", { name: "Recover ordinary membership" }));
+  expect(screen.getByRole("form", { name: "Recover ordinary membership" })).toBeInTheDocument();
+  expect(document.body.querySelectorAll(BOXES)).toHaveLength(0);
   await user.type(
     screen.getByLabelText("Reason"),
     "Recover this verified active identity as an ordinary member",

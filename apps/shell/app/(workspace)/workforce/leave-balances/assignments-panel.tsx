@@ -15,12 +15,14 @@ import {
 import {
   AccountName,
   Field,
+  Panel,
   SelectControl,
   useZodForm,
   firstError,
   RequestFailure,
+  controlClass,
 } from "@helivanta/ui";
-import { inputClass, today } from "../roster-policy/policy-ui";
+import { today } from "../roster-policy/policy-ui";
 import { LeaveReview, SaveError } from "./years-panel";
 
 export function LeaveAssignmentsPanel({
@@ -44,10 +46,7 @@ export function LeaveAssignmentsPanel({
     opener.current?.focus();
   };
   return (
-    <section
-      aria-label="Leave structure assignments"
-      className="overflow-hidden rounded-2xl border bg-card shadow-sm"
-    >
+    <Panel flush aria-label="Leave structure assignments">
       <div className="flex flex-wrap items-center justify-between gap-4 border-b p-5">
         <div>
           <h3 className="font-semibold">Leave structure assignments</h3>
@@ -153,7 +152,7 @@ export function LeaveAssignmentsPanel({
           onClose={close}
         />
       )}
-    </section>
+    </Panel>
   );
 }
 
@@ -230,7 +229,7 @@ function AssignmentEditor({
         if (!staffID) return setStaffError("Choose a staff member.");
         save.mutate(input);
       })}
-      className="scroll-mt-24 space-y-6 border-t p-5"
+      className="scroll-mt-4 space-y-6 border-t p-5"
     >
       <fieldset disabled={save.isPending} className="space-y-6">
         <div className="grid gap-5 sm:grid-cols-2">
@@ -238,7 +237,7 @@ function AssignmentEditor({
             <Field id="leave-assignment-staff" label="Staff member">
               <input
                 id="leave-assignment-staff"
-                className={inputClass}
+                className={controlClass}
                 value={`${record.display_name} · ${record.employee_code}`}
                 disabled
               />
@@ -287,7 +286,7 @@ function AssignmentEditor({
             <input
               id="leave-assignment-effective"
               type="date"
-              className={inputClass}
+              className={controlClass}
               aria-invalid={!!errors.effective_on}
               {...form.register("effective_on")}
             />
@@ -395,9 +394,9 @@ function AssignmentHistory({
           error={history.error}
         />
       ) : (
-        <ul className="space-y-3">
+        <ul className="divide-y">
           {history.items.map((r) => (
-            <li key={r.revision_id} className="rounded-xl border p-4 text-sm">
+            <li key={r.revision_id} className="py-4 text-sm">
               <p className="font-medium">
                 v{r.version} · {r.structure_name} ({r.structure_code})
               </p>

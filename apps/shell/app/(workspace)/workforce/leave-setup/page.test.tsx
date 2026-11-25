@@ -5,6 +5,10 @@ import { renderWithProviders } from "@helivanta/api/testing";
 import { chooseOption } from "@/test/select";
 import LeaveSetup from "./page";
 
+// #1261 slice 2: cards are Panel, so no hand-painted card class survives.
+// Buttons are controls: the design system's outline button carries shadow-sm.
+const CARDS = ":is(.rounded-xl, .rounded-2xl, .shadow-sm):not(button)";
+
 const hospital = "11111111-1111-4111-8111-111111111111";
 const earnedID = "22222222-2222-4222-8222-222222222222";
 const earnedRevision = "33333333-3333-4333-8333-333333333333";
@@ -95,6 +99,7 @@ it("requires review, keeps input on conflict and retries with the same ID", asyn
   await user.click(screen.getByRole("button", { name: "Save configuration" }));
   expect(await screen.findByRole("alert")).toHaveTextContent("changed");
   expect(screen.getByLabelText("Name")).toHaveValue("Synthetic Earned Revised");
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   await user.click(screen.getByRole("button", { name: "Save configuration" }));
   await waitFor(() => expect(writes).toHaveLength(2));
   expect(writes[0]).toEqual(writes[1]);
@@ -156,6 +161,7 @@ it("builds structures in half days and gives untracked types no allowance", asyn
   const unpaidGroup = screen.getByRole("group", { name: "Synthetic Unpaid" });
   expect(unpaidGroup).toHaveTextContent("no allowance");
   expect(within(unpaidGroup).queryByLabelText("Days per year")).not.toBeInTheDocument();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   await user.click(
     screen.getByRole("checkbox", { name: "I reviewed the effective date and leave rules" }),
   );
@@ -196,6 +202,7 @@ it("validates holidays inside the calendar year", async () => {
   );
   await user.click(screen.getByRole("button", { name: "Save configuration" }));
   expect(await screen.findByText("Choose a date in 2027.")).toBeInTheDocument();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   expect(writes).toHaveLength(0);
   await user.clear(within(day).getByLabelText("Date"));
   await user.type(within(day).getByLabelText("Date"), "2027-01-26");
@@ -222,6 +229,7 @@ it("reads history and hides management controls from readers", async () => {
       "Revision 1",
     ),
   );
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
 });
 
 it("withdraws loaded configurations and the open history once a re-read is refused", async () => {

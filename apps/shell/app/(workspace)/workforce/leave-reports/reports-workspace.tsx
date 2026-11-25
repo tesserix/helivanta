@@ -12,8 +12,16 @@ import {
   type LeaveConfig,
   type LeaveReportFilter,
 } from "@helivanta/api";
-import { Field, PageHeading, SelectControl, useZodForm, RequestFailure } from "@helivanta/ui";
-import { inputClass, today } from "../roster-policy/policy-ui";
+import {
+  Field,
+  PageHeading,
+  Panel,
+  SelectControl,
+  useZodForm,
+  RequestFailure,
+  controlClass,
+} from "@helivanta/ui";
+import { today } from "../roster-policy/policy-ui";
 import { LeaveReportTable } from "./report-table";
 
 export function LeaveReportsWorkspace() {
@@ -26,7 +34,7 @@ export function LeaveReportsWorkspace() {
   return (
     <>
       <PageHeading
-        description="Approved leave by month and type, and every request with its status, for a period of up to 366 days. Department and joining date appear only for enrollment managers."
+        description="Approved leave by month and type, and every request with its status, for a period of up to 366 days."
         actions={
           hospital && (
             <div className="w-full sm:w-72">
@@ -53,9 +61,9 @@ export function LeaveReportsWorkspace() {
       ) : hospital ? (
         <ReportBoard key={hospital.id} hospital={hospital} />
       ) : (
-        <p className="rounded-2xl border bg-card p-8">
-          Ask your tenant administrator for hospital access before viewing leave reports.
-        </p>
+        <Panel as="div">
+          <p>Ask your tenant administrator for hospital access before viewing leave reports.</p>
+        </Panel>
       )}
       {hospitals.hasMore && (
         <Button
@@ -109,96 +117,103 @@ function ReportBoard({ hospital }: { hospital: Hospital }) {
     form.setValue(field, v === "all" ? "" : v, { shouldDirty: true });
   return (
     <section aria-label="Leave reports" className="space-y-6">
-      <form
-        noValidate
-        autoComplete="off"
-        aria-label="Report filters"
-        onSubmit={form.handleSubmit((values: LeaveReportFilter) => setApplied(values))}
-        className="space-y-5 rounded-2xl border bg-card p-5 shadow-sm"
-      >
-        <div className="grid gap-5 sm:grid-cols-3">
-          <Field id="report-kind" label="Report">
-            <SelectControl
-              id="report-kind"
-              value={report}
-              onValueChange={(v) =>
-                form.setValue("report", v as LeaveReportFilter["report"], { shouldDirty: true })
-              }
-              options={reportOptions}
-            />
-          </Field>
-          <Field id="report-from" label="From" error={errors.from?.message}>
-            <input
-              id="report-from"
-              type="date"
-              className={inputClass}
-              aria-invalid={!!errors.from}
-              {...form.register("from")}
-            />
-          </Field>
-          <Field id="report-to" label="To" error={errors.to?.message}>
-            <input
-              id="report-to"
-              type="date"
-              className={inputClass}
-              aria-invalid={!!errors.to}
-              {...form.register("to")}
-            />
-          </Field>
-        </div>
-        <div className="grid gap-5 sm:grid-cols-3">
-          <Field id="report-search" label="Name or employee code" error={errors.q?.message}>
-            <input
-              id="report-search"
-              type="search"
-              className={inputClass}
-              aria-invalid={!!errors.q}
-              {...form.register("q")}
-            />
-          </Field>
-          {profiles && (
-            <Field id="report-department" label="Department">
+      <Panel as="div">
+        <form
+          noValidate
+          autoComplete="off"
+          aria-label="Report filters"
+          onSubmit={form.handleSubmit((values: LeaveReportFilter) => setApplied(values))}
+          className="space-y-5"
+        >
+          <div className="grid gap-5 sm:grid-cols-3">
+            <Field id="report-kind" label="Report">
               <SelectControl
-                id="report-department"
-                value={form.watch("department_id") || "all"}
-                onValueChange={choose("department_id")}
-                options={[
-                  { value: "all", label: "All departments" },
-                  ...departments.items.map((d) => ({ value: d.id, label: d.name })),
-                ]}
+                id="report-kind"
+                value={report}
+                onValueChange={(v) =>
+                  form.setValue("report", v as LeaveReportFilter["report"], { shouldDirty: true })
+                }
+                options={reportOptions}
               />
             </Field>
-          )}
-          {report === "status" && (
-            <>
-              <Field id="report-type" label="Leave type">
+            <Field id="report-from" label="From" error={errors.from?.message}>
+              <input
+                id="report-from"
+                type="date"
+                className={controlClass}
+                aria-invalid={!!errors.from}
+                {...form.register("from")}
+              />
+            </Field>
+            <Field id="report-to" label="To" error={errors.to?.message}>
+              <input
+                id="report-to"
+                type="date"
+                className={controlClass}
+                aria-invalid={!!errors.to}
+                {...form.register("to")}
+              />
+            </Field>
+          </div>
+          <div className="grid gap-5 sm:grid-cols-3">
+            <Field id="report-search" label="Name or employee code" error={errors.q?.message}>
+              <input
+                id="report-search"
+                type="search"
+                className={controlClass}
+                aria-invalid={!!errors.q}
+                {...form.register("q")}
+              />
+            </Field>
+            {profiles && (
+              <Field id="report-department" label="Department">
                 <SelectControl
-                  id="report-type"
-                  value={form.watch("leave_type_id") || "all"}
-                  onValueChange={choose("leave_type_id")}
+                  id="report-department"
+                  value={form.watch("department_id") || "all"}
+                  onValueChange={choose("department_id")}
                   options={[
-                    { value: "all", label: "All leave types" },
-                    ...types.items.map((t) => ({ value: t.id, label: `${t.name} (${t.code})` })),
+                    { value: "all", label: "All departments" },
+                    ...departments.items.map((d) => ({ value: d.id, label: d.name })),
                   ]}
                 />
               </Field>
-              <Field id="report-status" label="Status">
-                <SelectControl
-                  id="report-status"
-                  value={form.watch("status")}
-                  onValueChange={(v) =>
-                    form.setValue("status", v as LeaveReportFilter["status"], { shouldDirty: true })
-                  }
-                  options={statusOptions}
-                />
-              </Field>
-            </>
-          )}
-        </div>
-        <div className="flex justify-end">
-          <Button type="submit">Run report</Button>
-        </div>
-      </form>
+            )}
+            {report === "status" && (
+              <>
+                <Field id="report-type" label="Leave type">
+                  <SelectControl
+                    id="report-type"
+                    value={form.watch("leave_type_id") || "all"}
+                    onValueChange={choose("leave_type_id")}
+                    options={[
+                      { value: "all", label: "All leave types" },
+                      ...types.items.map((t) => ({ value: t.id, label: `${t.name} (${t.code})` })),
+                    ]}
+                  />
+                </Field>
+                <Field id="report-status" label="Status">
+                  <SelectControl
+                    id="report-status"
+                    value={form.watch("status")}
+                    onValueChange={(v) =>
+                      form.setValue("status", v as LeaveReportFilter["status"], {
+                        shouldDirty: true,
+                      })
+                    }
+                    options={statusOptions}
+                  />
+                </Field>
+              </>
+            )}
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Department and joining date appear only for enrollment managers.
+          </p>
+          <div className="flex justify-end">
+            <Button type="submit">Run report</Button>
+          </div>
+        </form>
+      </Panel>
       {applied ? (
         <LeaveReportTable
           key={leaveReportPath(base, applied)}
@@ -207,9 +222,9 @@ function ReportBoard({ hospital }: { hospital: Hospital }) {
           filter={applied}
         />
       ) : (
-        <p className="rounded-2xl border bg-card p-5 text-sm text-muted-foreground">
-          Choose a period and run a report.
-        </p>
+        <Panel as="div">
+          <p className="text-sm text-muted-foreground">Choose a period and run a report.</p>
+        </Panel>
       )}
     </section>
   );

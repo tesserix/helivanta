@@ -14,8 +14,16 @@ import {
   type LeaveYear,
   type StaffLeaveBalances,
 } from "@helivanta/api";
-import { AccountName, Field, SelectControl, useZodForm, RequestFailure } from "@helivanta/ui";
-import { inputClass, today } from "../roster-policy/policy-ui";
+import {
+  AccountName,
+  Field,
+  Panel,
+  SelectControl,
+  useZodForm,
+  RequestFailure,
+  controlClass,
+} from "@helivanta/ui";
+import { today } from "../roster-policy/policy-ui";
 import { SaveError } from "./years-panel";
 
 export function LeaveBalancesPanel({
@@ -31,10 +39,7 @@ export function LeaveBalancesPanel({
   const [asOf, setAsOf] = useState("");
   const year = years.find((y) => y.leave_year === selected) ?? years[0];
   return (
-    <section
-      aria-label="Staff leave balances"
-      className="overflow-hidden rounded-2xl border bg-card shadow-sm"
-    >
+    <Panel flush aria-label="Staff leave balances">
       <div className="flex flex-wrap items-end justify-between gap-4 border-b p-5">
         <div>
           <h3 className="font-semibold">Staff leave balances</h3>
@@ -62,7 +67,7 @@ export function LeaveBalancesPanel({
               <input
                 id="balances-as-of"
                 type="date"
-                className={inputClass}
+                className={controlClass}
                 min={year.start_on}
                 max={year.end_on}
                 value={asOf}
@@ -85,7 +90,7 @@ export function LeaveBalancesPanel({
           Open a leave year to see staff balances.
         </p>
       )}
-    </section>
+    </Panel>
   );
 }
 
@@ -243,9 +248,9 @@ function StaffLedger({
       ) : ledger.items.length === 0 ? (
         <p className="text-sm text-muted-foreground">No entries in this leave year.</p>
       ) : (
-        <ul className="space-y-2 text-sm">
+        <ul className="divide-y text-sm">
           {ledger.items.map((e) => (
-            <li key={e.id} className="rounded-xl border p-3">
+            <li key={e.id} className="py-3">
               <p className="font-medium">
                 {e.name} · {LEAVE_LEDGER_KINDS[e.kind]} · {e.half_days > 0 ? "+" : ""}
                 {formatHalfDays(e.half_days)}
@@ -315,77 +320,79 @@ function CorrectionForm({
   );
   const errors = form.formState.errors;
   return (
-    <form
-      noValidate
-      autoComplete="off"
-      aria-label={`Correct balance for ${staff.display_name}`}
-      onSubmit={form.handleSubmit((input) => save.mutate(input))}
-      className="mb-6 space-y-5 rounded-xl border p-4"
-    >
-      <fieldset disabled={save.isPending} className="space-y-5">
-        <div className="grid gap-5 sm:grid-cols-3">
-          <Field id="correction-type" label="Leave type" error={errors.leave_type_id?.message}>
-            <SelectControl
-              id="correction-type"
-              value={form.watch("leave_type_id")}
-              onValueChange={(v) =>
-                form.setValue("leave_type_id", v, { shouldDirty: true, shouldValidate: true })
-              }
-              options={types.map((b) => ({
-                value: b.leave_type_id,
-                label: `${b.name} (${b.code})`,
-              }))}
-            />
-          </Field>
-          <Field
-            id="correction-amount"
-            label="Adjustment in half-days (negative deducts)"
-            error={errors.half_days?.message}
-          >
-            <input
+    <Panel as="div" className="mb-6">
+      <form
+        noValidate
+        autoComplete="off"
+        aria-label={`Correct balance for ${staff.display_name}`}
+        onSubmit={form.handleSubmit((input) => save.mutate(input))}
+        className="space-y-5"
+      >
+        <fieldset disabled={save.isPending} className="space-y-5">
+          <div className="grid gap-5 sm:grid-cols-3">
+            <Field id="correction-type" label="Leave type" error={errors.leave_type_id?.message}>
+              <SelectControl
+                id="correction-type"
+                value={form.watch("leave_type_id")}
+                onValueChange={(v) =>
+                  form.setValue("leave_type_id", v, { shouldDirty: true, shouldValidate: true })
+                }
+                options={types.map((b) => ({
+                  value: b.leave_type_id,
+                  label: `${b.name} (${b.code})`,
+                }))}
+              />
+            </Field>
+            <Field
               id="correction-amount"
-              type="number"
-              step={1}
-              className={inputClass}
-              aria-invalid={!!errors.half_days}
-              {...form.register("half_days", { valueAsNumber: true })}
-            />
-          </Field>
-          <Field
-            id="correction-effective"
-            label="Effective date"
-            error={errors.effective_on?.message}
-          >
-            <input
+              label="Adjustment in half-days (negative deducts)"
+              error={errors.half_days?.message}
+            >
+              <input
+                id="correction-amount"
+                type="number"
+                step={1}
+                className={controlClass}
+                aria-invalid={!!errors.half_days}
+                {...form.register("half_days", { valueAsNumber: true })}
+              />
+            </Field>
+            <Field
               id="correction-effective"
-              type="date"
-              className={inputClass}
-              min={year.start_on}
-              max={year.end_on}
-              aria-invalid={!!errors.effective_on}
-              {...form.register("effective_on")}
+              label="Effective date"
+              error={errors.effective_on?.message}
+            >
+              <input
+                id="correction-effective"
+                type="date"
+                className={controlClass}
+                min={year.start_on}
+                max={year.end_on}
+                aria-invalid={!!errors.effective_on}
+                {...form.register("effective_on")}
+              />
+            </Field>
+          </div>
+          <Field id="correction-reason" label="Reason" error={errors.reason?.message}>
+            <textarea
+              id="correction-reason"
+              rows={3}
+              className={controlClass}
+              aria-invalid={!!errors.reason}
+              {...form.register("reason")}
             />
           </Field>
+        </fieldset>
+        {save.isError && <SaveError message={save.error.message} />}
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="ghost" disabled={save.isPending} onClick={onClose}>
+            Cancel correction
+          </Button>
+          <Button type="submit" disabled={save.isPending}>
+            {save.isPending ? "Recording…" : "Record correction"}
+          </Button>
         </div>
-        <Field id="correction-reason" label="Reason" error={errors.reason?.message}>
-          <textarea
-            id="correction-reason"
-            rows={3}
-            className={inputClass}
-            aria-invalid={!!errors.reason}
-            {...form.register("reason")}
-          />
-        </Field>
-      </fieldset>
-      {save.isError && <SaveError message={save.error.message} />}
-      <div className="flex justify-end gap-2">
-        <Button type="button" variant="ghost" disabled={save.isPending} onClick={onClose}>
-          Cancel correction
-        </Button>
-        <Button type="submit" disabled={save.isPending}>
-          {save.isPending ? "Recording…" : "Record correction"}
-        </Button>
-      </div>
-    </form>
+      </form>
+    </Panel>
   );
 }

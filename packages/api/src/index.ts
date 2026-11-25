@@ -296,7 +296,7 @@ export {
   hospitalStocktakeOutletsKey,
   type HospitalStocktakeOutletScope,
 } from "./hospital-stocktake-locations";
-export type { HospitalStocktakeScopeChoice } from "./staff-access-contract";
+export type { HospitalWorkScopeChoice } from "./staff-access-contract";
 export {
   pharmacyStocktakeCountInputSchema,
   pharmacyStocktakeCountEntrySchema,

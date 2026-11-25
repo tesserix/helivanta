@@ -2190,7 +2190,7 @@ record read evidence; IAM records the assignment disclosure. Tenant ownership
 alone produces no working scope. Expired, withdrawn, unacknowledged or ineligible
 assignments are omitted, with an empty page retaining its continuation cursor.
 
-The canonical `HospitalStocktakeScopeChoice` in `contracts/staff-access.json`
+The canonical `HospitalWorkScopeChoice` in `contracts/staff-access.json`
 contains reference IDs, hospital/department display names, the actual role name
 and permission snapshot, version, authority epoch and expiry. It exposes no
 Staff ID, login subject, email, generation or employment epoch. These assignment

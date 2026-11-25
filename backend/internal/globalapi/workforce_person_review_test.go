@@ -2591,6 +2591,9 @@ func TestPreEmploymentPersonReviewPreservesInactiveJoiner(t *testing.T) {
 						require.Equal(t, departmentRevision, binding["department_revision_id"])
 						grantDepartment(postingRootReviewer, departmentID, []string{departmentID}, "pharmacy.department_stocktake_counter.v1", pharmacy.PermStocktakeCount)
 						grantDepartment(recipient, departmentID, []string{departmentID}, "pharmacy.department_stocktake_reviewer.v1", pharmacy.PermStocktakeReview)
+						grantDepartment(recipient, departmentID, []string{departmentID}, "pharmacy.department_ward_indent_reader.v1", authz.WardIndentActorUse)
+						grantDepartment(postingRootReviewer, departmentID, []string{departmentID}, "pharmacy.department_ward_indent_requester.v1", authz.Permission("pharmacy.indent.raise"))
+						assertHospitalWardIndentScopeDiscovery(t, db, call, maker, recipient, postingRootReviewer, hospital, departmentID)
 						assertHospitalStocktakeWorkflow(t, db, call, hospital, departmentID, departmentRevision, maker, postingRootReviewer, recipient, func() {
 							grantDepartment(postingRootReviewer, departmentID, []string{departmentID}, "pharmacy.department_stocktake_reviewer.v1", pharmacy.PermStocktakeReview)
 						}, hospitalStocktakeBrowserAcceptance(t, db, gateway, tokens, hospital, departmentID, maker, postingRootReviewer, recipient))

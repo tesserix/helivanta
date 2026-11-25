@@ -257,7 +257,7 @@ type AccountPresentations struct {
 	Data         []AccountPresentation `json:"data"`
 }
 
-type HospitalStocktakeScopeChoice struct {
+type HospitalWorkScopeChoice struct {
 	OwnerTenantID       uuid.UUID `json:"owner_tenant_id"`
 	ID                  uuid.UUID `json:"id"`
 	HospitalID          uuid.UUID `json:"hospital_id"`

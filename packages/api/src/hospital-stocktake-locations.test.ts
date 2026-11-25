@@ -1,6 +1,6 @@
 import { afterEach, expect, it, vi } from "vitest";
 import * as api from "./index";
-import type { HospitalStocktakeOutletChoice, HospitalStocktakeScopeChoice } from "./index";
+import type { HospitalStocktakeOutletChoice, HospitalWorkScopeChoice } from "./index";
 
 const account = { tenantId: "018f8f5b-1111-7111-8111-111111111111", subject: "TEST-worker" };
 const scope = {
@@ -8,7 +8,7 @@ const scope = {
   hospitalId: "22222222-2222-4222-8222-222222222222",
   departmentId: "019a55c0-1111-7111-8111-111111111112",
 };
-const assignment: HospitalStocktakeScopeChoice = {
+const assignment: HospitalWorkScopeChoice = {
   owner_tenant_id: account.tenantId,
   id: "019a55c0-1111-7111-8111-111111111113",
   hospital_id: scope.hospitalId,

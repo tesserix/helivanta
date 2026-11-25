@@ -23,7 +23,7 @@ func (g *staffActorGuard) WithCurrentStaffActor(ctx context.Context, scope authz
 	return g.withCurrentEmployeeActor(ctx, scope, authz.StaffActorUse, action)
 }
 func (g *staffActorGuard) withCurrentEmployeeActor(ctx context.Context, scope authz.StaffActorScope, permission authz.Permission, action func(context.Context, authz.StaffActorReference) error) error {
-	if permission != authz.StaffActorUse && permission != authz.PurchaseOrderActorUse && permission != authz.StocktakeActorUse {
+	if permission != authz.StaffActorUse && permission != authz.PurchaseOrderActorUse && permission != authz.StocktakeActorUse && permission != authz.WardIndentActorUse {
 		return authz.ErrScopedAuthorizationUnavailable
 	}
 

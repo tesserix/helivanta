@@ -9,7 +9,7 @@ import {
   hospitalStocktakeOutletsKey,
   usePagedQuery,
   type StocktakeWorkerScope,
-  type HospitalStocktakeScopeChoice,
+  type HospitalWorkScopeChoice,
 } from "@helivanta/api";
 import { LoadMore, Panel, RefreshButton, RequestFailure, useConfirmLeave } from "@helivanta/ui";
 import { StocktakeOutletWork } from "./stocktake-outlet-work";
@@ -17,7 +17,7 @@ import { StocktakeOutletWork } from "./stocktake-outlet-work";
 type Props = {
   scope: StocktakeWorkerScope;
   released: boolean;
-  locations: ReturnType<typeof usePagedQuery<HospitalStocktakeScopeChoice>>;
+  locations: ReturnType<typeof usePagedQuery<HospitalWorkScopeChoice>>;
   selected: string | null;
   onSelect: (id: string) => void;
 };
@@ -102,7 +102,7 @@ function HospitalDepartments({
   released,
 }: {
   scope: StocktakeWorkerScope;
-  assignment: HospitalStocktakeScopeChoice;
+  assignment: HospitalWorkScopeChoice;
   released: boolean;
 }) {
   const leave = useConfirmLeave();
@@ -204,7 +204,7 @@ function HospitalOutlets({
   released,
 }: {
   scope: StocktakeWorkerScope;
-  assignment: HospitalStocktakeScopeChoice;
+  assignment: HospitalWorkScopeChoice;
   departmentId: string;
   departmentRevision: string;
   released: boolean;

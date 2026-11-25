@@ -31,6 +31,7 @@ const departmentPurchaseOrder =
   /^supply\.department_purchase_order_(reader|preparer|reviewer)\.v[1-9][0-9]*$/;
 const departmentStocktake =
   /^pharmacy\.department_stocktake_(reader|counter|reviewer)\.v[1-9][0-9]*$/;
+const departmentWardIndent = /^pharmacy\.department_ward_indent_(reader|requester)\.v[1-9][0-9]*$/;
 const departmentReceiving =
   /^supply\.department_goods_(reader|receiver|reviewer|pharmacy_fulfiller|pharmacy_acceptor)\.v[1-9][0-9]*$/;
 const receivingPermissions = {
@@ -67,6 +68,7 @@ const departmentScoped = (key) =>
   departmentReviewer.test(key ?? "") ||
   departmentLeaveReviewer.test(key ?? "") ||
   departmentStocktake.test(key ?? "") ||
+  departmentWardIndent.test(key ?? "") ||
   departmentPurchaseOrder.test(key ?? "") ||
   departmentReceiving.test(key ?? "");
 const scopeKinds = (template) => template.scope_kinds ?? ["hospital"];
@@ -198,6 +200,24 @@ for (const migration of migrations) {
         throw new Error(
           "Stocktake templates require exact department-only physical-count permissions",
         );
+    }
+    if (template?.family === "pharmacy_ward_indent") {
+      const role = template.key?.match(departmentWardIndent)?.[1];
+      const permissions = {
+        reader: ["pharmacy.indent.read", "workforce.ward_indent_actor.use"],
+        requester: [
+          "pharmacy.indent.read",
+          "pharmacy.indent.raise",
+          "workforce.ward_indent_actor.use",
+        ],
+      }[role];
+      if (
+        !permissions ||
+        JSON.stringify(template.permissions) !== JSON.stringify(permissions) ||
+        JSON.stringify(template.scope_kinds) !== JSON.stringify(["department"]) ||
+        JSON.stringify(template.establishment_kinds) !== JSON.stringify(["hospital"])
+      )
+        throw new Error("Ward indent templates require exact department-only indent permissions");
     }
     if (template?.family === "supplier_receiving") {
       const role = template.key?.match(departmentReceiving)?.[1];
@@ -338,21 +358,23 @@ for (const migration of migrations) {
       template.key.length > templateLimits.key ||
       !(template.family === "pharmacy_stocktake"
         ? departmentStocktake.test(template.key)
-        : template.family === "supplier_receiving"
-          ? departmentReceiving.test(template.key)
-          : template.family === "purchase_order"
-            ? departmentPurchaseOrder.test(template.key)
-            : template.family === "supplier_access"
-              ? /^iam\.supplier_(viewer|reviewer)\.v[1-9][0-9]*$/.test(template.key)
-              : template.family === "partner_membership"
-                ? /^iam\.partner_group_member_(reader|preparer|reviewer)\.v[1-9][0-9]*$/.test(
-                    template.key,
-                  )
-                : template.family === "pharmacy_binding"
-                  ? /^pharmacy\.department_binding_(preparer|reviewer)\.v[1-9][0-9]*$/.test(
+        : template.family === "pharmacy_ward_indent"
+          ? departmentWardIndent.test(template.key)
+          : template.family === "supplier_receiving"
+            ? departmentReceiving.test(template.key)
+            : template.family === "purchase_order"
+              ? departmentPurchaseOrder.test(template.key)
+              : template.family === "supplier_access"
+                ? /^iam\.supplier_(viewer|reviewer)\.v[1-9][0-9]*$/.test(template.key)
+                : template.family === "partner_membership"
+                  ? /^iam\.partner_group_member_(reader|preparer|reviewer)\.v[1-9][0-9]*$/.test(
                       template.key,
                     )
-                  : /^workforce\.[a-z_]+\.v[1-9][0-9]*$/.test(template.key)) ||
+                  : template.family === "pharmacy_binding"
+                    ? /^pharmacy\.department_binding_(preparer|reviewer)\.v[1-9][0-9]*$/.test(
+                        template.key,
+                      )
+                    : /^workforce\.[a-z_]+\.v[1-9][0-9]*$/.test(template.key)) ||
       keys.has(template.key) ||
       ![
         "leave",
@@ -367,6 +389,7 @@ for (const migration of migrations) {
         "purchase_order",
         "supplier_receiving",
         "pharmacy_stocktake",
+        "pharmacy_ward_indent",
       ].includes(template.family) ||
       typeof template.name !== "string" ||
       !template.name ||
@@ -385,6 +408,7 @@ for (const migration of migrations) {
           template.family !== "purchase_order" &&
           template.family !== "supplier_receiving" &&
           template.family !== "pharmacy_stocktake" &&
+          template.family !== "pharmacy_ward_indent" &&
           template.family !== "leave" &&
           template.permissions.length !== 1) ||
       !template.permissions.every(
@@ -392,6 +416,8 @@ for (const migration of migrations) {
           /^workforce\.[a-z_.]+$/.test(permission) ||
           (template.family === "pharmacy_stocktake" &&
             /^pharmacy\.stocktake\.(read|count|review)$/.test(permission)) ||
+          (template.family === "pharmacy_ward_indent" &&
+            /^pharmacy\.indent\.(read|raise)$/.test(permission)) ||
           (template.family === "supplier_receiving" &&
             /^(pharmacy\.hospital_(receiving\.(use|review)|fulfilment\.use)|supply\.(goods_receipt\.(read|record|review)|supplier_order\.(read|accept)|receiving_response\.record))$/.test(
               permission,

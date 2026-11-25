@@ -376,6 +376,15 @@
         },
         {
           "method": "GET",
+          "path": "/v1/iam/me/hospital-ward-indent-scopes",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/iam/me/permissions",
           "permission": "no_tenant_membership",
           "authentication_required": true,
@@ -755,6 +764,15 @@
         {
           "method": "GET",
           "path": "/v1/iam/pharmacy-stocktake-assignment-proposals",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/iam/pharmacy-ward-indent-assignment-proposals",
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
@@ -1524,6 +1542,11 @@
         {
           "id": "0056_iam_pharmacy_stocktake_templates",
           "sql_sha256": "d2e0c355c44510117899f0f1e8ca67cb3c288988ffa3f7017f856768083d69a4",
+          "creates_tables": []
+        },
+        {
+          "id": "0057_iam_pharmacy_ward_indent_templates",
+          "sql_sha256": "8b11ad3a83e9085c5e824d4abca9c11ce631583ff30cd3830ec1dabc21dd9f43",
           "creates_tables": []
         }
       ]
@@ -6940,7 +6963,7 @@
         },
         {
           "id": "0074_pharmacy_purchase_tax_evidence",
-          "sql_sha256": "3944e37cc652cf8213447c596bffb4adf98e6ccf11fe5b8929c1de9e323304a3",
+          "sql_sha256": "2cd91ee4389854cfad36432cacb20ebb12b4209fbdb6156fcc6f51cc945b1e2b",
           "creates_tables": [
             "pharmacy_purchase_tax_evidence",
             "pharmacy_purchase_tax_lines",
@@ -13957,6 +13980,10 @@
         },
         {
           "permission": "workforce.stocktake_actor.use",
+          "roles": []
+        },
+        {
+          "permission": "workforce.ward_indent_actor.use",
           "roles": []
         },
         {

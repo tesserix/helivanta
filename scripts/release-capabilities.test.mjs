@@ -41,6 +41,7 @@ test("every operating duty has a release binding and reviewed stocktakes are eli
     "pharmacy_stock",
     "pharmacy_counter",
     "pharmacy_payables",
+    "pharmacy_ward_indents",
     "supplier_collaboration",
   ])
     assert.equal(release.capabilities.find((row) => row.key === key).eligible, false, key);

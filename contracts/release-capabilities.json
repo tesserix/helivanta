@@ -189,6 +189,13 @@
       "dependencies": ["pharmacy_setup"],
       "eligible": true,
       "review_after": "2027-02-16"
+    },
+    {
+      "key": "pharmacy_ward_indents",
+      "owner": "pharmacy",
+      "dependencies": ["pharmacy_counter"],
+      "eligible": false,
+      "review_after": "2027-02-16"
     }
   ],
   "routes": [
@@ -6074,6 +6081,16 @@
     },
     {
       "method": "GET",
+      "path": "/v1/iam/me/hospital-ward-indent-scopes",
+      "capability": "pharmacy_ward_indents"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/pharmacy-ward-indent-assignment-proposals",
+      "capability": "pharmacy_ward_indents"
+    },
+    {
+      "method": "GET",
       "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/stocktake-outlet-choices",
       "capability": "baseline"
     },
@@ -6570,6 +6587,10 @@
     {
       "key": "staff.assignments.pharmacy_stocktake",
       "capability": "pharmacy_stocktake"
+    },
+    {
+      "key": "staff.assignments.pharmacy_ward_indent",
+      "capability": "pharmacy_ward_indents"
     },
     {
       "key": "pharmacy.low_stock.overview",

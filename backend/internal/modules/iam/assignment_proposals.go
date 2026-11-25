@@ -454,7 +454,7 @@ func settleProposalScope(tx *gorm.DB, deps platform.Deps, tenant string, row ass
 }
 func (m *Module) registerAssignmentProposals(g *platform.Router, deps platform.Deps) {
 	registerGovernanceAssignments(g, deps, m.assignmentIdentity)
-	registerHospitalStocktakeScopes(g, deps)
+	registerHospitalWorkScopes(g, deps)
 	h := &assignmentProposalHandlers{db: deps.DB, bus: deps.Bus, releasePolicy: deps.ReleasePolicy}
 	g.POST("/assignment-proposals/:id/decision", authz.Public, h.decide)
 	platform.ListRoute(g, "/assignment-proposals/:id/decisions", authz.Public, h.decisions)
@@ -479,6 +479,9 @@ func (m *Module) registerAssignmentProposals(g *platform.Router, deps platform.D
 	})
 	platform.ListRoute(g, "/pharmacy-stocktake-assignment-proposals", authz.Public, func(c *gin.Context, p pagination.Params) ([]assignmentProposal, error) {
 		return h.listFamily(c, p, "pharmacy_stocktake")
+	})
+	platform.ListRoute(g, "/pharmacy-ward-indent-assignment-proposals", authz.Public, func(c *gin.Context, p pagination.Params) ([]assignmentProposal, error) {
+		return h.listFamily(c, p, "pharmacy_ward_indent")
 	})
 	g.GET("/staff-access-templates", authz.Public, func(c *gin.Context) {
 		if _, _, ok := proposalScope(c); !ok {

@@ -53,6 +53,7 @@ Source: [backend/internal/modules/iam/module.go](../../../backend/internal/modul
 | GET | `/v1/iam/identity-assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/intake-assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/me/hospital-pharmacy-stocktake-scopes` | `public` | true | false |
+| GET | `/v1/iam/me/hospital-ward-indent-scopes` | `public` | true | false |
 | GET | `/v1/iam/me/permissions` | `no_tenant_membership` | false | false |
 | GET | `/v1/iam/me/pharmacy-stocktake-locations` | `public` | true | false |
 | GET | `/v1/iam/me/profile` | `no_tenant_membership` | false | false |
@@ -96,6 +97,7 @@ Source: [backend/internal/modules/iam/module.go](../../../backend/internal/modul
 | GET | `/v1/iam/partner-membership-assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/pharmacy-binding-assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/pharmacy-stocktake-assignment-proposals` | `public` | true | false |
+| GET | `/v1/iam/pharmacy-ward-indent-assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/posting-assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/purchase-order-assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/roles` | `iam.member.manage` | false | false |

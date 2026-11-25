@@ -422,6 +422,7 @@ func run() error {
 		AssignmentTargets:           platform.AssignmentTargets(registry.All(), db),
 		PurchaseOrderActors:         platform.PurchaseOrderActors(registry.All(), db),
 		StocktakeActors:             platform.StocktakeActors(registry.All(), db),
+		WardIndentActors:            platform.WardIndentActors(registry.All(), db),
 		StockProducts:               stockProducts,
 		OrderProducts:               platform.OrderProducts(registry.All(), db, stockProducts),
 		StaffPostingSources:         platform.StaffPostingSources(registry.All(), db),

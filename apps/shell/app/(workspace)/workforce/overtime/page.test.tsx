@@ -12,6 +12,10 @@ const renderWithProviders = (ui: Parameters<typeof renderWithNamedAccounts>[0]) 
 import { chooseOption } from "@/test/select";
 import Overtime from "./page";
 
+// #1261 slice 4: cards are Panel, so no hand-painted card class survives.
+// Buttons are controls: the design system's outline button carries shadow-sm.
+const CARDS = ":is(.rounded-xl, .rounded-2xl, .shadow-sm):not(button)";
+
 const hospital = "11111111-1111-4111-8111-111111111111";
 const nurse = "22222222-2222-4222-8222-222222222222";
 const requestID = "44444444-4444-4444-8444-444444444444";
@@ -171,6 +175,7 @@ it("shows empty queues, a missing policy and every status on request", async () 
   expect(
     await screen.findByText("No overtime has been recorded in this hospital."),
   ).toBeInTheDocument();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   expect(reads.filter((r) => !r.includes("summary")).at(-1)).toMatch(/\/hr\/overtime$/);
 });
 
@@ -193,11 +198,16 @@ it("shows policy, requests and payable minutes read-only to readers", async () =
   const row = (await within(summary).findByText("Synthetic Nurse")).closest("tr")!;
   expect(within(row).getByText("30 min")).toBeInTheDocument();
   expect(within(row).getByText("2 h")).toBeInTheDocument();
+  expect(row).toHaveClass("h-11");
+  expect(within(summary).getByRole("columnheader", { name: "Staff" })).not.toHaveClass("uppercase");
+  expect(within(summary).getByRole("columnheader", { name: "Payable" })).toHaveClass("text-right");
+  expect(within(row).getByText("2 h")).toHaveClass("text-right");
   const region = await review(user);
   expect(await within(region).findByText(/2026-11-02 · 18:00–20:30/)).toBeInTheDocument();
   expect(within(region).queryByText(/Reason:/)).not.toBeInTheDocument();
   expect(await within(region).findByText(accountText(/by QA Filer/))).toBeInTheDocument();
   expect(within(region).queryByRole("form", { name: "Decide overtime" })).toBeNull();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
 });
 
 it("refuses limits that do not nest and saves a reviewed policy", async () => {
@@ -213,6 +223,7 @@ it("refuses limits that do not nest and saves a reviewed policy", async () => {
     await within(form).findByText("Allow at least the daily limit each week."),
   ).toBeInTheDocument();
   expect(within(form).getByText("Confirm that you reviewed the policy.")).toBeInTheDocument();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   expect(writes).toHaveLength(0);
   await user.clear(weekly);
   await user.type(weekly, "600");
@@ -232,6 +243,10 @@ it("refuses limits that do not nest and saves a reviewed policy", async () => {
       reviewed: true,
     },
   });
+  await user.click(await screen.findByRole("button", { name: "Policy history" }));
+  const history = await screen.findByRole("region", { name: "Overtime policy history" });
+  expect(await within(history).findByText("v1 · effective 2026-11-01")).toBeInTheDocument();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
 });
 
 it("records overtime past midnight and replays the same id on retry", async () => {
@@ -321,6 +336,7 @@ it("keeps a refused rejection visible with the input preserved", async () => {
   await user.type(within(region).getByLabelText(/^Note/), "Not pre-agreed");
   await user.click(within(region).getByRole("button", { name: "Reject overtime" }));
   expect(await within(region).findByRole("alert")).toHaveTextContent("changed since you opened it");
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   expect(writes[0].body).toEqual({
     expected_version: 1,
     decision: "reject",

@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { Button } from "@tesserix/web";
+import { Button, cn } from "@tesserix/web";
 import {
   ApiError,
   apiFetch,
@@ -30,9 +30,22 @@ import {
   type AttendanceTimesheetDay,
   type AttendanceTimesheetPerson,
 } from "@helivanta/api";
-import { AccountName, Field, SelectControl, useZodForm, RequestFailure } from "@helivanta/ui";
-import { inputClass } from "../roster-policy/policy-ui";
+import {
+  AccountName,
+  Field,
+  Panel,
+  SelectControl,
+  useZodForm,
+  RequestFailure,
+  controlClass,
+  tableStyles,
+} from "@helivanta/ui";
 import { SaveError } from "../leave-balances/years-panel";
+
+const cell = "px-4 py-3";
+const head = cn(tableStyles.head, "px-4 py-3");
+const numberHead = cn(head, tableStyles.number);
+const numberCell = cn(cell, tableStyles.number);
 
 // Finalising locks punches and corrections, so every attendance read refetches.
 const periodInvalidations = (hospital: string) => [["workforce", "attendance", hospital]];
@@ -89,10 +102,7 @@ export function TimesheetsPanel({
     opener.current?.focus();
   };
   return (
-    <section
-      aria-label="Timesheets"
-      className="overflow-hidden rounded-2xl border bg-card shadow-sm"
-    >
+    <Panel flush aria-label="Timesheets">
       <div className="flex flex-wrap items-end justify-between gap-4 border-b p-5">
         <div>
           <h3 className="font-semibold">Timesheets</h3>
@@ -173,7 +183,7 @@ export function TimesheetsPanel({
           onClose={close}
         />
       )}
-    </section>
+    </Panel>
   );
 }
 
@@ -216,7 +226,7 @@ function PeriodForm({
       autoComplete="off"
       aria-label="Finalise period"
       onSubmit={form.handleSubmit((values) => save.mutate(values))}
-      className="scroll-mt-24 space-y-6 border-b p-5"
+      className="scroll-mt-4 space-y-6 border-b p-5"
     >
       <fieldset disabled={save.isPending} className="space-y-6">
         <div className="grid gap-5 sm:grid-cols-2">
@@ -224,7 +234,7 @@ function PeriodForm({
             <input
               id="period-from"
               type="date"
-              className={inputClass}
+              className={controlClass}
               aria-invalid={!!errors.from}
               {...form.register("from")}
             />
@@ -233,7 +243,7 @@ function PeriodForm({
             <input
               id="period-to"
               type="date"
-              className={inputClass}
+              className={controlClass}
               aria-invalid={!!errors.to}
               {...form.register("to")}
             />
@@ -247,7 +257,7 @@ function PeriodForm({
           <textarea
             id="period-note"
             rows={2}
-            className={inputClass}
+            className={controlClass}
             aria-invalid={!!errors.note}
             {...form.register("note")}
           />
@@ -338,12 +348,9 @@ function PeriodDetail({
                 error={versions.error}
               />
             ) : (
-              <ul className="space-y-2 text-sm">
+              <ul className="divide-y text-sm">
                 {versions.items.map((t) => (
-                  <li
-                    key={t.id}
-                    className="flex flex-wrap items-start justify-between gap-3 rounded-xl border p-3"
-                  >
+                  <li key={t.id} className="flex flex-wrap items-start justify-between gap-3 py-3">
                     <div>
                       <p className="font-medium">
                         Version {t.number} · {changes(t)}
@@ -399,9 +406,9 @@ function PeriodDetail({
             error={history.error}
           />
         ) : (
-          <ul className="space-y-2 text-sm">
+          <ul className="divide-y text-sm">
             {history.items.map((e) => (
-              <li key={e.id} className="rounded-xl border p-3">
+              <li key={e.id} className="py-3">
                 <p className="font-medium">
                   {ATTENDANCE_PERIOD_STATUSES[e.status]} · version {e.version}
                 </p>
@@ -493,44 +500,46 @@ function PeriodSteps({
     })();
   const errors = form.formState.errors;
   return (
-    <form
-      noValidate
-      autoComplete="off"
-      aria-label="Change period"
-      onSubmit={(e) => e.preventDefault()}
-      className="space-y-4 rounded-xl border p-4"
-    >
-      <p className="text-sm text-muted-foreground">
-        {period.status === "finalised"
-          ? "Reopen to accept late punches and corrections on these days, or recalculate to adopt leave, overtime and roster changes into a new version."
-          : "The days are open for punches and corrections. Finalise again to lock them and write the next version."}
-      </p>
-      <fieldset disabled={busy}>
-        <Field id="period-step-note" label="Reason" error={errors.note?.message}>
-          <textarea
-            id="period-step-note"
-            rows={2}
-            className={inputClass}
-            aria-invalid={!!errors.note}
-            {...form.register("note")}
-          />
-        </Field>
-      </fieldset>
-      {failed?.error && <SaveError message={periodFailure(failed.error)} />}
-      <div className="flex flex-wrap justify-end gap-2">
-        {available.map((step) => (
-          <Button
-            key={step}
-            type="button"
-            variant={step === "finalisation" ? "default" : "outline"}
-            disabled={busy}
-            onClick={() => submit(step)}
-          >
-            {mutations[step].isPending ? steps[step].pending : label(step)}
-          </Button>
-        ))}
-      </div>
-    </form>
+    <Panel as="div">
+      <form
+        noValidate
+        autoComplete="off"
+        aria-label="Change period"
+        onSubmit={(e) => e.preventDefault()}
+        className="space-y-4"
+      >
+        <p className="text-sm text-muted-foreground">
+          {period.status === "finalised"
+            ? "Reopen to accept late punches and corrections on these days, or recalculate to adopt leave, overtime and roster changes into a new version."
+            : "The days are open for punches and corrections. Finalise again to lock them and write the next version."}
+        </p>
+        <fieldset disabled={busy}>
+          <Field id="period-step-note" label="Reason" error={errors.note?.message}>
+            <textarea
+              id="period-step-note"
+              rows={2}
+              className={controlClass}
+              aria-invalid={!!errors.note}
+              {...form.register("note")}
+            />
+          </Field>
+        </fieldset>
+        {failed?.error && <SaveError message={periodFailure(failed.error)} />}
+        <div className="flex flex-wrap justify-end gap-2">
+          {available.map((step) => (
+            <Button
+              key={step}
+              type="button"
+              variant={step === "finalisation" ? "default" : "outline"}
+              disabled={busy}
+              onClick={() => submit(step)}
+            >
+              {mutations[step].isPending ? steps[step].pending : label(step)}
+            </Button>
+          ))}
+        </div>
+      </form>
+    </Panel>
   );
 }
 
@@ -572,27 +581,27 @@ function TimesheetDetail({
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="text-left text-xs text-muted-foreground">
+              <thead>
                 <tr>
-                  <th className="p-2">Staff</th>
-                  <th className="p-2">Days</th>
-                  <th className="p-2">Shifts</th>
-                  <th className="p-2">Payable</th>
-                  <th className="p-2">Overtime</th>
-                  <th className="p-2">Unpaid half-days</th>
+                  <th className={head}>Staff</th>
+                  <th className={numberHead}>Days</th>
+                  <th className={numberHead}>Shifts</th>
+                  <th className={numberHead}>Payable</th>
+                  <th className={numberHead}>Overtime</th>
+                  <th className={numberHead}>Unpaid half-days</th>
                 </tr>
               </thead>
-              <tbody className="divide-y">
+              <tbody>
                 {people.items.map((p) => (
-                  <tr key={p.staff_id}>
-                    <td className="p-2">
+                  <tr key={p.staff_id} className={tableStyles.row}>
+                    <td className={cell}>
                       {p.display_name} · {p.employee_code}
                     </td>
-                    <td className="p-2">{p.days}</td>
-                    <td className="p-2">{p.shifts}</td>
-                    <td className="p-2">{formatMinutes(p.payable_minutes)}</td>
-                    <td className="p-2">{formatMinutes(p.approved_overtime_minutes)}</td>
-                    <td className="p-2">{p.unpaid_half_days}</td>
+                    <td className={numberCell}>{p.days}</td>
+                    <td className={numberCell}>{p.shifts}</td>
+                    <td className={numberCell}>{formatMinutes(p.payable_minutes)}</td>
+                    <td className={numberCell}>{formatMinutes(p.approved_overtime_minutes)}</td>
+                    <td className={numberCell}>{p.unpaid_half_days}</td>
                   </tr>
                 ))}
               </tbody>
@@ -635,9 +644,9 @@ function TimesheetDetail({
         ) : days.items.length === 0 ? (
           <p className="text-sm text-muted-foreground">No days match.</p>
         ) : (
-          <ul className="space-y-2 text-sm">
+          <ul className="divide-y text-sm">
             {days.items.map((d) => (
-              <li key={`${d.staff_id}-${d.date}`} className="rounded-xl border p-3">
+              <li key={`${d.staff_id}-${d.date}`} className="py-3">
                 <p className="font-medium">
                   {d.date} ·{" "}
                   {d.day

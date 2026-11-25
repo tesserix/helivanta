@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Button } from "@tesserix/web";
+import { Button, cn } from "@tesserix/web";
 import {
   attendanceSheetPath,
   attendanceTotalsPath,
@@ -15,12 +15,14 @@ import {
   type AttendanceShift,
   type AttendanceTotals,
 } from "@helivanta/api";
-import { Field, RequestFailure } from "@helivanta/ui";
-import { inputClass, today } from "../roster-policy/policy-ui";
+import { Field, Panel, RequestFailure, controlClass, tableStyles } from "@helivanta/ui";
+import { today } from "../roster-policy/policy-ui";
 import { PunchForm } from "./punch-panel";
 
 const cell = "px-4 py-3 align-top";
-const head = "px-4 py-3 text-left text-xs font-semibold uppercase";
+const head = cn(tableStyles.head, "px-4 py-3");
+const numberHead = cn(head, tableStyles.number);
+const numberCell = cn(cell, tableStyles.number);
 const validDate = (d: string) => /^(2[01]\d\d)-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(d);
 const LEAVE: Record<AttendanceDay["leave"], string> = {
   none: "",
@@ -47,10 +49,7 @@ export function DaySheet({
   const [recording, setRecording] = useState(false);
   const valid = validDate(date);
   return (
-    <section
-      aria-label="Attendance by day"
-      className="overflow-hidden rounded-2xl border bg-card shadow-sm"
-    >
+    <Panel flush aria-label="Attendance by day">
       <div className="flex flex-wrap items-end justify-between gap-4 border-b p-5">
         <div>
           <h3 className="font-semibold">Attendance by day</h3>
@@ -69,7 +68,7 @@ export function DaySheet({
               <input
                 id="attendance-date"
                 type="date"
-                className={inputClass}
+                className={controlClass}
                 aria-invalid={!valid}
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
@@ -97,7 +96,7 @@ export function DaySheet({
       )}
       {valid && <Totals hospital={hospital} base={base} date={date} />}
       {valid && <Sheet hospital={hospital} base={base} date={date} />}
-    </section>
+    </Panel>
   );
 }
 
@@ -196,7 +195,7 @@ function Sheet({ hospital, base, date }: { hospital: string; base: string; date:
     <>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="border-b bg-muted/40">
+          <thead>
             <tr>
               <th scope="col" className={head}>
                 Staff
@@ -207,14 +206,14 @@ function Sheet({ hospital, base, date }: { hospital: string; base: string; date:
               <th scope="col" className={head}>
                 Exceptions
               </th>
-              <th scope="col" className={head}>
+              <th scope="col" className={numberHead}>
                 Payable
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y">
+          <tbody>
             {days.items.map((d) => (
-              <tr key={d.staff_id}>
+              <tr key={d.staff_id} className={tableStyles.row}>
                 <td className={cell}>
                   <span className="font-medium">{d.display_name}</span>
                   <span className="block text-xs text-muted-foreground">{d.employee_code}</span>
@@ -247,7 +246,7 @@ function Sheet({ hospital, base, date }: { hospital: string; base: string; date:
                     ? "None"
                     : d.exceptions.map((e) => label(ATTENDANCE_EXCEPTIONS, e)).join(", ")}
                 </td>
-                <td className={`${cell} font-medium`}>
+                <td className={cn(numberCell, "font-medium")}>
                   {formatMinutes(d.payable_minutes)}
                   {d.approved_overtime_minutes > 0 && (
                     <span className="block text-xs font-normal text-muted-foreground">

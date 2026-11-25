@@ -21,11 +21,13 @@ import {
   AccountName,
   ConfirmDialog,
   Field,
+  Panel,
   SelectControl,
   useZodForm,
   RequestFailure,
+  controlClass,
 } from "@helivanta/ui";
-import { inputClass, today } from "../roster-policy/policy-ui";
+import { today } from "../roster-policy/policy-ui";
 import { SaveError } from "../leave-balances/years-panel";
 import { CorrectionForm, correctionInvalidations } from "./correction-form";
 
@@ -76,10 +78,7 @@ export function CorrectionsBoard({
     opener.current?.focus();
   };
   return (
-    <section
-      aria-label="Attendance corrections"
-      className="overflow-hidden rounded-2xl border bg-card shadow-sm"
-    >
+    <Panel flush aria-label="Attendance corrections">
       <div className="flex flex-wrap items-end justify-between gap-4 border-b p-5">
         <div>
           <h3 className="font-semibold">Corrections</h3>
@@ -189,7 +188,7 @@ export function CorrectionsBoard({
           onClose={close}
         />
       )}
-    </section>
+    </Panel>
   );
 }
 
@@ -267,9 +266,9 @@ function CorrectionReview({
             error={history.error}
           />
         ) : (
-          <ul className="space-y-2 text-sm">
+          <ul className="divide-y text-sm">
             {history.items.map((e) => (
-              <li key={e.id} className="rounded-xl border p-3">
+              <li key={e.id} className="py-3">
                 <p className="font-medium">
                   {ATTENDANCE_CORRECTION_STATUSES[e.status]} · version {e.version}
                 </p>
@@ -375,51 +374,53 @@ function Decision({
     })();
   const errors = form.formState.errors;
   return (
-    <form
-      noValidate
-      autoComplete="off"
-      aria-label="Decide correction"
-      onSubmit={(e) => e.preventDefault()}
-      className="space-y-4 rounded-xl border p-4"
-    >
-      <fieldset disabled={busy}>
-        <Field
-          id="correction-decision-note"
-          label="Note (required to reject)"
-          error={errors.note?.message}
-        >
-          <textarea
+    <Panel as="div">
+      <form
+        noValidate
+        autoComplete="off"
+        aria-label="Decide correction"
+        onSubmit={(e) => e.preventDefault()}
+        className="space-y-4"
+      >
+        <fieldset disabled={busy}>
+          <Field
             id="correction-decision-note"
-            rows={2}
-            className={inputClass}
-            aria-invalid={!!errors.note}
-            {...form.register("note")}
-          />
-        </Field>
-      </fieldset>
-      {failed && <SaveError message={failed.error?.message ?? ""} />}
-      <div className="flex flex-wrap justify-end gap-2">
-        {available.map((act) => (
-          <Button
-            key={act}
-            type="button"
-            variant={act === "approve" ? "default" : act === "cancel" ? "ghost" : "outline"}
-            disabled={busy}
-            onClick={() => submit(act)}
+            label="Note (required to reject)"
+            error={errors.note?.message}
           >
-            {mutations[act].isPending ? actions[act].pending : actions[act].label}
-          </Button>
-        ))}
-      </div>
-      <ConfirmDialog
-        open={confirming && !mutations.approve.isError}
-        onOpenChange={(open) => !open && setConfirming(false)}
-        title="Approve this correction?"
-        description="The original punch is voided for good and stops counting toward attendance. It stays on the ledger with a link to this correction."
-        confirmLabel="Approve correction"
-        busy={mutations.approve.isPending}
-        onConfirm={() => mutations.approve.mutate({ note: form.getValues("note").trim() })}
-      />
-    </form>
+            <textarea
+              id="correction-decision-note"
+              rows={2}
+              className={controlClass}
+              aria-invalid={!!errors.note}
+              {...form.register("note")}
+            />
+          </Field>
+        </fieldset>
+        {failed && <SaveError message={failed.error?.message ?? ""} />}
+        <div className="flex flex-wrap justify-end gap-2">
+          {available.map((act) => (
+            <Button
+              key={act}
+              type="button"
+              variant={act === "approve" ? "default" : act === "cancel" ? "ghost" : "outline"}
+              disabled={busy}
+              onClick={() => submit(act)}
+            >
+              {mutations[act].isPending ? actions[act].pending : actions[act].label}
+            </Button>
+          ))}
+        </div>
+        <ConfirmDialog
+          open={confirming && !mutations.approve.isError}
+          onOpenChange={(open) => !open && setConfirming(false)}
+          title="Approve this correction?"
+          description="The original punch is voided for good and stops counting toward attendance. It stays on the ledger with a link to this correction."
+          confirmLabel="Approve correction"
+          busy={mutations.approve.isPending}
+          onConfirm={() => mutations.approve.mutate({ note: form.getValues("note").trim() })}
+        />
+      </form>
+    </Panel>
   );
 }

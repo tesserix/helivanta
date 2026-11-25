@@ -16,8 +16,7 @@ import {
   type Roster,
   type Staff,
 } from "@helivanta/api";
-import { Field, SelectControl, useZodForm } from "@helivanta/ui";
-import { inputClass } from "../roster-policy/policy-ui";
+import { Field, Panel, SelectControl, useZodForm, controlClass } from "@helivanta/ui";
 import { SaveError } from "../leave-balances/years-panel";
 
 const kindOptions = Object.entries(DUTY_EXCHANGE_KINDS).map(([value, label]) => ({
@@ -115,7 +114,7 @@ export function DutyExchangeForm({
       onSubmit={form.handleSubmit((values: DutyExchangeValues) =>
         save.mutate(toDutyExchangeInput(values)),
       )}
-      className="scroll-mt-24 space-y-6 border-b p-5"
+      className="scroll-mt-4 space-y-6 border-b p-5"
     >
       <fieldset disabled={save.isPending} className="space-y-6">
         <div className="grid gap-5 sm:grid-cols-2">
@@ -227,12 +226,12 @@ export function DutyExchangeForm({
           <textarea
             id="exchange-reason"
             rows={3}
-            className={inputClass}
+            className={controlClass}
             aria-invalid={!!errors.reason}
             {...form.register("reason")}
           />
         </Field>
-        <div className="rounded-xl border bg-muted/30 p-4">
+        <Panel as="div">
           <label className="flex items-start gap-3 text-sm">
             <input
               type="checkbox"
@@ -251,7 +250,7 @@ export function DutyExchangeForm({
             The reason is shown only to people who file or approve duty exchanges. Leave out
             diagnoses and other clinical detail.
           </p>
-        </div>
+        </Panel>
       </fieldset>
       {save.isError && <SaveError message={save.error.message} />}
       <div className="flex justify-end gap-2">

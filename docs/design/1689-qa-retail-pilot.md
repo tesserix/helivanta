@@ -97,8 +97,10 @@ Verify in the signed-in Yes Hospital account:
 - An account outside the allowlist cannot obtain the pilot in either UI or API;
   spoofed tenant headers do not change this result. Test missing permissions and
   narrower outlet scope using the existing authorization tests and test accounts.
-- Provider disable and policy expiry block new pilot work. Existing retained
-  evidence and already released recovery operations stay available.
+- Provider disable and policy expiry block new pilot admission. Posted records
+  remain stored, but invoice/credit screens gated by pilot capabilities become
+  unavailable. Already released baseline recovery operations retain their own
+  route classifications.
 
 Retain exact revisions, policy deadline, synthetic references, totals and test
 outcomes in the issue. Do not put credentials, patient details or private staff
@@ -107,6 +109,12 @@ complete synthetic reversals through supported commands instead of deleting
 posted stock or financial records.
 
 ## End the pilot
+
+Complete synthetic credits, reconcile totals and capture the evidence before
+the deadline. If a command outcome remains unresolved, record its stable
+reference and recover it through a separately approved pilot window; do not
+create a replacement transaction or erase the original. Invoice/credit reads
+remain subject to their existing capability gates.
 
 Disable counter first in Console, then the remaining pilot provider flags.
 Remove/disable the GitOps pilot policy and verify the rollout and account-bound

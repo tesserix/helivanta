@@ -2,6 +2,7 @@ import { act, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
 import { PatientJourney } from "./patient-journey";
+import { RoadmapLinks } from "./roadmap-links";
 import { stations } from "./patient-journey-data";
 import { STEP_MS } from "./story-player";
 
@@ -91,10 +92,14 @@ it("describes the decorative corridor for assistive technology", () => {
   expect(screen.getByRole("figure")).toHaveAccessibleName(/One patient walks through the hospital/);
 });
 
-// #1837: on the home page a station that is not available yet points to the
+// #1837: on the home page (inside RoadmapLinks) a station that is not available yet points to the
 // roadmap instead of carrying a status badge.
 it("links a planned station to the roadmap instead of badging it", () => {
-  renderWithProviders(<PatientJourney roadmapLinks />);
+  renderWithProviders(
+    <RoadmapLinks>
+      <PatientJourney />
+    </RoadmapLinks>,
+  );
   const billing = narration()[6];
   expect(within(billing).queryByText("Planned")).toBeNull();
   expect(within(billing).getByRole("link", { name: "On the roadmap" })).toHaveAttribute(

@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
-import { newPharmacyId, type PharmacySale, type PharmacyCreditNote } from "@helivanta/api";
+import type { PharmacySale, PharmacyCreditNote } from "@helivanta/api";
+import { uuidv7 } from "./support/pharmacy";
 import { choose, owner, readyOutlet } from "./support/pharmacy-counter";
 
 test.use({ ignoreHTTPSErrors: true });
@@ -13,7 +14,7 @@ test("a Chandigarh seller posts local UTGST and interstate IGST with original-ta
   const { cashier, outlet, sku } = fixture;
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: fixture.timeZone }).format(new Date());
   try {
-    await owner(page, "PUT", `${outlet}/tax-registrations/${newPharmacyId()}`, {
+    await owner(page, "PUT", `${outlet}/tax-registrations/${uuidv7()}`, {
       jurisdiction_code: "04",
       identifier: "04PQRST5678K2Z9",
       effective_from: today,

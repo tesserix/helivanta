@@ -30,11 +30,13 @@ func validatePurchaseTax(in PurchaseTaxInput, bill payable) error {
 	if in.Replaces != nil && !stocktakeRecordID(*in.Replaces) {
 		return errPurchaseTaxInvalid
 	}
-	supplier, ok := scheme.Jurisdiction(in.SupplierState)
-	if !ok {
-		return errPurchaseTaxInvalid
+	supplier, supplierKnown := scheme.Jurisdiction(in.SupplierState)
+	_, placeKnown := scheme.Jurisdiction(in.PlaceOfSupply)
+	gstSupply := false
+	for _, line := range in.Lines {
+		gstSupply = gstSupply || line.SupplyNature != "outside_gst"
 	}
-	if _, ok = scheme.Jurisdiction(in.PlaceOfSupply); !ok {
+	if (in.SupplierState != "" && !supplierKnown) || (in.PlaceOfSupply != "" && !placeKnown) || (gstSupply && (!supplierKnown || !placeKnown)) {
 		return errPurchaseTaxInvalid
 	}
 	if in.SupplierGstin != nil && tax.ValidateRegistration(scheme, in.SupplierState, "gstin", *in.SupplierGstin) != nil {
@@ -42,6 +44,13 @@ func validatePurchaseTax(in PurchaseTaxInput, bill payable) error {
 	}
 	for i, line := range in.Lines {
 		original := bill.Fields.Lines[i]
+		if line.SourceVarianceReason != nil && (strings.TrimSpace(*line.SourceVarianceReason) == "" || len(*line.SourceVarianceReason) > 2000) {
+			return errPurchaseTaxInvalid
+		}
+		if line.AssessableMinor < 0 || line.AssessableMinor > 1000000000000 || line.AssessableMinor > original.NetMinor+original.LandedMinor {
+			return errPurchaseTaxInvalid
+		}
+
 		if line.Position != i+1 || (line.SupplyNature == "outside_gst" && line.RatePpm != 0) || (line.SupplyNature != "outside_gst" && !tax.ValidRate(tax.Nature(line.SupplyNature), line.RatePpm)) {
 			return errPurchaseTaxInvalid
 		}
@@ -56,6 +65,25 @@ func validatePurchaseTax(in PurchaseTaxInput, bill payable) error {
 		}
 		if total != original.TaxMinor || recoverable != original.RecoverableTaxMinor || (total > 0 && (in.SupplierGstin == nil || line.SupplyNature != "taxable" || line.RatePpm == 0)) {
 			return errPurchaseTaxInvalid
+		}
+		if line.SupplyNature == "taxable" {
+			if original.NetMinor+original.LandedMinor > 0 && line.AssessableMinor == 0 {
+				return errPurchaseTaxInvalid
+			}
+			denominator := int64(1000000)
+			if in.SupplierState == in.PlaceOfSupply {
+				denominator *= 2
+			}
+			expected := (line.AssessableMinor*line.RatePpm + denominator/2) / denominator
+			values := []int64{line.IgstMinor}
+			if in.SupplierState == in.PlaceOfSupply {
+				values = []int64{line.CgstMinor, line.SgstMinor + line.UtgstMinor}
+			}
+			for _, amount := range values {
+				if (amount < expected-1 || amount > expected+1) && line.SourceVarianceReason == nil {
+					return errPurchaseTaxInvalid
+				}
+			}
 		}
 		if in.SupplierState != in.PlaceOfSupply {
 			if line.CgstMinor+line.SgstMinor+line.UtgstMinor != 0 {
@@ -83,6 +111,7 @@ type purchaseTaxRecord struct {
 func (purchaseTaxRecord) TableName() string { return "pharmacy_purchase_tax_evidence" }
 
 type purchaseTaxLine struct {
+	ID         uuid.UUID
 	TenantID   uuid.UUID
 	OutletID   uuid.UUID
 	PayableID  uuid.UUID
@@ -138,6 +167,7 @@ func purchaseTaxError(c *gin.Context, err error) {
 	}
 }
 func (h *catalogueHandlers) getPurchaseTax(c *gin.Context) {
+	c.Header("Cache-Control", "no-store")
 	p, outlet, ok := catalogueScope(c)
 	if !ok || !payableSubject(c, p.Subject, "reading purchase tax evidence") {
 		return
@@ -171,6 +201,7 @@ func (h *catalogueHandlers) getPurchaseTax(c *gin.Context) {
 	respond.OK(c, view)
 }
 func (h *catalogueHandlers) putPurchaseTax(c *gin.Context) {
+	c.Header("Cache-Control", "no-store")
 	p, outlet, ok := catalogueScope(c)
 	if !ok || !payableSubject(c, p.Subject, "recording purchase tax evidence") {
 		return
@@ -189,6 +220,12 @@ func (h *catalogueHandlers) putPurchaseTax(c *gin.Context) {
 		return
 	}
 	in.Reason = strings.TrimSpace(in.Reason)
+	for i := range in.Lines {
+		if in.Lines[i].SourceVarianceReason != nil {
+			v := strings.TrimSpace(*in.Lines[i].SourceVarianceReason)
+			in.Lines[i].SourceVarianceReason = &v
+		}
+	}
 	if in.SupplierGstin != nil {
 		value := tax.NormalizeRegistration(*in.SupplierGstin)
 		in.SupplierGstin = &value
@@ -234,7 +271,7 @@ func (h *catalogueHandlers) putPurchaseTax(c *gin.Context) {
 		}
 		lines := make([]purchaseTaxLine, len(in.Lines))
 		for i, line := range in.Lines {
-			lines[i] = purchaseTaxLine{TenantID: row.TenantID, OutletID: outlet, PayableID: bill, EvidenceID: id, Fields: line}
+			lines[i] = purchaseTaxLine{ID: uuid.Must(uuid.NewV7()), TenantID: row.TenantID, OutletID: outlet, PayableID: bill, EvidenceID: id, Fields: line}
 		}
 		if err = tx.Create(&lines).Error; err != nil {
 			return err

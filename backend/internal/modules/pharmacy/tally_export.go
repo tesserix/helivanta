@@ -315,11 +315,11 @@ parts AS (
  CROSS JOIN LATERAL(VALUES(1,'cgst',t.cgst_minor,t.cgst_recoverable_minor),(2,'sgst',t.sgst_minor,t.sgst_recoverable_minor),
  (3,'igst',t.igst_minor,t.igst_recoverable_minor),(4,'utgst',t.utgst_minor,t.utgst_recoverable_minor))x(ordinal,kind,total,recoverable) WHERE x.total>0
 )
-SELECT CAST(@tenant AS text) AS tenant_scope,CAST(@outlet AS text) AS outlet_scope,p.rank,p.id,to_char(p.day,'YYYY-MM-DD') AS day,p.number,p.currency,p.related,p.bill,p.supplier,p.supplier_name,
+SELECT CAST(CAST(@tenant AS uuid) AS text) AS tenant_scope,CAST(CAST(@outlet AS uuid) AS text) AS outlet_scope,p.rank,p.id,to_char(p.day,'YYYY-MM-DD') AS day,p.number,p.currency,p.related,p.bill,p.supplier,p.supplier_name,
  COALESCE(x.part,'') AS part,COALESCE(x.treatment,'') AS treatment,COALESCE(x.nature,'') AS nature,COALESCE(x.rate_ppm,0) AS rate_ppm,
  COALESCE(x.taxable_minor,0) AS taxable_minor,COALESCE(x.cgst_minor,0) AS cgst_minor,COALESCE(x.sgst_minor,0) AS sgst_minor,COALESCE(x.igst_minor,0) AS igst_minor,COALESCE(x.utgst_minor,0) AS utgst_minor,COALESCE(x.kind,'') AS kind,COALESCE(x.amount,0) AS amount
 FROM page p LEFT JOIN parts x ON x.id=p.id AND x.rank=p.rank
-ORDER BY p.day,p.rank,p.created_at,p.id,x.part,x.position LIMIT CASE WHEN @purchases THEN @row_limit ELSE NULL END`
+ORDER BY p.day,p.rank,p.created_at,p.id,x.part,x.position LIMIT CASE WHEN @purchases THEN CAST(@row_limit AS bigint) ELSE NULL END`
 
 type tallyRow struct {
 	TenantScope, OutletScope string

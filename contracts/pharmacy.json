@@ -22,6 +22,20 @@
           "max": 1000000
         },
         {
+          "name": "assessable_minor",
+          "type": "int64",
+          "min": 0,
+          "max": 1000000000000
+        },
+        {
+          "name": "source_variance_reason",
+          "type": "string",
+          "nullable": true,
+          "trim": true,
+          "min": 1,
+          "max": 500
+        },
+        {
           "name": "cgst_minor",
           "type": "int64",
           "min": 0,
@@ -92,13 +106,13 @@
         {
           "name": "supplier_state",
           "type": "string",
-          "min": 2,
+          "min": 0,
           "max": 2
         },
         {
           "name": "place_of_supply",
           "type": "string",
-          "min": 2,
+          "min": 0,
           "max": 2
         },
         {

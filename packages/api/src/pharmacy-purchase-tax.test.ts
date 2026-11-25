@@ -23,6 +23,8 @@ const input: PharmacyPurchaseTaxInput = {
       position: 1,
       supply_nature: "taxable",
       rate_ppm: 120000,
+      assessable_minor: 10000,
+      source_variance_reason: null,
       cgst_minor: 600,
       sgst_minor: 600,
       igst_minor: 0,

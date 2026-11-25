@@ -23,7 +23,7 @@ func newPurchaseTaxBill(t *testing.T, w saleWorld) string {
 	return bill
 }
 func purchaseTaxBody() string {
-	return `{"replaces":null,"supplier_gstin":"07ABCDE1234F1Z2","supplier_state":"07","place_of_supply":"07","reason":"TEST supplier invoice","lines":[{"position":1,"supply_nature":"taxable","rate_ppm":180000,"cgst_minor":900,"sgst_minor":900,"igst_minor":0,"utgst_minor":0,"cgst_recoverable_minor":900,"sgst_recoverable_minor":900,"igst_recoverable_minor":0,"utgst_recoverable_minor":0}]}`
+	return `{"replaces":null,"supplier_gstin":"07ABCDE1234F1Z2","supplier_state":"07","place_of_supply":"07","reason":"TEST supplier invoice","lines":[{"position":1,"supply_nature":"taxable","rate_ppm":180000,"assessable_minor":10000,"source_variance_reason":null,"cgst_minor":900,"sgst_minor":900,"igst_minor":0,"utgst_minor":0,"cgst_recoverable_minor":900,"sgst_recoverable_minor":900,"igst_recoverable_minor":0,"utgst_recoverable_minor":0}]}`
 }
 func TestPurchaseTaxEvidenceVersionsReplayAndPreserveThePostedBill(t *testing.T) {
 	w := newTallyWorld(t)
@@ -171,4 +171,17 @@ func TestTallyPurchaseDoesNotAdoptPartsOrIdentityOfASaleWithTheSameUUID(t *testi
 	require.Equal(t, "helivanta-"+id, decoded.Vouchers[1].RemoteID, "existing sales retain their original import identity")
 	require.Len(t, decoded.Vouchers[0].Entries, 4, "purchase has only its own source entries")
 	require.Len(t, decoded.Vouchers[1].Entries, 4, "sale has only its own source entries")
+}
+
+func TestPurchaseTaxOutsideGSTDoesNotInventJurisdictionOrRegistration(t *testing.T) {
+	w := newTallyWorld(t)
+	bill := payableRoot() + "/payables/" + uuid.Must(uuid.NewV7()).String()
+	body := strings.Replace(expenseBody("TEST-OUTSIDE-GST"), `"tax_minor":1800`, `"tax_minor":0`, 1)
+	body = strings.Replace(body, `"recoverable_tax_minor":1800`, `"recoverable_tax_minor":0`, 1)
+	result := do(w.r, "PUT", bill, "finance", body)
+	require.Equal(t, 200, result.Code, result.Body.String())
+	evidence := `{"replaces":null,"supplier_gstin":null,"supplier_state":"","place_of_supply":"","reason":"TEST outside-GST source","lines":[{"position":1,"supply_nature":"outside_gst","rate_ppm":0,"assessable_minor":10000,"source_variance_reason":null,"cgst_minor":0,"sgst_minor":0,"igst_minor":0,"utgst_minor":0,"cgst_recoverable_minor":0,"sgst_recoverable_minor":0,"igst_recoverable_minor":0,"utgst_recoverable_minor":0}]}`
+	result = do(w.r, "PUT", bill+"/purchase-tax/"+uuid.Must(uuid.NewV7()).String(), "exporter", evidence)
+	require.Equal(t, 200, result.Code, result.Body.String())
+	require.Contains(t, result.Body.String(), `"supplier_state":""`)
 }

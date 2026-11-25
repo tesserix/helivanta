@@ -16,9 +16,11 @@ be enabled for the authorized pilot; a feature flag never grants permissions.
 1. Open Supplier bills and record the invoice/expense through the normal flow.
    Keep source references, currency and any acquisition receipt links accurate.
 2. Open the posted bill and its Purchase tax evidence section.
-3. Copy the supplier GSTIN when registered, supplier state/territory and the
-   place of supply from the invoice. Do not guess jurisdiction from an address.
-4. For each original line choose its source nature and GST rate, then record
+3. Copy the supplier GSTIN when shown, supplier state/territory and the
+   place of supply from the invoice. For wholly outside-GST documents, leave
+   unprovided jurisdiction fields blank. A recorded GSTIN needs its source state.
+   Do not guess jurisdiction from an address.
+4. For each original line choose its source nature, base value and GST rate, then record
    CGST/SGST/IGST/UTGST and the recoverable amount of each component.
 5. Check the displayed original tax and recoverable totals. All components must
    match those exact amounts; the form cannot alter a posted bill or valuation.
@@ -82,3 +84,15 @@ Purchase-enabled exports additionally cap source detail at 50,000 rows; they ref
 period before building vouchers. XML encoding checks its byte bound as each
 voucher is written, returning no partial file. Detailed bills can therefore need
 a shorter period even below the 5,000-document limit.
+
+The base value is recorded from the source and cannot exceed its existing net
+plus landed costs in this price-based bill workflow. A GST calculation difference
+beyond one paisa per component needs a separate source explanation or corrected
+entry. This is a review trigger, not a statutory rounding limit: documented
+supplier rounding is preserved, and the original tax/recoverable totals must
+still match exactly. GST registration status is not checked online.
+
+The schema extension preflights all existing operating/hospital authority seals,
+adds both choice-purpose restrictions to each new table, and refreshes the
+choice then hospital snapshots after its own reviewed DDL. It does not bypass
+pre-existing schema drift. Each audited line also has a server-generated UUID.

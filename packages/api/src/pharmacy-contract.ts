@@ -13,6 +13,8 @@ export const pharmacyPurchaseTaxLineInputSchema = z
     position: z.number().int().min(1).max(100),
     supply_nature: z.enum(["taxable", "nil_rated", "exempt", "outside_gst"]),
     rate_ppm: z.number().int().min(0).max(1000000),
+    assessable_minor: z.number().int().min(0).max(1000000000000),
+    source_variance_reason: z.string().trim().min(1).max(500).nullable(),
     cgst_minor: z.number().int().min(0).max(1000000000000),
     cgst_recoverable_minor: z.number().int().min(0).max(1000000000000),
     sgst_minor: z.number().int().min(0).max(1000000000000),
@@ -28,8 +30,8 @@ export const pharmacyPurchaseTaxInputSchema = z
   .object({
     replaces: identifier.nullable(),
     supplier_gstin: z.string().trim().toUpperCase().min(15).max(15).nullable(),
-    supplier_state: z.string().min(2).max(2),
-    place_of_supply: z.string().min(2).max(2),
+    supplier_state: z.string().min(0).max(2),
+    place_of_supply: z.string().min(0).max(2),
     reason: z.string().trim().min(1).max(500),
     lines: z.array(pharmacyPurchaseTaxLineInputSchema).min(1).max(100),
   })

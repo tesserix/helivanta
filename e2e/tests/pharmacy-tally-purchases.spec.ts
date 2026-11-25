@@ -10,7 +10,7 @@ test("source purchase evidence produces a repeatable Tally voucher", async ({ pa
   const id = String(bill.id);
   await page.goto(`/pharmacy/accounts?tab=all&open=${id}`);
   await expect(page.getByText(/No purchase tax evidence recorded/)).toBeVisible();
-  await page.getByLabel("Supplier GSTIN (leave blank if unregistered)").fill("07ABCDE1234F1Z2");
+  await page.getByLabel("Supplier GSTIN (if shown on the source document)").fill("07ABCDE1234F1Z2");
   await choose(page, "Supplier state / territory", "Delhi");
   await choose(page, "Place of supply on invoice", "Delhi");
   await page

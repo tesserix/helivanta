@@ -2056,12 +2056,13 @@ Under `/pharmacies/{pharmacy}/outlets/{outlet}/accounts`:
   one positional `PurchaseTaxLineInput` per original bill line. The canonical
   Go/Zod models derive from `contracts/pharmacy.json`.
 
-Each classification records nature/rate and CGST, SGST, IGST and UTGST amounts
+Each classification records nature/rate, `assessable_minor`, nullable
+`source_variance_reason`, and CGST, SGST, IGST and UTGST amounts
 plus each component's recoverable amount. Exact component sums must match the
 posted bill line's tax and recoverable tax; component recoverability cannot
 exceed its tax. Jurisdictions, GSTIN checksum/state, taxable rate precision and
-local/interstate components are validated. Positive GST requires a registered
-supplier. Zero-tax lines require an explicit source classification, including
+local/interstate components are validated. Positive GST requires a recorded supplier GSTIN (checksum/state checked, not
+online registration status). Zero-tax lines require an explicit source classification, including
 outside-GST where applicable. This records authorized source evidence; it does
 not calculate statutory eligibility, download rates or support reverse-charge
 inference. `400 purchase_tax_invalid` rejects inconsistent evidence;
@@ -2124,6 +2125,13 @@ Purchase import identities use UUIDv5 in the URL namespace over
 prefixed `helivanta-`. They remain distinct across tenants/outlets and from a
 sale reusing the same document UUID. Existing sale/credit/payment identities
 are unchanged. Source parts join by document kind as well as ID.
+
+Source base/rate calculations use integer half-up arithmetic. More than one
+paisa of component difference needs an explicit per-line source explanation;
+this review trigger does not assert a statutory rounding tolerance. The source
+bill's tax/recoverable totals and jurisdiction invariants cannot be overridden.
+Wholly outside-GST documents can leave unprovided jurisdictions empty rather
+than fabricate a place of supply; a recorded GSTIN still needs its source state.
 
 ### Hospital stocktake command candidate — #1686
 

@@ -90,7 +90,7 @@ it("freezes an uncertain save and retries the original command without changing 
   );
   await screen.findByText(/No purchase tax evidence recorded/);
   const user = userEvent.setup();
-  fireEvent.change(screen.getByLabelText("Supplier GSTIN (leave blank if unregistered)"), {
+  fireEvent.change(screen.getByLabelText("Supplier GSTIN (if shown on the source document)"), {
     target: { value: "07ABCDE1234F1Z2" },
   });
   for (const label of ["Supplier state / territory", "Place of supply on invoice"]) {
@@ -132,6 +132,8 @@ it("reloads the current evidence instead of presenting a replayed receipt as the
         position: 1,
         supply_nature: "taxable",
         rate_ppm: 120000,
+        assessable_minor: 10000,
+        source_variance_reason: null,
         cgst_minor: 600,
         sgst_minor: 600,
         igst_minor: 0,
@@ -178,4 +180,55 @@ it("reloads the current evidence instead of presenting a replayed receipt as the
   await user.click(screen.getByRole("button", { name: "Record purchase tax evidence" }));
   expect(await screen.findByText("TEST later owner correction")).toBeVisible();
   expect(screen.queryByText("TEST my correction")).not.toBeInTheDocument();
+});
+
+it("records an outside-GST source without fabricating registration or a place of supply", async () => {
+  let current: Record<string, unknown> | null = null;
+  const outside = {
+    ...doc,
+    lines: doc.lines.map((line) => ({ ...line, tax_minor: 0, recoverable_tax_minor: 0 })),
+  };
+  const puts: Record<string, unknown>[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init: RequestInit = {}) => {
+      if (init.method === "PUT") {
+        const body = JSON.parse(String(init.body));
+        puts.push(body);
+        current = {
+          ...body,
+          id: url.split("/").at(-1),
+          outlet_id: scope.outletId,
+          payable_id: doc.id,
+          recorded_by: scope.subject,
+          recorded_at: "2026-11-26T00:00:00Z",
+        };
+        return Response.json(current);
+      }
+      return Response.json({ evidence: current });
+    }),
+  );
+  renderWithProviders(
+    <NavigationGuardProvider>
+      <PurchaseTax scope={scope} doc={outside} writable />
+    </NavigationGuardProvider>,
+  );
+  await screen.findByText(/No purchase tax evidence recorded/);
+  const user = userEvent.setup();
+  await user.click(screen.getByRole("combobox", { name: "Source tax treatment" }));
+  await user.click(screen.getByRole("option", { name: "Outside GST" }));
+  await user.type(
+    screen.getByLabelText("Source / correction reason"),
+    "TEST non-GST source statement",
+  );
+  await user.click(screen.getByRole("button", { name: "Record purchase tax evidence" }));
+  expect(await screen.findByRole("button", { name: "Record corrected evidence" })).toBeVisible();
+  expect(puts).toHaveLength(1);
+  expect(puts[0]).toMatchObject({
+    supplier_gstin: null,
+    supplier_state: "",
+    place_of_supply: "",
+    lines: [{ supply_nature: "outside_gst", assessable_minor: 10000 }],
+  });
+  expect(screen.getByText(/Not applicable/)).toBeVisible();
 });

@@ -6940,7 +6940,7 @@
         },
         {
           "id": "0074_pharmacy_purchase_tax_evidence",
-          "sql_sha256": "b7a5bd7144b3d691aa7d73ed2e45b2567d1d4567ebec084e784e780c718caabb",
+          "sql_sha256": "3944e37cc652cf8213447c596bffb4adf98e6ccf11fe5b8929c1de9e323304a3",
           "creates_tables": [
             "pharmacy_purchase_tax_evidence",
             "pharmacy_purchase_tax_lines",

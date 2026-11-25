@@ -74,3 +74,17 @@ Purchase import identities use UUIDv5 in the URL namespace over
 prefixed `helivanta-`. They remain distinct across tenants/outlets and from a
 sale reusing the same document UUID. Existing sale/credit/payment identities
 are unchanged. Source parts join by document kind as well as ID.
+
+Source-rate review adds assessable_minor and nullable source_variance_reason to
+each classification. Source bases cannot exceed recorded net plus landed costs;
+integer half-up arithmetic detects rate/base differences. Beyond one paisa per
+component, source differences need explicit explanation, not invented repair or
+a claim of statutory invalidity. Original totals remain exact. Wholly outside-GST
+sources need no fabricated GST jurisdiction; empty unprovided states are allowed,
+while a supplied GSTIN still requires its actual source state. No online GST
+registration-status check is claimed.
+
+The schema extension preflights all existing operating/hospital authority seals,
+adds both choice-purpose restrictions to each new table, and refreshes the
+choice then hospital snapshots after its own reviewed DDL. It does not bypass
+pre-existing schema drift. Each audited line also has a server-generated UUID.

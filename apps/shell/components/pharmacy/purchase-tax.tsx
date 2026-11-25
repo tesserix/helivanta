@@ -41,8 +41,13 @@ function evidenceForm(doc: PharmacyPayableDetail) {
     const issue = (path: (string | number)[], message: string) =>
       ctx.addIssue({ code: "custom", path, message });
     const supplier = scheme.jurisdictions.find((s) => s.code === value.supplier_state);
-    if (!supplier) issue(["supplier_state"], "Choose the supplier's state or territory.");
-    if (!scheme.jurisdictions.some((s) => s.code === value.place_of_supply))
+    const gstSupply = value.lines.some((line) => line.supply_nature !== "outside_gst");
+    if ((gstSupply || value.supplier_state !== "") && !supplier)
+      issue(["supplier_state"], "Choose the supplier's state or territory.");
+    if (
+      (gstSupply || value.place_of_supply !== "") &&
+      !scheme.jurisdictions.some((s) => s.code === value.place_of_supply)
+    )
       issue(["place_of_supply"], "Choose the invoice's place of supply.");
     if (
       value.supplier_gstin &&
@@ -72,8 +77,40 @@ function evidenceForm(doc: PharmacyPayableDetail) {
           ["lines", i, "rate_ppm"],
           "Enter the source rate to at most two decimal places; non-taxable lines have a zero rate.",
         );
+      if (source && line.assessable_minor > source.net_minor + source.landed_minor)
+        issue(
+          ["lines", i, "assessable_minor"],
+          "The source base value cannot exceed the original net plus landed costs.",
+        );
+      if (
+        line.supply_nature === "taxable" &&
+        Number.isSafeInteger(line.assessable_minor) &&
+        Number.isSafeInteger(line.rate_ppm)
+      ) {
+        if (source && source.net_minor + source.landed_minor > 0 && line.assessable_minor === 0)
+          issue(["lines", i, "assessable_minor"], "Enter the source value for this taxable line.");
+        const denominator = BigInt(
+          value.supplier_state === value.place_of_supply ? 2000000 : 1000000,
+        );
+        const expected = Number(
+          (BigInt(line.assessable_minor) * BigInt(line.rate_ppm) + denominator / BigInt(2)) /
+            denominator,
+        );
+        const amounts =
+          value.supplier_state === value.place_of_supply
+            ? [line.cgst_minor, line.sgst_minor + line.utgst_minor]
+            : [line.igst_minor];
+        if (
+          amounts.some((amount) => Math.abs(amount - expected) > 1) &&
+          !line.source_variance_reason
+        )
+          issue(
+            ["lines", i, "assessable_minor"],
+            "Check the source base and GST rate. If the invoice uses a different rounding calculation, record its explanation below.",
+          );
+      }
       if (total > 0 && (!value.supplier_gstin || line.supply_nature !== "taxable"))
-        issue(["lines", i], "Positive GST needs a registered supplier and taxable classification.");
+        issue(["lines", i], "Positive GST needs the supplier GSTIN and a taxable classification.");
       for (const c of components) {
         if (line[`${c}_recoverable_minor`] > line[`${c}_minor`])
           issue(
@@ -166,8 +203,11 @@ function Evidence({
     return (
       <div className="mt-4 space-y-3 text-sm">
         <p>
-          Supplier GSTIN: {current.supplier_gstin ?? "Unregistered"} · Place of supply:{" "}
-          {jurisdictions.find((s) => s.value === current.place_of_supply)?.label ?? "Unavailable"}
+          Supplier GSTIN: {current.supplier_gstin ?? "Not recorded"} · Place of supply:{" "}
+          {current.place_of_supply
+            ? (jurisdictions.find((s) => s.value === current.place_of_supply)?.label ??
+              "Unavailable")
+            : "Not applicable"}
         </p>
         <p>
           Recorded by <AccountName subject={current.recorded_by} /> ·{" "}
@@ -252,10 +292,12 @@ function EvidenceEditor({
           supplier_state: "",
           place_of_supply: "",
           reason: "",
-          lines: doc.lines.map((_, i) => ({
+          lines: doc.lines.map((line, i) => ({
             position: i + 1,
             supply_nature: "taxable" as const,
             rate_ppm: 0,
+            assessable_minor: line.net_minor,
+            source_variance_reason: null,
             cgst_minor: 0,
             sgst_minor: 0,
             igst_minor: 0,
@@ -299,10 +341,15 @@ function EvidenceEditor({
       className="space-y-5"
     >
       <fieldset disabled={save.isPending || uncertain} className="space-y-5">
+        <p className="text-sm text-muted-foreground">
+          GST jurisdiction fields can be blank when every line is outside GST. If you record a
+          GSTIN, include its source state. Copy the base value from the document; taxable landed
+          charges can change it.
+        </p>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field
             id="purchase-gstin"
-            label="Supplier GSTIN (leave blank if unregistered)"
+            label="Supplier GSTIN (if shown on the source document)"
             error={form.formState.errors.supplier_gstin?.message}
           >
             <Input
@@ -360,6 +407,16 @@ function EvidenceEditor({
                   { value: "outside_gst", label: "Outside GST" },
                 ]}
               />
+              <CurrencyAmountField
+                id={`purchase-base-${i}`}
+                label="Source line base value"
+                currency="INR"
+                initialMinor={form.getValues(`lines.${i}.assessable_minor`)}
+                error={form.formState.errors.lines?.[i]?.assessable_minor?.message}
+                onChange={(value) =>
+                  form.setValue(`lines.${i}.assessable_minor`, value, { shouldDirty: true })
+                }
+              />
               <RateField
                 initial={form.getValues(`lines.${i}.rate_ppm`)}
                 id={`purchase-rate-${i}`}
@@ -369,6 +426,22 @@ function EvidenceEditor({
                 }
               />
             </div>
+            <Field
+              id={`purchase-variance-${i}`}
+              label="Source calculation difference explanation (only if needed)"
+              error={form.formState.errors.lines?.[i]?.source_variance_reason?.message}
+            >
+              <Input
+                id={`purchase-variance-${i}`}
+                maxLength={500}
+                value={form.watch(`lines.${i}.source_variance_reason`) ?? ""}
+                onChange={(event) =>
+                  form.setValue(`lines.${i}.source_variance_reason`, event.target.value || null, {
+                    shouldDirty: true,
+                  })
+                }
+              />
+            </Field>
             {components.map((c) => (
               <div key={c} className="grid gap-4 sm:grid-cols-2">
                 <CurrencyAmountField

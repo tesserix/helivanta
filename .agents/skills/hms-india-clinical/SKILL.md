@@ -5,7 +5,9 @@ description: Design or review Helivanta patient identity, OPD/IPD, admissions, n
 
 # Indian hospital clinical workflows
 
-Read the affected references:
+Use [hms-domain](../hms-domain/SKILL.md) and the shared
+[patient/care guide](../../../docs/domain/patient-care.md) for scheduling,
+terminology, record provenance and handover boundaries. Read the affected references:
 
 - [Identity, consent and ABDM](../../../docs/domain/india/identity-consent-and-abdm.md)
   for registration, linking, proxies, disclosure and exchange.

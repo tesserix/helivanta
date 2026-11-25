@@ -5,8 +5,10 @@
 The imported root `AGENTS.md` contains the shared enterprise guardrails and
 mandatory contract-documentation reading before development. Apply it alongside
 the rules below and applicable nested instructions; keep shared policy there.
-India HMS skills in `.claude/skills/hms-india*` link to the canonical shared
-`.agents/skills/` definitions; use the domain router required by `AGENTS.md`.
+Shared domain skills in `.claude/skills/` link to canonical `.agents/skills/`
+definitions. Start healthcare workflow work with `hms-domain`, transport work
+also with `hms-transport`, and apply the India and specialist routing required
+by `AGENTS.md`. Read canonical files explicitly if native discovery is unavailable.
 
 ## Hospital workflow reference
 

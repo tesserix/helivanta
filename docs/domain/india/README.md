@@ -6,6 +6,13 @@ Use this knowledge alongside the implemented API references, not as evidence tha
 
 ## Choose the domain
 
+Start with [hms-domain](../../../.agents/skills/hms-domain/SKILL.md) and the
+[shared domain index](../README.md) for care-setting, patient-data and hazard
+boundaries. For ambulance and scheduled transport, also load
+[hms-transport](../../../.agents/skills/hms-transport/SKILL.md) and the
+[transport guide](../transport.md); emergency dispatch and scheduled booking have
+different authority and completion evidence.
+
 | Work                                                          | Knowledge and specification                                                                                                                           | Existing implementation reference                                                                         |
 | ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
 | Registration, identity, proxy access, privacy, ABDM           | [Identity, consent and exchange](identity-consent-and-abdm.md)                                                                                        | [Patient/MediCore](../../api/domains/patients-and-clinical.md), [platform](../../api/domains/platform.md) |
@@ -56,6 +63,8 @@ Changing a regulatory rate, retention period, drug schedule, payer rule or exter
 The canonical repository skills are in `.agents/skills/`; matching `.claude/skills/` links expose the same files to Claude. Root `AGENTS.md` explicitly routes agents here even when native skill discovery is unavailable.
 
 - [hms-india](../../../.agents/skills/hms-india/SKILL.md): choose scope, policy authority and domain references.
+- [hms-domain](../../../.agents/skills/hms-domain/SKILL.md): shared healthcare scope, patient/care concepts, hazards and jurisdiction boundaries.
+- [hms-transport](../../../.agents/skills/hms-transport/SKILL.md): ambulance access, provider dispatch, receiving handover and scheduled patient transport.
 - [hms-india-clinical](../../../.agents/skills/hms-india-clinical/SKILL.md): patient identity, care transitions, orders and diagnostics.
 - [hms-india-revenue](../../../.agents/skills/hms-india-revenue/SKILL.md): tariffs, liability, insurance, claims and settlement.
 - [hms-india-regulated-operations](../../../.agents/skills/hms-india-regulated-operations/SKILL.md): pharmacy/supply, facility compliance and quality evidence.

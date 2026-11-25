@@ -93,7 +93,6 @@ export function GovernanceEmploymentPreparation({
               <Input
                 id="employment-preparation-code"
                 autoComplete="off"
-                maxLength={40}
                 {...form.register("employee_code")}
               />
             </Field>
@@ -113,11 +112,11 @@ export function GovernanceEmploymentPreparation({
             ) : (
               <>
                 {targets.data.data.length === 0 && <p>No Staff match this search.</p>}
-                <ul className="space-y-2">
+                <ul className="divide-y">
                   {targets.data.data.map((row) => (
                     <li
                       key={row.id}
-                      className="flex flex-wrap items-center justify-between gap-3 rounded-md border p-3"
+                      className="flex flex-wrap items-center justify-between gap-3 py-3"
                     >
                       <span>
                         {row.display_name} · {row.employee_code}
@@ -287,11 +286,11 @@ function HospitalTerms({
               >
                 Prepare employment terms
               </Button>
-              <ul className="space-y-3">
+              <ul className="divide-y">
                 {periods.data.pages
                   .flatMap((page) => page.data)
                   .map((row) => (
-                    <li key={row.id} className="rounded-md border p-3">
+                    <li key={row.id} className="py-3">
                       <p>
                         {row.evidence_reference} · Revision {row.version} · {row.status}
                       </p>

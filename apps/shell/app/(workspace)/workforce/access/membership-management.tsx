@@ -158,39 +158,42 @@ export function MembershipManagement({ scope }: { scope: StaffAssignmentScope })
           {!history.data.pages.some((page) => page.data.length) && (
             <p>No membership commands recorded.</p>
           )}
-          {history.data.pages
-            .flatMap((page) => page.data)
-            .map((row) => (
-              <article key={row.id} className="space-y-2 rounded-md border p-4">
-                <p className="break-words">
-                  <strong>{row.operation === "remove" ? "Removed" : "Recovered"}</strong>:{" "}
-                  <AccountName subject={row.subject} /> ·{" "}
-                  <AccountRole subject={row.subject} roleKey={row.role_key} />
-                </p>
-                <p className="whitespace-pre-wrap break-words">{row.reason}</p>
-                <p className="break-words text-sm">
-                  By <AccountName subject={row.actor_subject} /> · {formatDateTime(row.created_at)}
-                </p>
-                {row.recoverable && (
-                  <Button
-                    variant="outline"
-                    disabled={!!action}
-                    onClick={() => {
-                      setNotice("");
-                      setAction({
-                        operation: "recover",
-                        basis_id: row.id,
-                        subject: row.subject,
-                        role_key: "staff_member",
-                        expected_membership_epoch: row.current_membership_epoch,
-                      });
-                    }}
-                  >
-                    Recover ordinary membership
-                  </Button>
-                )}
-              </article>
-            ))}
+          <div className="divide-y">
+            {history.data.pages
+              .flatMap((page) => page.data)
+              .map((row) => (
+                <article key={row.id} className="space-y-2 py-4">
+                  <p className="break-words">
+                    <strong>{row.operation === "remove" ? "Removed" : "Recovered"}</strong>:{" "}
+                    <AccountName subject={row.subject} /> ·{" "}
+                    <AccountRole subject={row.subject} roleKey={row.role_key} />
+                  </p>
+                  <p className="whitespace-pre-wrap break-words">{row.reason}</p>
+                  <p className="break-words text-sm">
+                    By <AccountName subject={row.actor_subject} /> ·{" "}
+                    {formatDateTime(row.created_at)}
+                  </p>
+                  {row.recoverable && (
+                    <Button
+                      variant="outline"
+                      disabled={!!action}
+                      onClick={() => {
+                        setNotice("");
+                        setAction({
+                          operation: "recover",
+                          basis_id: row.id,
+                          subject: row.subject,
+                          role_key: "staff_member",
+                          expected_membership_epoch: row.current_membership_epoch,
+                        });
+                      }}
+                    >
+                      Recover ordinary membership
+                    </Button>
+                  )}
+                </article>
+              ))}
+          </div>
           <LoadMore
             hasMore={history.hasNextPage}
             isLoading={history.isFetching}
@@ -240,91 +243,93 @@ function MembershipCommandForm({
   const refused =
     save.error instanceof ApiError && [400, 401, 403, 404, 409].includes(save.error.status);
   return (
-    <form
-      aria-label={
-        action.operation === "remove"
-          ? "Remove organization membership"
-          : "Recover ordinary membership"
-      }
-      className="space-y-4 rounded-md border p-4"
-      noValidate
-      onSubmit={form.handleSubmit(({ reason }) => {
-        const command = submitted ?? { ...action, reason };
-        setSubmitted(command);
-        save.mutate(command);
-      })}
-    >
-      <h3 className="font-semibold">
-        {action.operation === "remove"
-          ? "Review membership removal"
-          : "Review ordinary membership recovery"}
-      </h3>
-      <p className="break-words">
-        Account: <AccountName subject={action.subject} /> · Role:{" "}
-        <AccountRole subject={action.subject} roleKey={action.role_key} />
-      </p>
-      <p>
-        {action.operation === "remove"
-          ? "Only the selected membership is removed. If this is the account’s final organization role, its current scoped assignments lose membership continuity. Sign-out and other organizations remain separate."
-          : "The identity-provider account must currently be active. This creates a new ordinary staff membership and grants no hospital, payroll or clinical authority."}
-      </p>
-      <Field
-        id="membership-command-reason"
-        label="Reason"
-        error={form.formState.errors.reason?.message}
+    <Panel as="div">
+      <form
+        aria-label={
+          action.operation === "remove"
+            ? "Remove organization membership"
+            : "Recover ordinary membership"
+        }
+        className="space-y-4"
+        noValidate
+        onSubmit={form.handleSubmit(({ reason }) => {
+          const command = submitted ?? { ...action, reason };
+          setSubmitted(command);
+          save.mutate(command);
+        })}
       >
-        <Input
-          id="membership-command-reason"
-          autoComplete="off"
-          disabled={!!submitted}
-          aria-invalid={!!form.formState.errors.reason}
-          aria-describedby={
-            form.formState.errors.reason ? "membership-command-reason-error" : undefined
-          }
-          {...form.register("reason")}
-        />
-      </Field>
-      <label className="flex items-start gap-2">
-        <input
-          type="checkbox"
-          disabled={!!submitted}
-          aria-invalid={!!form.formState.errors.reviewed}
-          aria-describedby={
-            form.formState.errors.reviewed ? "membership-command-review-error" : undefined
-          }
-          {...form.register("reviewed")}
-        />
-        I reviewed this account, role and consequence.
-      </label>
-      {form.formState.errors.reviewed && (
-        <p id="membership-command-review-error">{form.formState.errors.reviewed.message}</p>
-      )}
-      {save.isError && (
-        <p role="alert">
-          {refused
-            ? `${save.error.message} Close this form and refresh before continuing.`
-            : "The command may have been recorded. Retry the same membership command or check its history before starting another."}
+        <h3 className="font-semibold">
+          {action.operation === "remove"
+            ? "Review membership removal"
+            : "Review ordinary membership recovery"}
+        </h3>
+        <p className="break-words">
+          Account: <AccountName subject={action.subject} /> · Role:{" "}
+          <AccountRole subject={action.subject} roleKey={action.role_key} />
         </p>
-      )}
-      <div className="flex flex-wrap gap-2">
-        <Button type="submit" disabled={save.isPending || refused}>
-          {save.isPending
-            ? "Recording…"
-            : submitted
-              ? "Retry same membership command"
-              : action.operation === "remove"
-                ? "Record membership removal"
-                : "Record ordinary membership recovery"}
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          disabled={save.isPending}
-          onClick={() => confirm(onClose)}
+        <p>
+          {action.operation === "remove"
+            ? "Only the selected membership is removed. If this is the account’s final organization role, its current scoped assignments lose membership continuity. Sign-out and other organizations remain separate."
+            : "The identity-provider account must currently be active. This creates a new ordinary staff membership and grants no hospital, payroll or clinical authority."}
+        </p>
+        <Field
+          id="membership-command-reason"
+          label="Reason"
+          error={form.formState.errors.reason?.message}
         >
-          Close
-        </Button>
-      </div>
-    </form>
+          <Input
+            id="membership-command-reason"
+            autoComplete="off"
+            disabled={!!submitted}
+            aria-invalid={!!form.formState.errors.reason}
+            aria-describedby={
+              form.formState.errors.reason ? "membership-command-reason-error" : undefined
+            }
+            {...form.register("reason")}
+          />
+        </Field>
+        <label className="flex items-start gap-2">
+          <input
+            type="checkbox"
+            disabled={!!submitted}
+            aria-invalid={!!form.formState.errors.reviewed}
+            aria-describedby={
+              form.formState.errors.reviewed ? "membership-command-review-error" : undefined
+            }
+            {...form.register("reviewed")}
+          />
+          I reviewed this account, role and consequence.
+        </label>
+        {form.formState.errors.reviewed && (
+          <p id="membership-command-review-error">{form.formState.errors.reviewed.message}</p>
+        )}
+        {save.isError && (
+          <p role="alert">
+            {refused
+              ? `${save.error.message} Close this form and refresh before continuing.`
+              : "The command may have been recorded. Retry the same membership command or check its history before starting another."}
+          </p>
+        )}
+        <div className="flex flex-wrap gap-2">
+          <Button type="submit" disabled={save.isPending || refused}>
+            {save.isPending
+              ? "Recording…"
+              : submitted
+                ? "Retry same membership command"
+                : action.operation === "remove"
+                  ? "Record membership removal"
+                  : "Record ordinary membership recovery"}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={save.isPending}
+            onClick={() => confirm(onClose)}
+          >
+            Close
+          </Button>
+        </div>
+      </form>
+    </Panel>
   );
 }

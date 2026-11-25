@@ -234,11 +234,11 @@ export function GovernanceEmploymentDocuments({
           {documents.data.pages.every((page) => page.data.length === 0) && (
             <p>No employment files prepared.</p>
           )}
-          <ul className="space-y-3">
+          <ul className="divide-y">
             {documents.data.pages
               .flatMap((page) => page.data)
               .map((row) => (
-                <li key={row.id} className="space-y-2 rounded-md border p-3">
+                <li key={row.id} className="space-y-2 py-3">
                   <p className="break-all font-medium">{row.filename}</p>
                   <p className="text-sm text-muted-foreground">{row.status}</p>
                   <div className="flex flex-wrap gap-2">

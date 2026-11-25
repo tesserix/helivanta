@@ -198,11 +198,11 @@ function EnrollmentHistory({ scope }: { scope: StaffAssignmentScope }) {
           {history.data.pages.every((page) => page.data.length === 0) && (
             <p>No first-enrollment receipts recorded.</p>
           )}
-          <div className="grid gap-3 lg:grid-cols-2">
+          <div className="divide-y">
             {history.data.pages
               .flatMap((page) => page.data)
               .map((row) => (
-                <article key={row.id} className="space-y-2 rounded-md border p-4">
+                <article key={row.id} className="space-y-2 py-4">
                   <p className="break-words font-medium">
                     <AccountName subject={row.subject} /> · Ordinary membership
                   </p>

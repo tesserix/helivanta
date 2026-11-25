@@ -446,12 +446,10 @@ function ReviewTerms({
             >
               <Input
                 id="employment-decision-reason"
-                required
                 aria-invalid={Boolean(form.formState.errors.reason)}
                 aria-describedby={
                   form.formState.errors.reason ? "employment-decision-reason-error" : undefined
                 }
-                maxLength={500}
                 {...form.register("reason")}
               />
             </Field>

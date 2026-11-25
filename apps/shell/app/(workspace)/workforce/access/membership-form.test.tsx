@@ -5,6 +5,10 @@ import { AccountPresentationsProvider, NavigationGuardProvider } from "@helivant
 import { StaffMembershipForm } from "./membership-form";
 
 const scope = { tenantId: "11111111-1111-4111-8111-111111111111", subject: "synthetic-admin" };
+
+// #1261 slice 7: no boxed rows or hand-painted cards survive.
+const BOXES =
+  ":is(.rounded-xl, .rounded-2xl, .shadow-sm, .rounded-md.border):not(button, input, textarea, [role=combobox])";
 afterEach(() => vi.unstubAllGlobals());
 it("requires an enrollment reason and ordinary-membership acknowledgement", async () => {
   const requests: RequestInit[] = [];
@@ -125,6 +129,7 @@ it("shows named enrollment evidence without receipt or membership identifiers", 
   expect(history).toHaveTextContent(/Oct.*30.*2026|30.*Oct.*2026/);
   expect(history).not.toHaveTextContent(receipt.id);
   expect(history).not.toHaveTextContent(receipt.membership_id);
+  expect(document.body.querySelectorAll(BOXES)).toHaveLength(0);
 });
 
 // #1595: refused enrollment history is a refusal with no way to ask again.

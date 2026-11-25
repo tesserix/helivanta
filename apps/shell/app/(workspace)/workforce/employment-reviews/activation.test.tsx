@@ -29,6 +29,9 @@ const source = {
   starts_at: "2026-11-01T00:00:00Z",
   ends_at: null,
 };
+// #1261 slice 7: no boxed rows or hand-painted cards survive.
+const BOXES =
+  ":is(.rounded-xl, .rounded-2xl, .shadow-sm, .rounded-md.border):not(button, input, textarea, [role=combobox])";
 afterEach(() => vi.unstubAllGlobals());
 function mount() {
   return renderWithProviders(
@@ -47,6 +50,11 @@ it("requires a reason and confirmation before sending activation", async () => {
   await waitFor(() =>
     expect(screen.getByLabelText(/Activation reason/)).toHaveAttribute("aria-invalid", "true"),
   );
+  // The zod schema, not native validation, refuses the empty reason (#1261 slice 7).
+  expect(screen.getByText("Enter a reason for this activation.")).toBeInTheDocument();
+  expect(screen.getByLabelText(/Activation reason/)).not.toHaveAttribute("required");
+  expect(screen.getByLabelText(/Activation reason/)).not.toHaveAttribute("maxlength");
+  expect(document.body.querySelectorAll(BOXES)).toHaveLength(0);
   expect(fetch).toHaveBeenCalledTimes(1);
 });
 it("keeps the same frozen command after an uncertain server failure", async () => {

@@ -54,6 +54,9 @@ const file = {
   expires_at: "2026-11-01T00:30:00Z",
 };
 const page = (data: unknown[]) => ({ data, page: { has_more: false, next_cursor: null } });
+// #1261 slice 7: no boxed rows or hand-painted cards survive.
+const BOXES =
+  ":is(.rounded-xl, .rounded-2xl, .shadow-sm, .rounded-md.border):not(button, input, textarea, [role=combobox])";
 afterEach(() => vi.unstubAllGlobals());
 it("attaches a released file to the reread exact terms revision and replays uncertain saves", async () => {
   const writes: { url: string; body: Record<string, unknown> }[] = [];
@@ -120,7 +123,16 @@ it("attaches a released file to the reread exact terms revision and replays unce
   const form = screen.getByRole("form", { name: "Attach exact employment evidence" });
   await user.click(within(form).getByLabelText("Scanned employment file"));
   await user.click(await screen.findByRole("option", { name: file.filename }));
-  await user.type(within(form).getByLabelText("Reason"), "Synthetic exact terms binding");
+  // The zod schema, not native maxLength, refuses an overlong reason (#1261 slice 7).
+  const reason = within(form).getByLabelText("Reason");
+  expect(reason).not.toHaveAttribute("maxlength");
+  await user.click(reason);
+  await user.paste("x".repeat(501));
+  await user.click(within(form).getByRole("button", { name: "Attach evidence" }));
+  expect(await within(form).findByRole("alert")).toBeInTheDocument();
+  expect(writes).toHaveLength(0);
+  await user.clear(reason);
+  await user.type(reason, "Synthetic exact terms binding");
   await user.click(within(form).getByRole("button", { name: "Attach evidence" }));
   await screen.findByText(
     "Could not confirm the binding. Retry the same command to recover its result.",
@@ -128,6 +140,8 @@ it("attaches a released file to the reread exact terms revision and replays unce
   expect(screen.getByRole("button", { name: "Close terms evidence" })).toBeDisabled();
   await user.click(within(form).getByRole("button", { name: "Retry same evidence command" }));
   await screen.findByText("Employment evidence saved for this terms revision.");
+  await screen.findByText(file.filename);
+  expect(document.body.querySelectorAll(BOXES)).toHaveLength(0);
   expect(writes).toHaveLength(2);
   expect(writes[1]).toEqual(writes[0]);
   expect(writes[0].url).toContain(

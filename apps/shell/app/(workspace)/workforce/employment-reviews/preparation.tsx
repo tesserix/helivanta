@@ -292,8 +292,6 @@ export function EmploymentReviewPreparation({
                     ? "employment-submission-policy-error"
                     : undefined
                 }
-                required
-                maxLength={300}
                 {...form.register("policy_reference")}
               />
             </Field>
@@ -312,8 +310,6 @@ export function EmploymentReviewPreparation({
                 aria-describedby={
                   form.formState.errors.reason ? "employment-submission-reason-error" : undefined
                 }
-                required
-                maxLength={500}
                 {...form.register("reason")}
               />
             </Field>

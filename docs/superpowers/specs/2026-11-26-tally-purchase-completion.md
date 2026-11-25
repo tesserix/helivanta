@@ -88,3 +88,9 @@ The schema extension preflights all existing operating/hospital authority seals,
 adds both choice-purpose restrictions to each new table, and refreshes the
 choice then hospital snapshots after its own reviewed DDL. It does not bypass
 pre-existing schema drift. Each audited line also has a server-generated UUID.
+
+Migration choice preflight evaluates the authenticated sealed metadata body with
+the operating integrity probe, not the runtime application-role support probe.
+The latter correctly denies schema owners with TRUNCATE privilege. The prior
+hospital seal authenticates the choice function definition before evaluation;
+runtime support/privilege checks are unchanged for application callers.

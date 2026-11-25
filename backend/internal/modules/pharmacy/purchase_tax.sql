@@ -1,7 +1,19 @@
 SET LOCAL lock_timeout='5s';
 SET LOCAL statement_timeout='60s';
-DO $$BEGIN
- IF pharmacy_operating_choice_integrity()IS DISTINCT FROM true OR pharmacy_stocktake_hospital_integrity()IS DISTINCT FROM true OR pharmacy_stocktake_hospital_choice_integrity()IS DISTINCT FROM true THEN RAISE EXCEPTION 'existing pharmacy authority metadata changed' USING ERRCODE='23514'; END IF;
+DO $$DECLARE choice_definition text;choice_metadata_ok boolean;BEGIN
+ IF pharmacy_operating_choice_integrity()IS DISTINCT FROM true OR pharmacy_stocktake_hospital_integrity()IS DISTINCT FROM true THEN
+  RAISE EXCEPTION 'existing pharmacy operating/hospital authority metadata changed' USING ERRCODE='23514';
+ END IF;
+ -- The hospital seal above authenticates this definition. Its runtime support
+ -- probe forbids TRUNCATE for app roles, so it cannot run as the schema owner.
+ SELECT prosrc INTO choice_definition FROM pg_proc WHERE oid=to_regprocedure('pharmacy_stocktake_hospital_choice_integrity()');
+ IF choice_definition IS NULL OR position('pharmacy_operating_choice_support()'IN choice_definition)=0 THEN
+  RAISE EXCEPTION 'unexpected pharmacy choice integrity definition' USING ERRCODE='23514';
+ END IF;
+ EXECUTE replace(choice_definition,'pharmacy_operating_choice_support()','pharmacy_operating_choice_integrity()') INTO choice_metadata_ok;
+ IF choice_metadata_ok IS DISTINCT FROM true THEN
+  RAISE EXCEPTION 'existing pharmacy choice authority metadata changed' USING ERRCODE='23514';
+ END IF;
 END $$;
 
 CREATE TABLE pharmacy_purchase_tax_evidence(

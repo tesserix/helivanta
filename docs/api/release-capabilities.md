@@ -27,7 +27,17 @@ content immediately. No provider SDK/management credential reaches the browser.
 
 New API commands intersect local GrowthBook evaluation, the compiled eligible
 set and dependency closure with existing authorization. Explicit off is 404;
-unknown/unloaded/expired provider state is 503. Unknown route classification
+unknown/unloaded/expired provider state is 503. A reviewed optional pilot is a
+separate compiled designation (`pilot_eligible: true`) while global eligibility
+stays false. It additionally requires an operator-mounted, bounded tenant policy
+and absolute expiry through `RELEASE_PILOT_POLICY_FILE`. The authenticated tenant,
+not caller headers, supplies the target. Provider flags and dependency closure
+remain mandatory. An absent or expired pilot policy releases nothing; normal
+released capabilities remain available. Pilot snapshots cannot outlive the
+policy deadline. Expiry closes admission to new work; it does not cancel an
+already admitted command or erase its history. The public response and
+account-bound v1 wire models are unchanged. See the
+[scoped-pilot design and activation procedure](../design/1689-qa-retail-pilot.md). Unknown route classification
 refuses startup. Evaluation performs no network request in the admission path.
 Provider refresh is bounded, redirects are refused, and provider errors never
 extend an old snapshot's expiry. Retained baseline authentication, verification,

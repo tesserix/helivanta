@@ -33,7 +33,9 @@ supply pilot membership.
 
 The service compares the policy against the authenticated principal's tenant.
 Policy data is copied on construction. Expiry is checked on every evaluation;
-pilot snapshot expiry is capped by the policy expiry. Ordinary onboarding and
+pilot snapshot expiry is capped by the policy expiry. Expiry stops admission
+to new pilot work; it does not cancel commands already admitted or erase their
+stock/financial consequences. Ordinary onboarding and
 released capabilities continue after the pilot expires. This does not bypass
 membership, hospital/outlet scope, operating assignments, licensing,
 prescription checks, stock rules, idempotency or financial history.

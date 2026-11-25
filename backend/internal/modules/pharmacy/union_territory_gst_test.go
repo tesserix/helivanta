@@ -143,3 +143,40 @@ func TestUnionTerritoryTallyRequiresUTGSTMapping(t *testing.T) {
 		require.True(t, found)
 	}
 }
+
+func TestUnionTerritoryServiceChargesKeepSeparateOriginalComponents(t *testing.T) {
+	w := newSaleWorld(t, true)
+	syntheticJurisdictionRegistration(t, w, "04")
+	product := w.product(t, "TEST-UTGST-CHARGES", "none")
+	w.shelve(t, product, "2028-06-30", 12500, 20)
+	delivery, handling := uuid.Must(uuid.NewV7()).String(), uuid.Must(uuid.NewV7()).String()
+	w.declareCharge(t, delivery, ownCharge("TEST-DELIVERY", "counter", 1180, "2026-11-01"), "approved")
+	w.declareCharge(t, handling, principalCharge("TEST-HANDLING", "counter", 1120, "2026-11-01"), "approved")
+	id := uuid.Must(uuid.NewV7()).String()
+	posted := do(w.r, "PUT", salePath("/"+id), "pharmacist", w.chargedCashSale(t, product, 10, 14800, delivery, handling))
+	require.Equal(t, http.StatusCreated, posted.Code, posted.Body.String())
+	type document struct {
+		interstateDocument
+		Charges []struct {
+			UTGST int64 `json:"utgst_minor"`
+			SGST  int64 `json:"sgst_minor"`
+		} `json:"charges"`
+	}
+	var invoice document
+	require.NoError(t, json.Unmarshal(posted.Body.Bytes(), &invoice))
+	require.EqualValues(t, 820, invoice.UTGST)
+	require.EqualValues(t, 820, invoice.CGST)
+	require.Zero(t, invoice.SGST+invoice.IGST)
+	require.Len(t, invoice.Charges, 2)
+	require.EqualValues(t, 90, invoice.Charges[0].UTGST)
+	require.EqualValues(t, 60, invoice.Charges[1].UTGST)
+	require.Zero(t, invoice.Charges[0].SGST+invoice.Charges[1].SGST)
+	lines := fmt.Sprintf(`{"sale_line":1,"quantity_units":10,"quarantine_location_id":%q}`, w.quarantine)
+	credit := do(w.r, "PUT", licencePath("/credit-notes/"+uuid.Must(uuid.NewV7()).String()), "pharmacist", chargeReturn(id, []int{1, 2}, lines, 14800, "cash"))
+	require.Equal(t, http.StatusCreated, credit.Code, credit.Body.String())
+	var note document
+	require.NoError(t, json.Unmarshal(credit.Body.Bytes(), &note))
+	require.Equal(t, invoice.Total, note.Total)
+	require.Equal(t, invoice.UTGST, note.UTGST)
+	require.Equal(t, invoice.Charges, note.Charges)
+}

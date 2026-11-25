@@ -37,4 +37,4 @@ jobs:
           go-version-file: backend/go.mod
           cache: false
       - name: GST invoices, credits, reports, ledger and predecessor compatibility
-        run: go test -race -v -count=1 -timeout 15m ./internal/modules/pharmacy -run '^(TestInterstate|TestReorderRead|TestDailyReportCSV|TestSalesByItemCSV)'
+        run: go test -race -v -count=1 -timeout 15m ./internal/modules/pharmacy -run '^(TestInterstate|TestReorderRead|TestDailyReportCSV|TestSalesByItemCSV|TestTallyLedgerMapRefuses)'

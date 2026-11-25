@@ -1,8 +1,8 @@
 # Interstate counter sales (#1689)
 
 Status: IGST and the all-India UTGST extension are merged and deployed.
-Live API checkout, credit, report/CSV and Tally acceptance passed; final
-posted-document browser verification remains open. This is not a
+Live API and deployed-browser checkout, credit, report/CSV and Tally acceptance
+passed for the supported synthetic tenant pilot. This is not a
 production tax-policy approval.
 
 PharmaConnect owns sales, immutable invoice tax snapshots, stock movements,
@@ -87,6 +87,32 @@ Sources checked 2026-11-25 (the CBIC Act page is the original text; the
   review; this implements component preservation, not statutory filing approval.
 
 ## Money, consistency and recovery
+
+### Owner setup and rate changes
+
+GST amounts are calculated by the server. An account with `pharmacy.tax.manage`
+and current Editor access at the exact outlet can maintain the source setup:
+
+1. In **PharmaConnect → Outlets & access**, open the outlet and record its
+   GSTIN, state/union territory and **In force from** date under **Tax registration**.
+2. In **Product catalogue**, open the product and record its HSN, taxable/nil-rated/
+   exempt supply nature, total **Rate (%)** and **In force from** date in its
+   tax-classification panel. Exempt supplies require their exemption basis.
+3. At checkout, record the unregistered recipient's state (delivery state when
+   different from billing). The server selects CGST+SGST, CGST+UTGST or IGST from
+   the supplier/recipient jurisdictions; the operator does not enter those
+   component amounts separately.
+4. For a rate change, append a new classification with its effective date.
+   New entries cannot start before the outlet's today; a same-date correction
+   requires a reason. The history retains the previous rows. Future invoices use
+   the classification in force on their sale date; posted invoices and their
+   credits retain the original component snapshot.
+
+Government rate changes are not downloaded automatically. The authorized owner/
+finance team supplies the applicable classification and rate. The canonical
+India profile supplies jurisdiction/component rules, not medicine rates. The
+12% rate in the acceptance fixture is synthetic and is not a recommendation for
+any real product.
 
 All values remain integer minor units. IGST inside gross is rounded half up once:
 `round(gross * rate_ppm / (1000000 + rate_ppm))`. Taxable is the residual.
@@ -187,11 +213,36 @@ review permission disappeared and outlet access was denied. The seven pilot
 capabilities were re-enabled through audited Console at the user's request and
 verified in the SDK; authorization and absolute tenant-policy expiry still apply.
 
-The posted invoice/credit/report browser check is still pending because native
-Chrome use was interrupted by the user; extension attachment was unavailable
-without a desktop-app network policy. Earlier deployed owner-counter smoke and
-hosted browser tests passed. This does not substitute for the remaining check;
-issue #1689 stays open until it is recorded.
+### Completed deployed-browser acceptance (2026-11-25)
+
+On deployed revision `b5b084ce7bb660c5a77270cd87721a6f65a1ff58`, the signed-in
+owner opened the original IGST and UTGST sale statements. They displayed explicit
+tax components, the original partial-credit amounts and zero remaining balances.
+
+Two additional complete synthetic journeys used the visible counter and Returns
+forms: product selection, 10-unit basket, recipient state, priced quote, cash
+posting, invoice display, quarantine selection and full credit-note issuance.
+
+| UI invoice    | Seller → recipient                |      Total | Tax shown on both invoice and credit           | Credit note    |
+| ------------- | --------------------------------- | ---------: | ---------------------------------------------- | -------------- |
+| `T168/2627/5` | Maharashtra → Odisha              | INR 125.00 | IGST INR 13.39; other components zero          | `T168/2627/C7` |
+| `T168/2627/6` | Chandigarh → omitted (Chandigarh) | INR 125.00 | CGST INR 6.70 + UTGST INR 6.70; SGST/IGST zero | `T168/2627/C8` |
+
+The printed document views showed the original seller GSTIN, recipient state,
+taxable amount, component amounts, original invoice reference, synthetic recipient
+and actual issuing owner name. The daily-sales browser view and item report
+agreed with the final API/CSV reconciliation: six sales and eight credits,
+INR 750.00 each direction, INR 669.63 taxable, CGST INR 20.10, SGST INR 6.70,
+IGST INR 40.17 and UTGST INR 13.40 each direction; net amount and units were zero.
+There were 60 units sold/returned cumulatively, with the same physical 40 test
+units finally quarantined and zero sellable. The original synthetic Maharashtra
+registration was restored. Tally contained 14 individually balanced vouchers.
+
+Native screenshots of the two invoice/credit views and final daily report are
+retained with private QA artifacts; browser chrome and private invitation proofs
+are excluded from the public repository. This completes the posted-document
+browser gate for #1689. The existing tenant-pilot expiry and supported supply
+scope remain authoritative.
 
 ### Automated acceptance coverage
 

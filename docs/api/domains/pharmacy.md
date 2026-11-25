@@ -2257,7 +2257,7 @@ including filtered pages with continuation, without fetching outlet or stock
 records. This UI is compiled eligible in the release candidate; protected checks,
 matching deployment and Console activation are still required.
 
-## Interstate counter invoices (#1689, deployed; live acceptance open)
+## Interstate counter invoices (#1689, deployed; pilot acceptance passed)
 
 `POST …/sales/quote` and `PUT …/sales/{id}` accept optional `place_of_supply`,
 a supported Indian jurisdiction code recording an unregistered recipient's
@@ -2303,5 +2303,6 @@ ownership are unchanged. SDK readers allow omitted UTGST during mixed rollout.
 Once UTGST documents exist, recovery requires a compatible reader. Migration and
 rollout completed for revision `f6a36e9635a4e1226366e04d6693416c0afc763f`;
 [deployment and live synthetic API acceptance evidence](../../design/1689-interstate-igst.md#acceptance-evidence)
-remain distinct from tax-policy approval. Issue #1689 is open pending final
-posted-document browser verification.
+remain distinct from tax-policy approval. Deployed-browser invoice, credit-note
+and report verification also passed; the linked evidence includes owner tax-setup
+instructions, effective-dated rate changes and the limits of rate automation.

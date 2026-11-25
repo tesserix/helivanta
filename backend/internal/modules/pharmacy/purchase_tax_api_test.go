@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/require"
 	"github.com/tesserix/helivanta/internal/testutil"
 	"gorm.io/gorm"
@@ -65,7 +66,12 @@ func TestPurchaseTaxEvidenceVersionsReplayAndPreserveThePostedBill(t *testing.T)
 	err := w.db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
 		return tx.Exec(`UPDATE pharmacy_purchase_tax_evidence SET reason='rewrite' WHERE id=?`, id).Error
 	})
-	require.ErrorContains(t, err, "immutable")
+	var pg *pgconn.PgError
+	require.ErrorAs(t, err, &pg)
+	require.Equal(t, "23514", pg.Code)
+	unchanged := do(w.r, "PUT", path, "exporter", purchaseTaxBody())
+	require.Equal(t, 200, unchanged.Code, unchanged.Body.String())
+	require.JSONEq(t, first.Body.String(), unchanged.Body.String(), "the rejected rewrite preserves every original receipt field")
 }
 func TestPurchaseTaxRejectsWrongSourceTotalsAndScope(t *testing.T) {
 	w := newTallyWorld(t)

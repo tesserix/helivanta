@@ -450,6 +450,7 @@ func TestNoTenantMembershipAllowlist(t *testing.T) {
 // tenant has enough rows, which is #816. Adding an entry here is a
 // decision a reviewer sees.
 var unpaginatedGETAllowlist = map[string]string{
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id/purchase-tax":                                                  "one current immutable tax evidence version for one posted bill, at most its 100 original lines",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/reorder-products/:id":                                                      "one current outlet-scoped product identity/version for reorder administration; no collection",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/stock/low-products/overview":                                                         "one outlet-scoped aggregate count with observation metadata; no product collection",
 	"GET /supply/hospitals/:hospital/partner-grants/:product/:grant/terms/:terms/shipment-source":                                            "one current grant-scoped source identity projection; shipment-order and shipment collections use ResourceListRoute",

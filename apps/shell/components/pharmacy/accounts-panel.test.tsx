@@ -725,6 +725,7 @@ describe("Tally export tab", () => {
           credit_note_count: 0,
           supplier_payment_count: 0,
           payment_reversal_count: 0,
+          purchase_count: 0,
           heads: [],
         });
       return base(url);
@@ -742,7 +743,9 @@ describe("Tally export tab", () => {
   it("previews the outlet's month so far for an exporter once Tally export is released", async () => {
     nav.search = "tab=tally";
     const fetcher = tally(["pharmacy.accounts.export"], [...setup, "pharmacy_payables"]);
-    expect(await screen.findByText(/No sales, credit notes or supplier payments/)).toBeVisible();
+    expect(
+      await screen.findByText(/No sales, credit notes, supplier purchase bills or payments/),
+    ).toBeVisible();
     expect(screen.getByRole("link", { name: "Tally export" })).toHaveAttribute(
       "aria-current",
       "page",

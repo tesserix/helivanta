@@ -53,8 +53,14 @@ func encodeTallyVouchers(vouchers []tallyVoucher) ([]byte, error) {
 		if err := writeTallyVoucher(&b, v); err != nil {
 			return nil, fmt.Errorf("voucher %d: %w", i, err)
 		}
+		if b.Len() > tallyExportBytes {
+			return nil, errTallyTooLarge
+		}
 	}
 	b.WriteString("</REQUESTDATA>\n</IMPORTDATA>\n</BODY>\n</ENVELOPE>\n")
+	if b.Len() > tallyExportBytes {
+		return nil, errTallyTooLarge
+	}
 	return b.Bytes(), nil
 }
 

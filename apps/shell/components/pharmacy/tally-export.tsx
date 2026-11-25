@@ -41,9 +41,9 @@ export function TallyExport({
         Tally export
       </h3>
       <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
-        Sales invoices, credit notes and supplier payments as Tally accounting vouchers, with GST
-        split by rate into CGST, SGST, UTGST and IGST. Supplier purchase bills are not exported yet.
-        Every preview and download is recorded.
+        Sales invoices, credit notes, supplier purchase bills and payments as Tally accounting
+        vouchers, with GST split by rate into CGST, SGST, UTGST and IGST. Record each purchase
+        bill’s source tax evidence first. Every preview and download is recorded.
       </p>
       <form
         noValidate
@@ -75,6 +75,7 @@ const COUNTS = [
   ["credit_note_count", "Credit notes"],
   ["supplier_payment_count", "Supplier payments"],
   ["payment_reversal_count", "Payment reversals"],
+  ["purchase_count", "Supplier purchase bills"],
 ] as const;
 
 function Preview({
@@ -103,7 +104,11 @@ function Preview({
     return (
       <div className="mt-5">
         <RequestFailure
-          message="Could not load the Tally preview."
+          message={
+            preview.error instanceof ApiError && preview.error.code === "tally_purchase_tax_missing"
+              ? "Supplier bills in this period need source tax evidence. Open Supplier bills, record each bill’s purchase tax breakdown, then preview again."
+              : "Could not load the Tally preview."
+          }
           error={preview.error}
           retry={preview.refetch}
         />
@@ -120,7 +125,7 @@ function Preview({
   const unnamed = data.heads.filter((head) => head.ledger_name === null).length;
   return (
     <div className="mt-5 space-y-5">
-      <dl className="grid max-w-3xl grid-cols-2 gap-3 sm:grid-cols-4">
+      <dl className="grid max-w-3xl grid-cols-2 gap-3 sm:grid-cols-3">
         {COUNTS.map(([field, label]) => (
           <div key={field} className="rounded-md border p-3">
             <dt className="text-xs text-muted-foreground">{label}</dt>
@@ -130,7 +135,8 @@ function Preview({
       </dl>
       {vouchers === 0 ? (
         <p className="text-sm text-muted-foreground">
-          No sales, credit notes or supplier payments from {period.from} to {period.to}.
+          No sales, credit notes, supplier purchase bills or payments from {period.from} to{" "}
+          {period.to}.
         </p>
       ) : (
         <>
@@ -162,6 +168,8 @@ function Preview({
                   explained(
                     fetchPharmacyTallyVouchers(scope, period, data.ledger_map_id, signal),
                     {
+                      tally_purchase_tax_missing:
+                        "New supplier bills need source tax evidence. Record it in Supplier bills, then preview again.",
                       tally_ledger_map_changed:
                         "The ledger names changed since this preview. Check them below, then download again.",
                       tally_ledgers_unmapped:

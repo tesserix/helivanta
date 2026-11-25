@@ -4052,6 +4052,24 @@
           "counted": false
         },
         {
+          "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id/purchase-tax/:evidence",
+          "permission": "pharmacy.accounts.export",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id/purchase-tax",
+          "permission": "pharmacy.accounts.export",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
           "method": "GET",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id/settlements",
           "permission": "pharmacy.accounts.read",
@@ -6919,6 +6937,48 @@
           "id": "0073_pharmacy_union_territory_gst",
           "sql_sha256": "6bd53625fdfaedd49428acee70dccdbc6ef6c5abb1eb4bc325d03993604244ba",
           "creates_tables": []
+        },
+        {
+          "id": "0074_pharmacy_purchase_tax_evidence",
+          "sql_sha256": "b7a5bd7144b3d691aa7d73ed2e45b2567d1d4567ebec084e784e780c718caabb",
+          "creates_tables": [
+            "pharmacy_purchase_tax_evidence",
+            "pharmacy_purchase_tax_lines",
+            "pharmacy_tally_export_receipts"
+          ]
+        },
+        {
+          "id": "0075_pharmacy_purchase_export_day",
+          "sql_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "creates_tables": [],
+          "concurrent_indexes": [
+            {
+              "name": "pharmacy_purchase_export_day",
+              "table": "pharmacy_payables",
+              "columns": [
+                {
+                  "name": "tenant_id",
+                  "descending": false
+                },
+                {
+                  "name": "outlet_id",
+                  "descending": false
+                },
+                {
+                  "name": "issued_on",
+                  "descending": false
+                },
+                {
+                  "name": "created_at",
+                  "descending": false
+                },
+                {
+                  "name": "id",
+                  "descending": false
+                }
+              ]
+            }
+          ]
         }
       ]
     },

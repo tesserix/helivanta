@@ -4,13 +4,13 @@ import { apiFetch, apiFetchResponse } from "./client";
 import { pharmacyKey, pharmacyRoot } from "./pharmacy";
 import { pharmacyActorHeaders, type PharmacyActorScope } from "./pharmacy-actor";
 import {
-  pharmacyTallyExportPreviewSchema,
+  pharmacyTallyPurchaseExportPreviewSchema,
   pharmacyTallyLedgerMapEntryInputSchema,
   pharmacyTallyLedgerMapInputSchema,
   pharmacyTallyLedgerMapReceiptSchema,
 } from "./pharmacy-contract";
 
-export type PharmacyTallyPreview = z.infer<typeof pharmacyTallyExportPreviewSchema>;
+export type PharmacyTallyPreview = z.infer<typeof pharmacyTallyPurchaseExportPreviewSchema>;
 export type PharmacyTallyLedgerMapInput = z.infer<typeof pharmacyTallyLedgerMapInputSchema>;
 export type PharmacyTallyLedgerMapReceipt = z.infer<typeof pharmacyTallyLedgerMapReceiptSchema>;
 export type PharmacyTallyPeriod = { from: string; to: string };
@@ -48,7 +48,11 @@ function root(scope: PharmacyActorScope) {
   return `${pharmacyRoot(scope)}/accounts/tally`;
 }
 function periodQuery(period: PharmacyTallyPeriod) {
-  return new URLSearchParams({ from: day.parse(period.from), to: day.parse(period.to) });
+  return new URLSearchParams({
+    from: day.parse(period.from),
+    to: day.parse(period.to),
+    purchase_bills: "true",
+  });
 }
 function read(scope: PharmacyActorScope, signal: AbortSignal): RequestInit {
   return {
@@ -69,7 +73,7 @@ export async function readPharmacyTallyPreview(
   period: PharmacyTallyPeriod,
   signal: AbortSignal,
 ): Promise<PharmacyTallyPreview> {
-  const parsed = pharmacyTallyExportPreviewSchema.safeParse(
+  const parsed = pharmacyTallyPurchaseExportPreviewSchema.safeParse(
     await apiFetch(`${root(scope)}/preview?${periodQuery(period)}`, read(scope, signal)),
   );
   if (
@@ -142,6 +146,7 @@ export async function fetchPharmacyTallyVouchers(
     !/^(?:0|[1-9]\d{0,3})$/.test(vouchers) ||
     Number(vouchers) > 5000 ||
     response.headers.get("X-Export-Ledger-Map") !== map ||
+    response.headers.get("X-Export-Purchase-Bills") !== "true" ||
     !/^[0-9a-f]{64}$/.test(digest)
   )
     throw new Error("The server did not return a valid Tally file. Try again.");

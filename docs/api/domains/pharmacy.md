@@ -2028,66 +2028,102 @@ void recovery with replacement response loss, one-write recovery, retained
 original history and unchanged payments/stock. Latest hosted/visual evidence,
 payable journal/report integration and approved live acceptance remain open.
 
-## Tally accounting export (#1690, unreleased source)
+## Tally accounting export (#1690)
 
-The export slice adds `PUT/GET /accounts/tally/ledger-maps/{map}`,
-`GET /accounts/tally/preview` and `GET /accounts/tally/vouchers.xml` under the
-existing pharmacy/outlet prefix ([ADR-0076](../../adr/0076-pharmacy-tally-accounting-export.md)).
-They remain outside the global release behind the `pharmacy_payables`
-capability, panel `pharmacy.tally_export`. Migration
-`0062_pharmacy_tally_ledger_maps` is present in the approved deployed release.
-The bounded #1689 tenant pilot verified sale/credit tax exports, explicit
-IGST/UTGST mappings and balanced vouchers; it does not establish supplier-payment
-acceptance or a global release of #1690.
+The existing core is deployed to the bounded pilot. The purchase extension below
+is development source, not yet deployed or globally released. All routes retain
+`pharmacy.accounts.export`, exact pharmacy/outlet access and `pharmacy_payables`
+release admission. See [the owner guide](../../design/1690-tally-accounting-export.md)
+and [purchase completion design](../../superpowers/specs/2026-11-26-tally-purchase-completion.md).
 
-`pharmacy.accounts.export` covers all four routes. Module grants name pharmacy
-owners only, because the file discloses both sales and supplier payments; the
-platform grant reconciler also adds tenant administrators. Each request still
-requires verified tenant membership and a current exact-outlet grant: editor to
-write a map, reader otherwise. Cross-tenant and foreign-outlet requests are 404.
+Under `/pharmacies/{pharmacy}/outlets/{outlet}/accounts`:
 
-A ledger map is an immutable, versioned record naming a Tally ledger for each
-closed account head: voucher type, tender, sales goods or own-service by
-treatment and `rate_ppm`, CGST/SGST/IGST by rate, supplier payment method and
-supplier. A PUT names the map it `replaces` (null for the first) and the entries
-to set; the server stores the complete merged map. A stale `replaces` or second
-successor is `409 tally_ledger_map_conflict`, an identical replay returns the
-original receipt and changed intent is `409`. An `X-Helivanta-Expected-Subject`
-for another session is `409 session_changed`, as for supplier bills. Names are
-1–100 characters without
-control characters or surrounding spaces, which are refused rather than trimmed.
-A map holds at most 1,000 entries (`409 tally_ledger_map_full`) and its body is
-strict and capped at 3 MiB.
+- `PUT/GET /tally/ledger-maps/{map}` retain immutable, single-successor mapping
+  versions, a 1,000-head bound, same-command replay and conflict refusal.
+- `GET /tally/preview?from=&to=&purchase_bills=true` includes `purchase_count` alongside sale,
+  sales-credit-note, supplier-payment and payment-reversal counts.
+- `GET /tally/vouchers.xml?from=&to=&ledger_map=` exports balanced accounting
+  vouchers for those documents and supplier bills dated by `issued_on`. The
+  previewed map fence, INR-only restriction, 1–366 day period, 5,000-voucher and
+  8 MiB bounds remain. Unmapped heads refuse with `tally_ledgers_unmapped`;
+  a changed map with `tally_ledger_map_changed`. No partial file is released.
+- `GET /payables/{id}/purchase-tax` returns `{evidence:null}` before the first
+  source classification, otherwise `{evidence:<PurchaseTaxReceipt>}`.
+- `PUT /payables/{id}/purchase-tax/{evidence}` records a complete immutable
+  `PurchaseTaxInput`. It requires Editor access and honors expected-subject and
+  expected-tenant preconditions. The input names `replaces`, supplier GSTIN or
+  null, supplier state, invoice place of supply, a source/correction reason and
+  one positional `PurchaseTaxLineInput` per original bill line. The canonical
+  Go/Zod models derive from `contracts/pharmacy.json`.
 
-Preview and export take `from`/`to` outlet dates over 1–366 days and run the same
-bounded read under a 10-second deadline and 8-second statement timeout. The
-preview returns document counts, the current map id and every head the period
-needs with its label, mapped ledger name or null and, for suppliers, the latest
-supplier name. The export writes TallyPrime import XML: one balanced accounting
-voucher per sale, credit note, supplier payment and payment reversal, with GST
-split into CGST/SGST or IGST per recorded rate and invoice destination. An IGST
-ledger must be mapped before interstate vouchers can be exported. It refuses `409 tally_ledgers_unmapped` while any head lacks a name,
-`409 tally_currency_unsupported` for non-INR records and
-`413 accounting_export_too_large` beyond 5,000 vouchers or 8 MiB; it never writes
-a placeholder or a cut-off file. An optional single `ledger_map` names the map
-the preview returned (empty for none); any other current map is
-`409 tally_ledger_map_changed`, so names saved after the preview never reach the
-file.
+Each classification records nature/rate and CGST, SGST, IGST and UTGST amounts
+plus each component's recoverable amount. Exact component sums must match the
+posted bill line's tax and recoverable tax; component recoverability cannot
+exceed its tax. Jurisdictions, GSTIN checksum/state, taxable rate precision and
+local/interstate components are validated. Positive GST requires a registered
+supplier. Zero-tax lines require an explicit source classification, including
+outside-GST where applicable. This records authorized source evidence; it does
+not calculate statutory eligibility, download rates or support reverse-charge
+inference. `400 purchase_tax_invalid` rejects inconsistent evidence;
+`409 purchase_tax_conflict` refuses changed command intent or stale predecessors.
+Identical commands replay their original receipts, including after a later version.
+Original bills, balances and inventory valuation are never rewritten.
 
-Voucher identity (`REMOTEID helivanta-<document uuid>`), numbers, order and
-amounts are stable, so the same records and map give byte-identical files. Both
-preview and export commit a purpose read audit in their read transaction and
-fail closed without it. The file response is `private, no-store`, an attachment,
-`nosniff` and carries voucher count, ledger map and sha256 headers. No buyer,
-patient, prescriber, tender reference or return reason appears.
+Migration `0074_pharmacy_purchase_tax_evidence` adds forced-RLS, audited,
+immutable evidence/line tables with scoped foreign keys, one successor per bill
+version and deferred completeness checks. `0075_pharmacy_purchase_export_day`
+adds the existing bill date-range index concurrently. A period containing bills
+without complete evidence refuses preview/download with
+`409 tally_purchase_tax_missing`, rather than excluding those purchases.
 
-Supplier purchase vouchers are not covered: supplier bills record no GST rate,
-component split or supplier GSTIN, and an unsplit input-tax entry would misstate
-input tax credit. #1690 stays open for them. Supplier credits, unused-payment
-refunds and inventory-mode vouchers are also excluded. No import has been run
-against a real TallyPrime company. See the
-[design](../../superpowers/specs/2026-11-21-tally-accounting-export-design.md)
-and [delivery plan](../../superpowers/plans/2026-11-21-tally-accounting-export.md).
+New map heads are `voucher_type:supplier_purchase`,
+`purchases:<category>:<nature>:<rate_ppm>`, `input_<component>:<rate_ppm>` and
+`nonrecoverable_<component>:<rate_ppm>`. Purchases debit net plus landed costs to
+category/rate heads, debit each recoverable input component separately, debit
+nonrecoverable components to their mapped expense heads and credit the supplier
+for the original gross bill. Supplier payment vouchers remain separate on-account
+movements; supplier credit settlements are not sales credit notes or cash payments.
+
+Stable document `REMOTEID`, ordering and exact minor-unit amounts produce
+byte-identical XML for unchanged source evidence and ledger mapping. Later
+posted/backdated documents or corrected evidence legitimately change a period;
+this is not point-in-time file storage. Each successful file commits its audit
+record with period, map, SHA-256 and voucher count before release. Preview and
+purchase-evidence reads are audited too. The file preserves the existing no-store,
+attachment, nosniff and checksum/count/map response headers. No buyer/patient,
+private reason, supplier GSTIN or tender reference is exported in narration.
+
+The bill-detail evidence form and purchase-aware Tally preview are wired through
+the Global API SDK. A real TallyPrime company import remains unverified; ledger
+and voucher-type setup, manual invoice numbers and re-import behavior require
+accountant review. The export does not create Tally masters, submit GST returns,
+transfer money, replace legal books or infer supplier-credit tax breakdowns.
+
+The purchase extension also retains `pharmacy_tally_export_receipts`: an immutable,
+forced-RLS record of each delivered file's period, ledger map, voucher count,
+file SHA-256 and source-voucher fingerprint. It commits with the audit event before
+file release; a failed receipt/audit commit releases no file. The receipt holds
+no XML, patient details or duplicated monetary ledger.
+
+Compatibility: the updated SDK requests `purchase_bills=true` for preview and
+file download, verifies the full preview schema and requires the matching
+`X-Export-Purchase-Bills: true` header. Omitting this option preserves the legacy
+four-count response and sales/credit/payment-only file; it does not silently add
+purchases to existing integrations. The option accepts one `true` or `false`
+value; malformed/repeated values are 400. Export receipts record the chosen mode.
+The original map/permission/date/bounds contracts remain unchanged. Consumers
+wanting complete purchase export must use the updated SDK or opt in explicitly.
+
+Purchase-enabled exports additionally cap source detail at 50,000 rows; they refuse an oversized
+period before building vouchers. XML encoding checks its byte bound as each
+voucher is written, returning no partial file. Detailed bills can therefore need
+a shorter period even below the 5,000-document limit.
+
+Purchase import identities use UUIDv5 in the URL namespace over
+`https://helivanta.com/tally/purchase/<verified-tenant>/<verified-outlet>/<bill-id>`,
+prefixed `helivanta-`. They remain distinct across tenants/outlets and from a
+sale reusing the same document UUID. Existing sale/credit/payment identities
+are unchanged. Source parts join by document kind as well as ID.
 
 ### Hospital stocktake command candidate — #1686
 

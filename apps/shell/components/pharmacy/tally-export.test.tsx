@@ -45,6 +45,7 @@ function serve({
         credit_note_count: vouchers ? 1 : 0,
         supplier_payment_count: vouchers ? 1 : 0,
         payment_reversal_count: 0,
+        purchase_count: 0,
         heads: vouchers
           ? heads.map((h) => ({
               head: h.head,
@@ -95,6 +96,7 @@ function serve({
         headers: {
           "Content-Type": "application/xml; charset=utf-8",
           "Content-Disposition": `attachment; filename="pharmacy-tally-vouchers-${scope.outletId}-${query.get("from")}-${query.get("to")}.xml"`,
+          "X-Export-Purchase-Bills": "true",
           "X-Export-Voucher-Count": String(vouchers),
           "X-Export-Ledger-Map": state.map ?? "",
           "X-Export-Sha256": createHash("sha256").update(xml).digest("hex"),
@@ -147,7 +149,9 @@ it("previews the month so far and holds the file until every head has a ledger",
   expect(screen.getByText("Payment reversals").parentElement).toHaveTextContent(
     "Payment reversals0",
   );
-  expect(state.previews).toEqual([`${root}/preview?from=2026-11-01&to=2026-11-15`]);
+  expect(state.previews).toEqual([
+    `${root}/preview?from=2026-11-01&to=2026-11-15&purchase_bills=true`,
+  ]);
   expect(screen.getByLabelText("Voucher type for sales")).toHaveValue("Sales");
   expect(screen.getByLabelText("Supplier ACME (TEST Acme Pharma)")).toHaveValue("");
   expect(
@@ -209,7 +213,7 @@ it("saves only the changed names as a new map version, then downloads that versi
   await user.click(await screen.findByRole("button", { name: "Download Tally XML" }));
   expect(await screen.findByText("XML download started.")).toBeVisible();
   expect(state.downloads).toEqual([
-    `${root}/vouchers.xml?from=2026-11-01&to=2026-11-15&ledger_map=${state.map}`,
+    `${root}/vouchers.xml?from=2026-11-01&to=2026-11-15&purchase_bills=true&ledger_map=${state.map}`,
   ]);
   expect(state.map).not.toBe(first);
   expect(downloaded).toHaveBeenCalledWith(
@@ -285,8 +289,8 @@ it("refuses a file for a map other than the previewed one and reloads the previe
     "The ledger names changed since this preview. Check them below, then download again.",
   );
   expect(state.downloads).toEqual([
-    `${root}/vouchers.xml?from=2026-11-01&to=2026-11-15&ledger_map=${first}`,
-    `${root}/vouchers.xml?from=2026-11-01&to=2026-11-15&ledger_map=${first}`,
+    `${root}/vouchers.xml?from=2026-11-01&to=2026-11-15&purchase_bills=true&ledger_map=${first}`,
+    `${root}/vouchers.xml?from=2026-11-01&to=2026-11-15&purchase_bills=true&ledger_map=${first}`,
   ]);
   expect(downloaded).toHaveBeenCalledTimes(1);
 });
@@ -336,7 +340,7 @@ it("offers no file for a period with nothing to export", async () => {
   render();
   expect(
     await screen.findByText(
-      "No sales, credit notes or supplier payments from 2026-11-01 to 2026-11-15.",
+      "No sales, credit notes, supplier purchase bills or payments from 2026-11-01 to 2026-11-15.",
     ),
   ).toBeVisible();
   expect(download()).not.toBeInTheDocument();
@@ -357,8 +361,8 @@ it("previews another period, bounded as the server bounds it", async () => {
   await user.click(screen.getByRole("button", { name: "Preview period" }));
   await waitFor(() =>
     expect(state.previews).toEqual([
-      `${root}/preview?from=2026-11-01&to=2026-11-15`,
-      `${root}/preview?from=2026-10-01&to=2026-11-15`,
+      `${root}/preview?from=2026-11-01&to=2026-11-15&purchase_bills=true`,
+      `${root}/preview?from=2026-10-01&to=2026-11-15&purchase_bills=true`,
     ]),
   );
 });

@@ -1,6 +1,8 @@
 # ADR-0076: Tally accounting export from the pharmacy's own ledgers
 
-Status: implementation in progress; not deployed or release eligible. Refs #1690.
+Status: the original export core is deployed to the bounded pilot. The purchase
+evidence extension is in development, not deployed. Refs #1690; current design:
+[purchase completion](../superpowers/specs/2026-11-26-tally-purchase-completion.md).
 Design: [spec](../superpowers/specs/2026-11-21-tally-accounting-export-design.md).
 
 ## Context and ownership
@@ -33,8 +35,9 @@ second ledger, guess ledger names, or invent a GST split the records do not hold
 ## Options rejected
 
 - **Purchase vouchers with one unsplit input-tax entry.** This would misstate
-  input tax credit. Purchases wait for supplier bills that record GST by rate
-  and component with the supplier GSTIN.
+  input tax credit. The purchase extension resolves the missing evidence with
+  immutable source-invoice classifications, explicit component recoverability
+  and exact original-total validation; it never infers legal ITC eligibility.
 - **Daily summary vouchers.** These are smaller files, but lose invoice-wise
   numbers and identities, so a re-import or audit cannot match an invoice.
 - **Default ledger names** such as "Sales" or "Output CGST". A wrong default
@@ -50,5 +53,7 @@ second ledger, guess ledger names, or invent a GST split the records do not hold
 - Tally-side de-duplication on re-import depends on the importer's overwrite
   setting, so the screen says to import each file once.
 - A real TallyPrime import remains an unexecuted acceptance item.
-- IGST heads arrive with inter-state sales, if ever recorded. Supplier credits
-  and purchase vouchers arrive with purchase GST capture.
+- IGST and UTGST output heads are implemented and pilot-tested with #1689.
+  Purchase heads and source evidence are the current #1690 extension. Supplier
+  credit settlements are distinct from sales credit notes and remain outside
+  this document-voucher scope; they are not silently treated as cash payments.

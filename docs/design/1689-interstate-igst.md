@@ -1,6 +1,7 @@
 # Interstate counter sales (#1689)
 
-Status: implementation in progress; not a production tax-policy approval.
+Status: implementation merged and deployed; live checkout/credit/export acceptance
+remains open. This is not a production tax-policy approval.
 
 PharmaConnect owns sales, immutable invoice tax snapshots, stock movements,
 credit notes and accounting/report projections. Shell consumes the existing v1
@@ -18,6 +19,25 @@ It records the recipient state on the invoice; where billing and delivery differ
 the operator selects the delivery state. Omission retains the supplier state.
 A registered patient's or admission's clinical address is not assumed to be tax
 evidence. An admission-account sale cannot override the outlet state.
+
+### Nationwide geographic scope
+
+This is an India-wide counter capability, not a Maharashtra-specific rule.
+Supplier registration and recipient selection use the canonical India GST
+jurisdiction catalogue: all 28 states and 8 union territories, plus the supported
+`97` Other Territory code. Retired codes `25` and `28`, foreign codes, and special
+registration codes that are not supported outlet locations remain invalid.
+Maharashtra/Odisha are acceptance examples, not an activation allowlist. The
+temporary Yes Hospital pilot is an authorization boundary for testing; it does
+not limit the geographic tax calculation or authorize other tenants to use
+unreleased retail features.
+
+The same reviewed product rate applies regardless of the selected state; changing
+destination chooses the appropriate component split and does not select a new
+medicine tax rate. Same-jurisdiction invoices retain the existing CGST plus
+SGST/UTGST treatment and jurisdiction label. Different supported jurisdictions
+use IGST. Local licensing, registration validity and product review remain
+separate prerequisites; selecting a state cannot satisfy those requirements.
 
 Different supplier and recipient states use IGST; same-state sales retain the
 existing CGST/SGST calculation. Rates remain the product classification in force
@@ -67,6 +87,13 @@ that ignores IGST is unsafe. No extra infrastructure cost or index is expected;
 release must verify migrations, scoped API behavior and actual UI before closure.
 
 ## Acceptance evidence to collect
+
+`TestCounterTaxDestinationsCoverAllIndianJurisdictions` verifies all 1,369
+seller/recipient combinations and omitted-destination defaults against the
+canonical catalogue. It independently checks the complete supported code set,
+single rounded IGST and unchanged same-jurisdiction components. This is focused
+in-process calculation evidence, not a claim that every jurisdiction pair was
+posted through the live checkout.
 
 Test Maharashtra to Odisha and the reverse; same-state/omitted destination;
 invalid jurisdiction; mixed rates, nil/exempt and discounts; NPPA boundary;

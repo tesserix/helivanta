@@ -14,8 +14,7 @@ import {
   type Staff,
   type UseApiPagedQueryResult,
 } from "@helivanta/api";
-import { Field, SelectControl, useZodForm } from "@helivanta/ui";
-import { inputClass } from "../roster-policy/policy-ui";
+import { Field, SelectControl, useZodForm, controlClass } from "@helivanta/ui";
 import { SaveError } from "../leave-balances/years-panel";
 import { personLabel, saveFailure } from "./benefits-ui";
 
@@ -103,7 +102,7 @@ export function CoverageProposal({
       <input
         id={`coverage-${name}`}
         type="date"
-        className={inputClass}
+        className={controlClass}
         aria-invalid={!!errors[name]}
         {...form.register(name, name === "coverage_until" ? optionalDate : {})}
       />
@@ -181,8 +180,7 @@ export function CoverageProposal({
             <textarea
               id="coverage-basis"
               rows={2}
-              maxLength={500}
-              className={inputClass}
+              className={controlClass}
               aria-invalid={!!errors.eligibility_basis}
               {...form.register("eligibility_basis")}
             />

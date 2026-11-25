@@ -9,7 +9,7 @@ import {
   type Hospital,
   type Staff,
 } from "@helivanta/api";
-import { Field, SelectControl, RequestFailure } from "@helivanta/ui";
+import { Field, Panel, SelectControl, RequestFailure } from "@helivanta/ui";
 
 import { DependentsSection } from "./dependents-section";
 import { EnrollmentsSection } from "./enrollments-section";
@@ -30,10 +30,7 @@ export function StaffBenefitsPanel({
   const [selected, setSelected] = useState("");
   const member = staff.items.find((s) => s.id === selected);
   return (
-    <section
-      aria-label="Staff benefits"
-      className="overflow-hidden rounded-2xl border bg-card shadow-sm"
-    >
+    <Panel flush aria-label="Staff benefits">
       <div className="flex flex-wrap items-end justify-between gap-4 p-5">
         <div>
           <h3 className="font-semibold">Staff benefits</h3>
@@ -81,7 +78,7 @@ export function StaffBenefitsPanel({
           </Button>
         </div>
       )}
-    </section>
+    </Panel>
   );
 }
 

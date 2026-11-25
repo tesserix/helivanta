@@ -14,8 +14,8 @@ import {
   type BenefitPlan,
   type Hospital,
 } from "@helivanta/api";
-import { Field, SelectControl, useZodForm } from "@helivanta/ui";
-import { inputClass, today } from "../roster-policy/policy-ui";
+import { Field, SelectControl, useZodForm, controlClass, Panel } from "@helivanta/ui";
+import { today } from "../roster-policy/policy-ui";
 import { SaveError } from "../leave-balances/years-panel";
 
 const rowsText = (rows: number) => `${rows} coverage ${rows === 1 ? "row" : "rows"}`;
@@ -59,10 +59,7 @@ export function CoverageExport({ hospital }: { hospital: Hospital }) {
   const failure = exporting.error?.name === "AbortError" ? null : exporting.error;
   const errors = form.formState.errors;
   return (
-    <section
-      aria-label="Coverage export"
-      className="overflow-hidden rounded-2xl border bg-card shadow-sm"
-    >
+    <Panel flush aria-label="Coverage export">
       <div className="border-b p-5">
         <h3 className="font-semibold">Coverage export</h3>
         <p className="mt-1 text-xs text-muted-foreground">
@@ -85,7 +82,7 @@ export function CoverageExport({ hospital }: { hospital: Hospital }) {
             <input
               id="coverage-export-as-of"
               type="date"
-              className={inputClass}
+              className={controlClass}
               aria-invalid={!!errors.as_of}
               {...form.register("as_of")}
             />
@@ -126,6 +123,6 @@ export function CoverageExport({ hospital }: { hospital: Hospital }) {
           </Button>
         </div>
       </form>
-    </section>
+    </Panel>
   );
 }

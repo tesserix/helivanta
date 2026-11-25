@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Button } from "@tesserix/web";
 import { useApiPagedQuery, usePermissions, type Hospital } from "@helivanta/api";
-import { Field, PageHeading, SelectControl, RequestFailure } from "@helivanta/ui";
+import { Field, PageHeading, Panel, SelectControl, RequestFailure } from "@helivanta/ui";
 
 import { CoverageExport } from "./coverage-export";
 import { PlansPanel } from "./plans-panel";
@@ -21,7 +21,7 @@ export function BenefitsWorkspace() {
   return (
     <>
       <PageHeading
-        description="Record the benefit plans this hospital offers, each employee's dependents and who each plan covers. Nothing is pre-loaded or decided automatically: every coverage change needs a second person's approval, and every change keeps its history."
+        description="Record the benefit plans this hospital offers, each employee's dependents and who each plan covers."
         actions={
           allowed &&
           hospital && (
@@ -41,10 +41,12 @@ export function BenefitsWorkspace() {
       {isLoading ? (
         <p role="status">Loading…</p>
       ) : !allowed ? (
-        <p className="rounded-2xl border bg-card p-8">
-          Benefits are confidential. Ask your tenant administrator for benefits access to see plans,
-          dependents and coverage.
-        </p>
+        <Panel as="div">
+          <p>
+            Benefits are confidential. Ask your tenant administrator for benefits access to see
+            plans, dependents and coverage.
+          </p>
+        </Panel>
       ) : hospitals.isPending ? (
         <p role="status">Loading hospitals…</p>
       ) : hospitals.isError ? (
@@ -56,9 +58,9 @@ export function BenefitsWorkspace() {
       ) : hospital ? (
         <HospitalBenefits key={hospital.id} hospital={hospital} />
       ) : (
-        <p className="rounded-2xl border bg-card p-8">
-          Ask your tenant administrator for hospital access before recording benefits.
-        </p>
+        <Panel as="div">
+          <p>Ask your tenant administrator for hospital access before recording benefits.</p>
+        </Panel>
       )}
       {allowed && hospitals.hasMore && (
         <Button

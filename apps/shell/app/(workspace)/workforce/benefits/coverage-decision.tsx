@@ -18,8 +18,7 @@ import {
   type BenefitScope,
   type BenefitWithdrawInput,
 } from "@helivanta/api";
-import { Field, useZodForm } from "@helivanta/ui";
-import { inputClass } from "../roster-policy/policy-ui";
+import { Field, useZodForm, controlClass } from "@helivanta/ui";
 import { SaveError } from "../leave-balances/years-panel";
 import { Fact } from "../payroll-setup/payroll-workspace";
 import { EvidencePanel, EvidenceScanningNotice, useEvidenceScanning } from "../evidence-panel";
@@ -125,8 +124,7 @@ export function ReviewForm({ scope, enrollment, proposal, title, onClose }: Prop
         <textarea
           id="coverage-note"
           rows={2}
-          maxLength={500}
-          className={inputClass}
+          className={controlClass}
           aria-invalid={!!form.formState.errors.note}
           disabled={busy}
           {...form.register("note")}
@@ -181,8 +179,7 @@ export function WithdrawForm({ scope, enrollment, proposal, title, onClose }: Pr
         <textarea
           id="coverage-withdraw-note"
           rows={2}
-          maxLength={500}
-          className={inputClass}
+          className={controlClass}
           disabled={withdraw.isPending}
           {...form.register("note")}
         />

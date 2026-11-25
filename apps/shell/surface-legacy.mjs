@@ -30,9 +30,4 @@ export const SURFACE_LEGACY = [
   "components/supply/platform-identity.tsx",
   "components/supply/warehouse-bins.tsx",
   // Workforce #1261
-  "app/(workspace)/workforce/benefits/benefits-workspace.tsx",
-  "app/(workspace)/workforce/benefits/coverage-export.tsx",
-  "app/(workspace)/workforce/benefits/plan-editor.tsx",
-  "app/(workspace)/workforce/benefits/plans-panel.tsx",
-  "app/(workspace)/workforce/benefits/staff-benefits-panel.tsx",
 ];

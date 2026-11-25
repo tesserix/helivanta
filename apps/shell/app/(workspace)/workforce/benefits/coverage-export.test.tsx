@@ -14,6 +14,10 @@ import {
 } from "@/test/benefits";
 import Benefits from "./page";
 
+// #1261 slice 6: cards are Panel, so no hand-painted card class survives.
+// Buttons are controls: the design system's outline button carries shadow-sm.
+const CARDS = ":is(.rounded-xl, .rounded-2xl, .shadow-sm):not(button)";
+
 afterEach(() => {
   cancelTenantTransition();
   vi.restoreAllMocks();
@@ -74,6 +78,7 @@ it("lets a reader export one plan or all plans and reports the verified row coun
     within(form).getByText("benefits-coverage-2026-10-19.csv · 3 coverage rows"),
   ).toBeInTheDocument();
   expect(saved).toEqual(["benefits-coverage-2026-10-19.csv"]);
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   expect(revoke).toHaveBeenCalledWith("blob:synthetic-coverage");
   await chooseOption(user, within(form).getByRole("combobox", { name: "Plan" }), "All plans");
   await user.click(within(form).getByRole("button", { name: "Export coverage" }));

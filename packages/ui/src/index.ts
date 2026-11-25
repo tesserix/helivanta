@@ -31,6 +31,7 @@ export {
 } from "./navigation-guard";
 export { IdleWarning, type IdleWarningProps } from "./idle-warning";
 export { Field, useZodForm } from "./form";
+export { controlClass, tableStyles } from "./control";
 export {
   Controller,
   useFieldArray,

@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/require"
 	"github.com/tesserix/helivanta/internal/testutil"
 	"gorm.io/gorm"
@@ -192,8 +193,15 @@ func TestInterstateDatabaseRejectsWrongHeaderAndGoodsComponents(t *testing.T) {
 		if err := copyHeader(tx, newID, false); err != nil {
 			return err
 		}
-		patch := fmt.Sprintf(`{"sale_id":%q,"taxable_minor":11160,"cgst_minor":670,"sgst_minor":670,"igst_minor":0}`, newID)
-		return tx.Exec(`INSERT INTO pharmacy_sale_lines SELECT (jsonb_populate_record(NULL::pharmacy_sale_lines,to_jsonb(l)||?::jsonb||jsonb_build_object('id',gen_random_uuid()))).* FROM pharmacy_sale_lines l WHERE l.sale_id=? AND l.tenant_id=?`, patch, id, testutil.TenantA).Error
+		return tx.Exec(`INSERT INTO pharmacy_sale_lines (tenant_id,outlet_id,sale_id,line_number,product_id,batch_id,location_id,lot_number,expires_on,
+            regulatory_class,schedule_declaration_id,classification_code,supply_nature,rate_ppm,mrp_minor,pack_size,quantity_units,amount_minor,taxable_minor,cgst_minor,sgst_minor,igst_minor,
+            prescription_id,prescription_line,discount_bps,discount_minor,price_declaration_id,ceiling_minor,price_limit)
+            SELECT tenant_id,outlet_id,?,line_number,product_id,batch_id,location_id,lot_number,expires_on,
+            regulatory_class,schedule_declaration_id,classification_code,supply_nature,rate_ppm,mrp_minor,pack_size,quantity_units,amount_minor,11160,670,670,0,
+            prescription_id,prescription_line,discount_bps,discount_minor,price_declaration_id,ceiling_minor,price_limit
+            FROM pharmacy_sale_lines WHERE sale_id=? AND tenant_id=?`, newID, id, testutil.TenantA).Error
 	})
-	require.ErrorContains(t, err, "pharmacy_sale_line_gst")
+	var constraint *pgconn.PgError
+	require.ErrorAs(t, err, &constraint)
+	require.Equal(t, "pharmacy_sale_line_gst", constraint.ConstraintName)
 }

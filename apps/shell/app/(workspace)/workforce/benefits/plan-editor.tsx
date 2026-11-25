@@ -12,8 +12,14 @@ import {
   type HRMaster,
   type UseApiPagedQueryResult,
 } from "@helivanta/api";
-import { ConfirmDialog, Field, SelectControl, useZodForm } from "@helivanta/ui";
-import { inputClass } from "../roster-policy/policy-ui";
+import {
+  ConfirmDialog,
+  Field,
+  SelectControl,
+  useZodForm,
+  controlClass,
+  Panel,
+} from "@helivanta/ui";
 import { SaveError } from "../leave-balances/years-panel";
 import { Check } from "../payroll-setup/payroll-workspace";
 import { PLAN_STATUSES, saveFailure } from "./benefits-ui";
@@ -95,7 +101,7 @@ export function PlanEditor({
     <Field id={`plan-${name}`} label={label} error={errors[name]?.message}>
       <input
         id={`plan-${name}`}
-        className={inputClass}
+        className={controlClass}
         disabled={disabled}
         aria-invalid={!!errors[name]}
         {...form.register(name)}
@@ -107,7 +113,7 @@ export function PlanEditor({
       <input
         id={`plan-${name}`}
         type="date"
-        className={inputClass}
+        className={controlClass}
         aria-invalid={!!errors[name]}
         {...form.register(name, name === "effective_until" ? optionalDate : {})}
       />
@@ -153,7 +159,7 @@ export function PlanEditor({
             <textarea
               id="plan-description"
               rows={2}
-              className={inputClass}
+              className={controlClass}
               aria-invalid={!!errors.description}
               {...form.register("description")}
             />
@@ -168,59 +174,60 @@ export function PlanEditor({
               }}
             />
             {value.covers_dependents && (
-              <fieldset
-                aria-describedby={
-                  errors.covered_relationships ? "plan-relationships-error" : undefined
-                }
-                className="rounded-xl border p-4"
-              >
-                <legend className="px-1 text-sm font-medium">Covered relationships</legend>
-                {choices.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    {relationships.isPending
-                      ? "Loading relationships…"
-                      : "Add an active relationship in HR setup first."}
-                  </p>
-                ) : (
-                  <div className="grid gap-2 sm:grid-cols-3">
-                    {choices.map((r) => (
-                      <Check
-                        key={r.id}
-                        label={r.name}
-                        checked={value.covered_relationships.includes(r.id)}
-                        onChange={(on) =>
-                          set(
-                            "covered_relationships",
-                            on
-                              ? [...value.covered_relationships, r.id]
-                              : value.covered_relationships.filter((x) => x !== r.id),
-                          )
-                        }
-                      />
-                    ))}
-                  </div>
-                )}
-                {relationships.hasMore && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="mt-3"
-                    disabled={relationships.isFetchingMore}
-                    onClick={relationships.loadMore}
-                  >
-                    Load more relationships
-                  </Button>
-                )}
-                {errors.covered_relationships && (
-                  <p
-                    id="plan-relationships-error"
-                    role="alert"
-                    className="mt-2 text-sm text-destructive"
-                  >
-                    {errors.covered_relationships.message}
-                  </p>
-                )}
-              </fieldset>
+              <Panel as="div">
+                <fieldset
+                  aria-describedby={
+                    errors.covered_relationships ? "plan-relationships-error" : undefined
+                  }
+                >
+                  <legend className="text-sm font-medium">Covered relationships</legend>
+                  {choices.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      {relationships.isPending
+                        ? "Loading relationships…"
+                        : "Add an active relationship in HR setup first."}
+                    </p>
+                  ) : (
+                    <div className="grid gap-2 sm:grid-cols-3">
+                      {choices.map((r) => (
+                        <Check
+                          key={r.id}
+                          label={r.name}
+                          checked={value.covered_relationships.includes(r.id)}
+                          onChange={(on) =>
+                            set(
+                              "covered_relationships",
+                              on
+                                ? [...value.covered_relationships, r.id]
+                                : value.covered_relationships.filter((x) => x !== r.id),
+                            )
+                          }
+                        />
+                      ))}
+                    </div>
+                  )}
+                  {relationships.hasMore && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="mt-3"
+                      disabled={relationships.isFetchingMore}
+                      onClick={relationships.loadMore}
+                    >
+                      Load more relationships
+                    </Button>
+                  )}
+                  {errors.covered_relationships && (
+                    <p
+                      id="plan-relationships-error"
+                      role="alert"
+                      className="mt-2 text-sm text-destructive"
+                    >
+                      {errors.covered_relationships.message}
+                    </p>
+                  )}
+                </fieldset>
+              </Panel>
             )}
           </div>
         </fieldset>

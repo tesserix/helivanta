@@ -22,6 +22,10 @@ import {
 } from "@/test/benefits";
 import Benefits from "./page";
 
+// #1261 slice 6: cards are Panel, so no hand-painted card class survives.
+// Buttons are controls: the design system's outline button carries shadow-sm.
+const CARDS = ":is(.rounded-xl, .rounded-2xl, .shadow-sm):not(button)";
+
 afterEach(() => vi.unstubAllGlobals());
 
 const plansPanel = () => screen.findByRole("region", { name: "Benefit plans" });
@@ -30,6 +34,7 @@ it("says benefits are confidential and requests none without the view permission
   const { reads } = mockBenefits({ permissions: ["workforce.payroll.view"] });
   renderWithProviders(<Benefits />);
   expect(await screen.findByText(/Benefits are confidential/)).toBeInTheDocument();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   expect(screen.queryByRole("region", { name: "Benefit plans" })).toBeNull();
   expect(reads.filter((url) => /benefit|dependents/.test(url))).toEqual([]);
 });
@@ -51,6 +56,7 @@ it("shows plans read-only to a reader with what each one covers", async () => {
   expect(within(panel).getByText(/Read-only access/)).toBeInTheDocument();
   expect(within(panel).queryByRole("button", { name: "Add plan" })).toBeNull();
   expect(within(panel).queryByRole("button", { name: /^Edit / })).toBeNull();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
 });
 
 it("keeps plans read-only where the hospital grants no manager access", async () => {
@@ -94,6 +100,7 @@ it("refuses an incomplete plan and creates one covering only chosen, active rela
   expect(within(form).queryByRole("checkbox", { name: "Synthetic Parent" })).toBeNull();
   await user.click(within(form).getByRole("button", { name: "Save plan" }));
   expect(await within(form).findByText("Choose at least one relationship.")).toBeInTheDocument();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   await user.click(within(form).getByRole("checkbox", { name: "Synthetic Child" }));
   await user.click(within(form).getByRole("button", { name: "Save plan" }));
 

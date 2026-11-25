@@ -12,8 +12,7 @@ import {
   type HRMaster,
   type UseApiPagedQueryResult,
 } from "@helivanta/api";
-import { ConfirmDialog, Field, SelectControl, useZodForm } from "@helivanta/ui";
-import { inputClass } from "../roster-policy/policy-ui";
+import { ConfirmDialog, Field, SelectControl, useZodForm, controlClass } from "@helivanta/ui";
 import { SaveError } from "../leave-balances/years-panel";
 import { DEPENDENT_STATUSES, saveFailure } from "./benefits-ui";
 
@@ -91,7 +90,7 @@ export function DependentEditor({
       <input
         id={`dependent-${name}`}
         type={type}
-        className={inputClass}
+        className={controlClass}
         aria-invalid={!!errors[name]}
         {...form.register(name)}
       />
@@ -160,8 +159,7 @@ export function DependentEditor({
             <textarea
               id="dependent-reason"
               rows={2}
-              maxLength={500}
-              className={inputClass}
+              className={controlClass}
               aria-invalid={!!errors.reason}
               {...form.register("reason")}
             />

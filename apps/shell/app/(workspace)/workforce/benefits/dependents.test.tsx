@@ -18,6 +18,10 @@ import {
 } from "@/test/benefits";
 import Benefits from "./page";
 
+// #1261 slice 6: cards are Panel, so no hand-painted card class survives.
+// Buttons are controls: the design system's outline button carries shadow-sm.
+const CARDS = ":is(.rounded-xl, .rounded-2xl, .shadow-sm):not(button)";
+
 afterEach(() => vi.unstubAllGlobals());
 
 type User = Awaited<ReturnType<typeof renderWithProviders>>["user"];
@@ -40,6 +44,7 @@ it("fetches no dependents until a staff member is chosen", async () => {
     await screen.findByText("Choose a staff member to see their dependents and coverage."),
   ).toBeInTheDocument();
   expect(reads.filter((url) => /dependents|benefit-enrollments/.test(url))).toEqual([]);
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
 });
 
 it("lists dependents read-only to a reader", async () => {
@@ -50,6 +55,7 @@ it("lists dependents read-only to a reader", async () => {
   expect(within(section).getByText("Synthetic Spouse · born 1990-05-01")).toBeInTheDocument();
   expect(within(section).getByText("Synthetic Child · born 2020-01-01")).toBeInTheDocument();
   expect(within(section).queryByRole("button", { name: "Add dependent" })).toBeNull();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   expect(within(section).queryByRole("button", { name: /^Edit / })).toBeNull();
 });
 

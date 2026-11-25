@@ -145,3 +145,29 @@ func TestInterstateTallyMapsIGSTAndBalancesSaleAndCredit(t *testing.T) {
 		tallyDebit("Output IGST 12%", false, 1339), tallyDebit("Sales 12%", false, 11161), tallyCredit("Counter Cash", false, 12500),
 	}, voucherText(file, 1))
 }
+
+func TestInterstateOdishaSellerAndChangedRegistrationDoNotRepriceCredit(t *testing.T) {
+	w := newSaleWorld(t, true)
+	registration := do(w.r, "PUT", taxCommandPath(registrationsPath(pharmaOutlet)), "editor", registrationBody("21", "21PQRST5678K2ZD", "2026-11-01", "TEST correct synthetic seller state"))
+	require.Equal(t, http.StatusCreated, registration.Code, registration.Body.String())
+	product := w.product(t, "TEST-ODISHA-IGST", "none")
+	w.shelve(t, product, "2028-06-30", 12500, 20)
+	id := uuid.Must(uuid.NewV7()).String()
+	posted := do(w.r, "PUT", salePath("/"+id), "pharmacist", withDestination(cashSale(product, 10, 12500, 12500), "27"))
+	require.Equal(t, http.StatusCreated, posted.Code, posted.Body.String())
+	var invoice interstateDocument
+	require.NoError(t, json.Unmarshal(posted.Body.Bytes(), &invoice))
+	require.Equal(t, "27", invoice.PlaceOfSupply)
+	require.EqualValues(t, 1339, invoice.IGST)
+	// A later same-day registration correction must not change the original tax.
+	registration = do(w.r, "PUT", taxCommandPath(registrationsPath(pharmaOutlet)), "editor", registrationBody("27", "27PQRST5678K2Z1", "2026-11-01", "TEST later synthetic registration correction"))
+	require.Equal(t, http.StatusCreated, registration.Code, registration.Body.String())
+	credit := do(w.r, "PUT", licencePath("/credit-notes/"+uuid.Must(uuid.NewV7()).String()), "pharmacist", returnBody(id, 10, w.quarantine, 12500))
+	require.Equal(t, http.StatusCreated, credit.Code, credit.Body.String())
+	var note interstateDocument
+	require.NoError(t, json.Unmarshal(credit.Body.Bytes(), &note))
+	require.EqualValues(t, 1339, note.IGST)
+	require.Zero(t, note.CGST)
+	require.Zero(t, note.SGST)
+	require.Equal(t, invoice.PlaceOfSupply, note.PlaceOfSupply)
+}

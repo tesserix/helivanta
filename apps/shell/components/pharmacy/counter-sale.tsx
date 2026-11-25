@@ -536,6 +536,7 @@ function Counter({
             scope={scope}
             timeZone={timeZone}
             quote={quote}
+            placeOfSupply={destination}
             basket={basket}
             chargeChannel={chargeChannel}
             onPosted={(sale) => {
@@ -755,6 +756,7 @@ const tenderSchema = z
   });
 
 function TenderForm({
+  placeOfSupply,
   scope,
   timeZone,
   quote,
@@ -770,6 +772,7 @@ function TenderForm({
   scope: PharmacyScope;
   timeZone?: string;
   quote: PharmacySaleQuote;
+  placeOfSupply: string;
   basket: BasketLine[];
   /** Ward-delivery charges bill an admission; counter charges never do. */
   chargeChannel: "counter" | "ward_delivery" | null;
@@ -828,7 +831,7 @@ function TenderForm({
         method: "PUT",
         body: JSON.stringify({
           lines: basket.map(lineBody),
-          ...(quote.place_of_supply ? { place_of_supply: quote.place_of_supply } : {}),
+          ...(placeOfSupply ? { place_of_supply: placeOfSupply } : {}),
           // The versions the quote priced: terms approved since are refused, not billed unseen.
           ...(quote.charges.length > 0
             ? {

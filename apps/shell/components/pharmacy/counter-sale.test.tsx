@@ -225,7 +225,10 @@ function fixture(
         }),
       );
     if (url.endsWith("/sales/quote"))
-      return options.quote?.() ?? new Response(JSON.stringify({ ...totals, lines: [line] }));
+      return (
+        options.quote?.() ??
+        new Response(JSON.stringify({ ...totals, place_of_supply: "27", lines: [line] }))
+      );
     if (/\/sales\/[0-9a-f-]{36}$/.test(url) && init.method === "PUT")
       return (
         options.sale?.(init) ??

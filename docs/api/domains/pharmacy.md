@@ -2260,7 +2260,7 @@ matching deployment and Console activation are still required.
 a supported Indian jurisdiction code recording an unregistered recipient's
 state (delivery state if different). Omission uses the supplier state. No buyer
 GSTIN/B2B, SEZ or export determination is implemented. Quotes return the resolved
-state; the counter carries it into posting. Destination participates in command
+state; the counter posts an override only when the operator recorded one. Destination participates in command
 identity, so a changed replay conflicts. Unknown codes return `409 not_sellable`;
 malformed lengths return `400 invalid_request`. Admission-account invoices cannot
 override the supplier state. Independently taxed own-service charges on

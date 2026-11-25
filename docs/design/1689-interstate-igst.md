@@ -25,9 +25,10 @@ on the outlet date; no rate is introduced here. Independently taxed service
 charges on interstate invoices are refused pending their own section 12 analysis;
 principal-supply charges follow the goods only under the existing same-rate guard.
 
-Sources checked 2026-11-25:
+Sources checked 2026-11-25 (the CBIC Act page is the original text; the
+2024 circular supplies the amended unregistered-recipient rule):
 
-- IGST Act, sections 7, 8 and 10: https://www.indiacode.nic.in/handle/123456789/2251
+- IGST Act, sections 7, 8 and 10: https://cbic-gst.gov.in/hindi/IGST-bill-e.html
 - CBIC Circular 209/3/2024-GST, section 10(1)(ca), including state-name evidence
   and delivery-address precedence: https://www.gstcouncil.gov.in/sites/default/files/2024-09/circular-no-209-03-2024.pdf
 - CGST Act section 34 and invoice/credit-note rules remain subject to finance/tax

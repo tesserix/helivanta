@@ -232,3 +232,15 @@ test("disabling new Staff MFA resets preserves authenticated status and cancella
     assert.equal(routes.get(`POST ${path}/cancel`), "baseline");
   }
 });
+
+test("pilot eligibility cannot include an unreviewed dependency", () => {
+  const value = manifest();
+  value.capabilities[0].eligible = false;
+  value.capabilities[1].eligible = false;
+  value.capabilities[1].pilot_eligible = true;
+  assert.throws(() => validateReleaseManifest(value, []), /ineligible pilot dependency/);
+  value.capabilities[0].pilot_eligible = true;
+  validateReleaseManifest(value, []);
+  value.capabilities[0].pilot_eligible = "true";
+  assert.throws(() => validateReleaseManifest(value, []), /invalid or duplicate capability/);
+});

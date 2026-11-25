@@ -3,8 +3,10 @@
 Product operators control released features in the
 [Tesserix Console](https://console.tesserix.app/platform/feature-flags/helivanta).
 Hospital and pharmacy owners manage staff permissions in Helivanta; they do not
-control these platform switches. Changes affect **all Helivanta tenants in
-production**. A flag never grants membership, professional authority, staff
+control these platform switches. Product-wide flags affect **all Helivanta tenants in production**. Entries
+marked **Pilot only** affect only explicitly configured pilot tenants while their
+operator policy remains unexpired; enabling them never releases them globally.
+See [the scoped pilot procedure](../design/1689-qa-retail-pilot.md). A flag never grants membership, professional authority, staff
 permissions or access to another employer or outlet.
 
 ## Before changing availability

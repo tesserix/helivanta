@@ -30,9 +30,10 @@ var futureFlagKey = regexp.MustCompile(`^helivanta\.release\.[a-z][a-z_]{0,63}$`
 var ErrUnavailable = errors.New("release capabilities unavailable")
 
 type Definition struct {
-	Key          string
-	Eligible     bool
-	Dependencies []string
+	Key           string
+	Eligible      bool
+	PilotEligible bool
+	Dependencies  []string
 }
 
 type Config struct {
@@ -40,11 +41,13 @@ type Config struct {
 	ClientKey string
 	Client    *http.Client
 	Now       func() time.Time
+	Pilot     *PilotConfig
 }
 
 type providerSnapshot struct {
-	loadedAt time.Time
-	features *gb.Client
+	loadedAt   time.Time
+	validUntil time.Time
+	features   *gb.Client
 }
 
 type Service struct {
@@ -53,6 +56,7 @@ type Service struct {
 	now                func() time.Time
 	current            atomic.Pointer[providerSnapshot]
 	developmentFixture bool
+	pilot              *PilotConfig
 }
 
 // New creates a locally evaluated, bounded-lifetime GrowthBook release source.
@@ -76,8 +80,12 @@ func New(cfg Config) (*Service, error) {
 	if cfg.Now == nil {
 		cfg.Now = time.Now
 	}
+	pilot, err := copyPilot(cfg.Pilot, cfg.Now())
+	if err != nil {
+		return nil, err
+	}
 	origin.Path = "/api/features/" + cfg.ClientKey
-	return &Service{endpoint: origin.String(), client: &client, now: cfg.Now}, nil
+	return &Service{endpoint: origin.String(), client: &client, now: cfg.Now, pilot: pilot}, nil
 }
 
 // RouteCapability returns only an explicitly classified method and route pattern.
@@ -158,6 +166,7 @@ func (s *Service) evaluate(ctx context.Context, tenant string) ([]ReleaseCapabil
 	if ctx.Err() != nil || current == nil || now.Before(current.loadedAt) || !now.Before(current.loadedAt.Add(SnapshotLifetime)) {
 		return nil, nil, ErrUnavailable
 	}
+	pilotAllowed := s.pilotAllows(tenant, now)
 	attributes := gb.Attributes{}
 	if tenant != "" {
 		attributes["tenant_id"] = tenant
@@ -183,7 +192,8 @@ func (s *Service) evaluate(ctx context.Context, tenant string) ([]ReleaseCapabil
 			return false, ErrUnavailable
 		}
 		resolved[key] = false
-		if !definition.Eligible && !s.developmentFixture {
+		eligible := definition.Eligible || s.developmentFixture || definition.PilotEligible && pilotAllowed
+		if !eligible {
 			return false, nil
 		}
 		result := client.EvalFeature(ctx, flagPrefix+key)
@@ -217,7 +227,12 @@ func (s *Service) evaluate(ctx context.Context, tenant string) ([]ReleaseCapabil
 		}
 		result = append(result, ReleaseCapability{Key: definition.Key, Available: enabled})
 	}
-	return result, current, nil
+	evaluated := *current
+	evaluated.validUntil = current.loadedAt.Add(SnapshotLifetime)
+	if pilotAllowed && s.pilot.ExpiresAt.Before(evaluated.validUntil) {
+		evaluated.validUntil = s.pilot.ExpiresAt
+	}
+	return result, &evaluated, nil
 }
 
 // Snapshot binds effective capabilities to the authenticated tenant and account.
@@ -229,7 +244,7 @@ func (s *Service) Snapshot(ctx context.Context, tenant uuid.UUID, subject string
 	if err != nil {
 		return ReleaseSnapshot{}, err
 	}
-	return ReleaseSnapshot{TenantID: tenant, Subject: subject, PolicyVersion: PolicyVersion, IssuedAt: current.loadedAt, ExpiresAt: current.loadedAt.Add(SnapshotLifetime), Capabilities: capabilities}, nil
+	return ReleaseSnapshot{TenantID: tenant, Subject: subject, PolicyVersion: PolicyVersion, IssuedAt: current.loadedAt, ExpiresAt: current.validUntil, Capabilities: capabilities}, nil
 }
 
 // PublicSnapshot discloses only whether a new owner can begin onboarding.
@@ -238,7 +253,7 @@ func (s *Service) PublicSnapshot(ctx context.Context) (PublicReleaseSnapshot, er
 	if err != nil {
 		return PublicReleaseSnapshot{}, err
 	}
-	result := PublicReleaseSnapshot{PolicyVersion: PolicyVersion, IssuedAt: current.loadedAt, ExpiresAt: current.loadedAt.Add(SnapshotLifetime)}
+	result := PublicReleaseSnapshot{PolicyVersion: PolicyVersion, IssuedAt: current.loadedAt, ExpiresAt: current.validUntil}
 	for _, capability := range capabilities {
 		if capability.Key == "onboarding" {
 			result.Onboarding = capability.Available

@@ -8,7 +8,7 @@ import (
 )
 
 // FromFile reads the namespace-mounted SDK reader key without exposing it to logs.
-func FromFile(origin, keyFile string) (*Service, error) {
+func FromFile(origin, keyFile, pilotFile string) (*Service, error) {
 	if keyFile == "" {
 		return nil, errors.New("release provider reader key file required")
 	}
@@ -24,5 +24,9 @@ func FromFile(origin, keyFile string) (*Service, error) {
 	if err != nil || len(key) > 1024 {
 		return nil, errors.New("invalid release provider reader key file")
 	}
-	return New(Config{URL: origin, ClientKey: strings.TrimSpace(string(key))})
+	pilot, err := readPilotFile(pilotFile)
+	if err != nil {
+		return nil, err
+	}
+	return New(Config{URL: origin, ClientKey: strings.TrimSpace(string(key)), Pilot: pilot})
 }

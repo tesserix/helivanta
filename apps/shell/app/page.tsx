@@ -26,7 +26,7 @@ const reasons = [
     title: "Every record has one owner",
     body: "The doctor writes the prescription once. The pharmacy dispenses from it and the laboratory reports against the order, so nobody copies a patient's details from one register to the next.",
     today:
-      "Today: Patient management, visits, pharmacy and laboratory are available as foundations.",
+      "Today: Pharmacy setup, low-stock warnings and stocktakes are in this release. Patient records, visits and the laboratory are on the roadmap.",
   },
   {
     title: "Access follows the job",

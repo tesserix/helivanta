@@ -2,10 +2,10 @@
 
 See the [specification](../specs/2026-11-27-practitioner-runtime-integration.md) and [full #169 design](../../design/pharmacist-verification.md).
 
-- [ ] Reproduce the omitted professional owner through a failing bootstrap test.
-- [ ] Register the owner and reconcile independent architecture/permission assertions.
+- [x] Reproduce the omitted professional owner through a failing bootstrap test.
+- [x] Register the owner and reconcile independent architecture/permission assertions.
 - [x] Add explicit Global API mapping and compiled-unreleased route coverage.
-- [ ] Connect the existing evidence workflow to a dedicated, least-privilege worker; cover startup/credential failure paths.
+- [x] Connect the existing evidence workflow to a dedicated, least-privilege worker; cover startup/credential failure paths.
 - [x] Include the binary and deployment configuration through the owning GitOps repositories.
 - [x] Generate/check runtime contracts; align source ownership and deployment documentation.
 - [ ] Run focused local tests, builds, linters and hosted role/RLS/workflow acceptance.

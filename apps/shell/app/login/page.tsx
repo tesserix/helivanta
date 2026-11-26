@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState, type Ref } from "react";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -310,6 +310,23 @@ function LoginFlow({
   // Zitadel's hosted login.
   const [endedMessage, setEndedMessage] = useState<string | null>(null);
 
+  // Focus follows the step (#1854 D2): the pressed control unmounts with its
+  // step, so the new step's heading takes focus. Keyed on what is shown, not
+  // on a first-render flag, so Strict Mode's re-run cannot move focus off the
+  // credential step's own autofocus on arrival.
+  const heading = useRef<HTMLHeadingElement>(null);
+  const shown = endedMessage === null ? step.kind : "ended";
+  const focusedFor = useRef(shown);
+  useEffect(() => {
+    if (focusedFor.current === shown) return;
+    focusedFor.current = shown;
+    // A code step's one job is its code: MfaCodeForm already focused the
+    // first digit, which is announced with its group label, so typing can
+    // start at once. Every other step lands on its heading.
+    if (shown === "otp" || shown === "enroll") return;
+    heading.current?.focus();
+  }, [shown]);
+
   // Ending the flow also drops the password and any TOTP secret the later
   // steps were holding.
   function end(message: string) {
@@ -352,7 +369,7 @@ function LoginFlow({
   }
 
   if (endedMessage) {
-    return <RedirectLanding message={endedMessage} />;
+    return <RedirectLanding message={endedMessage} headingRef={heading} />;
   }
 
   if (step.kind === "accountChoice") {
@@ -360,6 +377,8 @@ function LoginFlow({
       <AccountChoiceStep
         authRequestId={authRequestId}
         choices={step.choices}
+        headingRef={heading}
+        onEnded={end}
         onResult={(result) => advance(result, step.currentPassword)}
       />
     );
@@ -370,7 +389,7 @@ function LoginFlow({
       <TenantLoginLayout>
         <AuthCardCentered>
           <div className="space-y-2 text-center">
-            <TenantLoginHeading />
+            <TenantLoginHeading ref={heading} />
             <p className="text-sm text-muted-foreground">
               Complete sign-in with your security key.
             </p>
@@ -383,13 +402,7 @@ function LoginFlow({
           <Button className="w-full" onClick={() => window.location.assign(step.url)}>
             Continue with security key
           </Button>
-          <Button
-            variant="outline"
-            className="w-full"
-            onClick={() => end("Start a new sign-in attempt to use another account.")}
-          >
-            Start again
-          </Button>
+          <StartAgainButton onEnded={end} />
         </AuthCardCentered>
       </TenantLoginLayout>
     );
@@ -402,6 +415,7 @@ function LoginFlow({
     return step.kind === "otp" ? (
       <OtpStep
         authRequestId={authRequestId}
+        headingRef={heading}
         onEnded={end}
         onPasswordChangeRequired={toPasswordChange}
       />
@@ -409,6 +423,7 @@ function LoginFlow({
       <EnrollStep
         authRequestId={authRequestId}
         totp={step.totp}
+        headingRef={heading}
         onEnded={end}
         onPasswordChangeRequired={toPasswordChange}
       />
@@ -421,6 +436,7 @@ function LoginFlow({
         authRequestId={authRequestId}
         currentPassword={step.currentPassword}
         change={step.change}
+        headingRef={heading}
         onEnded={end}
       />
     );
@@ -669,7 +685,8 @@ function CredentialForm({
         >
           Forgot password?
         </a>
-        <label className="mt-4 flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+        {/* The whole row is the target, at least 24px (WCAG 2.5.8, #1854 D4). */}
+        <label className="mt-4 flex min-h-6 cursor-pointer items-center gap-2 text-sm text-muted-foreground">
           <input
             type="checkbox"
             className="size-4 accent-primary"
@@ -707,10 +724,14 @@ function CredentialForm({
 function AccountChoiceStep({
   authRequestId,
   choices,
+  headingRef,
+  onEnded,
   onResult,
 }: {
   authRequestId: string;
   choices: AccountChoice[];
+  headingRef: Ref<HTMLHeadingElement>;
+  onEnded: (message: string) => void;
   onResult: (result: PasswordCheckResult) => void;
 }) {
   const choose = useApiMutation((tenantId: string) => chooseAccount({ authRequestId, tenantId }), {
@@ -722,7 +743,7 @@ function AccountChoiceStep({
     <TenantLoginLayout>
       <AuthCardCentered>
         <div className="space-y-2 text-center">
-          <TenantLoginHeading />
+          <TenantLoginHeading ref={headingRef} />
           <p className="text-sm text-muted-foreground">Choose the account to sign in to.</p>
         </div>
         <ul className="space-y-2" aria-label="Your accounts">
@@ -747,6 +768,7 @@ function AccountChoiceStep({
               : "Sign-in failed. Please try again."}
           </p>
         ) : null}
+        <StartAgainButton onEnded={onEnded} disabled={choose.isPending} />
       </AuthCardCentered>
     </TenantLoginLayout>
   );
@@ -784,10 +806,12 @@ function AccountChoiceStep({
 // unmodeled-error fallback.
 function OtpStep({
   authRequestId,
+  headingRef,
   onEnded,
   onPasswordChangeRequired,
 }: {
   authRequestId: string;
+  headingRef: Ref<HTMLHeadingElement>;
   onEnded: (message: string) => void;
   onPasswordChangeRequired: (change: PasswordChangeRequired) => void;
 }) {
@@ -835,7 +859,7 @@ function OtpStep({
     <TenantLoginLayout>
       <AuthCardCentered>
         <div className="space-y-2 text-center">
-          <TenantLoginHeading />
+          <TenantLoginHeading ref={headingRef} />
           <p className="text-sm text-muted-foreground">
             Enter the 6-digit code from your authenticator app.
           </p>
@@ -858,6 +882,8 @@ function OtpStep({
                 : undefined)
           }
         />
+        <AuthenticatorHelp />
+        <StartAgainButton onEnded={onEnded} disabled={submit.isPending} />
       </AuthCardCentered>
     </TenantLoginLayout>
   );
@@ -877,11 +903,13 @@ function OtpStep({
 function EnrollStep({
   authRequestId,
   totp,
+  headingRef,
   onEnded,
   onPasswordChangeRequired,
 }: {
   authRequestId: string;
   totp: TotpEnrollment;
+  headingRef: Ref<HTMLHeadingElement>;
   onEnded: (message: string) => void;
   onPasswordChangeRequired: (change: PasswordChangeRequired) => void;
 }) {
@@ -921,7 +949,9 @@ function EnrollStep({
     <TenantLoginLayout>
       <AuthCardCentered>
         <div className="space-y-2 text-center">
-          <h1 className="text-2xl font-semibold tracking-tight">Set up two-step verification</h1>
+          <h1 ref={headingRef} tabIndex={-1} className="text-2xl font-semibold tracking-tight">
+            Set up two-step verification
+          </h1>
           <p className="text-sm text-muted-foreground">
             Scan with your authenticator app, then enter the code.
           </p>
@@ -968,8 +998,41 @@ function EnrollStep({
                 : undefined)
           }
         />
+        <AuthenticatorHelp />
+        <StartAgainButton onEnded={onEnded} disabled={submit.isPending} />
       </AuthCardCentered>
     </TenantLoginLayout>
+  );
+}
+
+// Every step after the password has a way back (#1854 D1): the same end()
+// as an attempt ending, which drops the password and any TOTP secret and
+// lands on the start-again card, never on Zitadel's hosted login.
+function StartAgainButton({
+  onEnded,
+  disabled = false,
+}: {
+  onEnded: (message: string) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <Button
+      variant="outline"
+      className="w-full"
+      disabled={disabled}
+      onClick={() => onEnded("Start a new sign-in attempt to use another account.")}
+    >
+      Start again
+    </Button>
+  );
+}
+
+// The workforce zone holds the reset ("Reason for authenticator reset").
+function AuthenticatorHelp() {
+  return (
+    <p className="text-sm text-muted-foreground">
+      Can&apos;t use your authenticator? Ask your organisation&apos;s administrator to reset it.
+    </p>
   );
 }
 
@@ -1016,11 +1079,13 @@ function PasswordChangeStep({
   authRequestId,
   currentPassword,
   change,
+  headingRef,
   onEnded,
 }: {
   authRequestId: string;
   currentPassword: string;
   change: PasswordChangeRequired;
+  headingRef: Ref<HTMLHeadingElement>;
   onEnded: (message: string) => void;
 }) {
   const [password, setPassword] = useState("");
@@ -1068,7 +1133,7 @@ function PasswordChangeStep({
     <TenantLoginLayout>
       <AuthCardCentered>
         <div className="space-y-2 text-center">
-          <TenantLoginHeading />
+          <TenantLoginHeading ref={headingRef} />
           <p className="text-sm text-muted-foreground">
             {PASSWORD_CHANGE_DESCRIPTION[change.reason]}
           </p>
@@ -1186,9 +1251,12 @@ function PasswordChangeStep({
 function RedirectLanding({
   message,
   autoStart = false,
+  headingRef,
 }: {
   message?: string;
   autoStart?: boolean;
+  // Set only by LoginFlow, which focuses it when an attempt ends (#1854 D2).
+  headingRef?: Ref<HTMLHeadingElement>;
 }) {
   const params = useSearchParams();
   const workspace = params.get("workspace") ?? "";
@@ -1321,7 +1389,7 @@ function RedirectLanding({
       <AuthCardCentered>
         <div className="space-y-2 text-center">
           {/* One heading for every state of this page (#1431 D3). */}
-          <TenantLoginHeading />
+          <TenantLoginHeading ref={headingRef} />
           <p className="text-sm text-muted-foreground">
             {message ??
               (idleEnded

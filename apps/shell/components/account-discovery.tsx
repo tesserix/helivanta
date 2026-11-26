@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   AccountDiscoveryCodeContract,
   AccountDiscoveryRequestContract,
@@ -11,6 +11,7 @@ import {
   type AccountDiscoveryChoice,
 } from "@helivanta/api";
 import { Button, Field, useZodForm } from "@helivanta/ui";
+import { MfaCodeForm } from "./mfa-code-form";
 
 type Props = { onSelect: (tenantId: string, email?: string) => Promise<void> };
 
@@ -18,11 +19,13 @@ export function AccountDiscovery({ onSelect }: Props) {
   const [phase, setPhase] = useState<"email" | "code" | "choices">("email");
   const [choices, setChoices] = useState<AccountDiscoveryChoice[]>([]);
   const emailForm = useZodForm(AccountDiscoveryRequestContract, { email: "" });
-  const codeForm = useZodForm(AccountDiscoveryCodeContract, { code: "" });
+  const [code, setCode] = useState("");
+  const [codeError, setCodeError] = useState<string | undefined>();
   const send = useApiMutation(requestAccountCode, {
     suppressErrorToast: true,
     onSuccess: () => {
-      codeForm.reset({ code: "" });
+      setCode("");
+      setCodeError(undefined);
       setPhase("code");
     },
   });
@@ -47,6 +50,18 @@ export function AccountDiscovery({ onSelect }: Props) {
   const select = useApiMutation(choose, { suppressErrorToast: true });
   const pending = send.isPending || verify.isPending || recover.isPending || select.isPending;
   const error = send.error ?? verify.error ?? recover.error ?? select.error;
+
+  // Focus follows the phase (#1854 D2): the pressed button unmounts with its
+  // phase. The email and code phases have no heading of their own, so their
+  // field takes focus; MfaCodeForm focuses its first digit when it mounts.
+  const choicesHeading = useRef<HTMLHeadingElement>(null);
+  const focusedFor = useRef(phase);
+  useEffect(() => {
+    if (focusedFor.current === phase) return;
+    focusedFor.current = phase;
+    if (phase === "email") emailForm.setFocus("email");
+    if (phase === "choices") choicesHeading.current?.focus();
+  }, [phase, emailForm]);
 
   return (
     <div className="space-y-4">
@@ -75,7 +90,7 @@ export function AccountDiscovery({ onSelect }: Props) {
             We’ll email a code to help you securely find your hospital or pharmacy accounts.
           </p>
           <Button type="submit" size="lg" className="w-full" disabled={pending}>
-            {pending ? "Sending code…" : "Sign in"}
+            {pending ? "Sending code…" : "Send code"}
           </Button>
         </form>
       ) : phase === "code" ? (
@@ -83,33 +98,27 @@ export function AccountDiscovery({ onSelect }: Props) {
           <p className="text-sm text-muted-foreground">
             Check your email for an eight-digit code. It expires in ten minutes.
           </p>
-          <form
-            noValidate
-            onSubmit={codeForm.handleSubmit(({ code }) => verify.mutate(code))}
-            className="space-y-4"
-          >
-            <Field
-              id="account-code"
-              label="Email verification code"
-              error={
-                codeForm.formState.errors.code
-                  ? "Enter the eight-digit code from your email."
-                  : undefined
+          {/* Submits only a complete eight-digit code; the contract check is
+              kept so nothing else can reach the request. */}
+          <MfaCodeForm
+            length={8}
+            value={code}
+            onValueChange={(next) => {
+              setCode(next);
+              setCodeError(undefined);
+            }}
+            onSubmit={(submitted) => {
+              if (!AccountDiscoveryCodeContract.safeParse({ code: submitted }).success) {
+                setCodeError("Enter the eight-digit code from your email.");
+                return;
               }
-            >
-              <input
-                id="account-code"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                disabled={pending}
-                className="w-full rounded-md border bg-background px-3 py-2"
-                {...codeForm.register("code")}
-              />
-            </Field>
-            <Button type="submit" className="w-full" disabled={pending}>
-              {verify.isPending ? "Verifying…" : "Verify email"}
-            </Button>
-          </form>
+              verify.mutate(submitted);
+            }}
+            loading={pending}
+            error={codeError}
+            label="Email verification code"
+            submitLabel={verify.isPending ? "Verifying…" : "Verify email"}
+          />
           <div className="flex flex-wrap gap-2">
             <Button
               variant="outline"
@@ -148,7 +157,9 @@ export function AccountDiscovery({ onSelect }: Props) {
         </>
       ) : (
         <>
-          <h2 className="text-lg font-semibold">Choose an account</h2>
+          <h2 ref={choicesHeading} tabIndex={-1} className="text-lg font-semibold">
+            Choose an account
+          </h2>
           {choices.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               No eligible Helivanta accounts are available. Use another email, contact your

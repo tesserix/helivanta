@@ -1300,6 +1300,7 @@ describe("LoginPage", () => {
         await submitCorrectCredentials(user);
         const group = await screen.findByRole("group", { name: "Verification code" });
         expect(within(group).getAllByRole("textbox")).toHaveLength(6);
+        // #1854 D2: a code step lands on its first digit, so typing starts at once.
         expect(within(group).getByRole("textbox", { name: "Digit 1" })).toHaveFocus();
       });
 
@@ -1814,5 +1815,159 @@ describe("LoginPage", () => {
         screen.queryByRole("heading", { name: "Set up two-step verification" }),
       ).not.toBeInTheDocument();
     });
+  });
+});
+
+// #1854: every step after the password has a way back, and focus follows the step.
+describe("sign-in steps (#1854)", () => {
+  const START_AGAIN = "Start a new sign-in attempt to use another account.";
+  const AUTHENTICATOR_HELP =
+    "Can't use your authenticator? Ask your organisation's administrator to reset it.";
+  const choices = [
+    {
+      tenant_id: "11111111-1111-4111-8111-111111111111",
+      name: "City Hospital",
+      account: "a@x.test",
+    },
+    {
+      tenant_id: "22222222-2222-4222-8222-222222222222",
+      name: "Corner Pharmacy",
+      account: "a@x.test",
+    },
+  ];
+  const outcomes = {
+    otp: { factor_required: ["totp"] },
+    enroll: {
+      enrollment_required: ["totp"],
+      totp: { uri: "otpauth://totp/ZITADEL:a?secret=JBSWY3DPEHPK3PXP", secret: "JBSWY3DPEHPK3PXP" },
+    },
+    accountChoice: { account_choice_required: choices },
+  };
+
+  beforeEach(() => {
+    window.sessionStorage.clear();
+    window.localStorage.clear();
+    window.history.pushState({}, "", `/login?authRequest=${AUTH_REQUEST_ID}`);
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+
+  async function signIn(password: unknown) {
+    const fetchMock = stubAuthFlow({ password: () => jsonResponse(200, password) });
+    const { user } = renderWithProviders(<LoginPage />);
+    await user.type(await screen.findByLabelText("Email or username"), "a@x.test");
+    await user.type(screen.getByLabelText("Password"), "synthetic-password");
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
+    return { user, fetchMock };
+  }
+
+  it.each(Object.entries(outcomes))(
+    "%s: Start again lands on the start-again card with no further request",
+    async (kind, password) => {
+      const { user, fetchMock } = await signIn(password);
+      const startAgain = await screen.findByRole("button", { name: "Start again" });
+      if (kind === "accountChoice") {
+        expect(screen.queryByText(AUTHENTICATOR_HELP)).not.toBeInTheDocument();
+      } else {
+        expect(screen.getByText(AUTHENTICATOR_HELP)).toBeInTheDocument();
+      }
+      const calls = fetchMock.mock.calls.length;
+      await user.click(startAgain);
+      expect(await screen.findByText(START_AGAIN)).toBeInTheDocument();
+      expect(screen.queryByLabelText("Password")).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Sign in" })).toBeEnabled();
+      // The way back is focused too: its heading, not <body>.
+      expect(screen.getByRole("heading", { level: 1 })).toHaveFocus();
+      expect(fetchMock.mock.calls.length).toBe(calls);
+      expect(signinRedirect).not.toHaveBeenCalled();
+    },
+  );
+
+  // A submission that never answers holds the step in its pending state.
+  const hang = () =>
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => new Promise<Response>(() => {})),
+    );
+
+  it("cannot start again while a code is being checked", async () => {
+    const { user } = await signIn(outcomes.otp);
+    const digit = await firstMfaDigit();
+    hang();
+    await user.type(digit, "123456");
+    expect(screen.getByRole("button", { name: "Start again" })).toBeDisabled();
+  });
+
+  it("cannot start again while an account is being chosen", async () => {
+    const { user } = await signIn(outcomes.accountChoice);
+    const pick = await screen.findByRole("button", { name: /City Hospital/ });
+    hang();
+    await user.click(pick);
+    expect(screen.getByRole("button", { name: "Start again" })).toBeDisabled();
+  });
+
+  // A code step's one job is its code, so it lands on the first digit rather
+  // than the heading: the digit group's label announces the step (#1854 D2).
+  it.each([
+    ["otp", outcomes.otp, "Verification code"],
+    ["enroll", outcomes.enroll, "Confirmation code"],
+  ] as const)("%s: focus moves to the first digit of the code", async (_kind, password, group) => {
+    await signIn(password);
+    const digits = await screen.findByRole("group", { name: group });
+    await waitFor(() =>
+      expect(within(digits).getByRole("textbox", { name: "Digit 1" })).toHaveFocus(),
+    );
+  });
+
+  it.each([
+    ["accountChoice", outcomes.accountChoice, () => screen.getByRole("heading", { level: 1 })],
+    [
+      "passwordChange",
+      {
+        password_change_required: {
+          reason: "required",
+          policy: {
+            min_length: 12,
+            requires_uppercase: true,
+            requires_lowercase: true,
+            requires_number: true,
+            requires_symbol: true,
+          },
+        },
+      },
+      () => screen.getAllByRole("heading", { level: 1 })[0],
+    ],
+  ] as const)("%s: focus moves to the new step's heading", async (_kind, password, heading) => {
+    await signIn(password);
+    await waitFor(() => expect(screen.queryByLabelText("Password")).not.toBeInTheDocument());
+    await waitFor(() => expect(heading()).toHaveFocus());
+    expect(heading()).toHaveAttribute("tabindex", "-1");
+  });
+
+  it("securityKey: focus moves to the new step's heading", async () => {
+    vi.stubEnv("NEXT_PUBLIC_ZITADEL_ISSUER_URL", "https://auth.example.test");
+    const url = `https://auth.example.test/ui/v2/login/password?loginName=a%40x.test&requestId=oidc_${AUTH_REQUEST_ID}`;
+    await signIn({ security_key_required: { url } });
+    await screen.findByRole("button", { name: "Continue with security key" });
+    expect(screen.getByRole("heading", { level: 1 })).toHaveFocus();
+  });
+
+  it("keeps the credential step's own autofocus when it first renders", async () => {
+    stubAuthFlow();
+    renderWithProviders(<LoginPage />);
+    const loginName = await screen.findByLabelText("Email or username");
+    await waitFor(() => expect(loginName).toHaveFocus());
+    const heading = screen.getByRole("heading", { level: 1 });
+    expect(heading).not.toHaveAttribute("tabindex");
+  });
+
+  it("makes the whole remember-username row its target, at least 24px tall", async () => {
+    stubAuthFlow();
+    renderWithProviders(<LoginPage />);
+    const remember = await screen.findByRole("checkbox", { name: "Remember my username" });
+    expect(remember.closest("label")).toHaveClass("min-h-6");
+    expect(remember).toHaveClass("size-4", "accent-primary");
   });
 });

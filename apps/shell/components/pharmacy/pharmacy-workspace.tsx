@@ -9,6 +9,7 @@ import {
   useApiQuery,
   useApiPagedQuery,
   usePermissions,
+  useReleaseCapabilities,
   pharmacyKey,
   pharmacyRoot,
   type PharmacyOrganization,
@@ -399,6 +400,7 @@ function OutletPharmacy({
   view: PharmacyView;
 }) {
   const { can } = usePermissions();
+  const release = useReleaseCapabilities();
   const access = useApiQuery<{ level: "reader" | "editor" }>(
     pharmacyKey(scope, "access"),
     `${pharmacyRoot(scope)}/access`,
@@ -512,6 +514,11 @@ function OutletPharmacy({
         <Prescriptions
           scope={scope}
           canRecord={access.data?.level === "editor" && can("pharmacy.prescription.record")}
+          reviewSubject={
+            can("pharmacy.prescription.read") && release.available("unreleased")
+              ? subject
+              : undefined
+          }
         />
       ) : view === "accounts" ? (
         <AccountsPanel

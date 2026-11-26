@@ -27,6 +27,7 @@ import {
   formatTime,
   LoadMore,
   PageHeading,
+  Panel,
   RefreshButton,
   RequestFailure,
   SelectControl,
@@ -77,7 +78,7 @@ export function EmergencyReceivingWorkspace() {
       ) : (
         <ul className="grid gap-3 sm:grid-cols-2">
           {facilities.items.map((item) => (
-            <li key={item.id} className="space-y-3 rounded-xl border bg-card p-5">
+            <Panel key={item.id} as="li" className="space-y-3">
               <h2 className="font-semibold">{item.name}</h2>
               <Badge>{item.enabled ? "Configured" : "Disabled"}</Badge>
               <p className="text-sm text-muted-foreground">
@@ -87,7 +88,7 @@ export function EmergencyReceivingWorkspace() {
               <Button className="min-h-11" onClick={() => select(item.id)}>
                 Open {item.name}
               </Button>
-            </li>
+            </Panel>
           ))}
         </ul>
       )}
@@ -100,11 +101,11 @@ export function EmergencyReceivingWorkspace() {
       {facility && !facilities.isError && (
         <section className="space-y-5">
           <h2 className="text-xl font-semibold">{facility.name}</h2>
-          <div className="space-y-1 rounded-xl border p-4 text-sm">
+          <Panel as="div" className="space-y-1 text-sm">
             <p>Share these identifiers with the provider supervisor to propose a service link.</p>
             {tenant && <p className="break-all">Receiving tenant: {tenant}</p>}
             <p className="break-all">Campus: {facility.id}</p>
-          </div>
+          </Panel>
           {manage && (
             <>
               <FacilityEditor key={facility.id} facility={facility} />
@@ -150,64 +151,65 @@ function FacilityEditor({ facility }: { facility?: EmergencyReceivingFacility })
     save.mutate(parsed.data);
   }
   return (
-    <details className="rounded-xl border bg-card p-5">
-      <summary className="cursor-pointer font-semibold">
-        {facility ? "Configure this campus" : "Add receiving campus"}
-      </summary>
-      <form
-        className="mt-4 grid gap-4 sm:grid-cols-2"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void submit();
-        }}
-      >
-        <label htmlFor={`${prefix}-name`} className="space-y-2">
-          Campus name
-          <Input
-            id={`${prefix}-name`}
-            disabled={save.frozen}
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            maxLength={150}
-          />
-        </label>
-        <label htmlFor={`${prefix}-policy`} className="space-y-2">
-          Approved receiving policy reference
-          <Input
-            id={`${prefix}-policy`}
-            disabled={save.frozen}
-            value={policy}
-            onChange={(event) => setPolicy(event.target.value)}
-            maxLength={120}
-          />
-        </label>
-        <label htmlFor={`${prefix}-expires`} className="space-y-2">
-          Policy expiry (UTC)
-          <Input
-            id={`${prefix}-expires`}
-            type="datetime-local"
-            disabled={save.frozen}
-            value={expires}
-            onChange={(event) => setExpires(event.target.value)}
-          />
-        </label>
-        <label htmlFor={`${prefix}-enabled`} className="flex items-center gap-2">
-          <input
-            id={`${prefix}-enabled`}
-            type="checkbox"
-            checked={enabled}
-            disabled={save.frozen}
-            onChange={(event) => setEnabled(event.target.checked)}
-          />
-          Campus enabled
-        </label>
-        {validation && <p role="alert">{validation}</p>}
-        <EmergencyCommandFailure message={save.error?.message} uncertain={save.uncertain} />
-        <Button className="min-h-11" type="submit" disabled={save.isPending}>
-          {save.uncertain ? "Retry unchanged campus revision" : "Save campus revision"}
-        </Button>
-      </form>
-    </details>
+    <Panel as="div">
+      <details>
+        <summary className="cursor-pointer font-semibold">
+          {facility ? "Configure this campus" : "Add receiving campus"}
+        </summary>
+        <form
+          noValidate
+          className="mt-4 grid gap-4 sm:grid-cols-2"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void submit();
+          }}
+        >
+          <label htmlFor={`${prefix}-name`} className="space-y-2">
+            Campus name
+            <Input
+              id={`${prefix}-name`}
+              disabled={save.frozen}
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+            />
+          </label>
+          <label htmlFor={`${prefix}-policy`} className="space-y-2">
+            Approved receiving policy reference
+            <Input
+              id={`${prefix}-policy`}
+              disabled={save.frozen}
+              value={policy}
+              onChange={(event) => setPolicy(event.target.value)}
+            />
+          </label>
+          <label htmlFor={`${prefix}-expires`} className="space-y-2">
+            Policy expiry (UTC)
+            <Input
+              id={`${prefix}-expires`}
+              type="datetime-local"
+              disabled={save.frozen}
+              value={expires}
+              onChange={(event) => setExpires(event.target.value)}
+            />
+          </label>
+          <label htmlFor={`${prefix}-enabled`} className="flex items-center gap-2">
+            <input
+              id={`${prefix}-enabled`}
+              type="checkbox"
+              checked={enabled}
+              disabled={save.frozen}
+              onChange={(event) => setEnabled(event.target.checked)}
+            />
+            Campus enabled
+          </label>
+          {validation && <p role="alert">{validation}</p>}
+          <EmergencyCommandFailure message={save.error?.message} uncertain={save.uncertain} />
+          <Button className="min-h-11" type="submit" disabled={save.isPending}>
+            {save.uncertain ? "Retry unchanged campus revision" : "Save campus revision"}
+          </Button>
+        </form>
+      </details>
+    </Panel>
   );
 }
 function ReceivingGrant({ facility }: { facility: EmergencyReceivingFacility }) {
@@ -252,98 +254,101 @@ function ReceivingGrant({ facility }: { facility: EmergencyReceivingFacility }) 
     save.mutate(parsed.data);
   }
   return (
-    <details className="rounded-xl border bg-card p-5">
-      <summary className="cursor-pointer font-semibold">Delegate receiving authority</summary>
-      <p className="mt-3 text-sm text-muted-foreground">
-        Assign the Emergency hospital receiver role to a verified member first. Campus verification
-        must be independent; you cannot enable your own delegation.
-      </p>
-      <div className="my-4 flex flex-wrap items-end gap-3">
-        <label htmlFor={`${prefix}-subject`} className="min-w-0 flex-1 space-y-2">
-          Staff account
-          <MemberAccountSelect
-            id={`${prefix}-subject`}
-            value={subject}
-            disabled={save.frozen}
-            onValueChange={setSubject}
-          />
-        </label>
-        <Button
-          type="button"
-          variant="outline"
-          disabled={save.frozen || !subject.trim()}
-          onClick={() => select(subject.trim())}
-        >
-          Load current delegation
-        </Button>
-      </div>
-      {selected && (
-        <form
-          className="grid gap-4 sm:grid-cols-2"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void submit();
-          }}
-        >
-          {current.isPending ? (
-            <p role="status">Checking current authority…</p>
-          ) : current.isError && !missing ? (
-            <p role="alert">Authority could not be checked.</p>
-          ) : (
-            <p>Current revision: {missing ? 0 : current.data?.version}</p>
-          )}
-          <label htmlFor={`${prefix}-level`} className="space-y-2">
-            Campus authority
-            <SelectControl
-              id={`${prefix}-level`}
-              aria-label="Campus authority"
-              className="min-h-11 w-full"
-              value={level}
+    <Panel as="div">
+      <details>
+        <summary className="cursor-pointer font-semibold">Delegate receiving authority</summary>
+        <p className="mt-3 text-sm text-muted-foreground">
+          Assign the Emergency hospital receiver role to a verified member first. Campus
+          verification must be independent; you cannot enable your own delegation.
+        </p>
+        <div className="my-4 flex flex-wrap items-end gap-3">
+          <label htmlFor={`${prefix}-subject`} className="min-w-0 flex-1 space-y-2">
+            Staff account
+            <MemberAccountSelect
+              id={`${prefix}-subject`}
+              value={subject}
               disabled={save.frozen}
-              onValueChange={(next) => setLevel(next === "manager" ? "manager" : "receiver")}
-              options={[
-                { value: "receiver", label: "Receiving clinician" },
-                { value: "manager", label: "Receiving manager" },
-              ]}
+              onValueChange={setSubject}
             />
           </label>
-          <label htmlFor={`${prefix}-policy`} className="space-y-2">
-            Verification reference
-            <Input
-              id={`${prefix}-policy`}
-              value={policy}
-              disabled={save.frozen}
-              onChange={(event) => setPolicy(event.target.value)}
-            />
-          </label>
-          <label htmlFor={`${prefix}-expires`} className="space-y-2">
-            Delegation expiry (UTC)
-            <Input
-              id={`${prefix}-expires`}
-              type="datetime-local"
-              value={expires}
-              disabled={save.frozen}
-              onChange={(event) => setExpires(event.target.value)}
-            />
-          </label>
-          <label htmlFor={`${prefix}-enabled`} className="flex items-center gap-2">
-            <input
-              id={`${prefix}-enabled`}
-              type="checkbox"
-              checked={enabled}
-              disabled={save.frozen}
-              onChange={(event) => setEnabled(event.target.checked)}
-            />
-            Authority enabled
-          </label>
-          {validation && <p role="alert">{validation}</p>}
-          <EmergencyCommandFailure message={save.error?.message} uncertain={save.uncertain} />
-          <Button className="min-h-11" disabled={save.isPending} type="submit">
-            {save.uncertain ? "Retry unchanged delegation" : "Record delegation revision"}
+          <Button
+            type="button"
+            variant="outline"
+            disabled={save.frozen || !subject.trim()}
+            onClick={() => select(subject.trim())}
+          >
+            Load current delegation
           </Button>
-        </form>
-      )}
-    </details>
+        </div>
+        {selected && (
+          <form
+            noValidate
+            className="grid gap-4 sm:grid-cols-2"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void submit();
+            }}
+          >
+            {current.isPending ? (
+              <p role="status">Checking current authority…</p>
+            ) : current.isError && !missing ? (
+              <p role="alert">Authority could not be checked.</p>
+            ) : (
+              <p>Current revision: {missing ? 0 : current.data?.version}</p>
+            )}
+            <label htmlFor={`${prefix}-level`} className="space-y-2">
+              Campus authority
+              <SelectControl
+                id={`${prefix}-level`}
+                aria-label="Campus authority"
+                className="min-h-11 w-full"
+                value={level}
+                disabled={save.frozen}
+                onValueChange={(next) => setLevel(next === "manager" ? "manager" : "receiver")}
+                options={[
+                  { value: "receiver", label: "Receiving clinician" },
+                  { value: "manager", label: "Receiving manager" },
+                ]}
+              />
+            </label>
+            <label htmlFor={`${prefix}-policy`} className="space-y-2">
+              Verification reference
+              <Input
+                id={`${prefix}-policy`}
+                value={policy}
+                disabled={save.frozen}
+                onChange={(event) => setPolicy(event.target.value)}
+              />
+            </label>
+            <label htmlFor={`${prefix}-expires`} className="space-y-2">
+              Delegation expiry (UTC)
+              <Input
+                id={`${prefix}-expires`}
+                type="datetime-local"
+                value={expires}
+                disabled={save.frozen}
+                onChange={(event) => setExpires(event.target.value)}
+              />
+            </label>
+            <label htmlFor={`${prefix}-enabled`} className="flex items-center gap-2">
+              <input
+                id={`${prefix}-enabled`}
+                type="checkbox"
+                checked={enabled}
+                disabled={save.frozen}
+                onChange={(event) => setEnabled(event.target.checked)}
+              />
+              Authority enabled
+            </label>
+            {validation && <p role="alert">{validation}</p>}
+            <EmergencyCommandFailure message={save.error?.message} uncertain={save.uncertain} />
+            <Button className="min-h-11" disabled={save.isPending} type="submit">
+              {save.uncertain ? "Retry unchanged delegation" : "Record delegation revision"}
+            </Button>
+          </form>
+        )}
+      </details>
+    </Panel>
   );
 }
 function ReceivingInbox({
@@ -386,7 +391,7 @@ function ReceivingInbox({
           <p role="alert">Service links unavailable.</p>
         ) : (
           links.items.map((link) => (
-            <div className="space-y-3 rounded-xl border bg-card p-4" key={link.id}>
+            <Panel as="div" className="space-y-3" key={link.id}>
               <Badge>{EMERGENCY_RECEIVING_LINK_STATES[link.status]}</Badge>
               <p className="break-all text-sm">
                 Provider {link.provider_tenant_id} · base {link.base_id}
@@ -397,7 +402,7 @@ function ReceivingInbox({
                 ["proposed", "approved"].includes(link.status) && (
                   <LinkDecision link={link} facility={facility} />
                 )}
-            </div>
+            </Panel>
           ))
         )}
         <LoadMore
@@ -423,9 +428,10 @@ function ReceivingInbox({
           />
         ) : (
           requests.items.map((request) => (
-            <div
+            <Panel
               key={request.id}
-              className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card p-4"
+              as="div"
+              className="flex flex-wrap items-center justify-between gap-3"
             >
               <div>
                 <Badge>{EMERGENCY_RECEIVING_STATES[request.status]}</Badge>
@@ -437,7 +443,7 @@ function ReceivingInbox({
               <Button className="min-h-11" onClick={() => select(request)}>
                 Open pre-alert
               </Button>
-            </div>
+            </Panel>
           ))
         )}
         <LoadMore
@@ -447,7 +453,7 @@ function ReceivingInbox({
         />
       </section>
       {selected && (
-        <section className="space-y-4 rounded-xl border bg-card p-5">
+        <Panel className="space-y-4">
           <div className="flex flex-wrap gap-3">
             <Button variant="outline" onClick={() => select(null)}>
               Close pre-alert
@@ -492,7 +498,7 @@ function ReceivingInbox({
               visible={!!detail.data && !detail.isError}
             />
           )}
-        </section>
+        </Panel>
       )}
     </>
   );
@@ -575,7 +581,6 @@ function ReceivingDecision({
         <Input
           id={`${prefix}-reference`}
           value={reference}
-          maxLength={120}
           disabled={save.frozen}
           onChange={(event) => setReference(event.target.value)}
         />

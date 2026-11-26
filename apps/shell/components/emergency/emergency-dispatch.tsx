@@ -19,7 +19,14 @@ import {
   type EmergencyDispatchCommandInput,
   type EmergencyVehicle,
 } from "@helivanta/api";
-import { LoadMore, RequestFailure, formatTime, isRefusal, SelectControl } from "@helivanta/ui";
+import {
+  LoadMore,
+  Panel,
+  RequestFailure,
+  formatTime,
+  isRefusal,
+  SelectControl,
+} from "@helivanta/ui";
 import { useEmergencyCommand, EmergencyCommandFailure } from "./emergency-command";
 
 export function EmergencyDispatchPanel({ baseID, caseID }: { baseID: string; caseID: string }) {
@@ -45,10 +52,7 @@ export function EmergencyDispatchPanel({ baseID, caseID }: { baseID: string; cas
   if (!canRead && !canManage) return null;
   const active = rows.items.find((row) => row.state !== "cleared" && row.state !== "cancelled");
   return (
-    <section
-      aria-label="Dispatch and crew status"
-      className="space-y-4 rounded-xl border bg-card p-5"
-    >
+    <Panel aria-label="Dispatch and crew status" className="space-y-4">
       <h2 className="text-lg font-semibold">Dispatch and crew status</h2>
       <p className="text-sm text-muted-foreground">
         A reservation holds capacity. Crew acknowledgement and departure are recorded separately.
@@ -64,7 +68,7 @@ export function EmergencyDispatchPanel({ baseID, caseID }: { baseID: string; cas
       {/* Dispatches the server now refuses don't stay on screen (#1595). */}
       {!isRefusal(rows.error) &&
         rows.items.map((row) => (
-          <article key={row.id} className="space-y-3 rounded-lg border p-4">
+          <Panel key={row.id} as="article" className="space-y-3">
             <Badge>{EMERGENCY_DISPATCH_STATES[row.state] ?? "Status requires review"}</Badge>
             <dl className="grid gap-3 text-sm sm:grid-cols-2">
               <div>
@@ -90,7 +94,7 @@ export function EmergencyDispatchPanel({ baseID, caseID }: { baseID: string; cas
                 supervisor={can("emergency.case.close") && access.data?.level === "supervisor"}
               />
             )}
-          </article>
+          </Panel>
         ))}
       <LoadMore hasMore={rows.hasMore} isLoading={rows.isFetchingMore} onClick={rows.loadMore} />
       {canManage && eligibility.isError && (
@@ -125,7 +129,7 @@ export function EmergencyDispatchPanel({ baseID, caseID }: { baseID: string; cas
             )}
           </>
         )}
-    </section>
+    </Panel>
   );
 }
 function ReservationForm({
@@ -209,6 +213,7 @@ function ReservationForm({
         is checked again when the reservation is saved and before crew departure.
       </p>
       <form
+        noValidate
         className="grid gap-4 sm:grid-cols-2"
         onSubmit={(event) => {
           event.preventDefault();
@@ -240,7 +245,6 @@ function ReservationForm({
             value={seconds}
             onChange={(event) => setSeconds(event.target.value)}
             disabled={command.frozen}
-            required
           />
         </label>
         <div className="sm:col-span-2">

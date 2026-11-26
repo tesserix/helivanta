@@ -38,6 +38,10 @@ const vehicle = {
   created_at: "2026-10-18T00:00:00Z",
   updated_at: "2026-10-18T00:00:00Z",
 };
+// #1262: cards are Panel, so no hand-painted card class survives.
+// Buttons and design-system inputs are controls: they carry shadow-sm.
+const CARDS =
+  ":is(.rounded-xl, .rounded-2xl, .shadow-sm):not(button, input, textarea, [role=combobox])";
 const page = (data: unknown[]) => ({ data, page: { has_more: false, next_cursor: null } });
 const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } });
@@ -59,6 +63,28 @@ it("shows blockers with no ready claim and hides supervisor actions for readers"
   expect(screen.getByText("Blocked")).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Clear constraint" })).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Save vehicle" })).not.toBeInTheDocument();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
+});
+
+it("draws readiness and constraint review inside the vehicle panels", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((url: string) =>
+      Promise.resolve(
+        json(
+          url.includes("permissions")
+            ? { data: ["emergency.fleet.read", "emergency.fleet.manage", "emergency.fleet.check"] }
+            : page(url.endsWith("/vehicles") ? [vehicle] : []),
+        ),
+      ),
+    ),
+  );
+  const { user } = renderWithProviders(<EmergencyFleet base={base} level="supervisor" />);
+  await user.click(await screen.findByRole("button", { name: "Record readiness for SYN-ALS-1" }));
+  expect(await screen.findByText("Readiness observation · SYN-ALS-1")).toBeInTheDocument();
+  await user.click(screen.getByText("Review Defibrillator check failed"));
+  expect(screen.getByLabelText("Repair evidence reference")).toBeVisible();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
 });
 it("requires reviewed vehicle policy and sends versioned configuration", async () => {
   const writes: string[] = [];
@@ -196,6 +222,7 @@ it("drops the refused fleet from every form once access is withdrawn", async () 
   expect(screen.getByDisplayValue("SYN-ALS-1")).toBeInTheDocument();
   expect(screen.getAllByText(/QA Crew/).length).toBeGreaterThan(0);
   expect(screen.getAllByText(/Assigned QA Driver/).length).toBeGreaterThan(0);
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   refused = true;
   // A background re-read (window focus), not the Refresh button, brings the refusal.
   window.dispatchEvent(new Event("visibilitychange"));

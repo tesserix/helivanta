@@ -10,6 +10,10 @@ const caseID = "019a1234-5678-7000-8000-000000000002";
 const vehicle = "019a1234-5678-7000-8000-000000000003";
 const assessment = "019a1234-5678-7000-8000-000000000004";
 const duty = "019a1234-5678-7000-8000-000000000005";
+// #1262: cards are Panel, so no hand-painted card class survives.
+// Buttons and design-system inputs are controls: they carry shadow-sm.
+const CARDS =
+  ":is(.rounded-xl, .rounded-2xl, .shadow-sm):not(button, input, textarea, [role=combobox])";
 function fixture(permissions: string[], enabled = true) {
   const fetcher = vi.fn(async (url: string, init?: RequestInit) => {
     if (url.endsWith("permissions"))
@@ -91,7 +95,16 @@ it("retains exactly the same command and body after an uncertain reservation", a
     expect(screen.getByRole("combobox", { name: "Ready vehicle" })).toBeEnabled(),
   );
   await chooseOption(user, screen.getByRole("combobox", { name: "Ready vehicle" }), "TEST-ALS-1");
-  await user.type(screen.getByLabelText("Crew acknowledgement window (seconds)"), "120");
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
+  // The zod schema (15 to 300 seconds), not native required, refuses an empty window (#1262).
+  const seconds = screen.getByLabelText("Crew acknowledgement window (seconds)");
+  expect(seconds).not.toHaveAttribute("required");
+  await user.click(screen.getByRole("button", { name: "Reserve vehicle and crew" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "Choose a currently ready vehicle and an acknowledgement window from 15 to 300 seconds.",
+  );
+  expect(fetcher.mock.calls.some(([, init]) => init?.method === "PUT")).toBe(false);
+  await user.type(seconds, "120");
   await user.click(screen.getByRole("button", { name: "Reserve vehicle and crew" }));
   expect(await screen.findByText(/TEST uncertain request/)).toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "Retry unchanged reservation" }));
@@ -183,6 +196,7 @@ it.each([
   await chooseOption(user, vehicles, "TEST-ALS-1");
   expect(screen.getByText("Driver acknowledgement")).toBeInTheDocument();
   expect(vehicles).toHaveTextContent("TEST-ALS-1");
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   refused = true;
   window.dispatchEvent(new Event("visibilitychange"));
   expect(await screen.findByRole("button", { name: "Check access again" })).toBeEnabled();

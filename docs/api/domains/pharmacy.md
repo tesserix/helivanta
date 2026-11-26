@@ -1,5 +1,13 @@
 # PharmaConnect integration specification
 
+Pharmacist clinical verification (#169) remains unfinished. The
+[scope and delivery record](../../design/pharmacist-verification.md) maps the
+active counter-sale integration, owners and acceptance gates. Its first slice
+defines draft decision/second-check input models and validation only; it adds no
+registered API, clinical authority, review queue or operating gate. Existing HR
+credential review and prescription capture must not be presented as completed
+clinical verification.
+
 [Contract index](../README.md) · descriptive current slices plus outstanding contracts
 
 ## What the domain covers

@@ -214,3 +214,21 @@ reader switches and explicit unavailable data. Real-database HTTP tests cover
 existing 403/404 boundaries, successful disclosure audit and audit-failure refusal;
 their execution requires hosted validation and is not claimed from the pure
 local source/SDK tests. No browser acceptance or production activation is claimed.
+
+## Review workspace candidate
+
+The [completion specification](../superpowers/specs/2026-11-26-pharmacist-verification-completion.md)
+and [execution ledger](../superpowers/plans/2026-11-26-pharmacist-verification-completion.md)
+retain the full remaining #169 scope. The recorded prescription list now has an
+internal review-panel integration behind compiled `unreleased` eligibility,
+matching the audited context API. Existing pilot flags cannot expose it.
+
+The panel consumes the owner SDK rather than reconstructing clinical data. It
+shows named patient/prescriber source details, prescribed lines and remaining
+recorded allowances, explicitly unavailable clinical context and no approval
+controls. It never displays account, product, outlet or prescription IDs as
+human names. Query data is account/outlet/record-bound, discarded on close and
+cleared on tenant transition. Refreshes and failures hide previous context;
+late responses cannot populate a changed account. Component tests exercise
+these UI and recovery guarantees; they are not evidence of clinical authority,
+signed prescription integration, decision persistence or a working supply gate.

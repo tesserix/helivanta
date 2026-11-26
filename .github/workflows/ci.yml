@@ -533,13 +533,25 @@ jobs:
           tar -xzf "$archive" gitleaks
           sudo install -m 0755 gitleaks /usr/local/bin/gitleaks
           rm -f gitleaks "$archive"
+      # #1889: scan what this run is responsible for, not every branch the
+      # full-depth checkout fetched (gitleaks' default log options include
+      # --all, so a finding on any open branch failed every PR). A pull
+      # request scans the commits its merge commit brings in over the base
+      # (HEAD^1..HEAD); a push to main scans main's whole history.
       - name: Scan committed content
+        env:
+          EVENT: ${{ github.event_name }}
         run: |
-          if [[ -f .gitleaks-baseline.json ]]; then
-            gitleaks git . --no-banner --redact --baseline-path .gitleaks-baseline.json
+          if [[ "$EVENT" == pull_request ]]; then
+            range="HEAD^1..HEAD"
           else
-            gitleaks git . --no-banner --redact
+            range="--full-history HEAD"
           fi
+          baseline=()
+          if [[ -f .gitleaks-baseline.json ]]; then
+            baseline=(--baseline-path .gitleaks-baseline.json)
+          fi
+          gitleaks git . --no-banner --redact --log-opts="$range" "${baseline[@]}"
   e2e:
     runs-on: ubuntu-latest
     env:

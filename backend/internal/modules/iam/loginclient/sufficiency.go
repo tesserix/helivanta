@@ -481,7 +481,7 @@ func (c *Client) CompleteAfterFactor(ctx context.Context, authRequestID string, 
 	if err != nil {
 		return Result{}, unreadable("session factors", err)
 	}
-	if !factors.TOTP {
+	if !factors.SecondFactorProven() {
 		return refused(RefusalFactorNotVerified), nil
 	}
 
@@ -542,7 +542,7 @@ func (c *Client) CompleteAfterPasswordChange(ctx context.Context, authRequestID 
 		if err != nil {
 			return Result{}, unreadable("session factors", err)
 		}
-		if !factors.TOTP {
+		if !factors.SecondFactorProven() {
 			return refused(RefusalFactorNotVerified), nil
 		}
 	} else {

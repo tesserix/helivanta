@@ -1,8 +1,17 @@
 SET LOCAL lock_timeout='5s';
 SET LOCAL statement_timeout='60s';
-DO $$DECLARE choice_definition text;choice_metadata_ok boolean;BEGIN
+DO $$DECLARE choice_definition text;choice_metadata_ok boolean;body text;BEGIN
+ IF EXISTS(SELECT 1 FROM unnest(ARRAY['pharmacy_operating_choice_integrity()','pharmacy_stocktake_hospital_integrity()','pharmacy_stocktake_hospital_choice_integrity()','pharmacy_stocktake_source_recovery_integrity()'])seal(signature)
+  WHERE NOT EXISTS(SELECT 1 FROM pg_proc p WHERE p.oid=to_regprocedure(seal.signature)AND NOT p.prosecdef AND NOT p.proleakproof AND p.provolatile='s'AND p.proconfig IS NULL
+  AND p.prolang=(SELECT oid FROM pg_language WHERE lanname='sql')))THEN
+  RAISE EXCEPTION 'pharmacy seal properties changed' USING ERRCODE='23514';
+ END IF;
  IF pharmacy_operating_choice_integrity()IS DISTINCT FROM true OR pharmacy_stocktake_hospital_integrity()IS DISTINCT FROM true OR pharmacy_stocktake_source_recovery_integrity()IS DISTINCT FROM true THEN
   RAISE EXCEPTION 'existing pharmacy operating/hospital authority metadata changed' USING ERRCODE='23514';
+ END IF;
+ SELECT prosrc INTO STRICT body FROM pg_proc WHERE oid=to_regprocedure('pharmacy_stocktake_hospital_integrity()');
+ IF body IS DISTINCT FROM format('SELECT COALESCE(pharmacy_operating_choice_integrity()AND pharmacy_stocktake_hospital_support_state()=%L::jsonb,false)',pharmacy_stocktake_hospital_support_state()::text)THEN
+  RAISE EXCEPTION 'hospital source seal predecessor changed' USING ERRCODE='23514';
  END IF;
  -- The hospital seal above authenticates this definition. Its runtime support
  -- probe forbids TRUNCATE for app roles, so it cannot run as the schema owner.
@@ -94,18 +103,15 @@ ALTER TABLE pharmacy_ward_indents ADD CONSTRAINT pharmacy_ward_indent_actor CHEC
  AND employment_epoch=(authority_basis->'actor'->>'EmploymentEpoch')::bigint,false));
 ALTER TABLE pharmacy_ward_indents ENABLE ROW LEVEL SECURITY;
 ALTER TABLE pharmacy_ward_indents FORCE ROW LEVEL SECURITY;
-CREATE POLICY ward_indent_read ON pharmacy_ward_indents FOR SELECT
- USING(hms_tenant_visible(tenant_id)AND(pharmacy_outlet_allowed(tenant_id,outlet_id,false)OR pharmacy_ward_indent_frame(tenant_id,outlet_id,hospital_id,department_id,'read')));
-CREATE POLICY ward_indent_raise ON pharmacy_ward_indents FOR INSERT
- WITH CHECK(tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid
- AND pharmacy_ward_indent_frame(tenant_id,outlet_id,hospital_id,department_id,'raise')
- AND actor_subject=NULLIF(current_setting('app.actor_subject',true),'')
- AND authority_basis=NULLIF(current_setting('app.pharmacy_indent_basis',true),'')::jsonb);
-CREATE POLICY ward_indent_settle ON pharmacy_ward_indents FOR UPDATE
- USING(hms_tenant_visible(tenant_id)AND(pharmacy_outlet_allowed(tenant_id,outlet_id,true)OR pharmacy_ward_indent_frame(tenant_id,outlet_id,hospital_id,department_id,'raise')))
+-- Status names the writer: open is a raise, cancelled the requester, closed the pharmacist; triggers fix the transitions.
+CREATE POLICY tenant_isolation ON pharmacy_ward_indents
+ USING(hms_tenant_visible(tenant_id)AND(pharmacy_outlet_allowed(tenant_id,outlet_id,false)OR pharmacy_ward_indent_frame(tenant_id,outlet_id,hospital_id,department_id,'read')))
  WITH CHECK(tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid AND(
- (pharmacy_outlet_allowed(tenant_id,outlet_id,true)AND status='closed'AND closed_by=NULLIF(current_setting('app.pharmacy_subject',true),''))
- OR(pharmacy_ward_indent_frame(tenant_id,outlet_id,hospital_id,department_id,'raise')AND status='cancelled'AND closed_by=NULLIF(current_setting('app.actor_subject',true),''))));
+ (status='open'AND pharmacy_ward_indent_frame(tenant_id,outlet_id,hospital_id,department_id,'raise')
+  AND actor_subject=NULLIF(current_setting('app.actor_subject',true),'')
+  AND authority_basis=NULLIF(current_setting('app.pharmacy_indent_basis',true),'')::jsonb)
+ OR(status='cancelled'AND pharmacy_ward_indent_frame(tenant_id,outlet_id,hospital_id,department_id,'raise')AND closed_by=NULLIF(current_setting('app.actor_subject',true),''))
+ OR(status='closed'AND pharmacy_outlet_allowed(tenant_id,outlet_id,true)AND closed_by=NULLIF(current_setting('app.pharmacy_subject',true),''))));
 
 -- A raise re-resolves the open stay and the verified affiliation; nothing else may be inserted.
 CREATE FUNCTION pharmacy_ward_indent_raise_guard()RETURNS trigger LANGUAGE plpgsql AS $$
@@ -139,9 +145,8 @@ CREATE TABLE pharmacy_ward_indent_lines(
 );
 ALTER TABLE pharmacy_ward_indent_lines ENABLE ROW LEVEL SECURITY;
 ALTER TABLE pharmacy_ward_indent_lines FORCE ROW LEVEL SECURITY;
-CREATE POLICY ward_indent_line_read ON pharmacy_ward_indent_lines FOR SELECT
- USING(hms_tenant_visible(tenant_id)AND(pharmacy_outlet_allowed(tenant_id,outlet_id,false)OR pharmacy_ward_indent_frame(tenant_id,outlet_id,hospital_id,department_id,'read')));
-CREATE POLICY ward_indent_line_raise ON pharmacy_ward_indent_lines FOR INSERT
+CREATE POLICY tenant_isolation ON pharmacy_ward_indent_lines
+ USING(hms_tenant_visible(tenant_id)AND(pharmacy_outlet_allowed(tenant_id,outlet_id,false)OR pharmacy_ward_indent_frame(tenant_id,outlet_id,hospital_id,department_id,'read')))
  WITH CHECK(tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid AND pharmacy_ward_indent_frame(tenant_id,outlet_id,hospital_id,department_id,'raise'));
 CREATE FUNCTION pharmacy_ward_indent_line_guard()RETURNS trigger LANGUAGE plpgsql AS $$
 DECLARE indent pharmacy_ward_indents;BEGIN
@@ -182,9 +187,8 @@ CREATE TABLE pharmacy_ward_indent_issues(
 CREATE INDEX pharmacy_ward_indent_issue_line ON pharmacy_ward_indent_issues(tenant_id,outlet_id,indent_id,line_number);
 ALTER TABLE pharmacy_ward_indent_issues ENABLE ROW LEVEL SECURITY;
 ALTER TABLE pharmacy_ward_indent_issues FORCE ROW LEVEL SECURITY;
-CREATE POLICY ward_indent_issue_read ON pharmacy_ward_indent_issues FOR SELECT
- USING(hms_tenant_visible(tenant_id)AND(pharmacy_outlet_allowed(tenant_id,outlet_id,false)OR pharmacy_ward_indent_frame(tenant_id,outlet_id,hospital_id,department_id,'read')));
-CREATE POLICY ward_indent_issue_post ON pharmacy_ward_indent_issues FOR INSERT
+CREATE POLICY tenant_isolation ON pharmacy_ward_indent_issues
+ USING(hms_tenant_visible(tenant_id)AND(pharmacy_outlet_allowed(tenant_id,outlet_id,false)OR pharmacy_ward_indent_frame(tenant_id,outlet_id,hospital_id,department_id,'read')))
  WITH CHECK(tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid AND pharmacy_outlet_allowed(tenant_id,outlet_id,true)
  AND actor_subject=NULLIF(current_setting('app.pharmacy_subject',true),''));
 -- Locks the indent, so concurrent issues serialise before the cumulative limit is read.
@@ -253,13 +257,18 @@ END $$;
 CREATE TRIGGER pharmacy_ward_indent_transition BEFORE UPDATE ON pharmacy_ward_indents FOR EACH ROW EXECUTE FUNCTION pharmacy_ward_indent_transition();
 
 -- Read-only purpose paths for the requester frame: the target outlet's catalogue and returns on its own issues.
-CREATE POLICY ward_indent_products ON pharmacy_catalogue_products FOR SELECT
- USING(current_user<>'helivanta_drug_approver'AND hms_tenant_visible(tenant_id)AND tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid
- AND outlet_id=NULLIF(current_setting('app.pharmacy_indent_outlet',true),'')::uuid AND(SELECT pharmacy_ward_indent_catalogue_scope()));
-CREATE POLICY ward_indent_returns ON pharmacy_credit_note_lines FOR SELECT
- USING(hms_tenant_visible(tenant_id)AND(SELECT COALESCE(current_setting('app.pharmacy_indent_subject',true),'')<>'')
- AND EXISTS(SELECT 1 FROM pharmacy_ward_indent_issues i WHERE i.tenant_id=pharmacy_credit_note_lines.tenant_id AND i.outlet_id=pharmacy_credit_note_lines.outlet_id
- AND i.sale_id=pharmacy_credit_note_lines.sale_id AND i.sale_line=pharmacy_credit_note_lines.sale_line));
+-- Widen each one tenant_isolation policy; CASE keeps the drug approver off the ward branch.
+DO $read_paths$DECLARE prior text;BEGIN
+ SELECT pg_get_expr(polqual,polrelid)INTO STRICT prior FROM pg_policy WHERE polrelid='pharmacy_catalogue_products'::regclass AND polname='tenant_isolation';
+ EXECUTE format($policy$ALTER POLICY tenant_isolation ON pharmacy_catalogue_products USING((%s)OR CASE WHEN current_user='helivanta_drug_approver'THEN false
+  ELSE hms_tenant_visible(tenant_id)AND tenant_id=NULLIF(current_setting('app.tenant_id',true),'')::uuid
+  AND outlet_id=NULLIF(current_setting('app.pharmacy_indent_outlet',true),'')::uuid AND(SELECT pharmacy_ward_indent_catalogue_scope())END)$policy$,prior);
+ SELECT pg_get_expr(polqual,polrelid)INTO STRICT prior FROM pg_policy WHERE polrelid='pharmacy_credit_note_lines'::regclass AND polname='tenant_isolation';
+ EXECUTE format($policy$ALTER POLICY tenant_isolation ON pharmacy_credit_note_lines USING((%s)OR(hms_tenant_visible(tenant_id)
+  AND(SELECT COALESCE(current_setting('app.pharmacy_indent_subject',true),'')<>'')
+  AND EXISTS(SELECT 1 FROM pharmacy_ward_indent_issues i WHERE i.tenant_id=pharmacy_credit_note_lines.tenant_id AND i.outlet_id=pharmacy_credit_note_lines.outlet_id
+  AND i.sale_id=pharmacy_credit_note_lines.sale_id AND i.sale_line=pharmacy_credit_note_lines.sale_line)))$policy$,prior);
+END $read_paths$;
 
 DO $purpose$
 DECLARE target text;

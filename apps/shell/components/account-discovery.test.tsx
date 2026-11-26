@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
 import { AccountDiscovery } from "./account-discovery";
@@ -27,6 +27,10 @@ function stub(accounts: unknown[], verifyStatus = 200) {
     }),
   );
 }
+async function firstCodeDigit() {
+  const group = await screen.findByRole("group", { name: "Email verification code" });
+  return within(group).getByRole("textbox", { name: "Digit 1" });
+}
 beforeEach(() => {
   vi.unstubAllGlobals();
   window.localStorage.clear();
@@ -39,9 +43,9 @@ describe("Account discovery", () => {
     expect(screen.queryByLabelText(/workspace id/i)).not.toBeInTheDocument();
     expect(screen.queryByText("Yes Hospital")).not.toBeInTheDocument();
     await user.type(screen.getByLabelText("Email"), "owner@example.test");
-    await user.click(screen.getByRole("button", { name: "Sign in" }));
-    await user.type(await screen.findByLabelText("Email verification code"), "12345678");
-    await user.click(screen.getByRole("button", { name: "Verify email" }));
+    await user.click(screen.getByRole("button", { name: "Send code" }));
+    // Auto-submits on the eighth digit, like every MfaCodeForm.
+    await user.type(await firstCodeDigit(), "12345678");
     await waitFor(() => expect(redirect).toHaveBeenCalledWith(tenant, "owner@example.test"));
     // Remembered at selection, so a start-again landing offers it without another code.
     expect(window.localStorage.getItem("helivanta.login.workspace.v1")).toBeNull();
@@ -53,9 +57,9 @@ describe("Account discovery", () => {
     ]);
     const { user } = renderWithProviders(<AccountDiscovery onSelect={redirect} />);
     await user.type(screen.getByLabelText("Email"), "owner@example.test");
-    await user.click(screen.getByRole("button", { name: "Sign in" }));
-    await user.type(await screen.findByLabelText("Email verification code"), "12345678");
-    await user.click(screen.getByRole("button", { name: "Verify email" }));
+    await user.click(screen.getByRole("button", { name: "Send code" }));
+    // Auto-submits on the eighth digit, like every MfaCodeForm.
+    await user.type(await firstCodeDigit(), "12345678");
     await user.click(await screen.findByRole("button", { name: /Independent pharmacy/ }));
     expect(redirect).toHaveBeenCalledWith(other, "owner@example.test");
     expect(redirect).not.toHaveBeenCalledWith(tenant, expect.anything());
@@ -65,9 +69,9 @@ describe("Account discovery", () => {
     stub([], 404);
     const { user } = renderWithProviders(<AccountDiscovery onSelect={redirect} />);
     await user.type(screen.getByLabelText("Email"), "owner@example.test");
-    await user.click(screen.getByRole("button", { name: "Sign in" }));
-    await user.type(await screen.findByLabelText("Email verification code"), "12345678");
-    await user.click(screen.getByRole("button", { name: "Verify email" }));
+    await user.click(screen.getByRole("button", { name: "Send code" }));
+    // Auto-submits on the eighth digit, like every MfaCodeForm.
+    await user.type(await firstCodeDigit(), "12345678");
     expect(await screen.findByRole("alert")).toHaveTextContent(/expired/);
     expect(screen.getByRole("button", { name: "Send a new code" })).toBeEnabled();
     expect(redirect).not.toHaveBeenCalled();
@@ -78,11 +82,14 @@ it("explains an incomplete email code without exposing validation internals", as
   stub([]);
   const { user } = renderWithProviders(<AccountDiscovery onSelect={redirect} />);
   await user.type(screen.getByLabelText("Email"), "owner@example.test");
-  await user.click(screen.getByRole("button", { name: "Sign in" }));
-  await user.type(await screen.findByLabelText("Email verification code"), "1234");
-  await user.click(screen.getByRole("button", { name: "Verify email" }));
-  expect(await screen.findByRole("alert")).toHaveTextContent(
-    "Enter the eight-digit code from your email.",
+  await user.click(screen.getByRole("button", { name: "Send code" }));
+  await user.type(await firstCodeDigit(), "1234");
+  await user.keyboard("{Enter}");
+  expect(screen.getByRole("button", { name: "Verify email" })).toBeDisabled();
+  expect(screen.queryByText(/regex|invalid_string|too_small/i)).not.toBeInTheDocument();
+  expect(fetch).not.toHaveBeenCalledWith(
+    expect.stringContaining("/auth/accounts/verify"),
+    expect.anything(),
   );
   expect(redirect).not.toHaveBeenCalled();
 });
@@ -99,4 +106,57 @@ it("asks for the email even when an earlier version remembered a workspace", asy
   expect(screen.queryByRole("button", { name: "Sign in to your previous account" })).toBeNull();
   expect(redirect).not.toHaveBeenCalled();
   expect(fetch).not.toHaveBeenCalled();
+});
+
+// #1854: the button says what it does, focus follows the phase, and the code is MfaCodeForm.
+describe("Account discovery steps (#1854)", () => {
+  it("names the email step's action Send code", async () => {
+    stub([]);
+    renderWithProviders(<AccountDiscovery onSelect={redirect} />);
+    expect(screen.getByRole("button", { name: "Send code" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Sign in" })).not.toBeInTheDocument();
+  });
+
+  it("sends exactly the eight digits entered, once", async () => {
+    stub([]);
+    const { user } = renderWithProviders(<AccountDiscovery onSelect={redirect} />);
+    await user.type(screen.getByLabelText("Email"), "owner@example.test");
+    await user.click(screen.getByRole("button", { name: "Send code" }));
+    const group = await screen.findByRole("group", { name: "Email verification code" });
+    expect(within(group).getAllByRole("textbox")).toHaveLength(8);
+    await user.type(within(group).getByRole("textbox", { name: "Digit 1" }), "12345678");
+    await screen.findByRole("heading", { name: "Choose an account" });
+    const verifies = vi
+      .mocked(fetch)
+      .mock.calls.filter(([url]) => String(url).endsWith("/auth/accounts/verify"));
+    expect(verifies).toHaveLength(1);
+    expect(JSON.parse(String(verifies[0][1]?.body))).toEqual({ code: "12345678" });
+  });
+
+  it("moves focus with each phase, forward and back", async () => {
+    stub([
+      { tenantId: tenant, name: "Yes Hospital", account: "owner@example.test" },
+      { tenantId: other, name: "Independent pharmacy", account: "owner@example.test" },
+    ]);
+    const outside = document.createElement("button");
+    document.body.append(outside);
+    outside.focus();
+    const { user } = renderWithProviders(<AccountDiscovery onSelect={redirect} />);
+    // The first phase takes nothing on arrival.
+    expect(outside).toHaveFocus();
+    outside.remove();
+    await user.type(screen.getByLabelText("Email"), "owner@example.test");
+    await user.click(screen.getByRole("button", { name: "Send code" }));
+    const digit = await firstCodeDigit();
+    await waitFor(() => expect(digit).toHaveFocus());
+    await user.click(screen.getByRole("button", { name: "Use another email" }));
+    await waitFor(() => expect(screen.getByLabelText("Email")).toHaveFocus());
+    await user.click(screen.getByRole("button", { name: "Send code" }));
+    await user.type(await firstCodeDigit(), "12345678");
+    const heading = await screen.findByRole("heading", { name: "Choose an account" });
+    await waitFor(() => expect(heading).toHaveFocus());
+    expect(heading).toHaveAttribute("tabindex", "-1");
+    await user.click(screen.getByRole("button", { name: "Use another email" }));
+    await waitFor(() => expect(screen.getByLabelText("Email")).toHaveFocus());
+  });
 });

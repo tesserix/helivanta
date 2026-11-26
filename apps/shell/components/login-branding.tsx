@@ -1,5 +1,12 @@
 "use client";
-import { createContext, useContext, useEffect, useSyncExternalStore, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useSyncExternalStore,
+  type ReactNode,
+  type Ref,
+} from "react";
 import { useSearchParams } from "next/navigation";
 import { useApiQuery, brandingSchema, DEFAULT_BRANDING, type Branding } from "@helivanta/api";
 import { LoginSurface } from "@helivanta/ui";
@@ -63,8 +70,11 @@ export function TenantLoginLayout({
     </LoginSurface>
   );
 }
-export function TenantLoginHeading() {
+// A step that moves focus here passes a ref; only then is it focusable (#1854 D2).
+export function TenantLoginHeading({ ref }: { ref?: Ref<HTMLHeadingElement> }) {
   return (
-    <h1 className="text-2xl font-semibold tracking-tight">{useContext(Context).display_name}</h1>
+    <h1 ref={ref} tabIndex={ref ? -1 : undefined} className="text-2xl font-semibold tracking-tight">
+      {useContext(Context).display_name}
+    </h1>
   );
 }

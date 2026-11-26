@@ -29,9 +29,13 @@ The audit found that some sign-in steps cannot be left and that focus is lost be
 
 ### D2 Focus follows the step
 
-When the sign-in step changes, focus moves to the new step's heading. When account discovery changes phase, focus moves to the new phase's heading.
+When the sign-in step changes, focus moves to what the step is for:
 
-- The heading takes `tabIndex={-1}` and receives focus programmatically, the pattern the country-policy editor uses.
+- **Code steps** (two-step code, authenticator set-up): the first digit, which `MfaCodeForm` focuses itself. The step's one job is its code, and the digit group's label announces the step, so typing can start at once.
+- **Every other step** (account choice, security key, password change, the start-again landing): the step's heading.
+- **Account discovery:** the email field when it returns to the email phase, and the first digit on the code phase. The choices phase gets its "Choose an account" heading. The email and code phases have no headings, and adding them would be new copy.
+
+- A focused heading takes `tabIndex={-1}`, the pattern the country-policy editor uses. The credential step's heading stays unfocusable, and its own autofocus on the login name is kept.
 - Account discovery's code field becomes `MfaCodeForm`, with the same contract (`AccountDiscoveryCodeContract`, 8 digits) and the same request.
 
 ### D3 Buttons say what they do

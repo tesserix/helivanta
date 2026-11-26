@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/tesserix/helivanta/internal/testutil"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 	"gorm.io/gorm"
 )
 
@@ -124,6 +125,7 @@ func TestStocktakeCapacityAt10000Buckets(t *testing.T) {
 	require.Less(t, submitElapsed, 5*time.Second, "complete snapshot submission must fit the command budget")
 	approvalPath := path + "/decisions/" + uuid.Must(uuid.NewV7()).String()
 	body := `{"decision":"approve","expected_version":101,"reason":"TEST independent capacity review","extra_units_disposition":"no_extra_units"}`
+	traceStocktakePosting(t, db)
 	start = time.Now()
 	response = do(r, "PUT", approvalPath, "reviewer", body)
 	postElapsed := time.Since(start)
@@ -152,4 +154,51 @@ func TestStocktakeCapacityAt10000Buckets(t *testing.T) {
 		return nil
 	}))
 	require.Less(t, postElapsed, 5*time.Second, "ADR-0073 post budget")
+}
+
+func traceStocktakePosting(t *testing.T, db *tenantdb.DB) {
+	t.Helper()
+	const key = "test:stocktake-posting-start"
+	before := func(tx *gorm.DB) { tx.InstanceSet(key, time.Now()) }
+	after := func(tx *gorm.DB) {
+		start, ok := tx.InstanceGet(key)
+		if !ok {
+			return
+		}
+		phase := tx.Statement.Table
+		if phase == "" {
+			phase = "other SQL"
+			for _, name := range []string{"pharmacy_stocktake_commands", "pharmacy_stocktake_differences", "pg_advisory_xact_lock"} {
+				if strings.Contains(tx.Statement.SQL.String(), name) {
+					phase = name
+					break
+				}
+			}
+		}
+		t.Logf("stocktake posting phase=%s duration=%s rows=%d", phase, time.Since(start.(time.Time)), tx.RowsAffected)
+	}
+	var callbacks *gorm.DB
+	require.NoError(t, db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
+		callbacks = tx
+		for _, register := range []func() error{
+			func() error { return tx.Callback().Create().Before("gorm:create").Register(key+":before", before) },
+			func() error { return tx.Callback().Create().After("gorm:create").Register(key+":after", after) },
+			func() error { return tx.Callback().Raw().Before("gorm:raw").Register(key+":before", before) },
+			func() error { return tx.Callback().Raw().After("gorm:raw").Register(key+":after", after) },
+			func() error { return tx.Callback().Row().Before("gorm:row").Register(key+":before", before) },
+			func() error { return tx.Callback().Row().After("gorm:row").Register(key+":after", after) },
+		} {
+			if err := register(); err != nil {
+				return err
+			}
+		}
+		return nil
+	}))
+	t.Cleanup(func() {
+		for _, name := range []string{key + ":before", key + ":after"} {
+			require.NoError(t, callbacks.Callback().Create().Remove(name))
+			require.NoError(t, callbacks.Callback().Raw().Remove(name))
+			require.NoError(t, callbacks.Callback().Row().Remove(name))
+		}
+	})
 }

@@ -41,10 +41,13 @@ test("email discovery keeps choices private until proof and shows named accounts
   await expect(page.getByLabel("Workspace ID")).toHaveCount(0);
   await expect(page.getByText("Test hospital")).toHaveCount(0);
   await page.getByLabel("Email", { exact: true }).fill("person@example.test");
-  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await page.getByRole("button", { name: "Send code", exact: true }).click();
   await expect(page.getByText("Test hospital")).toHaveCount(0);
-  await page.getByLabel("Email verification code").fill("12345678");
-  await page.getByRole("button", { name: "Verify email" }).click();
+  // The code is MfaCodeForm's digit group (#1854 D2); it submits on the eighth digit.
+  await page
+    .getByRole("group", { name: "Email verification code", exact: true })
+    .getByRole("textbox", { name: "Digit 1", exact: true })
+    .pressSequentially("12345678");
   await expect(page.getByRole("heading", { name: "Choose an account" })).toBeVisible();
   await expect(page.getByRole("button", { name: /Test hospital/ })).toBeVisible();
   await expect(page.getByRole("button", { name: /Test independent pharmacy/ })).toBeVisible();

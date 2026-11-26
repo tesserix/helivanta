@@ -109,6 +109,12 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
     -o /out/emergency-retention \
     ./cmd/emergency-retention
 
+RUN CGO_ENABLED=0 GOOS=linux go build \
+    -trimpath \
+    -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT}" \
+    -o /out/practitioner-evidence-worker \
+    ./cmd/practitioner-evidence-worker
+
 # Drug master release staging and approval (#476), run by operators.
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags "-s -w" -o /out/drugmaster-release ./cmd/drugmaster-release
 
@@ -138,6 +144,7 @@ COPY --from=builder /out/document-worker /app/document-worker
 COPY --from=builder /out/emergency-worker /app/emergency-worker
 COPY --from=builder /out/supply-evidence-worker /app/supply-evidence-worker
 COPY --from=builder /out/pharmacy-evidence-worker /app/pharmacy-evidence-worker
+COPY --from=builder /out/practitioner-evidence-worker /app/practitioner-evidence-worker
 COPY --from=builder /out/emergency-retention /app/emergency-retention
 COPY --from=builder /out/drugmaster-release /app/drugmaster-release
 

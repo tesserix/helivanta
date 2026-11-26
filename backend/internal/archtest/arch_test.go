@@ -39,6 +39,7 @@ import (
 	"github.com/tesserix/helivanta/internal/modules/patientmaster"
 	"github.com/tesserix/helivanta/internal/modules/payments"
 	"github.com/tesserix/helivanta/internal/modules/pharmacy"
+	"github.com/tesserix/helivanta/internal/modules/practitioner"
 	"github.com/tesserix/helivanta/internal/modules/privacy"
 	"github.com/tesserix/helivanta/internal/modules/reference"
 	"github.com/tesserix/helivanta/internal/modules/supply"
@@ -60,7 +61,7 @@ const modulesPrefix = "github.com/tesserix/helivanta/internal/modules/"
 // generator prints a reminder, and TestMainRegistersExactlyAllModules
 // below fails CI on drift).
 func allModules() []platform.Module {
-	return []platform.Module{iam.New(nil), reference.New(), drugmaster.New(), emergency.New(), medicore.New(), mediconnect.New(), privacy.New(), pharmacy.New(), payments.New(), billing.New(), supply.New(), lab.New(), patientmaster.New(), workforce.New(), workspace.New(), organization.New()}
+	return []platform.Module{iam.New(nil), reference.New(), drugmaster.New(), practitioner.New(), emergency.New(), medicore.New(), mediconnect.New(), privacy.New(), pharmacy.New(), payments.New(), billing.New(), supply.New(), lab.New(), patientmaster.New(), workforce.New(), workspace.New(), organization.New()}
 }
 
 // moduleOf maps a package path to its owning module name. Under
@@ -450,6 +451,29 @@ func TestNoTenantMembershipAllowlist(t *testing.T) {
 // tenant has enough rows, which is #816. Adding an entry here is a
 // decision a reviewer sees.
 var unpaginatedGETAllowlist = map[string]string{
+	"GET /practitioners/:practitioner/registrations/:registration/source-reconciliations/:reconciliation/withdrawals/:withdrawal":            "one immutable source-reconciliation withdrawal receipt within the exact practitioner/registration/reconciliation path",
+	"GET /practitioners/:practitioner/registrations/:registration/source-reconciliations/:reconciliation":                                    "one immutable registration source-reconciliation receipt, not reconciliation history",
+	"GET /practitioners/:practitioner/registrations/:registration/revisions/:revision/verifications/:verification":                           "one immutable registration verification receipt for the exact revision and verification identity",
+	"GET /practitioners/:practitioner/registrations/:registration/verification-revocations/:revocation":                                      "one immutable registration verification revocation receipt",
+	"GET /practitioners/:practitioner/registrations/:registration/verification":                                                              "one current registration attestation projection; clinical authority remains not_evaluated",
+	"GET /practitioners/registration-policies/:policy":                                                                                       "one tenant-local registration source policy, not the policy collection",
+	"GET /practitioners/registration-policies/:policy/revisions/:revision":                                                                   "one immutable registration source-policy revision",
+	"GET /practitioners/:practitioner/qualifications/:qualification/revisions/:revision/evidence/:file":                                      "one exact credential-revision evidence metadata record; evidence collections use ListRoute",
+	"GET /practitioners/:practitioner/qualifications/:qualification/revisions/:revision/evidence/:file/content":                              "one reauthorized exact-generation private evidence file bounded by the attachment size limit; no JSON collection",
+	"GET /practitioners/:practitioner/qualifications/:qualification/revisions/:revision/reviews/:review":                                     "one immutable review receipt for the exact registration or qualification revision",
+	"GET /practitioners/specialties/:specialty/retirements/:retirement":                                                                      "one immutable specialty retirement receipt",
+	"GET /practitioners/specialties/:specialty":                                                                                              "one tenant-local specialty record",
+	"GET /practitioners/:practitioner/qualifications/:qualification":                                                                         "one qualification record under the exact practitioner",
+	"GET /practitioners/:practitioner/qualifications/:qualification/revisions/:revision":                                                     "one immutable qualification revision under the exact practitioner and qualification",
+	"GET /practitioners/steward-appointments/:appointment":                                                                                   "one manager-scoped steward appointment; appointment history uses ListRoute",
+	"GET /practitioners/my/steward-appointments/:appointment":                                                                                "one caller-bound steward appointment; caller appointment history uses ListRoute",
+	"GET /practitioners/my/steward-appointment":                                                                                              "one current accepted caller-bound steward appointment, not a list of nominees",
+	"GET /practitioners/:practitioner/registrations/:registration/revisions/:revision/reviews/:review":                                       "one immutable review receipt for the exact registration or qualification revision",
+	"GET /practitioners/:practitioner/registrations/:registration/revisions/:revision/evidence/:file/content":                                "one reauthorized exact-generation private evidence file bounded by the attachment size limit; no JSON collection",
+	"GET /practitioners/:practitioner/registrations/:registration/revisions/:revision/evidence/:file":                                        "one exact credential-revision evidence metadata record; evidence collections use ListRoute",
+	"GET /practitioners/:practitioner":                                                                                                       "one exact tenant-local practitioner record",
+	"GET /practitioners/:practitioner/registrations/:registration":                                                                           "one registration record under the exact practitioner",
+	"GET /practitioners/:practitioner/registrations/:registration/revisions/:revision":                                                       "one immutable registration revision under the exact practitioner and registration",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id/review-context":                                                    "one audited outlet-scoped prescription source context with at most 20 validated lines; no prescription collection",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id/purchase-tax":                                                  "one current immutable tax evidence version for one posted bill, at most its 100 original lines",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/reorder-products/:id":                                                      "one current outlet-scoped product identity/version for reorder administration; no collection",

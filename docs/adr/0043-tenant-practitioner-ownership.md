@@ -22,7 +22,7 @@ No HR table joins, copied practitioner master in scheduling, or cross-tenant
 matching are permitted. Public discovery is a distinct authorized projection;
 base registry reads do not publish a listing.
 
-The initial implementation remains unregistered in the runtime registry while
+The initial implementation was unregistered in the runtime registry while
 verification/role contracts and dependency tests are developed. Do not promote
 this branch as a complete practitioner service or close parent issues. Integration,
 contract inventory, matrix/architecture tests and deployment are explicit gates.
@@ -41,3 +41,16 @@ No destructive down migration is supplied. Canonical base-record intent is immut
 future correction/verification commands must preserve attribution and prior facts.
 See the [implementation specification](../superpowers/specs/2026-10-26-practitioner-master.md)
 for capacity assumptions, dependency failure behavior and remaining release gates.
+
+## Runtime integration candidate (2026-11-27)
+
+The professional-source runtime change registers the existing owner in the shared
+bootstrap and independent architecture registry, routes `/v1/practitioners` through
+Global API's platform destination, and includes the generation-bound evidence
+worker in the promoted API image. All 68 routes remain compiled `unreleased`.
+This candidate introduces execution of sixteen existing source migrations; it
+requires specific migration approval before merge and deployment. It is not
+deployed merely because it appears in the generated inventory. See the
+[runtime integration record](../api/practitioner-runtime.md). Clinical privilege
+policy authority remains proposed separately in ADR-0077; registration
+attestations continue to report `clinical_authority: not_evaluated`.

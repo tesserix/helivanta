@@ -231,6 +231,7 @@ var approvedPermissionMatrix = map[authz.Permission][]authz.Role{
 	pharmacy.PermStaffBindingReview:     {authz.RoleTenantAdmin},
 	authz.PurchaseOrderActorUse:         {authz.RoleTenantAdmin},
 	authz.StocktakeActorUse:             {authz.RoleTenantAdmin},
+	authz.WardIndentActorUse:            {authz.RoleTenantAdmin},
 	authz.StaffActorUse:                 {authz.RoleTenantAdmin},
 	organization.PermStructureRead:      {authz.RoleTenantAdmin},
 	organization.PermStructureManage:    {authz.RoleTenantAdmin},
@@ -413,9 +414,12 @@ var approvedPermissionMatrix = map[authz.Permission][]authz.Role{
 	pharmacy.PermSaleCreate:           {authz.RolePharmacist, authz.RoleTenantAdmin},
 	pharmacy.PermSaleRead:             {authz.RolePharmacist, authz.RolePharmacyOwner, authz.RoleTenantAdmin},
 	// The platform seeds tenant-admin coarsely; Stocktake still requires reviewed outlet duties and current Staff.
-	pharmacy.PermStocktakeRead:      {authz.RoleTenantAdmin},
-	pharmacy.PermStocktakeCount:     {authz.RoleTenantAdmin},
-	pharmacy.PermStocktakeReview:    {authz.RoleTenantAdmin},
+	pharmacy.PermStocktakeRead:   {authz.RoleTenantAdmin},
+	pharmacy.PermStocktakeCount:  {authz.RoleTenantAdmin},
+	pharmacy.PermStocktakeReview: {authz.RoleTenantAdmin},
+	// Ward indents likewise need a department-scoped assignment and current Staff.
+	pharmacy.PermIndentRead:         {authz.RoleTenantAdmin},
+	pharmacy.PermIndentRaise:        {authz.RoleTenantAdmin},
 	pharmacy.PermPrescriptionRecord: {authz.RolePharmacist, authz.RoleTenantAdmin},
 	pharmacy.PermPrescriptionRead:   {authz.RolePharmacist, authz.RoleTenantAdmin},
 	pharmacy.PermSaleDiscount:       {authz.RoleTenantAdmin},

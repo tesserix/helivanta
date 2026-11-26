@@ -664,6 +664,7 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | POST | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id/images/:file/retry/:attempt` | `pharmacy.prescription.record` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id/images/:file` | `pharmacy.prescription.record` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id/images` | `pharmacy.prescription.read` | true | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id/review-context` | `pharmacy.prescription.read` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id` | `pharmacy.prescription.read` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id` | `pharmacy.prescription.record` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/open-lines` | `pharmacy.prescription.read` | false | false |

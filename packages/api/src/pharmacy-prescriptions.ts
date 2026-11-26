@@ -2,6 +2,11 @@ import { z } from "zod";
 import { apiFetch, apiFetchResponse } from "./client";
 import { readAttachmentFile, sha256Hex } from "./attachment-file";
 import { pharmacyKey, pharmacyRoot, type PharmacyScope } from "./pharmacy";
+import {
+  PrescriptionReviewContextContract,
+  PrescriptionReviewLineContract,
+  PrescriptionReviewRecordContract,
+} from "./pharmacy-verification-contract";
 
 // Prescription evidence (#1386 B-2a): the outlet's prescription record and
 // its scanned pages, released only after the pharmacy evidence worker scans them.
@@ -59,27 +64,45 @@ export const prescriptionInputSchema = z
   .strict();
 export type PrescriptionInput = z.infer<typeof prescriptionInputSchema>;
 
-const prescriptionLineSchema = z.object({
-  line_number: z.number().int().min(1),
-  prescribed_as: z.string(),
-  product_id: identifier,
-  quantity_units: z.number().int(),
-  dispensings_allowed: z.number().int(),
-  units_remaining: z.number().int(),
-  dispensings_remaining: z.number().int(),
-});
-export type PharmacyPrescriptionLine = z.infer<typeof prescriptionLineSchema>;
-
-export const prescriptionSchema = prescriptionInputSchema.extend({
-  id: identifier,
-  outlet_id: identifier,
-  patient_address: z.string().nullable(),
-  prescriber_address: z.string().nullable(),
-  lines: z.array(prescriptionLineSchema),
-  recorded_by: z.string(),
-  created_at: z.string().datetime({ offset: true }),
-});
+export type PharmacyPrescriptionLine = z.infer<typeof PrescriptionReviewLineContract>;
+export const prescriptionSchema = PrescriptionReviewRecordContract;
 export type PharmacyPrescription = z.infer<typeof prescriptionSchema>;
+
+export async function readPrescriptionReviewContext(
+  scope: PharmacyScope & { subject: string },
+  id: string,
+  signal?: AbortSignal,
+) {
+  const record = identifier.parse(id);
+  const reader = z
+    .string()
+    .min(1)
+    .max(200)
+    .regex(/^[A-Za-z0-9_-]+$/)
+    .parse(scope.subject);
+  const view = PrescriptionReviewContextContract.parse(
+    await apiFetch<unknown>(`${pharmacyRoot(scope)}/prescriptions/${record}/review-context`, {
+      signal,
+      cache: "no-store",
+      headers: {
+        "X-Helivanta-Expected-Tenant": scope.tenantId,
+        "X-Helivanta-Expected-Subject": reader,
+      },
+    }),
+  );
+  if (
+    view.reader_subject !== reader ||
+    view.owner_tenant_id !== scope.tenantId ||
+    view.pharmacy_id !== scope.pharmacyId ||
+    view.record.outlet_id !== scope.outletId ||
+    view.record.id !== record
+  ) {
+    throw new Error(
+      "The prescription review context changed. Reload this outlet before continuing.",
+    );
+  }
+  return view;
+}
 
 const filename = z
   .string()

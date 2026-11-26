@@ -2708,6 +2708,11 @@
       "capability": "pharmacy_prescriptions"
     },
     {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id/review-context",
+      "capability": "unreleased"
+    },
+    {
       "method": "PUT",
       "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id",
       "capability": "pharmacy_prescriptions"

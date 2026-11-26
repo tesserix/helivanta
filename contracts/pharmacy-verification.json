@@ -56,6 +56,208 @@
         "name": "primary_decision_id",
         "type": "uuid"
       }
+    ],
+    "PrescriptionReviewLine": [
+      {
+        "name": "line_number",
+        "type": "int",
+        "min": 1,
+        "max": 20
+      },
+      {
+        "name": "prescribed_as",
+        "type": "string",
+        "min": 1,
+        "max": 200,
+        "no_nul": true
+      },
+      {
+        "name": "product_id",
+        "type": "uuid"
+      },
+      {
+        "name": "quantity_units",
+        "type": "int64",
+        "min": 1,
+        "max": 100000
+      },
+      {
+        "name": "dispensings_allowed",
+        "type": "int",
+        "min": 1,
+        "max": 12
+      },
+      {
+        "name": "units_remaining",
+        "type": "int64",
+        "min": 0,
+        "max": 100000
+      },
+      {
+        "name": "dispensings_remaining",
+        "type": "int",
+        "min": 0,
+        "max": 12
+      }
+    ],
+    "PrescriptionReviewRecord": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "outlet_id",
+        "type": "uuid"
+      },
+      {
+        "name": "prescriber_name",
+        "type": "string",
+        "min": 1,
+        "max": 200,
+        "no_nul": true
+      },
+      {
+        "name": "prescriber_registration",
+        "type": "string",
+        "min": 1,
+        "max": 40,
+        "no_nul": true
+      },
+      {
+        "name": "prescriber_council",
+        "type": "string",
+        "min": 1,
+        "max": 120,
+        "no_nul": true
+      },
+      {
+        "name": "prescribed_on",
+        "type": "string",
+        "format": "date"
+      },
+      {
+        "name": "patient_name",
+        "type": "string",
+        "min": 1,
+        "max": 200,
+        "no_nul": true
+      },
+      {
+        "name": "patient_address",
+        "type": "string",
+        "min": 1,
+        "max": 500,
+        "no_nul": true,
+        "pointer": true,
+        "nullable": true
+      },
+      {
+        "name": "prescriber_address",
+        "type": "string",
+        "min": 1,
+        "max": 500,
+        "no_nul": true,
+        "pointer": true,
+        "nullable": true
+      },
+      {
+        "name": "recorded_by",
+        "type": "string",
+        "min": 1,
+        "max": 200,
+        "no_nul": true
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      },
+      {
+        "name": "lines",
+        "type": "[]PrescriptionReviewLine",
+        "min": 1,
+        "max": 20,
+        "orm_ignore": true
+      }
+    ],
+    "UnavailablePrescriptionClinicalContext": [
+      {
+        "name": "allergies",
+        "type": "string",
+        "enum": ["unavailable"]
+      },
+      {
+        "name": "active_medications",
+        "type": "string",
+        "enum": ["unavailable"]
+      },
+      {
+        "name": "patient_age",
+        "type": "string",
+        "enum": ["unavailable"]
+      },
+      {
+        "name": "patient_weight",
+        "type": "string",
+        "enum": ["unavailable"]
+      },
+      {
+        "name": "clinical_flags",
+        "type": "string",
+        "enum": ["unavailable"]
+      }
+    ],
+    "PrescriptionReviewContext": [
+      {
+        "name": "owner_tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "pharmacy_id",
+        "type": "uuid"
+      },
+      {
+        "name": "reader_subject",
+        "type": "string",
+        "min": 1,
+        "max": 200,
+        "pattern": "^[A-Za-z0-9_-]+$"
+      },
+      {
+        "name": "source_schema_version",
+        "type": "int",
+        "min": 1,
+        "max": 1
+      },
+      {
+        "name": "source_kind",
+        "type": "string",
+        "enum": ["recorded_prescription"]
+      },
+      {
+        "name": "source_authenticity",
+        "type": "string",
+        "enum": ["not_evaluated"]
+      },
+      {
+        "name": "source_state_hash",
+        "type": "string",
+        "min": 64,
+        "max": 64,
+        "pattern": "^[a-f0-9]{64}$"
+      },
+      {
+        "name": "clinical_authority",
+        "type": "string",
+        "enum": ["not_evaluated"]
+      },
+      {
+        "name": "clinical_context",
+        "type": "UnavailablePrescriptionClinicalContext"
+      },
+      {
+        "name": "record",
+        "type": "PrescriptionReviewRecord"
+      }
     ]
   },
   "precondition_fields": [
@@ -72,5 +274,9 @@
       "max": 64,
       "pattern": "^[a-f0-9]{64}$"
     }
+  ],
+  "precondition_models": [
+    "PrescriptionVerificationDecisionInput",
+    "PrescriptionVerificationSecondCheckInput"
   ]
 }

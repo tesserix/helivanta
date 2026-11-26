@@ -39,6 +39,7 @@ func (w saleWorld) prescribeBy(t *testing.T, name, registration, council, produc
 		name, registration, council, prescriberAddress, patientAddress, product, units)
 	res := do(w.r, "PUT", licencePath("/prescriptions/"+id), "pharmacist", body)
 	require.Equal(t, http.StatusCreated, res.Code, res.Body.String())
+	w.releasePrescriptionImage(t, id)
 	return id
 }
 

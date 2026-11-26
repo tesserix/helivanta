@@ -34,7 +34,7 @@ Sign-off cannot complete until all of these are done. The cases they affect are 
 | ---- | ------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
 | G-1  | #1406 step 5: the evidence worker passes synthetic acceptance in production (checklist in that issue)                           | The prescription-image and licence-evidence gates depend on it                              |
 | G-2  | #1581 merged and deployed (licence review UI; migration `0046_pharmacy_licence_evidence_review`)                                | Licence review currently has no UI (F-2)                                                    |
-| G-3  | #1477 merged and deployed after #1581 (`0047_pharmacy_prescription_sale_evidence`)                                              | It changes every G/H/H1 sale: a released image becomes mandatory                            |
+| G-3  | #1477 merged and deployed after #1581 (`0076_pharmacy_prescription_sale_evidence`)                                              | It changes every G/H/H1 sale: a released image becomes mandatory                            |
 | G-4  | #1642 merged and deployed (schedule class declare/review UI, F-1)                                                               | Without it, no product can be released or sold except through the API                       |
 | G-5  | #1672: the production run uses a tenant created through normal signup ([guide](2026-11-14-pharmacy-acceptance-fresh-tenant.md)) | A tenant created before ADR-0070 gets 503 `identity_unavailable` on every protected request |
 

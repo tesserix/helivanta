@@ -1,6 +1,6 @@
 {
   "format_version": 1,
-  "registry_sha256": "6c695406d352dc45aa1997dc15714ee0c804b6aaf2d15895f7b3bb2e8dbfc18c",
+  "registry_sha256": "d79f0efaad796c664a1e77ad9277012a8679120b38743ff1b1984ec3516d9997",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
     "total": 1259,
@@ -8861,7 +8861,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/pharmacy/module.go",
-            "sha256": "2ac5952cf8385f9ee7ef19a5745cb425c914bbebef4c6f7cf79e47af9eef9944",
+            "sha256": "cceb0ddb02406ef4ab89557f5fbf1cc9824784c030393050cea0f6e42406c056",
             "symbol": "PermAccountsExport"
           },
           {
@@ -12160,7 +12160,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/pharmacy/module.go",
-            "sha256": "2ac5952cf8385f9ee7ef19a5745cb425c914bbebef4c6f7cf79e47af9eef9944",
+            "sha256": "cceb0ddb02406ef4ab89557f5fbf1cc9824784c030393050cea0f6e42406c056",
             "symbol": "PermAccountsExport"
           },
           {

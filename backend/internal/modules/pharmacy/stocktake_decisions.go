@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -123,11 +124,13 @@ func (h *catalogueHandlers) writeStocktakeDecision(c *gin.Context, cancelOnly bo
 }
 
 func postStocktakeDecision(tx *gorm.DB, p authn.Principal, pharmacy, outlet, take, command uuid.UUID, in StocktakeDecisionInput, hash string) error {
+	profileAt := time.Now()
+	profilePhase := func(phase string) {
+		slog.Info("stocktake diagnostic phase", "phase", phase, "elapsed", time.Since(profileAt))
+		profileAt = time.Now()
+	}
 	var plans []stocktakeAdjustmentPlan
 	if in.Decision == "approve" {
-		if err := tx.Exec(`SET LOCAL plan_cache_mode=force_custom_plan`).Error; err != nil {
-			return err
-		}
 		if err := tx.Raw(`SELECT d.line_id,d.batch_id,CASE WHEN d.quantity_units>0 THEN s.quarantine_location_id ELSE d.from_location_id END location_id,d.quantity_units
  FROM pharmacy_stocktake_differences(?,?,?)d JOIN pharmacy_stocktakes s ON s.tenant_id=? AND s.outlet_id=? AND s.id=?
  ORDER BY location_id,d.batch_id,d.line_id LIMIT 501`, p.TenantID, outlet, take, p.TenantID, outlet, take).Scan(&plans).Error; err != nil {
@@ -142,11 +145,13 @@ func postStocktakeDecision(tx *gorm.DB, p authn.Principal, pharmacy, outlet, tak
 			}
 		}
 	}
+	profilePhase("differences")
 	state := map[string]string{"submit": "submitted", "approve": "posted", "reject": "rejected", "cancel": "cancelled"}[in.Decision]
 	if err := tx.Exec(`INSERT INTO pharmacy_stocktake_commands(tenant_id,outlet_id,id,stocktake_id,kind,expected_version,version,state,item_count,extra_units_disposition,reason,actor_subject,intent_sha256)
  VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, p.TenantID, outlet, command, take, in.Decision, *in.ExpectedVersion, *in.ExpectedVersion+1, state, len(plans), in.ExtraUnitsDisposition, in.Reason, p.Subject, hash).Error; err != nil {
 		return err
 	}
+	profilePhase("command")
 	if len(plans) == 0 {
 		return nil
 	}
@@ -156,6 +161,7 @@ func postStocktakeDecision(tx *gorm.DB, p authn.Principal, pharmacy, outlet, tak
  ORDER BY d.location_id,d.batch_id`, p.TenantID, outlet, p.TenantID, outlet, take, p.TenantID, outlet, take).Error; err != nil {
 		return err
 	}
+	profilePhase("locks")
 	links := make([]stocktakeAdjustmentRow, len(plans))
 	movements := make([]stockMovement, len(plans))
 	publications := make([]events.Event, len(plans))
@@ -177,13 +183,18 @@ func postStocktakeDecision(tx *gorm.DB, p authn.Principal, pharmacy, outlet, tak
 		}
 		publications[i] = events.Event{Type: "StockMovementRecorded", Version: 1, TenantID: p.TenantID, Data: data}
 	}
+	profilePhase("payload")
 	if err := withStocktakeAdjustmentTimestamp(tx, p, outlet, take, command, func() error { return tx.CreateInBatches(&links, 500).Error }); err != nil {
 		return err
 	}
+	profilePhase("adjustments")
 	if err := tx.CreateInBatches(&movements, 500).Error; err != nil {
 		return err
 	}
-	return events.EnqueueBatch(tx, pharmacycontract.SubjectStockMovementRecorded, publications)
+	profilePhase("movements")
+	err := events.EnqueueBatch(tx, pharmacycontract.SubjectStockMovementRecorded, publications)
+	profilePhase("outbox")
+	return err
 }
 
 func (h *catalogueHandlers) getStocktakeDecision(c *gin.Context) {

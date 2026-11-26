@@ -237,3 +237,55 @@ it("retains a delivery ID on uncertain retry and changes it only for explicit re
   expect(requests[2]?.request_id).not.toBe(requests[0]?.request_id);
   expect(requests[2]?.email).toBe(requests[0]?.email);
 });
+
+// #1855: the forms validate with zod only and tie each error to its input.
+it("refuses an invalid email inline, tied to the input, without a request", async () => {
+  const fetch = vi.fn(async () =>
+    Response.json({ error: "password_recovery_expired" }, { status: 404 }),
+  );
+  vi.stubGlobal("fetch", fetch);
+  const { user } = renderWithProviders(<PasswordRecovery authRequestId="V2_test" />);
+  const email = await screen.findByLabelText("Email");
+  expect(email).toHaveAttribute("type", "text");
+  expect(email).toHaveAttribute("inputmode", "email");
+  expect(email).toHaveAttribute("autocomplete", "email");
+  expect(email.closest("form")).toHaveAttribute("novalidate");
+  const reads = fetch.mock.calls.length;
+  await user.click(screen.getByRole("button", { name: "Send recovery code" }));
+  expect(await screen.findByText("Enter a valid email address.")).toHaveAttribute(
+    "id",
+    "recovery-email-error",
+  );
+  expect(email).toHaveAttribute("aria-invalid", "true");
+  expect(email).toHaveAttribute("aria-describedby", "recovery-email-error");
+  await user.type(email, "not-an-email");
+  await user.click(screen.getByRole("button", { name: "Send recovery code" }));
+  expect(email).toHaveAttribute("aria-invalid", "true");
+  expect(fetch.mock.calls.slice(reads)).toEqual([]);
+});
+
+it("refuses an empty or mismatched new password inline without submitting it", async () => {
+  let state = "ready";
+  const fetch = vi.fn(async (url: string) => {
+    if (url.endsWith("/prepare")) state = "prepared";
+    return Response.json({ state });
+  });
+  vi.stubGlobal("fetch", fetch);
+  const { user } = renderWithProviders(<PasswordRecovery authRequestId="V2_test" />);
+  await user.click(await screen.findByRole("button", { name: "Choose a new password" }));
+  const password = await screen.findByLabelText("New password");
+  const confirm = screen.getByLabelText("Confirm new password");
+  expect(password.closest("form")).toHaveAttribute("novalidate");
+  for (const input of [password, confirm]) expect(input).not.toHaveAttribute("maxlength");
+  await user.click(screen.getByRole("button", { name: "Set new password" }));
+  expect(await screen.findByText("Enter a new password using up to 200 characters.")).toBeVisible();
+  expect(password).toHaveAttribute("aria-invalid", "true");
+  expect(password).toHaveAttribute("aria-describedby", "recovery-password-error");
+  await user.type(password, "Synthetic-secret-123!");
+  await user.type(confirm, "Different-secret-456!");
+  await user.click(screen.getByRole("button", { name: "Set new password" }));
+  expect(await screen.findByText("The passwords must match.")).toBeVisible();
+  expect(confirm).toHaveAttribute("aria-invalid", "true");
+  expect(confirm).toHaveAttribute("aria-describedby", "recovery-confirm-error");
+  expect(fetch.mock.calls.filter(([url]) => url.endsWith("/password"))).toEqual([]);
+});

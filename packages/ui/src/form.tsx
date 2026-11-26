@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, type DefaultValues, type FieldValues } from "react-hook-form";
-import type { ReactNode } from "react";
+import { cloneElement, isValidElement, type ReactNode } from "react";
 import type { z } from "zod";
 
 // Helivanta forms are react-hook-form + zod with inline errors (spec D3).
@@ -18,6 +18,12 @@ export function useZodForm<S extends z.ZodType<FieldValues, FieldValues>>(
   });
 }
 
+type ControlProps = {
+  id?: string;
+  "aria-invalid"?: boolean | "true" | "false" | "grammar" | "spelling";
+  "aria-describedby"?: string;
+};
+
 export function Field({
   id,
   label,
@@ -29,12 +35,27 @@ export function Field({
   error?: string;
   children: ReactNode;
 }) {
+  const errorId = `${id}-error`;
+  // The control is the direct child carrying the Field's id; anything else
+  // (a wrapper, no id) has no control to point at and is left alone.
+  const control =
+    error && isValidElement<ControlProps>(children) && children.props.id === id
+      ? cloneElement(children, {
+          // A control's own aria-invalid wins; its describedby is merged.
+          "aria-invalid": children.props["aria-invalid"] ?? true,
+          "aria-describedby": [
+            ...new Set([...(children.props["aria-describedby"]?.split(/\s+/) ?? []), errorId]),
+          ]
+            .filter(Boolean)
+            .join(" "),
+        })
+      : children;
   return (
     <div className="flex min-w-0 flex-col gap-1.5 text-sm font-medium">
       <label htmlFor={id}>{label}</label>
-      {children}
+      {control}
       {error && (
-        <p id={`${id}-error`} role="alert" className="text-sm font-normal text-destructive">
+        <p id={errorId} role="alert" className="text-sm font-normal text-destructive">
           {error}
         </p>
       )}

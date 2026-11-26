@@ -63,9 +63,9 @@ export function AccountDiscovery({ onSelect }: Props) {
           >
             <input
               id="account-email"
-              type="email"
+              type="text"
+              inputMode="email"
               autoComplete="email"
-              maxLength={200}
               disabled={pending}
               className="w-full rounded-md border bg-background px-3 py-2"
               {...emailForm.register("email")}
@@ -101,7 +101,6 @@ export function AccountDiscovery({ onSelect }: Props) {
                 id="account-code"
                 inputMode="numeric"
                 autoComplete="one-time-code"
-                maxLength={8}
                 disabled={pending}
                 className="w-full rounded-md border bg-background px-3 py-2"
                 {...codeForm.register("code")}

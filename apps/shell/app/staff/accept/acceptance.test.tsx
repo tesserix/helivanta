@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { renderWithProviders } from "@helivanta/api/testing";
 import { StaffAcceptance } from "./acceptance";
 
-const navigation = vi.hoisted(() => ({ replace: vi.fn() }));
+const navigation = vi.hoisted(() => ({ replace: vi.fn(), push: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => navigation }));
 
 const invitation = "019a7777-7777-7777-8777-777777777777";
@@ -58,7 +58,7 @@ it("requests a fresh expiring link without exposing or resubmitting the old code
   expect(bodies[1].password).toBeUndefined();
 });
 
-it("redirects a completed account after seven seconds and offers an immediate login link", async () => {
+it("offers a Sign in link for a completed account and never redirects on a timer", async () => {
   vi.useFakeTimers();
   open("password");
   vi.stubGlobal(
@@ -68,14 +68,14 @@ it("redirects a completed account after seven seconds and offers an immediate lo
   renderWithProviders(<StaffAcceptance />);
   await act(async () => {});
   expect(screen.getByRole("heading", { name: "Your account is ready" })).toBeVisible();
+  expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/login");
+  expect(screen.queryByText(/Redirecting/)).not.toBeInTheDocument();
   await act(async () => {
-    await vi.advanceTimersByTimeAsync(6999);
+    await vi.advanceTimersByTimeAsync(10_000);
   });
   expect(navigation.replace).not.toHaveBeenCalled();
-  await act(async () => {
-    await vi.advanceTimersByTimeAsync(1);
-  });
-  expect(navigation.replace).toHaveBeenCalledWith("/login");
+  expect(navigation.push).not.toHaveBeenCalled();
+  expect(screen.getByRole("heading", { name: "Your account is ready" })).toBeVisible();
 });
 
 it("removes fragments and refuses ambiguous links before any request", async () => {
@@ -146,12 +146,18 @@ it("sends no password request until confirmation matches and clears submitted cr
   await userEvent.type(screen.getByLabelText("Confirm password"), "different-password");
   await userEvent.click(screen.getByRole("button", { name: "Set password" }));
   expect(await screen.findByText("Passwords must match.")).toBeVisible();
+  const confirmation = screen.getByLabelText("Confirm password");
+  expect(confirmation).toHaveAttribute("aria-invalid", "true");
+  expect(confirmation).toHaveAttribute("aria-describedby", "staff-confirmation-error");
+  expect(document.getElementById("staff-confirmation-error")).toHaveTextContent(
+    "Passwords must match.",
+  );
   expect(fetcher).toHaveBeenCalledTimes(1);
   await userEvent.clear(screen.getByLabelText("Confirm password"));
   await userEvent.type(screen.getByLabelText("Confirm password"), "private-password");
   await userEvent.click(screen.getByRole("button", { name: "Set password" }));
   expect(await screen.findByRole("heading", { name: "Your account is ready" })).toBeVisible();
-  expect(screen.getByRole("link", { name: "Go to login" })).toHaveAttribute("href", "/login");
+  expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/login");
   expect(document.body.textContent).not.toContain("private-password");
   await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(2));
 });
@@ -173,5 +179,30 @@ it("explains superseded links without offering verification or password submissi
   ).toBeVisible();
   expect(screen.queryByRole("button", { name: "Verify email" })).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Set password" })).not.toBeInTheDocument();
+  expect(fetcher).toHaveBeenCalledTimes(1);
+});
+
+// Presence is a zod rule (#1855): an empty submit shows the inline error on
+// the input and sends nothing, with no native validation left on the form.
+it("refuses an empty password inline without a request or native validation", async () => {
+  open("password");
+  const fetcher = vi.fn(
+    async () =>
+      new Response(JSON.stringify(receipt("password_action_required", "password")), {
+        status: 200,
+      }),
+  );
+  vi.stubGlobal("fetch", fetcher);
+  renderWithProviders(<StaffAcceptance />);
+  await screen.findByRole("heading", { name: "Choose your password" });
+  const password = screen.getByLabelText("New password");
+  expect(password).not.toHaveAttribute("required");
+  expect(screen.getByLabelText("Confirm password")).not.toHaveAttribute("required");
+  expect(password.closest("form")).toHaveAttribute("novalidate");
+  await userEvent.click(screen.getByRole("button", { name: "Set password" }));
+  expect(await screen.findByText("Enter a new password.")).toBeInTheDocument();
+  expect(password).toHaveAttribute("aria-invalid", "true");
+  expect(password).toHaveAttribute("aria-describedby", "staff-password-error");
+  expect(screen.getByText("Confirm your new password.")).toBeInTheDocument();
   expect(fetcher).toHaveBeenCalledTimes(1);
 });

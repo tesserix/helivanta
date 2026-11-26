@@ -176,6 +176,29 @@ it("requires business contact and headquarters details before submitting", async
   );
 });
 
+// The contract leaves the owner email a bare string; the form checks its shape
+// in zod, as type="email" did natively before #1855.
+it("refuses a malformed owner email inline without a request", async () => {
+  const fetcher = vi
+    .fn<(path: string, init?: RequestInit) => Promise<Response>>()
+    .mockResolvedValue(new Response(JSON.stringify({ state: "not_started" }), { status: 200 }));
+  stubSignupApi("fetch", fetcher);
+  renderWithProviders(<SignupForm />);
+  const user = userEvent.setup();
+  const email = await screen.findByLabelText("Owner email");
+  expect(email).toHaveAttribute("type", "text");
+  await user.type(email, "not-an-email");
+  await user.click(screen.getByRole("button", { name: "Create workspace" }));
+  await waitFor(() => expect(email).toHaveAttribute("aria-invalid", "true"));
+  expect(email).toHaveAttribute("aria-describedby", "signup-email-error");
+  expect(document.getElementById("signup-email-error")).toHaveTextContent(
+    "Enter a valid email address.",
+  );
+  expect(fetcher.mock.calls.every((call) => !(call[1] as RequestInit | undefined)?.method)).toBe(
+    true,
+  );
+});
+
 it("preserves a branch address in a different supported state", async () => {
   let submitted: CustomerSignupInput | undefined;
   stubSignupApi(

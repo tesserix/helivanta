@@ -71,10 +71,10 @@ either an authorized HTTP integration or a manual import/export workflow.
 2. Import the reviewed master fixture, if needed, separately from vouchers. Inspect
    its results before proceeding. Never mix master counts with voucher counts.
 3. Import the unchanged voucher file **once** into the named company. Save the
-   actual import-result XML if available, plus the import summary/errors and
+   actual import-result XML or native `tally.imp`, plus import summary/errors and
    selected company screenshot. Do not manufacture an XML response from expected
-   counts. A manual workflow that supplies only a screenshot requires manual
-   receipt review; it cannot pass the CLI's XML-receipt gate.
+   counts. A screenshot without a supported receipt still needs manual receipt
+   review and cannot pass the CLI receipt gate.
 4. If a timeout, disconnect or partial import occurs, stop. Inspect Day Book and
    import errors before deciding recovery. A stable `REMOTEID` does not establish
    Tally-side idempotency. Do not reimport automatically. Use a separately approved
@@ -106,6 +106,56 @@ either an authorized HTTP integration or a manual import/export workflow.
    to 64 KiB. There are no retries or writes to an accounting system.
 
 ## Complete the current acceptance gate
+
+### Native TallyPrime evidence
+
+For TallyPrime 7.2's native XML export, add `--observed-format tallyprime`.
+The adapter decodes BOM-marked UTF-16 without replacement of malformed surrogates.
+It escapes only the exact `&#4; Not Applicable` sentinel in five ignored metadata
+fields: `CSTFORMISSUETYPE`, `CSTFORMRECVTYPE`, `VCHGSTCLASS`, `GSTCLASS` and
+`GSTOVRDNISTAXONMRPAPPLICABLE`. It does not repair accounting values, identities,
+other control references or malformed XML. Source XML remains under the strict
+original parser. Evidence hashes always cover original bytes, not adapted text;
+the result records the format and escaped-sentinel count.
+
+For a manual import, retain the original `tally.imp`. Use `--import-log` instead
+of `--import-response`, together with `--imported-file` set to the exact full
+Windows path recorded in that log:
+
+```sh
+go run ./cmd/tallycheck \
+  --config /secure/qa/expectations.json \
+  --source /secure/qa/helivanta-vouchers.xml \
+  --observed /secure/qa/tally-observed.xml \
+  --observed-format tallyprime \
+  --import-log /secure/qa/tally.imp \
+  --imported-file 'C:\Helivanta-QA\1690\tally-vouchers.xml'
+```
+
+The supported native-log parser requires a complete, unique import block for
+that file, the exact declared company, the expected create count and zero other
+effects. Multiple attempts for the same file, missing/duplicate counters,
+unsupported blocks, errors or truncated logs are rejected. Preserve the original
+log; never trim failed attempts or manufacture an XML response. The native log
+is receipt evidence, not cryptographic company provenance: independently inspect
+the selected company and reports. `company_verified` deliberately remains false.
+
+### First licensed import: failure retained
+
+On 26 November 2026, the GOLD-activated QA installation accepted the original
+25-November source dates. The master import created 21 and altered 3 masters,
+with no errors/exceptions. The original voucher import created 20 vouchers with
+zero alterations, deletions, combinations, ignored records, errors or exceptions.
+Independent read-back nevertheless showed changed Payment, Receipt and Purchase
+voucher numbers. **This run fails exact reconciliation.** A successful import
+summary must not be reported as completed acceptance.
+
+The exported built-in voucher types contain `NUMBERINGMETHOD=Manual` at the top
+level but `Automatic / Auto Retain` in `VOUCHERNUMBERSERIES.LIST`. Validate the
+effective series before importing; top-level settings alone are insufficient.
+Keep the first company/evidence unchanged and use a separate empty synthetic
+company for the next controlled attempt. The hosting and isolation review is
+in [Tally hosting and tenant integration](../design/tally-hosting-and-tenant-integration.md).
 
 For the 25-Nov-2026 fixture, require 20 vouchers: 6 sales, 8 credit notes,
 3 purchases, 2 payments and 1 payment reversal. Inspect Day Book and supplier/bank

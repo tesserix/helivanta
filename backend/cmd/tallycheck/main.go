@@ -348,6 +348,9 @@ type evidence struct {
 	SourceSHA256      string `json:"source_sha256"`
 	ObservedSHA256    string `json:"observed_sha256,omitempty"`
 	ImportSHA256      string `json:"import_response_sha256,omitempty"`
+	ObservedFormat    string `json:"observed_format,omitempty"`
+	EscapedSentinels  int    `json:"escaped_nonaccounting_sentinels,omitempty"`
+	ImportEvidence    string `json:"import_evidence,omitempty"`
 	VoucherCount      int    `json:"voucher_count"`
 	ConfigurationHash string `json:"configuration_sha256"`
 }
@@ -355,6 +358,9 @@ type evidence struct {
 func run(args []string, output io.Writer) error {
 	f := flag.NewFlagSet("tallycheck", flag.ContinueOnError)
 	f.SetOutput(output)
+	importLog := f.String("import-log", "", "actual native tally.imp log (alternative to --import-response)")
+	importedFile := f.String("imported-file", "", "exact remote source path named in --import-log")
+	observedFormat := f.String("observed-format", "xml", "observed encoding: xml or tallyprime (UTF-16 and scoped sentinels)")
 	configuration := f.String("config", "", "expectations JSON (required)")
 	source := f.String("source", "", "unchanged Helivanta voucher XML (required)")
 	observed := f.String("observed", "", "voucher XML exported independently from isolated Tally company")
@@ -362,8 +368,11 @@ func run(args []string, output io.Writer) error {
 	if err := f.Parse(args); err != nil {
 		return err
 	}
-	if f.NArg() != 0 || *configuration == "" || *source == "" || ((*observed == "") != (*importResponse == "")) {
-		return errors.New("provide --config and --source; --observed and --import-response must be supplied together")
+	if f.NArg() != 0 || *configuration == "" || *source == "" ||
+		(*importLog != "" && *importResponse != "") ||
+		((*observed == "") != (*importResponse == "" && *importLog == "")) ||
+		((*importLog == "") != (*importedFile == "")) {
+		return errors.New("provide --config and --source; observed requires exactly one receipt: --import-response or --import-log with --imported-file")
 	}
 	cb, err := readFile(*configuration, 64<<10)
 	if err != nil {
@@ -390,22 +399,39 @@ func run(args []string, output io.Writer) error {
 		if err != nil {
 			return err
 		}
-		actual, err := readVouchers(strings.NewReader(string(ob)))
+		decoded, escaped, err := decodeObserved(ob, *observedFormat)
+		if err != nil {
+			return err
+		}
+		actual, err := readVouchers(strings.NewReader(string(decoded)))
 		if err != nil {
 			return err
 		}
 		if err := reconcile(vouchers, actual); err != nil {
 			return err
 		}
-		ib, err := readFile(*importResponse, 64<<10)
+		receiptPath := *importResponse
+		if *importLog != "" {
+			receiptPath = *importLog
+		}
+		ib, err := readFile(receiptPath, 64<<10)
 		if err != nil {
 			return err
 		}
-		if err := checkImportResponse(strings.NewReader(string(ib)), len(vouchers)); err != nil {
+		if *importLog != "" {
+			err = checkImportLog(ib, *importedFile, c.Company, len(vouchers))
+			e.ImportEvidence = "native_log"
+		} else {
+			err = checkImportResponse(strings.NewReader(string(ib)), len(vouchers))
+			e.ImportEvidence = "xml_response"
+		}
+		if err != nil {
 			return err
 		}
 		e.Status = "vouchers_reconciled"
 		e.ObservedSHA256 = fmt.Sprintf("%x", sha256.Sum256(ob))
+		e.ObservedFormat = *observedFormat
+		e.EscapedSentinels = escaped
 		e.ImportSHA256 = fmt.Sprintf("%x", sha256.Sum256(ib))
 	}
 	if err := json.NewEncoder(output).Encode(e); err != nil {

@@ -5109,6 +5109,15 @@
         },
         {
           "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id/review-context",
+          "permission": "pharmacy.prescription.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id",
           "permission": "pharmacy.prescription.read",
           "authentication_required": true,
@@ -6940,7 +6949,7 @@
         },
         {
           "id": "0074_pharmacy_purchase_tax_evidence",
-          "sql_sha256": "3944e37cc652cf8213447c596bffb4adf98e6ccf11fe5b8929c1de9e323304a3",
+          "sql_sha256": "2cd91ee4389854cfad36432cacb20ebb12b4209fbdb6156fcc6f51cc945b1e2b",
           "creates_tables": [
             "pharmacy_purchase_tax_evidence",
             "pharmacy_purchase_tax_lines",

@@ -182,3 +182,35 @@ Second-check intent binds `expected_version`, `reviewed_state_hash` and `primary
 The client schemas and typed server validation use canonical text bounds (2,000 UTF-16 code units for clinical notes), nonzero UUIDs, safe-integer versions and strict digest/reason formats. Browser schema objects reject unknown fields, including caller-supplied tenant/pharmacist/registration assertions and an emergency bypass flag. The contract carries no default clinical policy and grants no authority. Emergency supply is not a decision in this contract.
 
 Remaining implementation is intentionally tracked by the delivery order and full acceptance matrix above. Do not export these draft types from the public SDK index, register a route or enable a feature based only on this foundation. Complete server authority, retained receipts, state/transaction guards, context and queue before release.
+
+## Slice 2 — recorded source context (unreleased candidate)
+
+The read-only `prescriptions/:id/review-context` route returns the same canonical
+recorded prescription as the existing record read, a server-computed source
+fingerprint, exact owner/reader scope and explicit unavailable clinical data. The
+route is registered to the `unreleased` capability: no provider toggle or existing
+pharmacy pilot can make this candidate available. No new clinical permission or
+assignment is granted, and no decision or supply command is added.
+
+The canonical response definitions now own the existing Go record/line models and
+SDK prescription response schema as well, avoiding a second wire model. Historical
+prescription storage and output field names remain unchanged. The new context
+validates retained source shape, reads balances in the same transaction and uses
+the existing audited prescription disclosure boundary. The SDK sends tenant and
+subject preconditions and rejects a response from a different reader, tenant,
+pharmacy, outlet or prescription.
+
+The fingerprint uses `helivanta.pharmacy.prescription-source.v1` domain separation,
+the verified owner tenant/pharmacy and JSON encoding of the complete record,
+including remaining units and repeat counts. It sorts a copied line list and
+normalizes the recorded instant to UTC; a golden synthetic vector pins version 1.
+It is a source-change precondition only, not authenticity proof or the final
+reviewed clinical/supply state. Images, current product characteristics and signed
+clinical revisions are not inferred from the captured record. Current clinical
+data and professional authority must be integrated before decisions can be enabled.
+
+Tests cover source changes, order/time canonicalization, invalid facts, scoping,
+reader switches and explicit unavailable data. Real-database HTTP tests cover
+existing 403/404 boundaries, successful disclosure audit and audit-failure refusal;
+their execution requires hosted validation and is not claimed from the pure
+local source/SDK tests. No browser acceptance or production activation is claimed.

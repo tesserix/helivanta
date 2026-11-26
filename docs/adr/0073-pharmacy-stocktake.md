@@ -115,6 +115,24 @@ introducing a new persistence service or copying private inputs into storage.
 
 ## Failure, consistency and recovery
 
+### Bounded approval execution
+
+Approval disables PostgreSQL JIT only for its current transaction, including the
+deferred commit checks. The setting resets on commit or rollback; it changes no
+schema, permission, isolation, ledger, audit, outbox or verification rule.
+[PostgreSQL documents](https://www.postgresql.org/docs/current/jit-decision.html)
+that JIT setup can cost more than it saves for short queries. The original
+uninstrumented capacity gate reproduced native posting at 9.35 and 7.52 seconds,
+above the unchanged five-second budget. Custom-plan selection did not resolve it.
+
+With transaction-local JIT disabled, [hosted run 45802208066](https://github.com/tesserix/helivanta/actions/runs/45802208066)
+passed the original uninstrumented tests: native start 2.31 seconds, page p99
+13.61 ms and posting 1.93 seconds; reviewed Staff start 2.94 seconds and posting
+2.02 seconds. Both retained the stock, audit, independent-review and replay
+assertions. Temporary profiling code is excluded. These are isolated synthetic
+measurements, not production latency or operational acceptance claims; the full
+regression gates and normal release process remain required.
+
 ### Snapshot validation at the declared bucket bound
 
 The first isolated hosted capacity run created 10,000 stocked batches through

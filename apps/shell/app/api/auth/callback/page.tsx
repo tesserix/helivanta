@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+  ApiError,
   clearPermissionsCache,
   storeExpiresAt,
   storeRenewAt,
@@ -11,7 +12,7 @@ import {
 } from "@helivanta/api";
 import { getUserManager } from "@/lib/oidc";
 import { redirectFailure, signInAgainHref } from "@/lib/callback-error";
-import { exchangeIdToken } from "@/lib/auth-exchange";
+import { ExchangeError, exchangeIdToken } from "@/lib/auth-exchange";
 import { customerSignupSigninStateContract } from "@/lib/signup-signin";
 
 // The redirect target Zitadel sends the browser back to after a
@@ -93,7 +94,16 @@ export default function AuthCallbackPage() {
         notifySessionChanged();
         router.replace("/dashboard");
       } catch (err) {
-        setError(stage === "exchange" && err instanceof Error ? err.message : redirectFailure(err));
+        // Only our own wording is shown: the login exchange's ExchangeError or
+        // the signup call's ApiError. A fetch TypeError gets the fixed
+        // sentence instead (#1856 D2).
+        setError(
+          stage !== "exchange"
+            ? redirectFailure(err)
+            : err instanceof ExchangeError || err instanceof ApiError
+              ? err.message
+              : "Check your connection and try again.",
+        );
       }
     })();
   }, [router]);

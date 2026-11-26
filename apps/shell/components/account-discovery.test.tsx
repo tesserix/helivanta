@@ -72,7 +72,10 @@ describe("Account discovery", () => {
     await user.click(screen.getByRole("button", { name: "Send code" }));
     // Auto-submits on the eighth digit, like every MfaCodeForm.
     await user.type(await firstCodeDigit(), "12345678");
-    expect(await screen.findByRole("alert")).toHaveTextContent(/expired/);
+    // The API's own wording still reaches the reader (#1856 D2).
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "The code expired. Request a new code.",
+    );
     expect(screen.getByRole("button", { name: "Send a new code" })).toBeEnabled();
     expect(redirect).not.toHaveBeenCalled();
   });
@@ -159,4 +162,19 @@ describe("Account discovery steps (#1854)", () => {
     await user.click(screen.getByRole("button", { name: "Use another email" }));
     await waitFor(() => expect(screen.getByLabelText("Email")).toHaveFocus());
   });
+});
+
+// #1856 D2: a failure Helivanta did not word never reaches the reader.
+it("shows a fixed sentence, never the raw text, when opening an account fails", async () => {
+  stub([{ tenantId: tenant, name: "Yes Hospital", account: "owner@example.test" }]);
+  const failing = vi.fn().mockRejectedValue(new TypeError("Failed to fetch"));
+  const { user } = renderWithProviders(<AccountDiscovery onSelect={failing} />);
+  await user.type(screen.getByLabelText("Email"), "owner@example.test");
+  await user.click(screen.getByRole("button", { name: "Send code" }));
+  expect(await screen.findByRole("button", { name: "Show my accounts again" })).toBeVisible();
+  await user.type(await firstCodeDigit(), "12345678");
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "Check your connection and try again.",
+  );
+  expect(screen.queryByText(/Failed to fetch/)).not.toBeInTheDocument();
 });

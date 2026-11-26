@@ -30,7 +30,7 @@ Some failures are not an `ApiError` and not an error Helivanta wrote itself, the
 
 Messages Helivanta writes are unchanged:
 
-- `ApiError` messages;
+- `ApiError` messages, including the signup continuation refusals shown at the callback's exchange stage;
 - `redirectFailure`'s wording;
 - the exchange route's own message.
 

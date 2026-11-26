@@ -1318,9 +1318,10 @@ function RedirectLanding({
             }
           : { state: { purpose: "email-login" } }),
       });
-    } catch (err: unknown) {
+    } catch {
       setStarting(false);
-      setError(err instanceof Error ? err.message : "Could not reach the sign-in page.");
+      // signinRedirect only throws library or network errors, never our wording.
+      setError("Check your connection and try again.");
     }
   }, [workspace]);
 

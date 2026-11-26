@@ -30,6 +30,11 @@
 // expires_at (#941) is when this session stops being honoured; optional for
 // the same reason as renew_at. See renew.ts's retryDelayMs.
 
+// ExchangeError carries only wording Helivanta wrote: the login route's own
+// message or the generic below. Callers render it; any other failure (a fetch
+// TypeError, a JSON parse error) is not ours and must not reach the reader.
+export class ExchangeError extends Error {}
+
 export interface LoginResult {
   tenant_id: string;
   renew_at?: string;
@@ -73,7 +78,7 @@ export async function exchangeIdToken(idToken: string, tenantId?: string): Promi
     } catch {
       // non-JSON error body — fall back to the generic message
     }
-    throw new Error(message);
+    throw new ExchangeError(message);
   }
   return (await res.json()) as LoginResult;
 }

@@ -105,8 +105,8 @@ export function PasswordRecovery({ authRequestId }: { authRequestId?: string }) 
         setDeliveryUncertain(true);
         setProblem(
           error instanceof ApiError && error.status === 429
-            ? "Too many codes requested. Wait before retrying. Up to three per hour and ten per day are allowed."
-            : "Delivery could not be confirmed. Retry this delivery request before requesting a different code.",
+            ? "You've asked for too many codes. Wait a while, then try again. You can ask for up to three codes an hour and ten a day."
+            : "We couldn't confirm the code was sent. Try sending it again before asking for a new code.",
         );
         settled();
       },
@@ -153,7 +153,9 @@ export function PasswordRecovery({ authRequestId }: { authRequestId?: string }) 
       },
       onError: () => {
         setUncertain(true);
-        setProblem("We could not confirm the result. Check recovery status before continuing.");
+        setProblem(
+          "We couldn't confirm whether that worked. Select Check again before you continue.",
+        );
         settled();
       },
     },
@@ -174,7 +176,7 @@ export function PasswordRecovery({ authRequestId }: { authRequestId?: string }) 
       onError: () => {
         setUncertain(true);
         setProblem(
-          "This attempt could not be cancelled. Check its status; a password update may already be processing.",
+          "We couldn't cancel it. Select Check again: your new password may already be saving.",
         );
         settled();
       },
@@ -198,7 +200,7 @@ export function PasswordRecovery({ authRequestId }: { authRequestId?: string }) 
       onError: () => {
         setUncertain(true);
         setProblem(
-          "We could not confirm the result. Check recovery status before continuing. Your password will not be submitted again automatically.",
+          "We couldn't confirm whether that worked. Select Check again before you continue. Your password won't be sent again automatically.",
         );
         password.current = "";
         settled();
@@ -232,7 +234,7 @@ export function PasswordRecovery({ authRequestId }: { authRequestId?: string }) 
       error={status.error}
       busy={pending || status.isFetching}
     >
-      Check recovery status
+      Check again
     </RefreshButton>
   );
 
@@ -244,7 +246,9 @@ export function PasswordRecovery({ authRequestId }: { authRequestId?: string }) 
       </p>
     );
   } else if (readUnavailable && !unknownCommand && !unresolved) {
-    content = <p>Current recovery status is unavailable. Check it before continuing.</p>;
+    content = (
+      <p>We can&apos;t see where your recovery is up to. Select Check again before you continue.</p>
+    );
   } else if (state === "completed") {
     content = (
       <>
@@ -305,7 +309,7 @@ export function PasswordRecovery({ authRequestId }: { authRequestId?: string }) 
           />
         </Field>
         <p className="text-sm text-muted-foreground">
-          Your organization’s password policy applies.
+          Your organisation’s password policy applies.
         </p>
         <Button type="submit">Set new password</Button>
       </form>
@@ -322,8 +326,8 @@ export function PasswordRecovery({ authRequestId }: { authRequestId?: string }) 
       <>
         <p>
           {state === "prepared"
-            ? "A password attempt was prepared. Cancel it before entering a new password."
-            : "The password update is awaiting confirmation. Check its status or try normal sign-in with the new password. Contact your organization administrator if it remains unresolved."}
+            ? "You started a new password but it wasn't saved. Cancel it to start again."
+            : "Your new password is still being saved. Select Check again, or try signing in with it. If this doesn't clear, contact your organisation's administrator."}
         </p>
         {refresh}
         {(state === "prepared" || unknownCommand) && (
@@ -333,7 +337,7 @@ export function PasswordRecovery({ authRequestId }: { authRequestId?: string }) 
               if (begin()) cancel.mutate();
             }}
           >
-            Cancel prepared attempt
+            Cancel and start again
           </Button>
         )}
         <a className="text-primary underline" href={login}>
@@ -345,8 +349,8 @@ export function PasswordRecovery({ authRequestId }: { authRequestId?: string }) 
     content = (
       <>
         <p role="alert">
-          This account is locked. Contact your organization administrator. Tenant owners should
-          contact Helivanta support.
+          This account is locked. Contact your organisation&apos;s administrator. If you own the
+          workspace, contact Helivanta support.
         </p>
         {refresh}
       </>
@@ -356,11 +360,10 @@ export function PasswordRecovery({ authRequestId }: { authRequestId?: string }) 
       <>
         {state === "refused" && (
           <p role="alert">
-            The password did not meet your organization’s password policy. Prepare a new attempt and
-            choose another password.
+            That password doesn’t meet your organisation’s password policy. Choose another one.
           </p>
         )}
-        <p>Your email is verified. Prepare an attempt before choosing a new password.</p>
+        <p>Your email is verified. Choose a new password.</p>
         <Button
           onClick={() => {
             if (!begin()) return;
@@ -376,7 +379,7 @@ export function PasswordRecovery({ authRequestId }: { authRequestId?: string }) 
   } else if (verified) {
     content = (
       <>
-        <p>Your email was verified. Check recovery status to continue.</p>
+        <p>Your email is verified. Select Check again to continue.</p>
         {refresh}
       </>
     );
@@ -401,12 +404,12 @@ export function PasswordRecovery({ authRequestId }: { authRequestId?: string }) 
           submitLabel="Verify recovery code"
         />
         <p className="text-sm text-muted-foreground">
-          Up to three codes per hour and ten per day are allowed. Requesting a code does not
-          guarantee delivery.
+          You can ask for up to three codes an hour and ten a day. If the email doesn&apos;t arrive,
+          check your spam folder.
         </p>
         {hasDelivery ? (
           <Button variant="outline" onClick={() => send(delivery.current!.email, true)}>
-            {deliveryUncertain ? "Retry delivery request" : "Send a new code"}
+            {deliveryUncertain ? "Try sending again" : "Send a new code"}
           </Button>
         ) : (
           <Button variant="outline" onClick={() => setDelivered(false)}>
@@ -423,8 +426,8 @@ export function PasswordRecovery({ authRequestId }: { authRequestId?: string }) 
         onSubmit={(event) => void emailForm.handleSubmit((values) => send(values.email))(event)}
       >
         <p>
-          Use the email for the account in your selected organization. We will verify your mailbox
-          before checking recovery eligibility.
+          Enter the email for your account in this organisation. We&apos;ll send a code to check
+          it&apos;s yours.
         </p>
         <Field
           id="recovery-email"
@@ -450,7 +453,7 @@ export function PasswordRecovery({ authRequestId }: { authRequestId?: string }) 
   } else {
     content = (
       <p>
-        Start sign-in and choose your organization before requesting password recovery.{" "}
+        Start sign-in and choose your organisation first, then select Forgot password?{" "}
         <a className="text-primary underline" href="/login">
           Start sign-in
         </a>
@@ -467,7 +470,7 @@ export function PasswordRecovery({ authRequestId }: { authRequestId?: string }) 
       {readUnavailable && (
         <RequestFailure
           error={status.error}
-          message="Recovery status could not be checked. No password update has been confirmed."
+          message="We couldn't check your recovery. Your password hasn't been changed."
           retry={() => status.refetch()}
           busy={pending || status.isFetching}
         />
@@ -479,9 +482,9 @@ export function PasswordRecovery({ authRequestId }: { authRequestId?: string }) 
         (delivered && status.error instanceof ApiError && status.error.status === 404 ? (
           <RequestFailure
             error={status.error}
-            refused="Verified recovery status is not available yet. If you already verified your code, check again."
+            refused="We can't see your verified code yet. If you've already entered it, select Check again."
             message="Recovery status could not be checked."
-            recheck="Check recovery status"
+            recheck="Check again"
             retry={() => status.refetch()}
             busy={pending || status.isFetching}
           />

@@ -1,5 +1,13 @@
 # Schema sources, ownership and data dictionary
 
+The draft pharmacist-verification command contract is
+[`contracts/pharmacy-verification.json`](../../contracts/pharmacy-verification.json).
+Run `node scripts/generate-pharmacy-verification.mjs` (or `--check`) to generate
+Go input models/rules and browser Zod models. It defines intent validation only:
+no verification API, role, evidence authority or dispensing gate is registered.
+See the [scope and delivery record](../design/pharmacist-verification.md#slice-1--draft-command-intent-contract)
+for its authority boundaries and outstanding release gates.
+
 [Contract index](README.md) · keep one authoritative definition per concern
 
 The current-person review candidate uses

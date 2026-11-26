@@ -324,6 +324,10 @@ jobs:
           node scripts/generate-release-capabilities.mjs --check
       - name: Verify shared emergency dispatch contract
         run: node scripts/generate-emergency-dispatch.mjs --check
+      - name: Verify draft pharmacy verification command contract
+        run: |
+          node scripts/generate-pharmacy-verification.mjs --check
+          node --test scripts/pharmacy-verification-contract.test.mjs
       - name: Verify Staff governance contracts
         run: |
           node scripts/generate-staff-governance.mjs --check

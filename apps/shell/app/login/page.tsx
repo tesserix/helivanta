@@ -949,9 +949,10 @@ function EnrollStep({
     <TenantLoginLayout>
       <AuthCardCentered>
         <div className="space-y-2 text-center">
-          <h1 ref={headingRef} tabIndex={-1} className="text-2xl font-semibold tracking-tight">
+          <TenantLoginHeading />
+          <h2 ref={headingRef} tabIndex={-1} className="text-lg font-semibold tracking-tight">
             Set up two-step verification
-          </h1>
+          </h2>
           <p className="text-sm text-muted-foreground">
             Scan with your authenticator app, then enter the code.
           </p>

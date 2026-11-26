@@ -1708,6 +1708,15 @@ describe("LoginPage", () => {
       return { user, fetchMock };
     }
 
+    // #1853 D3: the organisation heads the step, as on every other step.
+    it("heads the step with the organisation name above its own h2", async () => {
+      await signInToEnrolment(stubAuthFlow({ password: enrollmentRequired }));
+      expect(screen.getByRole("heading", { level: 1, name: "Helivanta" })).toBeInTheDocument();
+      expect(
+        screen.getByRole("heading", { level: 2, name: "Set up two-step verification" }),
+      ).toHaveAttribute("tabindex", "-1");
+    });
+
     it("renders the QR code and the secret, and neither a refusal nor a redirect", async () => {
       const fetchMock = stubAuthFlow({ password: enrollmentRequired });
       const assignSpy = vi.fn();

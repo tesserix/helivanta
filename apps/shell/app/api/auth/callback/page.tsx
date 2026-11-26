@@ -9,6 +9,8 @@ import {
   notifySessionChanged,
   continueCustomerSignup,
 } from "@helivanta/api";
+import { Button } from "@tesserix/web";
+import { TenantLoginCard } from "@/components/login-branding";
 import { getUserManager } from "@/lib/oidc";
 import { redirectFailure, signInAgainHref } from "@/lib/callback-error";
 import { exchangeIdToken } from "@/lib/auth-exchange";
@@ -100,25 +102,22 @@ export default function AuthCallbackPage() {
 
   if (error) {
     return (
-      <main className="flex min-h-screen items-center justify-center p-4">
-        <div className="max-w-sm space-y-3 text-center">
-          <p role="alert" className="text-sm text-destructive">
-            {error}
-          </p>
-          <a
-            href={signInAgainHref(tenant)}
-            className="text-sm text-foreground underline underline-offset-4"
-          >
-            Sign in again
-          </a>
-        </div>
-      </main>
+      <TenantLoginCard>
+        <p role="alert" className="text-sm text-destructive">
+          {error}
+        </p>
+        <Button asChild className="w-full">
+          <a href={signInAgainHref(tenant)}>Sign in again</a>
+        </Button>
+      </TenantLoginCard>
     );
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center p-4">
-      <p className="text-sm text-muted-foreground">Signing you in…</p>
-    </main>
+    <TenantLoginCard>
+      <p role="status" className="text-sm text-muted-foreground">
+        Signing you in…
+      </p>
+    </TenantLoginCard>
   );
 }

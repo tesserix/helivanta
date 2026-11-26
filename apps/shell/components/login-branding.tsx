@@ -1,5 +1,6 @@
 "use client";
 import {
+  Suspense,
   createContext,
   useContext,
   useEffect,
@@ -10,6 +11,7 @@ import {
 import { useSearchParams } from "next/navigation";
 import { useApiQuery, brandingSchema, DEFAULT_BRANDING, type Branding } from "@helivanta/api";
 import { LoginSurface } from "@helivanta/ui";
+import { AuthCardCentered } from "@tesserix/web";
 const Context = createContext<Branding>(DEFAULT_BRANDING);
 const key = "helivanta.login.branding-tenant";
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -76,5 +78,33 @@ export function TenantLoginHeading({ ref }: { ref?: Ref<HTMLHeadingElement> }) {
     <h1 ref={ref} tabIndex={ref ? -1 : undefined} className="text-2xl font-semibold tracking-tight">
       {useContext(Context).display_name}
     </h1>
+  );
+}
+// The sign-in card for an auth page outside /login (#1853 D1). The provider reads
+// search parameters, so it needs a Suspense boundary; until it resolves the same
+// card shows with the platform's branding rather than an empty page.
+export function TenantLoginCard({
+  children,
+  entry = false,
+  label,
+}: {
+  children: ReactNode;
+  entry?: boolean;
+  // The card's accessible region name; AuthCardCentered renders a plain div.
+  label?: string;
+}) {
+  const card = (
+    <AuthCardCentered>
+      <section aria-label={label} className="space-y-5">
+        {children}
+      </section>
+    </AuthCardCentered>
+  );
+  return (
+    <Suspense fallback={<TenantLoginLayout entry={entry}>{card}</TenantLoginLayout>}>
+      <LoginBrandingProvider>
+        <TenantLoginLayout entry={entry}>{card}</TenantLoginLayout>
+      </LoginBrandingProvider>
+    </Suspense>
   );
 }

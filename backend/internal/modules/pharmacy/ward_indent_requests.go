@@ -184,6 +184,13 @@ func (h *catalogueHandlers) listWardIndentProducts(c *gin.Context, page paginati
 	defer cancel()
 	rows := []receivingProduct{}
 	err := h.wardIndentWork(ctx, p, c.Param("hospital"), c.Param("department"), outlet, PermIndentRead, false, func(tx *gorm.DB, use wardIndentUse) error {
+		var affiliated bool
+		if err := tx.Raw(`SELECT pharmacy_ward_indent_affiliated(?,?,?)`, p.TenantID, outlet, use.hospital).Scan(&affiliated).Error; err != nil {
+			return err
+		}
+		if !affiliated {
+			return gorm.ErrRecordNotFound
+		}
 		if err := tenantdb.ApplyKeyset(tx, page).Select(receivingProductColumns).Scopes(productFilters("active", q)).Where("tenant_id=? AND outlet_id=?", p.TenantID, outlet).Find(&rows).Error; err != nil {
 			return err
 		}

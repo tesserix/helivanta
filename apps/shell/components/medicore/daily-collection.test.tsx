@@ -5,6 +5,8 @@ const renderWithProviders = (ui: Parameters<typeof renderWithNamedAccounts>[0]) 
   renderWithNamedAccounts(ui, { "user-admin": "QA Administrator" });
 import { DailyCollectionReport } from "./daily-collection";
 
+// Zone tidy (#1256/#1257/#1263): controls use the shared control class and tables the shared style.
+
 const hospital = {
   id: "0199e000-0000-7000-8000-00000000a001",
   name: "TEST General",
@@ -155,6 +157,15 @@ describe("DailyCollectionReport", () => {
     const table = await screen.findByRole("table", { name: "Shifts" });
     expect(urls(fetcher).some((u) => u.endsWith("/collections/2026-10-31"))).toBe(true);
     const [, counted, open] = within(table).getAllByRole("row");
+    expect(counted).toHaveClass("h-11");
+    expect(within(table).getByRole("columnheader", { name: "Counter" })).not.toHaveClass(
+      "uppercase",
+    );
+    expect(within(table).getByRole("columnheader", { name: "Payments" })).toHaveClass(
+      "text-right",
+      "tabular-nums",
+    );
+    expect(within(counted).getAllByRole("cell")[3]).toHaveClass("text-right", "tabular-nums");
     expect(counted).toHaveTextContent("IPD-1");
     expect(counted).toHaveTextContent("INR 5,000.00");
     expect(counted).toHaveTextContent("2 · INR 50.00 (refunds INR 500.00)");

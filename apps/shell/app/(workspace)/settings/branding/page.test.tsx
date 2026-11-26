@@ -4,6 +4,8 @@ import { afterEach, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
 import { DEFAULT_BRANDING } from "@helivanta/api";
 import BrandingPage from "./page";
+
+// Zone tidy (#1256/#1257/#1263): controls use the shared control class and tables the shared style.
 afterEach(() => vi.unstubAllGlobals());
 it("previews and persists owner branding while retaining platform attribution", async () => {
   const fetcher = vi.fn(
@@ -25,6 +27,7 @@ it("previews and persists owner branding while retaining platform attribution", 
   vi.stubGlobal("fetch", fetcher);
   const { user } = renderWithProviders(<BrandingPage />);
   const name = await screen.findByLabelText("Organization name");
+  expect(name).toHaveClass("min-h-11");
   await user.clear(name);
   await user.type(name, "YES HOSPITAL");
   await chooseOption(user, screen.getByLabelText("Medical theme"), "Care blue");

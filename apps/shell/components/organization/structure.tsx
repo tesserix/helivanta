@@ -1,7 +1,7 @@
 "use client";
 import { useId, useState } from "react";
 import { z } from "zod";
-import { Button, Input } from "@tesserix/web";
+import { Button, Input, cn } from "@tesserix/web";
 import {
   newOrganizationId,
   organizationDepartmentEditorContract,
@@ -29,6 +29,7 @@ import {
   useZodForm,
   RefreshButton,
   LoadMore,
+  tableStyles,
 } from "@helivanta/ui";
 import { useOrganizationCommand } from "./command";
 
@@ -111,7 +112,7 @@ function StructureHospitals({ scope, canManage }: Props) {
   const confirm = useConfirmLeave();
   return (
     <div className="space-y-6">
-      <PageHeading description="The shared department structure used by Staff and product teams. Department membership and product duties are managed separately." />
+      <PageHeading description="The shared department structure used by Staff and product teams." />
       {hospital ? (
         <>
           <Button variant="outline" onClick={() => confirm(() => setHospital(null))}>
@@ -338,31 +339,31 @@ function DepartmentDirectory({
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
                   <caption className="sr-only">Departments at {hospitalName}</caption>
-                  <thead className="border-b text-muted-foreground">
+                  <thead>
                     <tr>
                       {["Name", "Code", "Type", "Parent", "Status", "Actions"].map((label) => (
-                        <th key={label} className="px-3 py-3 font-medium">
+                        <th key={label} className={cn(tableStyles.head, "px-3 py-3")}>
                           {label}
                         </th>
                       ))}
                     </tr>
                   </thead>
-                  <tbody className="divide-y">
+                  <tbody>
                     {rows.map((row) => (
-                      <tr key={row.id}>
-                        <td className="px-3 py-4 font-medium">{row.name}</td>
-                        <td className="px-3 py-4">{row.code}</td>
-                        <td className="px-3 py-4">
+                      <tr key={row.id} className={tableStyles.row}>
+                        <td className="px-3 py-3 font-medium">{row.name}</td>
+                        <td className="px-3 py-3">{row.code}</td>
+                        <td className="px-3 py-3">
                           {row.kind === "department" ? "Department" : "Sub-unit"}
                         </td>
-                        <td className="max-w-56 break-all px-3 py-4">
+                        <td className="max-w-56 break-all px-3 py-3">
                           {row.parent_id
                             ? (rows.find((parent) => parent.id === row.parent_id)?.name ??
                               `Parent ${row.parent_id}`)
                             : "Hospital"}
                         </td>
-                        <td className="px-3 py-4 capitalize">{row.status}</td>
-                        <td className="px-3 py-4">
+                        <td className="px-3 py-3 capitalize">{row.status}</td>
+                        <td className="px-3 py-3">
                           <div className="flex gap-2">
                             <Button
                               variant="outline"

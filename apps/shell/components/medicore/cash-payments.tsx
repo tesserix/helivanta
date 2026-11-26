@@ -1,6 +1,6 @@
 "use client";
 import { useMemo, useState } from "react";
-import { Badge, Button } from "@tesserix/web";
+import { Badge, Button, cn } from "@tesserix/web";
 import {
   apiFetch,
   cashReasonSchema,
@@ -24,15 +24,13 @@ import {
   RequestFailure,
   formatDateTime,
   useZodForm,
+  controlClass,
 } from "@helivanta/ui";
 import { CurrencyAmountField, formatPharmacyMoney } from "../pharmacy/currency-amount-field";
 import { BillingUpi } from "./billing-upi";
 import { useMyShift } from "./cash-desk";
 import { AdmissionDiscounts } from "./discounts";
 import { DepositRefunds } from "./refunds";
-
-const inputClass =
-  "w-full rounded-md border bg-background px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--hms-accent)";
 
 /**
  * Cash taken against an admission (#198): what has been paid, and, for a
@@ -351,7 +349,7 @@ function TakeTender({
         <Field id={`${id}-wallet`} label="Wallet" error={errors.wallet?.message}>
           <input
             id={`${id}-wallet`}
-            className={`${inputClass} w-36`}
+            className={cn(controlClass, "w-36")}
             {...form.register("wallet")}
           />
         </Field>
@@ -360,7 +358,7 @@ function TakeTender({
         <input
           id={`${id}-reference`}
           autoComplete="off"
-          className={`${inputClass} w-56`}
+          className={cn(controlClass, "w-56")}
           {...form.register("reference")}
         />
       </Field>
@@ -369,7 +367,7 @@ function TakeTender({
           <input
             id={`${id}-approval`}
             autoComplete="off"
-            className={`${inputClass} w-28`}
+            className={cn(controlClass, "w-28")}
             {...form.register("approval_code")}
           />
         </Field>
@@ -475,7 +473,7 @@ function Receipt({
           >
             <input
               id={`void-${receipt.id}`}
-              className={`${inputClass} w-64`}
+              className={cn(controlClass, "w-64")}
               {...form.register("reason")}
             />
           </Field>

@@ -6,6 +6,8 @@ import type { Bed } from "@helivanta/api";
 import { chooseOption } from "../../test/select";
 import { DischargeOrder } from "./discharge-order";
 
+// Zone tidy (#1256/#1257/#1263): controls use the shared control class and tables the shared style.
+
 const hospital = {
   id: "0199e000-0000-7000-8000-00000000a001",
   name: "TEST General",
@@ -96,6 +98,7 @@ describe("DischargeOrder", () => {
     expect(await screen.findByText("Give a reason")).toBeInTheDocument();
     expect(puts(fetcher)).toHaveLength(0);
     await user.type(screen.getByLabelText("Why discharge is withdrawn"), "Fever overnight");
+    expect(screen.getByLabelText("Why discharge is withdrawn")).toHaveClass("min-h-11", "w-72");
     await user.click(screen.getByRole("button", { name: "Withdraw discharge" }));
     await waitFor(() => expect(puts(fetcher)).toHaveLength(1));
     expect(puts(fetcher)[0][0]).toMatch(`/discharge-orders/${order}/withdrawals/`);

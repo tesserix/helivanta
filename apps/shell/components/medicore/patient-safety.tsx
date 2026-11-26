@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { z } from "zod";
-import { Badge, Button } from "@tesserix/web";
+import { Badge, Button, cn } from "@tesserix/web";
 import { AlertTriangle } from "lucide-react";
 import {
   allergyReactions,
@@ -26,12 +26,11 @@ import {
   Field,
   FormSelectField,
   formatTime,
+  Panel,
   RequestFailure,
   useZodForm,
+  controlClass,
 } from "@helivanta/ui";
-
-const inputClass =
-  "w-full rounded-md border bg-background px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--hms-accent)";
 
 const labels: Record<string, string> = {
   rash: "Rash",
@@ -88,7 +87,7 @@ export function PatientSafety({
   const { can } = usePermissions();
   const base = `/medicore/hospitals/${hospital.id}/patients/${patientId}`;
   return (
-    <div className="w-full space-y-4 rounded-md border p-4">
+    <Panel as="div" className="w-full space-y-4">
       {can("medicore.allergy.read") && (
         <Allergies
           base={base}
@@ -103,7 +102,7 @@ export function PatientSafety({
           canRecord={can("medicore.observation.record")}
         />
       )}
-    </div>
+    </Panel>
   );
 }
 
@@ -277,7 +276,7 @@ function AllergyBody({
               >
                 <input
                   id={`nka-withdraw-${base}`}
-                  className={inputClass}
+                  className={controlClass}
                   {...withdrawForm.register("reason")}
                 />
               </Field>
@@ -330,7 +329,7 @@ function AllergyBody({
         </div>
       )}
       {confirming && s.status === "unknown" && (
-        <div className="flex flex-wrap items-center gap-2 rounded-md border p-3">
+        <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
           <p className="text-sm">The patient was asked and reports no known allergies.</p>
           <Button size="sm" disabled={noKnownPending} onClick={noKnown}>
             Confirm no known allergies
@@ -419,7 +418,7 @@ function AllergyRow({
           >
             <input
               id={`correct-reason-${entry.id}`}
-              className={inputClass}
+              className={controlClass}
               {...form.register("reason")}
             />
           </Field>
@@ -515,7 +514,7 @@ function RecordAllergy({
     },
   );
   return (
-    <div className="space-y-3 rounded-md border p-3">
+    <div className="space-y-3 border-t border-border pt-3">
       <form
         noValidate
         className="grid gap-3 sm:grid-cols-3"
@@ -549,7 +548,7 @@ function RecordAllergy({
           >
             <input
               id={`allergy-label-${formId}`}
-              className={inputClass}
+              className={controlClass}
               {...form.register("substance_label")}
             />
           </Field>
@@ -604,7 +603,7 @@ function RecordAllergy({
           >
             <input
               id={`allergy-drug-search-${formId}`}
-              className={`${inputClass} w-64`}
+              className={cn(controlClass, "w-64")}
               placeholder="Generic or brand name"
               {...search.register("q")}
             />
@@ -749,7 +748,7 @@ function Weight({
             <input
               id={`weight-at-${id}`}
               type="datetime-local"
-              className={inputClass}
+              className={controlClass}
               {...form.register("measured_at")}
             />
           </Field>
@@ -761,7 +760,7 @@ function Weight({
             <input
               id={`weight-value-${id}`}
               inputMode="decimal"
-              className={inputClass}
+              className={controlClass}
               {...form.register("value")}
             />
           </Field>

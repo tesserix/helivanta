@@ -127,6 +127,8 @@ it("shows source evidence and blocks the author from self review", async () => {
     await screen.findByText(/An independent reviewer must decide this version/),
   ).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Approve version" })).not.toBeInTheDocument();
+  // Zone tidy (#1263): a focused heading scrolls to the shell's 16px offset.
+  expect(screen.getByRole("heading", { level: 3, name: /TEST-STATE/ })).toHaveClass("scroll-mt-4");
   expect(
     screen.getByText(`Times shown in ${Intl.DateTimeFormat().resolvedOptions().timeZone}`),
   ).toBeInTheDocument();

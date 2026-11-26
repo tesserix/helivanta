@@ -4,6 +4,8 @@ import { renderWithProviders } from "@helivanta/api/testing";
 import { NavigationGuardProvider } from "@helivanta/ui";
 import { OrganizationStructure } from "./structure";
 
+// Zone tidy (#1256/#1257/#1263): controls use the shared control class and tables the shared style.
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
   usePathname: () => "/settings/organization",
@@ -60,8 +62,20 @@ it("shows the authorized hospital name in the reference and department context",
   });
   vi.stubGlobal("fetch", fetcher);
   const { user } = mount();
+  expect(
+    await screen.findByText("The shared department structure used by Staff and product teams."),
+  ).toBeVisible();
+  expect(screen.queryByText(/Department membership and product duties/)).not.toBeInTheDocument();
   await user.click(await screen.findByRole("button", { name: `Open departments for ${name}` }));
   expect(await screen.findByRole("table", { name: `Departments at ${name}` })).toBeVisible();
+  expect(screen.getByRole("cell", { name: node.name }).closest("tr")).toHaveClass("h-11");
+  expect(screen.getByRole("columnheader", { name: "Name" })).not.toHaveClass("uppercase");
+  // The cut sentence's rule is already stated beside "Add department or sub-unit".
+  expect(
+    screen.getByText(
+      "These units describe the organization. They do not assign Staff or grant outlet, clinical or login access.",
+    ),
+  ).toBeVisible();
   expect(screen.getByText(name, { exact: true })).toBeVisible();
   expect(screen.queryByText(new RegExp(hospital))).not.toBeInTheDocument();
 });

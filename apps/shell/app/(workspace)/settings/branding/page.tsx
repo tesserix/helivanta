@@ -17,9 +17,8 @@ import {
   Panel,
   RequestFailure,
   useZodForm,
+  controlClass,
 } from "@helivanta/ui";
-const inputClass =
-  "w-full rounded-md border bg-background px-3 py-2.5 text-sm focus-visible:outline-2 focus-visible:outline-(--hms-accent)";
 export default function BrandingPage() {
   const { can, isLoading } = usePermissions();
   const query = useApiQuery<Branding>(["workspace", "branding"], "/workspace/branding");
@@ -73,7 +72,7 @@ function BrandingEditor({ initial }: { initial: Branding }) {
             label="Organization name"
             error={form.formState.errors.display_name?.message}
           >
-            <input id="brand-name" className={inputClass} {...form.register("display_name")} />
+            <input id="brand-name" className={controlClass} {...form.register("display_name")} />
           </Field>
           <Field
             id="brand-logo"
@@ -82,7 +81,7 @@ function BrandingEditor({ initial }: { initial: Branding }) {
           >
             <input
               id="brand-logo"
-              className={inputClass}
+              className={controlClass}
               placeholder="https://…/your-logo.png"
               {...form.register("logo_url")}
             />
@@ -98,7 +97,7 @@ function BrandingEditor({ initial }: { initial: Branding }) {
           >
             <textarea
               id="brand-welcome"
-              className={inputClass}
+              className={controlClass}
               rows={3}
               {...form.register("welcome_text")}
             />

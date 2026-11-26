@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Badge, Button } from "@tesserix/web";
+import { Badge, Button, cn } from "@tesserix/web";
 import {
   apiFetch,
   discountDecisionSchema,
@@ -23,12 +23,11 @@ import {
   RequestFailure,
   formatDateTime,
   useZodForm,
+  controlClass,
 } from "@helivanta/ui";
 import { CurrencyAmountField, formatPharmacyMoney } from "../pharmacy/currency-amount-field";
 import { PatientName } from "./opd-encounters";
 
-const inputClass =
-  "w-full rounded-md border bg-background px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--hms-accent)";
 const money = (minor: number) => formatPharmacyMoney(minor, "INR");
 const percent = (bp: number) => `${bp / 100}%`;
 
@@ -187,16 +186,16 @@ function ReasonForm({ hospital }: { hospital: Hospital }) {
       onSubmit={form.handleSubmit((v) => save.mutate(v))}
     >
       <Field id="reason-code" label="Code" error={e.code?.message}>
-        <input id="reason-code" className={`${inputClass} w-32`} {...form.register("code")} />
+        <input id="reason-code" className={cn(controlClass, "w-32")} {...form.register("code")} />
       </Field>
       <Field id="reason-name" label="Name" error={e.name?.message}>
-        <input id="reason-name" className={`${inputClass} w-48`} {...form.register("name")} />
+        <input id="reason-name" className={cn(controlClass, "w-48")} {...form.register("name")} />
       </Field>
       <Field id="reason-desk-percent" label="Desk %" error={e.desk_percent?.message}>
         <input
           id="reason-desk-percent"
           inputMode="decimal"
-          className={`${inputClass} w-24`}
+          className={cn(controlClass, "w-24")}
           {...form.register("desk_percent")}
         />
       </Field>
@@ -205,7 +204,7 @@ function ReasonForm({ hospital }: { hospital: Hospital }) {
         <input
           id="reason-approval-percent"
           inputMode="decimal"
-          className={`${inputClass} w-24`}
+          className={cn(controlClass, "w-24")}
           {...form.register("approval_percent")}
         />
       </Field>
@@ -367,7 +366,7 @@ function GiveDiscount({
       >
         <input
           id={`discount-why-${admissionId}`}
-          className={`${inputClass} w-56`}
+          className={cn(controlClass, "w-56")}
           {...form.register("justification")}
         />
       </Field>
@@ -475,7 +474,7 @@ function Decide({ hospital, discount }: { hospital: Hospital; discount: Discount
       >
         <input
           id={`decision-${discount.id}`}
-          className={`${inputClass} w-56`}
+          className={cn(controlClass, "w-56")}
           {...form.register("note")}
         />
       </Field>

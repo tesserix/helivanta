@@ -4,6 +4,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
 import { OpdEncounters } from "./opd-encounters";
 
+// Zone tidy (#1256/#1257/#1263): controls use the shared control class and tables the shared style.
+
 const hospital = { id: "0199e000-0000-7000-8000-00000000a001", name: "TEST General" };
 const patient = {
   id: "0199e000-0000-7000-8000-000000000001",
@@ -119,6 +121,7 @@ describe("OpdEncounters", () => {
     const calls = server();
     renderWithProviders(<OpdEncounters />);
     await userEvent.type(await screen.findByLabelText("Find a patient registered here"), "Asha");
+    expect(screen.getByLabelText("Find a patient registered here")).toHaveClass("min-h-11", "w-72");
     await userEvent.click(screen.getByRole("button", { name: "Search" }));
     await waitFor(() => expect(calls.some((c) => c.url.includes("/patients/search"))).toBe(true));
     await userEvent.click(await screen.findByRole("combobox", { name: "Patient" }));

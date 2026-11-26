@@ -4,6 +4,8 @@ import { renderWithProviders } from "@helivanta/api/testing";
 import { chooseOption } from "../../test/select";
 import { WardBoard } from "./ward-board";
 
+// Zone tidy (#1256/#1257/#1263): controls use the shared control class and tables the shared style.
+
 const hospital = { id: "0199e000-0000-7000-8000-00000000a001", name: "TEST General" };
 const patient = {
   id: "0199e000-0000-7000-8000-000000000001",
@@ -161,6 +163,7 @@ describe("WardBoard", () => {
     await user.click(within(form).getByRole("button", { name: "Release" }));
     expect(await screen.findByText("Say what happened")).toBeInTheDocument();
     await user.type(screen.getByLabelText("What happened"), "TEST left with family");
+    expect(screen.getByLabelText("What happened")).toHaveClass("min-h-11", "w-72");
     await user.click(within(form).getByRole("button", { name: "Release" }));
     const dialog = await screen.findByRole("dialog");
     expect(puts(calls)).toHaveLength(0);

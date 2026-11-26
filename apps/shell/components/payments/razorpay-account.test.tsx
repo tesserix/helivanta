@@ -3,6 +3,8 @@ import { afterEach, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
 import { RazorpayAccount } from "./razorpay-account";
 
+// Zone tidy (#1256/#1257/#1263): controls use the shared control class and tables the shared style.
+
 afterEach(() => vi.unstubAllGlobals());
 
 const empty = { configured: false, key_secret_set: false, webhook_secret_set: false };
@@ -28,6 +30,7 @@ it("asks for every key on the first save and sends only what was typed", async (
   const fetcher = stub(empty, () => new Response(JSON.stringify(saved), { status: 200 }));
   const { user } = renderWithProviders(<RazorpayAccount />);
   await user.type(await screen.findByLabelText("Key id"), "rzp_live_abc");
+  expect(screen.getByLabelText("Key id")).toHaveClass("min-h-11");
   await user.click(screen.getByRole("button", { name: "Save Razorpay account" }));
   expect(await screen.findByText("A test account uses an rzp_test_ key")).toBeTruthy();
   expect(screen.getByText("Enter the secret for this key id")).toBeTruthy();

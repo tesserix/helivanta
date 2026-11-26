@@ -24,10 +24,8 @@ import {
   firstError,
   RequestFailure,
   useZodForm,
+  controlClass,
 } from "@helivanta/ui";
-
-const inputClass =
-  "w-full rounded-md border bg-background px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--hms-accent)";
 
 /** A hospital's wards, rooms and beds (#106 slice 1). Codes never change once recorded. */
 export function BedSetup({ hospital }: { hospital: Hospital }) {
@@ -94,10 +92,10 @@ function WardForm({ root, hospitalId }: { root: string; hospitalId: string }) {
       onSubmit={form.handleSubmit((values) => save.mutate(values))}
     >
       <Field id="ward-code" label="Ward code" error={form.formState.errors.code?.message}>
-        <input id="ward-code" className={inputClass} {...form.register("code")} />
+        <input id="ward-code" className={controlClass} {...form.register("code")} />
       </Field>
       <Field id="ward-name" label="Ward name" error={form.formState.errors.name?.message}>
-        <input id="ward-name" className={inputClass} {...form.register("name")} />
+        <input id="ward-name" className={controlClass} {...form.register("name")} />
       </Field>
       <Button type="submit" variant="outline" disabled={save.isPending}>
         Add ward
@@ -154,7 +152,7 @@ function RoomForm({
         options={wards.map((w) => ({ value: w.id, label: `${w.code} · ${w.name}` }))}
       />
       <Field id="room-code" label="Room code" error={form.formState.errors.code?.message}>
-        <input id="room-code" className={inputClass} {...form.register("code")} />
+        <input id="room-code" className={controlClass} {...form.register("code")} />
       </Field>
       <Button type="submit" variant="outline" disabled={save.isPending}>
         Add room
@@ -217,7 +215,7 @@ function BedForm({
         }))}
       />
       <Field id="bed-code" label="Bed code" error={form.formState.errors.code?.message}>
-        <input id="bed-code" className={inputClass} {...form.register("code")} />
+        <input id="bed-code" className={controlClass} {...form.register("code")} />
       </Field>
       <FormSelectField
         control={form.control}

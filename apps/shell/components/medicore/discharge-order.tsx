@@ -1,6 +1,6 @@
 "use client";
 import { useMemo, useState } from "react";
-import { Badge, Button } from "@tesserix/web";
+import { Badge, Button, cn } from "@tesserix/web";
 import {
   apiFetch,
   bedReasonSchema,
@@ -12,10 +12,7 @@ import {
   type Bed,
   type Hospital,
 } from "@helivanta/api";
-import { Field, FormSelectField, formatDateTime, useZodForm } from "@helivanta/ui";
-
-const inputClass =
-  "w-full rounded-md border bg-background px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--hms-accent)";
+import { Field, FormSelectField, formatDateTime, useZodForm, controlClass } from "@helivanta/ui";
 
 /**
  * An occupied bed's discharge order (#96): shown to the ward; ordered and
@@ -116,7 +113,7 @@ function DischargeForm({
         >
           <input
             id={`withdraw-${admissionId}`}
-            className={`${inputClass} w-72`}
+            className={cn(controlClass, "w-72")}
             {...withdrawForm.register("reason")}
           />
         </Field>
@@ -151,7 +148,7 @@ function DischargeForm({
       >
         <input
           id={`discharge-note-${admissionId}`}
-          className={`${inputClass} w-72`}
+          className={cn(controlClass, "w-72")}
           {...orderForm.register("note")}
         />
       </Field>

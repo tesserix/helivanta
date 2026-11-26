@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { z } from "zod";
-import { Badge, Button } from "@tesserix/web";
+import { Badge, Button, cn } from "@tesserix/web";
 import { Stethoscope } from "lucide-react";
 import {
   ApiError,
@@ -28,6 +28,7 @@ import {
   RequestFailure,
   SelectControl,
   useZodForm,
+  controlClass,
 } from "@helivanta/ui";
 import { PatientSafety } from "./patient-safety";
 
@@ -46,9 +47,6 @@ const moveLabel: Record<EncounterStatus, string> = {
   cancelled: "Cancel",
 };
 const needsReason = new Set<EncounterStatus>(["left_without_being_seen", "cancelled"]);
-
-const inputClass =
-  "w-full rounded-md border bg-background px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--hms-accent)";
 
 /**
  * OPD encounters at one hospital (#80 slice 1): who has arrived, who is
@@ -303,7 +301,7 @@ function EncounterRow({ hospital, row }: { hospital: Hospital; row: Encounter })
           >
             <input
               id={`reason-${row.id}`}
-              className={inputClass}
+              className={controlClass}
               {...reasonForm.register("reason")}
             />
           </Field>
@@ -381,7 +379,7 @@ function OpenEncounter({ hospital }: { hospital: Hospital }) {
         >
           <input
             id="opd-patient-search"
-            className={`${inputClass} w-72`}
+            className={cn(controlClass, "w-72")}
             placeholder="Name, MRN or mobile"
             {...search.register("query")}
           />

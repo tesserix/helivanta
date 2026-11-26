@@ -6,6 +6,10 @@ on 25 November 2026; actual TallyPrime company import remains unverified. See
 the [release evidence](https://github.com/tesserix/helivanta/issues/1690#issuecomment-7175881252).
 Issue: [#1690](https://github.com/tesserix/helivanta/issues/1690).
 
+Repeatable external acceptance uses the [Tally test runbook](../testing/tally-acceptance.md)
+and configurable offline `backend/cmd/tallycheck` verifier. Source validation is
+distinct from actual import, independent read-back and company/ledger verification.
+
 ## Who can use it
 
 Use an authorized account with accounts-export permission and access to the

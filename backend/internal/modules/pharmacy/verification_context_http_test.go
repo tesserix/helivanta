@@ -33,7 +33,7 @@ func TestPrescriptionReviewContextIsAuditedAndOutletScoped(t *testing.T) {
 	require.Equal(t, "unavailable", view.ClinicalContext.Allergies)
 	require.Equal(t, int64(20), view.Record.Lines[0].UnitsRemaining)
 	require.Len(t, view.SourceStateHash, 64)
-	require.NoError(t, w.db.WithSystem(t.Context(), func(tx *gorm.DB) error {
+	require.NoError(t, w.db.WithTenant(t.Context(), testutil.TenantA, func(tx *gorm.DB) error {
 		var count int64
 		if err := tx.Table("audit_events").Where("tenant_id=? AND resource_type='pharmacy_prescription' AND resource_id=? AND actor_subject='user-pharmacist' AND action='record_read'", testutil.TenantA, id).Count(&count).Error; err != nil {
 			return err
@@ -41,9 +41,11 @@ func TestPrescriptionReviewContextIsAuditedAndOutletScoped(t *testing.T) {
 		require.Equal(t, int64(1), count, "read disclosure must be audited before returning context")
 		return nil
 	}))
-	for _, token := range []string{"owner", "viewer"} {
-		require.Equal(t, http.StatusForbidden, do(w.r, "GET", path, token, "").Code)
-	}
+	require.Equal(t, http.StatusForbidden, do(w.r, "GET", path, "owner", "").Code)
+	reader := do(w.r, "GET", path, "viewer", "")
+	require.Equal(t, http.StatusOK, reader.Code, reader.Body.String())
+	require.Contains(t, reader.Body.String(), `"reader_subject":"user-viewer"`)
+	require.Contains(t, reader.Body.String(), `"clinical_authority":"not_evaluated"`)
 	require.Equal(t, http.StatusNotFound, do(w.r, "GET", path, "foreign", "").Code)
 	require.Equal(t, http.StatusNotFound, do(w.r, "GET", prescriptionPath("/"+uuid.Must(uuid.NewV7()).String()+"/review-context"), "pharmacist", "").Code)
 	otherOutlet := strings.Replace(path, pharmaOutlet, uuid.Must(uuid.NewV7()).String(), 1)

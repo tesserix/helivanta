@@ -83,7 +83,10 @@ func (h *catalogueHandlers) getPrescriptionReviewContext(c *gin.Context) {
 		if err != nil {
 			return err
 		}
-		return auditRegisterRead(c, tx, "prescription", p.TenantID, p.Subject, id, "record_read")
+		if err := auditRegisterRead(c, tx, "prescription", p.TenantID, p.Subject, id, "record_read"); err != nil {
+			return errors.Join(errPrescriptionReviewSource, err)
+		}
+		return nil
 	})
 	if errors.Is(err, errPrescriptionReviewSource) {
 		respond.Error(c, http.StatusServiceUnavailable, "review_context_unavailable", "The recorded prescription could not be checked. No clinical verification has been recorded.")

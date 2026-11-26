@@ -77,6 +77,44 @@ userVerificationRequirement}` returns `publicKeyCredentialRequestOptions`.
 If (1) or (2) fails, stop and bring the finding back. ADR-0069 stays in force
 until it is resolved.
 
+### S1 result (2026-11-27)
+
+The spike ran in CI against the dev Zitadel **v4.19.5**, the same version as
+production (`tesserix-k8s/charts/thirdparty/zitadel/Chart.yaml` appVersion). It
+used Chromium's virtual authenticator, with the page served at
+`http://helivanta.localhost/` (run 45908050250, branch `spike/1898-webauthn`,
+never merged). Every call returned what the design needs:
+
+1. **Proved.** `POST /v2/users/{id}/u2f {"domain":"helivanta.localhost"}`
+   returned 200 with `u2fId` and `publicKeyCredentialCreationOptions.publicKey`,
+   `rp.id = helivanta.localhost`. The browser created the credential, and
+   `POST /v2/users/{id}/u2f/{u2fId}` with `publicKeyCredential` and `tokenName`
+   returned 200. The key is listed as `AUTH_FACTOR_STATE_READY`, and
+   `authMethodTypes` is `[U2F, PASSWORD]`.
+2. **Proved, using the login client's own PAT.** `POST /v2/sessions` with the
+   user and password checks plus `challenges.webAuthN{domain,
+userVerificationRequirement}` returned 201 and
+   `publicKeyCredentialRequestOptions`. The browser assertion, sent as
+   `PATCH /v2/sessions/{id}` with `checks.webAuthN.credentialAssertionData`,
+   returned 200. The session then has `factors.webAuthN.verifiedAt` next to
+   `factors.password.verifiedAt`. The existing sufficiency code doesn't read
+   `factors.webAuthN` yet: it only refuses password-only U2F sessions. Slice 2
+   adds the acceptance and tests it.
+3. **Zitadel doesn't check the domain.** It accepted `example.com` and
+   `auth.tesserix.localhost` as well. So no trusted-domain change is needed in
+   tesserix-k8s. It also means Zitadel won't catch a wrong RP ID, so D1's
+   boot-time validated configuration is the only control on the domain, and
+   slice 1 tests that a request can't choose the domain.
+4. **The RP ID can't be read back.** The auth-factor listing returns only `id`,
+   `name` and `state`. So D4's inventory needs the IAM key registry: Helivanta
+   records the `u2fId` of every key it registers, and any other U2F key is a
+   legacy key.
+
+Also: `rp.name` comes back as `ZITADEL`, the instance name. The v2 request has
+no field to set it. Browsers show `rp.id` in their prompt, and some operating
+system prompts show the name. Whether to rename the instance (a shared
+tesserix-k8s setting) is decided in slice 1.
+
 ## Decisions
 
 ### D1: helivanta.app is the relying party
@@ -189,10 +227,8 @@ Each slice is a vertical PR with backend, shell, tests and docs. The plan goes i
 
 ## Open for the product owner
 
-- **D4 gap:** is a short password-only gap acceptable for the few moved users,
-  between the reset and their re-enrolment? The alternative is asking each of
-  them to enrol TOTP first, which needs a working sign-in, so in practice it
-  needs the reset anyway.
+- **D4 gap: accepted** by the product owner on 2026-11-27. A moved user may be
+  password-only between the reset and re-enrolment.
 - **Who resets a tenant owner's key?** #1703's reset protects ordinary targets
   and is run by an administrator. If the only legacy key belongs to an owner with
   no administrator above them, the move needs a named operator path, which is

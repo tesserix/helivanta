@@ -115,6 +115,13 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	// Fail boot before any network call if the WebAuthn RP ID is not the
+	// one value this environment allows (see ValidatedWebAuthnRPID).
+	webAuthnRPID, err := cfg.ValidatedWebAuthnRPID()
+	if err != nil {
+		return err
+	}
+	_ = webAuthnRPID // consumed by the login handlers from the next task on
 	// Resolved alongside the signing key, for the same reason: a missing
 	// login-client PAT is a configuration defect, not a runtime one, and
 	// it should surface before anything else costs time or a network

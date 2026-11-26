@@ -654,6 +654,20 @@ export const pharmacyStocktakeStartInputSchema = z
   })
   .strict();
 
+export const pharmacyWardIndentLineInputSchema = z
+  .object({
+    product_id: identifier,
+    requested_units: z.number().int().min(1).max(1000000),
+  })
+  .strict();
+
+export const pharmacyWardIndentInputSchema = z
+  .object({
+    occupancy_id: identifier,
+    lines: z.array(pharmacyWardIndentLineInputSchema).min(1).max(50),
+  })
+  .strict();
+
 export const pharmacyStocktakeSummarySchema = z
   .object({
     id: identifier,

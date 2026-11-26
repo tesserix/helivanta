@@ -6091,6 +6091,41 @@
     },
     {
       "method": "GET",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/ward-indent-outlet-choices",
+      "capability": "pharmacy_ward_indents"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/ward-indent-products",
+      "capability": "pharmacy_ward_indents"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/ward-indent-occupant",
+      "capability": "pharmacy_ward_indents"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/ward-indents",
+      "capability": "pharmacy_ward_indents"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/ward-indents/:indent",
+      "capability": "pharmacy_ward_indents"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/ward-indents/:indent",
+      "capability": "pharmacy_ward_indents"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/ward-indents/:indent/cancellation",
+      "capability": "pharmacy_ward_indents"
+    },
+    {
+      "method": "GET",
       "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/stocktake-outlet-choices",
       "capability": "baseline"
     },

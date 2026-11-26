@@ -3167,6 +3167,73 @@
       "type": "object"
     }
   },
+  "helivanta.in.pharmacy.ward_indent_closed.v1": {
+    "source": "backend/internal/modules/pharmacy/contract/events.go:325",
+    "go_type": "WardIndentClosedData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "closed_at": {
+          "type": "string"
+        },
+        "indent_id": {
+          "type": "string"
+        },
+        "outlet_id": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "indent_id",
+        "outlet_id",
+        "status",
+        "closed_at"
+      ],
+      "type": "object"
+    }
+  },
+  "helivanta.in.pharmacy.ward_indent_raised.v1": {
+    "source": "backend/internal/modules/pharmacy/contract/events.go:310",
+    "go_type": "WardIndentRaisedData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "admission_id": {
+          "type": "string"
+        },
+        "department_id": {
+          "type": "string"
+        },
+        "hospital_id": {
+          "type": "string"
+        },
+        "indent_id": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "outlet_id": {
+          "type": "string"
+        },
+        "raised_at": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "indent_id",
+        "outlet_id",
+        "hospital_id",
+        "department_id",
+        "kind",
+        "raised_at"
+      ],
+      "type": "object"
+    }
+  },
   "helivanta.in.privacy.deadline_changed.v1": {
     "source": "backend/internal/modules/privacy/contract/events.go:13",
     "go_type": "DeadlineChangedData",

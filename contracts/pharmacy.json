@@ -2077,6 +2077,39 @@
       ]
     },
     {
+      "name": "WardIndentLineInput",
+      "schema": "pharmacyWardIndentLineInputSchema",
+      "fields": [
+        {
+          "name": "product_id",
+          "type": "uuid"
+        },
+        {
+          "name": "requested_units",
+          "type": "int64",
+          "min": 1,
+          "max": 1000000
+        }
+      ]
+    },
+    {
+      "name": "WardIndentInput",
+      "schema": "pharmacyWardIndentInputSchema",
+      "fields": [
+        {
+          "name": "occupancy_id",
+          "type": "uuid"
+        },
+        {
+          "name": "lines",
+          "type": "[]WardIndentLineInput",
+          "min": 1,
+          "max": 50,
+          "gorm": "-"
+        }
+      ]
+    },
+    {
       "name": "StocktakeSummary",
       "schema": "pharmacyStocktakeSummarySchema",
       "fields": [

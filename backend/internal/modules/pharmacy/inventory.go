@@ -86,6 +86,7 @@ func inventoryRoutes(g *platform.Router, deps platform.Deps) {
 	stockOverviewRoutes(g, h)
 	operatingStockRoutes(g, h)
 	operatingStocktakeRoutes(g, h)
+	wardIndentRoutes(g, h)
 	s := g.Group("/pharmacies/:pharmacy/outlets/:outlet/stock")
 	stocktakeRoutes(s, h)
 	stockHoldRoutes(s, h)

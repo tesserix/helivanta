@@ -301,3 +301,30 @@ type AdmissionChargeReversedData struct {
 	Currency         string `json:"currency"`
 	ReversedAt       string `json:"reversed_at"`
 }
+
+// SubjectWardIndentRaised is published when a hospital department raises a
+// ward indent against a pharmacy outlet. It names no patient or product.
+const SubjectWardIndentRaised = "helivanta.in.pharmacy.ward_indent_raised.v1"
+
+// WardIndentRaisedData is the v1 payload of SubjectWardIndentRaised.
+type WardIndentRaisedData struct {
+	IndentID     string `json:"indent_id"`
+	OutletID     string `json:"outlet_id"`
+	HospitalID   string `json:"hospital_id"`
+	DepartmentID string `json:"department_id"`
+	Kind         string `json:"kind"`
+	AdmissionID  string `json:"admission_id,omitempty"`
+	RaisedAt     string `json:"raised_at"`
+}
+
+// SubjectWardIndentClosed is published when a ward indent is closed by the
+// pharmacy or cancelled by the requesting department.
+const SubjectWardIndentClosed = "helivanta.in.pharmacy.ward_indent_closed.v1"
+
+// WardIndentClosedData is the v1 payload of SubjectWardIndentClosed.
+type WardIndentClosedData struct {
+	IndentID string `json:"indent_id"`
+	OutletID string `json:"outlet_id"`
+	Status   string `json:"status"`
+	ClosedAt string `json:"closed_at"`
+}

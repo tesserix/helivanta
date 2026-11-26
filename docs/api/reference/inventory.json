@@ -2406,6 +2406,808 @@
       ]
     },
     {
+      "name": "practitioner",
+      "source": "backend/internal/modules/practitioner/module.go",
+      "routes": [
+        {
+          "method": "GET",
+          "path": "/v1/practitioners/:practitioner/qualifications/:qualification/revisions/:revision/evidence/:file/content",
+          "permission": "practitioner.evidence.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/practitioners/:practitioner/qualifications/:qualification/revisions/:revision/evidence/:file/content",
+          "permission": "practitioner.evidence.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/practitioners/:practitioner/qualifications/:qualification/revisions/:revision/evidence/:file/revocations/:revocation",
+          "permission": "practitioner.evidence.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/practitioners/:practitioner/qualifications/:qualification/revisions/:revision/evidence/:file/scan-retries/:retry",
+          "permission": "practitioner.evidence.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/practitioners/:practitioner/qualifications/:qualification/revisions/:revision/evidence/:file",
+          "permission": "practitioner.evidence.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/practitioners/:practitioner/qualifications/:qualification/revisions/:revision/evidence/:file",
+          "permission": "practitioner.evidence.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/practitioners/:practitioner/qualifications/:qualification/revisions/:revision/evidence",
+          "permission": "practitioner.evidence.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/practitioners/:practitioner/qualifications/:qualification/revisions/:revision/reviews/:review",
+          "permission": "practitioner.record.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/practitioners/:practitioner/qualifications/:qualification/revisions/:revision/reviews/:review",
+          "permission": "practitioner.qualification.review",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/practitioners/:practitioner/qualifications/:qualification/revisions/:revision/reviews",
+          "permission": "practitioner.record.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/practitioners/:practitioner/qualifications/:qualification/revisions/:revision",
+          "permission": "practitioner.record.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/practitioners/:practitioner/qualifications/:qualification/revisions/:revision",
+          "permission": "practitioner.record.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/practitioners/:practitioner/qualifications/:qualification/revisions",
+          "permission": "practitioner.record.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/practitioners/:practitioner/qualifications/:qualification",
+          "permission": "practitioner.record.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/practitioners/:practitioner/qualifications/:qualification",
+          "permission": "practitioner.record.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/practitioners/:practitioner/qualifications",
+          "permission": "practitioner.record.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/practitioners/:practitioner/registrations/:registration/revisions/:revision/evidence/:file/content",
+          "permission": "practitioner.evidence.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/practitioners/:practitioner/registrations/:registration/revisions/:revision/evidence/:file/content",
+          "permission": "practitioner.evidence.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/practitioners/:practitioner/registrations/:registration/revisions/:revision/evidence/:file/revocations/:revocation",
+          "permission": "practitioner.evidence.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/practitioners/:practitioner/registrations/:registration/revisions/:revision/evidence/:file/scan-retries/:retry",
+          "permission": "practitioner.evidence.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/practitioners/:practitioner/registrations/:registration/revisions/:revision/evidence/:file",
+          "permission": "practitioner.evidence.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/practitioners/:practitioner/registrations/:registration/revisions/:revision/evidence/:file",
+          "permission": "practitioner.evidence.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/practitioners/:practitioner/registrations/:registration/revisions/:revision/evidence",
+          "permission": "practitioner.evidence.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/practitioners/:practitioner/registrations/:registration/revisions/:revision/reviews/:review",
+          "permission": "practitioner.record.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/practitioners/:practitioner/registrations/:registration/revisions/:revision/reviews/:review",
+          "permission": "practitioner.registration.review",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/practitioners/:practitioner/registrations/:registration/revisions/:revision/reviews",
+          "permission": "practitioner.record.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/practitioners/:practitioner/registrations/:registration/revisions/:revision/verifications/:verification",
+          "permission": "practitioner.record.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/practitioners/:practitioner/registrations/:registration/revisions/:revision/verifications/:verification",
+          "permission": "practitioner.registration.verify",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/practitioners/:practitioner/registrations/:registration/revisions/:revision",
+          "permission": "practitioner.record.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/practitioners/:practitioner/registrations/:registration/revisions/:revision",
+          "permission": "practitioner.record.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/practitioners/:practitioner/registrations/:registration/revisions",
+          "permission": "practitioner.record.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/practitioners/:practitioner/registrations/:registration/source-reconciliations/:reconciliation/withdrawals/:withdrawal",
+          "permission": "practitioner.record.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/practitioners/:practitioner/registrations/:registration/source-reconciliations/:reconciliation/withdrawals/:withdrawal",
+          "permission": "practitioner.registration.verification_revoke",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/practitioners/:practitioner/registrations/:registration/source-reconciliations/:reconciliation/withdrawals",
+          "permission": "practitioner.record.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/practitioners/:practitioner/registrations/:registration/source-reconciliations/:reconciliation",
+          "permission": "practitioner.record.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/practitioners/:practitioner/registrations/:registration/source-reconciliations/:reconciliation",
+          "permission": "practitioner.registration.verify",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/practitioners/:practitioner/registrations/:registration/source-reconciliations",
+          "permission": "practitioner.record.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/practitioners/:practitioner/registrations/:registration/verification-revocations/:revocation",
+          "permission": "practitioner.record.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/practitioners/:practitioner/registrations/:registration/verification-revocations/:revocation",
+          "permission": "practitioner.registration.verification_revoke",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/practitioners/:practitioner/registrations/:registration/verification",
+          "permission": "practitioner.record.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/practitioners/:practitioner/registrations/:registration/verifications",
+          "permission": "practitioner.record.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/practitioners/:practitioner/registrations/:registration",
+          "permission": "practitioner.record.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/practitioners/:practitioner/registrations/:registration",
+          "permission": "practitioner.record.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/practitioners/:practitioner/registrations",
+          "permission": "practitioner.record.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/practitioners/:practitioner",
+          "permission": "practitioner.record.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/practitioners/:practitioner",
+          "permission": "practitioner.record.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/practitioners/my/steward-appointment",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/practitioners/my/steward-appointments/:appointment/accept",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/practitioners/my/steward-appointments/:appointment/history",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/practitioners/my/steward-appointments/:appointment/withdraw",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/practitioners/my/steward-appointments/:appointment",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/practitioners/my/steward-appointments",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/practitioners/registration-policies/:policy/revisions/:revision",
+          "permission": "practitioner.registration_policy.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/practitioners/registration-policies/:policy/revisions/:revision",
+          "permission": "practitioner.registration_policy.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/practitioners/registration-policies/:policy/revisions",
+          "permission": "practitioner.registration_policy.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/practitioners/registration-policies/:policy",
+          "permission": "practitioner.registration_policy.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/practitioners/registration-policies/:policy",
+          "permission": "practitioner.registration_policy.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/practitioners/registration-policies",
+          "permission": "practitioner.registration_policy.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/practitioners/specialties/:specialty/retirements/:retirement",
+          "permission": "practitioner.record.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/practitioners/specialties/:specialty/retirements/:retirement",
+          "permission": "practitioner.specialty.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/practitioners/specialties/:specialty",
+          "permission": "practitioner.record.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/practitioners/specialties/:specialty",
+          "permission": "practitioner.specialty.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/practitioners/specialties",
+          "permission": "practitioner.record.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/practitioners/steward-appointments/:appointment/history",
+          "permission": "practitioner.steward.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "POST",
+          "path": "/v1/practitioners/steward-appointments/:appointment/revoke",
+          "permission": "practitioner.steward.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/practitioners/steward-appointments/:appointment",
+          "permission": "practitioner.steward.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/practitioners/steward-appointments/:appointment",
+          "permission": "practitioner.steward.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/practitioners/steward-appointments",
+          "permission": "practitioner.steward.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        }
+      ],
+      "grants": [
+        {
+          "permission": "practitioner.registration.verify",
+          "roles": []
+        },
+        {
+          "permission": "practitioner.registration.verification_revoke",
+          "roles": []
+        },
+        {
+          "permission": "practitioner.registration_policy.manage",
+          "roles": []
+        },
+        {
+          "permission": "practitioner.registration_policy.read",
+          "roles": []
+        },
+        {
+          "permission": "practitioner.qualification.review",
+          "roles": []
+        },
+        {
+          "permission": "practitioner.specialty.manage",
+          "roles": []
+        },
+        {
+          "permission": "practitioner.registration.review",
+          "roles": []
+        },
+        {
+          "permission": "practitioner.record.manage",
+          "roles": []
+        },
+        {
+          "permission": "practitioner.record.read",
+          "roles": []
+        },
+        {
+          "permission": "practitioner.steward.manage",
+          "roles": []
+        },
+        {
+          "permission": "practitioner.evidence.manage",
+          "roles": []
+        },
+        {
+          "permission": "practitioner.evidence.read",
+          "roles": []
+        }
+      ],
+      "publishes": [
+        "helivanta.in.practitioner.evidence_scan_requested.v1",
+        "helivanta.in.practitioner.evidence_changed.v1",
+        "helivanta.in.practitioner.registration_review_recorded.v1",
+        "helivanta.in.practitioner.qualification_review_recorded.v1",
+        "helivanta.in.practitioner.registration_policy_changed.v1",
+        "helivanta.in.practitioner.registration_verification_changed.v1",
+        "helivanta.in.practitioner.registration_source_reconciled.v1",
+        "helivanta.in.practitioner.registration_reconciliation_withdrawn.v1"
+      ],
+      "directed_subjects": [],
+      "directed_write_tables": [],
+      "consumers": [
+        {
+          "name": "practitioner-evidence-scan",
+          "subject": "helivanta.in.practitioner.evidence_scan_requested.v1",
+          "after_commit": true
+        }
+      ],
+      "broadcasts": [],
+      "migrations": [
+        {
+          "id": "0001_practitioner",
+          "sql_sha256": "225d1d102c2643845b31bdbf6b4736c97f0f5d57f6820978e4a2b9a96ba1b39a",
+          "creates_tables": [
+            "practitioner_records"
+          ]
+        },
+        {
+          "id": "0002_practitioner",
+          "sql_sha256": "212326769f21ce9e8b18e579061552af327f84f8f5a38ed76feb897d8400e903",
+          "creates_tables": [
+            "practitioner_registrations",
+            "practitioner_registration_revisions"
+          ]
+        },
+        {
+          "id": "0003_practitioner",
+          "sql_sha256": "28db9f6cdd3744022d2a9a693f11d8788752ac3c9feee4915e9b90cb9d0911b4",
+          "creates_tables": [
+            "practitioner_steward_appointments",
+            "practitioner_steward_events"
+          ]
+        },
+        {
+          "id": "0004_practitioner",
+          "sql_sha256": "79966dd043c387b022a04ca33dfe9fc7e8dafd7e0a8b35703069e09443a970a9",
+          "creates_tables": [
+            "practitioner_registration_evidence"
+          ]
+        },
+        {
+          "id": "0005_practitioner",
+          "sql_sha256": "5feb93be6da46e5e1b3ab924c174f3683d8ca3c76f9899a427991f34ac912071",
+          "creates_tables": []
+        },
+        {
+          "id": "0006_practitioner",
+          "sql_sha256": "d160980ff2f55759da174d4f8b0ea67ded0a48e8b6485a6909e8886409ab47ed",
+          "creates_tables": []
+        },
+        {
+          "id": "0007_practitioner",
+          "sql_sha256": "274911161e35a65081352e258b651b4db633ebf53c822eb223cf8fe2f4fbad4c",
+          "creates_tables": [
+            "practitioner_evidence_revocations"
+          ]
+        },
+        {
+          "id": "0008_practitioner",
+          "sql_sha256": "f3e264b6eaca8cb468b1a7bfc05be6cb0474097e89506ecc87178cfcdb067541",
+          "creates_tables": [
+            "practitioner_evidence_retries"
+          ]
+        },
+        {
+          "id": "0009_practitioner",
+          "sql_sha256": "6c3eaa645d02f5e675362494dad944e23427383108e6b54a9e23cc5ae42f6449",
+          "creates_tables": [
+            "practitioner_registration_reviews"
+          ]
+        },
+        {
+          "id": "0010_practitioner",
+          "sql_sha256": "cdbe54dcf36cd38eff57d856b79e0709bcce3e610462197076dc3db06e9cf28d",
+          "creates_tables": [
+            "practitioner_specialties",
+            "practitioner_qualifications",
+            "practitioner_qualification_revisions"
+          ]
+        },
+        {
+          "id": "0011_practitioner",
+          "sql_sha256": "a0dc4105998e0b1d47a278e530d7778dbc6b02203ed561f61f63572cd207c0c3",
+          "creates_tables": [
+            "practitioner_specialty_retirements"
+          ]
+        },
+        {
+          "id": "0012_practitioner",
+          "sql_sha256": "c83d774f75612f9cc03ce27d2c9a7faf3cf3247b32d4127350ca215e3602b825",
+          "creates_tables": []
+        },
+        {
+          "id": "0013_practitioner",
+          "sql_sha256": "3dcb6cefc3b3b18be6193d36cb2d34ad00c98074836b8d38f5f8aa069fa9d172",
+          "creates_tables": [
+            "practitioner_registration_policies",
+            "practitioner_registration_policy_revisions"
+          ]
+        },
+        {
+          "id": "0014_practitioner",
+          "sql_sha256": "acb3f2bb3c408b728dd165e1ea77cc4f47734d69c83d6632853663ac7682f0d9",
+          "creates_tables": [
+            "practitioner_registration_verifications",
+            "practitioner_registration_identifiers"
+          ]
+        },
+        {
+          "id": "0015_practitioner",
+          "sql_sha256": "99992c0c3dc44e255bcecdf925f159d064bdf981efb95bd9535d152086094160",
+          "creates_tables": [
+            "practitioner_registration_reconciliations"
+          ]
+        },
+        {
+          "id": "0016_practitioner",
+          "sql_sha256": "e3a33f8fe22aac07b058bb7d45cf2be4a5cf4426912aec234e8c0517a41c7e99",
+          "creates_tables": [
+            "practitioner_reconciliation_withdrawals"
+          ]
+        }
+      ]
+    },
+    {
       "name": "medicore",
       "source": "backend/internal/modules/medicore/module.go",
       "routes": [

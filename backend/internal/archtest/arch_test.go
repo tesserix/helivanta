@@ -39,6 +39,7 @@ import (
 	"github.com/tesserix/helivanta/internal/modules/patientmaster"
 	"github.com/tesserix/helivanta/internal/modules/payments"
 	"github.com/tesserix/helivanta/internal/modules/pharmacy"
+	"github.com/tesserix/helivanta/internal/modules/practitioner"
 	"github.com/tesserix/helivanta/internal/modules/privacy"
 	"github.com/tesserix/helivanta/internal/modules/reference"
 	"github.com/tesserix/helivanta/internal/modules/supply"
@@ -60,7 +61,7 @@ const modulesPrefix = "github.com/tesserix/helivanta/internal/modules/"
 // generator prints a reminder, and TestMainRegistersExactlyAllModules
 // below fails CI on drift).
 func allModules() []platform.Module {
-	return []platform.Module{iam.New(nil), reference.New(), drugmaster.New(), emergency.New(), medicore.New(), mediconnect.New(), privacy.New(), pharmacy.New(), payments.New(), billing.New(), supply.New(), lab.New(), patientmaster.New(), workforce.New(), workspace.New(), organization.New()}
+	return []platform.Module{iam.New(nil), reference.New(), drugmaster.New(), practitioner.New(), emergency.New(), medicore.New(), mediconnect.New(), privacy.New(), pharmacy.New(), payments.New(), billing.New(), supply.New(), lab.New(), patientmaster.New(), workforce.New(), workspace.New(), organization.New()}
 }
 
 // moduleOf maps a package path to its owning module name. Under

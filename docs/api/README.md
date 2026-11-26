@@ -104,3 +104,5 @@ The unreleased [independent operating duty contract](operating-duties.md) record
 [Release capabilities](release-capabilities.md) documents the candidate bounded
 GrowthBook admission and account-bound UI snapshot; production activation gates
 remain open.
+
+Professional registration runtime integration is an [unreleased candidate](practitioner-runtime.md). Generated inventory includes its routes and source migrations; it does not establish deployment, council verification or clinical privileges.

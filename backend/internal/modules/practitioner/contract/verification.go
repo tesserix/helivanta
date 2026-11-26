@@ -1,6 +1,7 @@
 package contract
 
-const RegistrationPolicyChanged = "helivanta.in.practitioner.registration_policy_changed.v1"
+const SubjectRegistrationPolicyChanged = "helivanta.in.practitioner.registration_policy_changed.v1"
+const RegistrationPolicyChanged = SubjectRegistrationPolicyChanged
 
 // RegistrationPolicyChangedData requests an owner refresh without disclosing policy rules.
 type RegistrationPolicyChangedData struct {
@@ -8,7 +9,8 @@ type RegistrationPolicyChangedData struct {
 	Version  int64  `json:"version"`
 }
 
-const RegistrationVerificationChanged = "helivanta.in.practitioner.registration_verification_changed.v1"
+const SubjectRegistrationVerificationChanged = "helivanta.in.practitioner.registration_verification_changed.v1"
+const RegistrationVerificationChanged = SubjectRegistrationVerificationChanged
 
 // RegistrationVerificationChangedData requests a fresh owner read, never an access grant.
 type RegistrationVerificationChangedData struct {
@@ -18,7 +20,8 @@ type RegistrationVerificationChangedData struct {
 	Version        int64  `json:"version"`
 }
 
-const RegistrationSourceReconciled = "helivanta.in.practitioner.registration_source_reconciled.v1"
+const SubjectRegistrationSourceReconciled = "helivanta.in.practitioner.registration_source_reconciled.v1"
+const RegistrationSourceReconciled = SubjectRegistrationSourceReconciled
 
 // RegistrationSourceReconciledData requests an owner refresh without exposing observations.
 type RegistrationSourceReconciledData struct {
@@ -27,7 +30,8 @@ type RegistrationSourceReconciledData struct {
 	ReconciliationID string `json:"reconciliation_id"`
 }
 
-const RegistrationReconciliationWithdrawn = "helivanta.in.practitioner.registration_reconciliation_withdrawn.v1"
+const SubjectRegistrationReconciliationWithdrawn = "helivanta.in.practitioner.registration_reconciliation_withdrawn.v1"
+const RegistrationReconciliationWithdrawn = SubjectRegistrationReconciliationWithdrawn
 
 // RegistrationReconciliationWithdrawnData requests a fresh owner read after trust withdrawal.
 type RegistrationReconciliationWithdrawnData struct {

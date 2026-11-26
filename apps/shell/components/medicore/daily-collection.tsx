@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { Badge, Button, Input } from "@tesserix/web";
+import { Badge, Button, Input, cn } from "@tesserix/web";
 import {
   ApiError,
   collectionDateSchema,
@@ -14,10 +14,14 @@ import {
   type DailyCollection,
   type Hospital,
 } from "@helivanta/api";
-import { AccountName, Field, Panel, RequestFailure, useZodForm } from "@helivanta/ui";
+import { AccountName, Field, Panel, RequestFailure, tableStyles, useZodForm } from "@helivanta/ui";
 import { formatPharmacyMoney } from "../pharmacy/currency-amount-field";
 
 const money = (minor: number) => formatPharmacyMoney(minor, "INR");
+const cellClass = "px-4 py-3";
+const head = cn(tableStyles.head, cellClass);
+const numberHead = cn(head, tableStyles.number);
+const numberCell = cn(cellClass, tableStyles.number);
 
 /**
  * The daily collection report (#198 slice 2): a hospital day's shifts and
@@ -125,26 +129,26 @@ function Day({ hospital, date }: { hospital: Hospital; date: string }) {
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm" aria-label="Shifts">
-            <thead className="text-left text-muted-foreground">
+            <thead>
               <tr>
-                <th className="py-2">Counter</th>
-                <th>Cashier</th>
-                <th>Status</th>
-                <th className="text-right">Payments</th>
-                <th className="text-right">Deposits</th>
-                <th className="text-right">Refunds</th>
-                <th className="text-right">Voided</th>
-                <th className="text-right">To the safe</th>
-                <th className="text-right">Expected</th>
-                <th className="text-right">Declared</th>
-                <th className="text-right">Variance</th>
-                <th className="text-right">UPI</th>
-                <th className="text-right">Card</th>
-                <th className="text-right">Netbanking</th>
-                <th className="text-right">Wallet</th>
+                <th className={head}>Counter</th>
+                <th className={head}>Cashier</th>
+                <th className={head}>Status</th>
+                <th className={numberHead}>Payments</th>
+                <th className={numberHead}>Deposits</th>
+                <th className={numberHead}>Refunds</th>
+                <th className={numberHead}>Voided</th>
+                <th className={numberHead}>To the safe</th>
+                <th className={numberHead}>Expected</th>
+                <th className={numberHead}>Declared</th>
+                <th className={numberHead}>Variance</th>
+                <th className={numberHead}>UPI</th>
+                <th className={numberHead}>Card</th>
+                <th className={numberHead}>Netbanking</th>
+                <th className={numberHead}>Wallet</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody>
               {shifts.map((s) => (
                 <ShiftRow key={s.shift_id} shift={s} />
               ))}
@@ -205,12 +209,12 @@ function ShiftRow({ shift }: { shift: CollectionShift }) {
         : cell(payments);
   const v = shift.variance_minor;
   return (
-    <tr>
-      <td className="py-2">
+    <tr className={tableStyles.row}>
+      <td className={cellClass}>
         {shift.counter_code} <span className="text-muted-foreground">{shift.counter_name}</span>
       </td>
-      <td>{shift.cashier}</td>
-      <td>
+      <td className={cellClass}>{shift.cashier}</td>
+      <td className={cellClass}>
         {statusLabel[shift.status]}
         {shift.authorisation_reason && (
           <span className="block text-muted-foreground">
@@ -219,28 +223,28 @@ function ShiftRow({ shift }: { shift: CollectionShift }) {
           </span>
         )}
       </td>
-      <td className="text-right">{cell(shift.payments_minor)}</td>
-      <td className="text-right">{cell(shift.deposits_minor)}</td>
-      <td className="text-right">{cell(shift.refunds_minor)}</td>
-      <td className="text-right">
+      <td className={numberCell}>{cell(shift.payments_minor)}</td>
+      <td className={numberCell}>{cell(shift.deposits_minor)}</td>
+      <td className={numberCell}>{cell(shift.refunds_minor)}</td>
+      <td className={numberCell}>
         {shift.voided_count === null
           ? "—"
           : shift.voided_count === 0
             ? "None"
             : `${shift.voided_count} · ${cell(shift.voided_minor)}${shift.voided_refunds_minor ? ` (refunds ${cell(shift.voided_refunds_minor)})` : ""}`}
       </td>
-      <td className="text-right">{cell(shift.picked_up_minor)}</td>
-      <td className="text-right">{cell(shift.expected_minor)}</td>
-      <td className="text-right">{cell(shift.declared_minor)}</td>
-      <td className="text-right">
+      <td className={numberCell}>{cell(shift.picked_up_minor)}</td>
+      <td className={numberCell}>{cell(shift.expected_minor)}</td>
+      <td className={numberCell}>{cell(shift.declared_minor)}</td>
+      <td className={numberCell}>
         {v === null ? "—" : v === 0 ? "Matched" : v < 0 ? `Short ${money(-v)}` : `Over ${money(v)}`}
       </td>
-      <td className="text-right">{banked(shift.upi_payments_minor, shift.upi_deposits_minor)}</td>
-      <td className="text-right">{banked(shift.card_payments_minor, shift.card_deposits_minor)}</td>
-      <td className="text-right">
+      <td className={numberCell}>{banked(shift.upi_payments_minor, shift.upi_deposits_minor)}</td>
+      <td className={numberCell}>{banked(shift.card_payments_minor, shift.card_deposits_minor)}</td>
+      <td className={numberCell}>
         {banked(shift.netbanking_payments_minor, shift.netbanking_deposits_minor)}
       </td>
-      <td className="text-right">
+      <td className={numberCell}>
         {banked(shift.wallet_payments_minor, shift.wallet_deposits_minor)}
       </td>
     </tr>

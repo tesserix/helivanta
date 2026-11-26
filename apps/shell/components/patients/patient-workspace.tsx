@@ -2,7 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import { z } from "zod";
-import { Button } from "@tesserix/web";
+import { Button, cn } from "@tesserix/web";
 import { Search, UserRoundPlus, ShieldCheck, UsersRound } from "lucide-react";
 import {
   apiFetch,
@@ -26,11 +26,11 @@ import {
   SelectControl,
   useZodForm,
   RequestFailure,
+  controlClass,
+  tableStyles,
 } from "@helivanta/ui";
 import { PharmacyAffiliationReviews } from "./pharmacy-affiliation-reviews";
 
-const inputClass =
-  "w-full rounded-md border bg-background px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--hms-accent)";
 const searchSchema = z.object({ query: z.string().trim().max(100) });
 
 export function PatientWorkspace() {
@@ -207,7 +207,7 @@ function Registry({
             >
               <input
                 id="patient-search"
-                className={inputClass}
+                className={controlClass}
                 placeholder="Name prefix, exact MRN or phone number"
                 autoComplete="off"
                 {...form.register("query")}
@@ -247,32 +247,32 @@ function Registry({
           <div className="relative overflow-x-auto">
             <table className="w-full text-left text-sm">
               <caption className="sr-only">Patients at {hospital.name}</caption>
-              <thead className="bg-muted/30 text-xs text-muted-foreground">
+              <thead>
                 <tr>
                   {["Patient", "Medical record number", "Date of birth", "Contact", ""].map(
                     (label) => (
-                      <th key={label} scope="col" className="px-6 py-3 font-medium">
+                      <th key={label} scope="col" className={cn(tableStyles.head, "px-6 py-3")}>
                         {label || <span className="sr-only">Actions</span>}
                       </th>
                     ),
                   )}
                 </tr>
               </thead>
-              <tbody className="divide-y">
+              <tbody>
                 {patients.items.map((patient) => (
-                  <tr key={patient.id} className="hover:bg-muted/20">
-                    <td className="px-6 py-4 font-medium">
+                  <tr key={patient.id} className={tableStyles.row}>
+                    <td className="px-6 py-3 font-medium">
                       {patient.given_name} {patient.family_name}
                     </td>
-                    <td className="px-6 py-4 font-mono text-xs">{patient.mrn}</td>
-                    <td className="px-6 py-4 text-muted-foreground">
+                    <td className="px-6 py-3 font-mono text-xs">{patient.mrn}</td>
+                    <td className="px-6 py-3 text-muted-foreground">
                       {patient.dob}
                       {patient.dob_estimated ? " · Estimated" : ""}
                     </td>
-                    <td className="px-6 py-4 text-muted-foreground">
+                    <td className="px-6 py-3 text-muted-foreground">
                       {patient.mobile || "Not recorded"}
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-3">
                       <Button
                         size="sm"
                         variant="ghost"
@@ -449,7 +449,7 @@ function Registration({
     },
   );
   return (
-    <Panel ref={sectionRef} aria-labelledby="registration-heading" className="mt-6 scroll-mt-24">
+    <Panel ref={sectionRef} aria-labelledby="registration-heading" className="mt-6 scroll-mt-4">
       <div className="mb-6 flex justify-between gap-4">
         <div>
           <h3 id="registration-heading" className="text-xl font-semibold">
@@ -486,7 +486,7 @@ function Registration({
           >
             <input
               id={`registration-${name}`}
-              className={inputClass}
+              className={controlClass}
               type={name === "dob" ? "date" : name === "mobile" ? "tel" : "text"}
               autoComplete="off"
               {...form.register(name)}
@@ -530,7 +530,7 @@ function Registration({
             >
               <input
                 id={`registration-${name}`}
-                className={inputClass}
+                className={controlClass}
                 autoComplete="off"
                 {...form.register(name)}
               />

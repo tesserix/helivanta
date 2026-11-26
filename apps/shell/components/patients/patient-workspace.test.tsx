@@ -4,6 +4,8 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
 import { PatientWorkspace } from "./patient-workspace";
 
+// Zone tidy (#1256/#1257/#1263): controls use the shared control class and tables the shared style.
+
 const hospital = "11111111-1111-4111-8111-111111111111";
 const patient = {
   id: "22222222-2222-4222-8222-222222222222",
@@ -59,6 +61,7 @@ it("registers a synthetic patient in the selected hospital and displays the save
   const { user } = renderWithProviders(<PatientWorkspace />);
   await user.click(await screen.findByRole("button", { name: "Register patient" }));
   expect(screen.getByLabelText("Given name")).toHaveFocus();
+  expect(screen.getByLabelText("Given name")).toHaveClass("min-h-11");
   await user.click(screen.getByLabelText("Given name"));
   await user.paste("Synthetic");
   await user.click(screen.getByLabelText("Family name"));
@@ -88,6 +91,11 @@ it("registers a synthetic patient in the selected hospital and displays the save
     source: "patient",
   });
   expect(await screen.findByText("MRN-SYNTHETIC")).toBeInTheDocument();
+  expect(screen.getByText("MRN-SYNTHETIC").closest("tr")).toHaveClass("h-11");
+  expect(screen.getByRole("columnheader", { name: "Medical record number" })).not.toHaveClass(
+    "uppercase",
+  );
+  expect(screen.getByLabelText("Find a patient")).toHaveClass("min-h-11");
   await user.click(screen.getByRole("button", { name: "Open Synthetic Example" }));
   expect(await screen.findByText("AB · Rh(D) negative (unverified)")).toBeInTheDocument();
   expect(screen.getByText("Blood group source")).toBeInTheDocument();

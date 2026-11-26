@@ -3,6 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
 import { GstSetup, TaxInvoices } from "./gst";
 
+// Zone tidy (#1256/#1257/#1263): controls use the shared control class and tables the shared style.
+
 const hospital = {
   id: "0199e000-0000-7000-8000-00000000a001",
   name: "TEST General",
@@ -204,6 +206,15 @@ describe("TaxInvoices", () => {
     await user.click(await screen.findByRole("button", { name: "IP/2627/1" }));
     const table = await screen.findByRole("table", { name: "Invoice lines" });
     const [, taxed, exempt] = within(table).getAllByRole("row");
+    expect(taxed).toHaveClass("h-11");
+    expect(within(table).getByRole("columnheader", { name: "Room day" })).not.toHaveClass(
+      "uppercase",
+    );
+    expect(within(table).getByRole("columnheader", { name: "Value" })).toHaveClass(
+      "text-right",
+      "tabular-nums",
+    );
+    expect(within(taxed).getAllByRole("cell")[2]).toHaveClass("text-right", "tabular-nums");
     expect(taxed).toHaveTextContent("2026-10-30 · Private");
     expect(taxed).toHaveTextContent("2.5% INR 150.00");
     expect(exempt).toHaveTextContent("ICU · exempt");

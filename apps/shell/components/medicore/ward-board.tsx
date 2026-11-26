@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { z } from "zod";
-import { Badge, Button } from "@tesserix/web";
+import { Badge, Button, cn } from "@tesserix/web";
 import {
   ApiError,
   admitSchema,
@@ -32,6 +32,7 @@ import {
   RequestFailure,
   SelectControl,
   useZodForm,
+  controlClass,
 } from "@helivanta/ui";
 import { PatientName } from "./opd-encounters";
 import { BedSetup } from "./bed-setup";
@@ -46,9 +47,6 @@ const stateLabel: Record<BedState, string> = {
   cleaning: "Cleaning",
   out_of_service: "Out of service",
 };
-
-const inputClass =
-  "w-full rounded-md border bg-background px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--hms-accent)";
 
 /**
  * The inpatient ward board (#106 slice 1): every bed at one hospital, who is
@@ -353,7 +351,7 @@ function BedReason({
       onSubmit={form.handleSubmit(({ reason }) => onSubmit(reason))}
     >
       <Field id={id} label={label} error={form.formState.errors.reason?.message}>
-        <input id={id} className={`${inputClass} w-72`} {...form.register("reason")} />
+        <input id={id} className={cn(controlClass, "w-72")} {...form.register("reason")} />
       </Field>
       <Button type="submit" size="sm" disabled={busy}>
         Save
@@ -500,7 +498,7 @@ function ReleaseForm({
       >
         <input
           id={`release-note-${admissionId}`}
-          className={`${inputClass} w-72`}
+          className={cn(controlClass, "w-72")}
           {...form.register("note")}
         />
       </Field>
@@ -591,7 +589,7 @@ function AdmitPatient({ hospital, available }: { hospital: Hospital; available: 
         >
           <input
             id="ipd-patient-search"
-            className={`${inputClass} w-72`}
+            className={cn(controlClass, "w-72")}
             placeholder="Name, MRN or mobile"
             {...search.register("query")}
           />

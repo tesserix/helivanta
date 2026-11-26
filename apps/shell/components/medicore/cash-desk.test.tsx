@@ -15,6 +15,8 @@ import type { AdmissionAccount } from "@helivanta/api";
 import { CashDesk } from "./cash-desk";
 import { CashPayments } from "./cash-payments";
 
+// Zone tidy (#1256/#1257/#1263): controls use the shared control class and tables the shared style.
+
 const hospital = {
   id: "0199e000-0000-7000-8000-00000000a001",
   name: "TEST General",
@@ -283,6 +285,8 @@ describe("CashDesk", () => {
     await user.click(screen.getByRole("button", { name: "Authorise" }));
     expect(await screen.findByText("Give a reason")).toBeInTheDocument();
     await user.type(screen.getByLabelText("Why the difference is accepted"), "One note short");
+    expect(screen.getByLabelText("Why the difference is accepted")).toHaveClass("min-h-11", "w-72");
+    expect(screen.getByLabelText("Why the difference is accepted")).not.toHaveClass("w-full");
     await user.click(screen.getByRole("button", { name: "Authorise" }));
     await waitFor(() => expect(puts(fetcher)).toHaveLength(1));
     expect(puts(fetcher)[0][0]).toMatch(`/cash-shifts/${pending.id}/authorisation`);
@@ -420,6 +424,7 @@ describe("CashPayments", () => {
     await user.type(within(form).getByLabelText("Transaction reference (RRN)"), "412345678901");
 
     await user.type(within(form).getByLabelText("Approval code"), "a1b2c3");
+    expect(within(form).getByLabelText("Approval code")).toHaveClass("min-h-11", "w-28");
     await user.click(within(form).getByRole("button", { name: "Record payment" }));
     await waitFor(() => expect(puts(fetcher)).toHaveLength(1));
     expect(puts(fetcher)[0][0]).toMatch(

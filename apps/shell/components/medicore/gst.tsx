@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import type { z } from "zod";
-import { Button, Input, Textarea } from "@tesserix/web";
+import { Button, Input, Textarea, cn } from "@tesserix/web";
 import {
   ApiError,
   apiFetch,
@@ -27,11 +27,16 @@ import {
   Panel,
   RequestFailure,
   formatDateTime,
+  tableStyles,
   useZodForm,
 } from "@helivanta/ui";
 import { formatPharmacyMoney } from "../pharmacy/currency-amount-field";
 
 const money = (minor: number) => formatPharmacyMoney(minor, "INR");
+const cellClass = "px-4 py-3";
+const head = cn(tableStyles.head, cellClass);
+const numberHead = cn(head, tableStyles.number);
+const numberCell = cn(cellClass, tableStyles.number);
 
 /**
  * The hospital's GST registration (#193), for administrators: set once. From
@@ -412,24 +417,24 @@ function DocumentDetail({
         />
       ) : (
         <table className="w-full text-sm" aria-label={`${name} lines`}>
-          <thead className="text-left text-muted-foreground">
+          <thead>
             <tr>
-              <th className="py-1">Room day</th>
-              <th>SAC</th>
-              <th className="text-right">Value</th>
-              <th className="text-right">CGST</th>
-              <th className="text-right">SGST</th>
+              <th className={head}>Room day</th>
+              <th className={head}>SAC</th>
+              <th className={numberHead}>Value</th>
+              <th className={numberHead}>CGST</th>
+              <th className={numberHead}>SGST</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-border">
+          <tbody>
             {lines.items.map((l) => (
-              <tr key={l.entry_id}>
-                <td className="py-1">
+              <tr key={l.entry_id} className={tableStyles.row}>
+                <td className={cellClass}>
                   {l.census_date} · {bedClassLabel[l.bed_class] ?? l.bed_class}
                   {!l.taxable && <span className="text-muted-foreground"> · exempt</span>}
                 </td>
-                <td>{l.sac}</td>
-                <td className="text-right">
+                <td className={cellClass}>{l.sac}</td>
+                <td className={numberCell}>
                   {money(l.value_minor)}
                   {l.discount_minor > 0 && (
                     <span className="block text-xs text-muted-foreground">
@@ -437,10 +442,10 @@ function DocumentDetail({
                     </span>
                   )}
                 </td>
-                <td className="text-right">
+                <td className={numberCell}>
                   {l.taxable ? `${l.cgst_bp / 100}% ${money(l.cgst_minor)}` : "—"}
                 </td>
-                <td className="text-right">
+                <td className={numberCell}>
                   {l.taxable ? `${l.sgst_bp / 100}% ${money(l.sgst_minor)}` : "—"}
                 </td>
               </tr>

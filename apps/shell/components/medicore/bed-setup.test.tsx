@@ -4,6 +4,8 @@ import { renderWithProviders } from "@helivanta/api/testing";
 import { chooseOption } from "../../test/select";
 import { BedSetup } from "./bed-setup";
 
+// Zone tidy (#1256/#1257/#1263): controls use the shared control class and tables the shared style.
+
 const hospital = {
   id: "0199e000-0000-7000-8000-00000000a001",
   name: "TEST General",
@@ -49,6 +51,7 @@ describe("BedSetup", () => {
     const fetcher = server();
     const { user } = renderWithProviders(<BedSetup hospital={hospital} />);
     await user.type(await screen.findByLabelText("Ward code"), "w-b");
+    expect(screen.getByLabelText("Ward code")).toHaveClass("min-h-11");
     await user.type(screen.getByLabelText("Ward name"), "Ward B");
     await user.click(screen.getByRole("button", { name: "Add ward" }));
     await waitFor(() => expect(puts(fetcher)).toHaveLength(1));

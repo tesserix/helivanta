@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Button } from "@tesserix/web";
+import { Button, cn } from "@tesserix/web";
 import {
   apiFetch,
   newBedId,
@@ -15,11 +15,8 @@ import {
   type RefundApproval,
   type RefundPolicy,
 } from "@helivanta/api";
-import { Field, RequestFailure, useZodForm } from "@helivanta/ui";
+import { Field, RequestFailure, useZodForm, controlClass } from "@helivanta/ui";
 import { CurrencyAmountField, formatPharmacyMoney } from "../pharmacy/currency-amount-field";
-
-const inputClass =
-  "w-full rounded-md border bg-background px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--hms-accent)";
 
 export function useRefundPolicy(hospital: Hospital) {
   return useApiQuery<RefundPolicy>(
@@ -185,7 +182,7 @@ function ApproveRefund({
       >
         <input
           id={`approve-reason-${admissionId}`}
-          className={`${inputClass} w-56`}
+          className={cn(controlClass, "w-56")}
           {...form.register("reason")}
         />
       </Field>

@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
 import { AdmissionDiscounts, DiscountReasonsSetup, PendingDiscounts } from "./discounts";
 
+// Zone tidy (#1256/#1257/#1263): controls use the shared control class and tables the shared style.
+
 const hospital = {
   id: "0199e000-0000-7000-8000-00000000a001",
   name: "TEST General",
@@ -89,6 +91,7 @@ describe("AdmissionDiscounts", () => {
     await user.clear(screen.getByLabelText("Discount (INR)"));
     await user.type(screen.getByLabelText("Discount (INR)"), "1000");
     await user.type(screen.getByLabelText("Why"), "Nurse's mother");
+    expect(screen.getByLabelText("Why")).toHaveClass("min-h-11", "w-56");
     await user.click(screen.getByRole("button", { name: "Give discount" }));
     await waitFor(() => expect(writes(fetcher)).toHaveLength(1));
     const [url, init] = writes(fetcher)[0];

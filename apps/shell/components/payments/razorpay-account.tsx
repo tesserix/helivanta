@@ -11,10 +11,14 @@ import {
   type PaymentAccount,
   type PaymentAccountInput,
 } from "@helivanta/api";
-import { Field, FormSelectField, Panel, RequestFailure, useZodForm } from "@helivanta/ui";
-
-const inputClass =
-  "w-full rounded-md border bg-background px-3 py-2.5 text-sm focus-visible:outline-2 focus-visible:outline-(--hms-accent)";
+import {
+  Field,
+  FormSelectField,
+  Panel,
+  RequestFailure,
+  useZodForm,
+  controlClass,
+} from "@helivanta/ui";
 
 const secret = z
   .string()
@@ -130,7 +134,7 @@ function AccountForm({ saved }: { saved: PaymentAccount }) {
           <Field id="rzp-key" label="Key id" error={errors.key_id?.message}>
             <input
               id="rzp-key"
-              className={inputClass}
+              className={controlClass}
               autoComplete="off"
               {...form.register("key_id")}
             />
@@ -139,7 +143,7 @@ function AccountForm({ saved }: { saved: PaymentAccount }) {
             <input
               id="rzp-secret"
               type="password"
-              className={inputClass}
+              className={controlClass}
               autoComplete="new-password"
               placeholder={saved.key_secret_set ? "Saved — leave blank to keep it" : ""}
               {...form.register("key_secret")}
@@ -153,7 +157,7 @@ function AccountForm({ saved }: { saved: PaymentAccount }) {
             <input
               id="rzp-webhook-secret"
               type="password"
-              className={inputClass}
+              className={controlClass}
               autoComplete="new-password"
               placeholder={saved.webhook_secret_set ? "Saved — leave blank to keep it" : ""}
               {...form.register("webhook_secret")}

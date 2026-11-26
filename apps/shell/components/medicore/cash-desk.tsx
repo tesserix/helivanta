@@ -1,8 +1,8 @@
 "use client";
 
-import { AccountName, Controller, MemberAccountSelect } from "@helivanta/ui";
+import { AccountName, Controller, MemberAccountSelect, controlClass } from "@helivanta/ui";
 import { useMemo, useState } from "react";
-import { Badge, Button } from "@tesserix/web";
+import { Badge, Button, cn } from "@tesserix/web";
 import {
   ApiError,
   apiFetch,
@@ -41,9 +41,6 @@ import {
 import { CurrencyAmountField, formatPharmacyMoney } from "../pharmacy/currency-amount-field";
 import { useBillingAccess } from "./admission-account";
 import { RefundPolicySetup } from "./refunds";
-
-const inputClass =
-  "w-full rounded-md border bg-background px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--hms-accent)";
 
 /** The caller's shift not yet closed at the hospital, or none (#198). */
 export function useMyShift(hospital: Hospital) {
@@ -460,7 +457,7 @@ function CountForm({
                 <input
                   id={id}
                   inputMode="numeric"
-                  className={inputClass}
+                  className={controlClass}
                   {...form.register(`counts.${d.key}`)}
                 />
               </Field>
@@ -559,7 +556,7 @@ function Variance({ hospital, shift }: { hospital: Hospital; shift: CashShift })
           >
             <input
               id={`variance-${shift.id}`}
-              className={`${inputClass} w-72`}
+              className={cn(controlClass, "w-72")}
               {...form.register("reason")}
             />
           </Field>
@@ -647,7 +644,7 @@ function Settle({ hospital, handover }: { hospital: Hospital; handover: CashHand
           <Field id={`${id}-reason`} label="Why" error={form.formState.errors.reason?.message}>
             <input
               id={`${id}-reason`}
-              className={`${inputClass} w-72`}
+              className={cn(controlClass, "w-72")}
               {...form.register("reason")}
             />
           </Field>
@@ -864,7 +861,7 @@ function Pickup({
           <Field id={`${id}-reason`} label="Why" error={form.formState.errors.reason?.message}>
             <input
               id={`${id}-reason`}
-              className={`${inputClass} w-64`}
+              className={cn(controlClass, "w-64")}
               {...form.register("reason")}
             />
           </Field>
@@ -984,10 +981,18 @@ function Counters({ hospital }: { hospital: Hospital }) {
         onSubmit={form.handleSubmit((v) => save.mutate(v))}
       >
         <Field id="counter-code" label="Code" error={form.formState.errors.code?.message}>
-          <input id="counter-code" className={`${inputClass} w-32`} {...form.register("code")} />
+          <input
+            id="counter-code"
+            className={cn(controlClass, "w-32")}
+            {...form.register("code")}
+          />
         </Field>
         <Field id="counter-name" label="Name" error={form.formState.errors.name?.message}>
-          <input id="counter-name" className={`${inputClass} w-56`} {...form.register("name")} />
+          <input
+            id="counter-name"
+            className={cn(controlClass, "w-56")}
+            {...form.register("name")}
+          />
         </Field>
         <Button type="submit" size="sm" variant="outline" disabled={save.isPending}>
           Add counter

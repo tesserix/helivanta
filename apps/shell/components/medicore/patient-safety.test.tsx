@@ -6,6 +6,8 @@ const renderWithProviders = (ui: Parameters<typeof renderWithNamedAccounts>[0]) 
   renderWithNamedAccounts(ui, { "user-doc": "QA Doctor", "user-nurse": "QA Nurse" });
 import { PatientSafety } from "./patient-safety";
 
+// Zone tidy (#1256/#1257/#1263): controls use the shared control class and tables the shared style.
+
 const hospital = {
   id: "0199e000-0000-7000-8000-00000000a001",
   name: "TEST General",
@@ -133,6 +135,9 @@ describe("PatientSafety", () => {
     const calls = server();
     render();
     await userEvent.click(await screen.findByRole("button", { name: "No known allergies" }));
+    expect(
+      document.body.querySelectorAll(".rounded-md.border.p-3, .rounded-md.border.p-4"),
+    ).toHaveLength(0);
     expect(calls.some((c) => c.url.includes("/no-known-allergy/"))).toBe(false);
     await userEvent.click(screen.getByRole("button", { name: "Confirm no known allergies" }));
     expect(
@@ -145,6 +150,7 @@ describe("PatientSafety", () => {
     await userEvent.click(screen.getByRole("button", { name: "Confirm withdrawal" }));
     expect(await screen.findByText("Give a reason")).toBeInTheDocument();
     await userEvent.type(screen.getByLabelText("Reason for withdrawing"), "wrong patient");
+    expect(screen.getByLabelText("Reason for withdrawing")).toHaveClass("min-h-11");
     await userEvent.click(screen.getByRole("button", { name: "Confirm withdrawal" }));
     expect(await screen.findByText("Allergies unknown: not yet asked")).toBeInTheDocument();
     const post = calls.find((c) => c.url.includes("/withdrawal"));
@@ -193,6 +199,10 @@ describe("PatientSafety", () => {
     render();
     await userEvent.click(await screen.findByRole("button", { name: "Record allergy" }));
     await userEvent.type(screen.getByLabelText("Find the drug"), "amox");
+    expect(screen.getByLabelText("Find the drug")).toHaveClass("min-h-11", "w-64");
+    expect(
+      document.body.querySelectorAll(".rounded-md.border.p-3, .rounded-md.border.p-4"),
+    ).toHaveLength(0);
     await userEvent.click(screen.getByRole("button", { name: "Search drugs" }));
     await waitFor(() =>
       expect(calls.some((c) => c.url.includes("/drugmaster/search?q=amox"))).toBe(true),

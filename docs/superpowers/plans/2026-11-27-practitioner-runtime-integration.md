@@ -45,3 +45,16 @@ evidence, not replaced by filtered local checks.
 
 Migration/credential/workload approval, hosted checks and live acceptance remain
 open. The overall #169 clinical workflow remains unfinished and disabled.
+
+### Hosted review corrections
+
+The first hosted pass exposed a stale Staff source-inventory artifact and the
+missing explicit singleton classifications for the 23 newly registered
+professional detail/file GETs. Both were reproduced locally. The generated Staff
+inventory now includes all 68 HTTP routes and the evidence consumer without
+asserting unperformed source/runtime acceptance. Each singleton has a specific
+reviewed rationale in the existing pagination allowlist; every professional
+collection remains registered through `ListRoute`. The unchanged pagination
+backstop and all 15 source-inventory generator tests pass after correction.
+The owner and stocktake-capacity jobs reported the same singleton inventory
+failure, rather than a distinct pharmacy functional regression.

@@ -40,6 +40,8 @@ const BRAND_FILES = new Set([
   "/icon-192.png",
   "/icon-512.png",
   "/maskable-icon-512.png",
+  // The email header's lockup (#1857): mail clients fetch it without a session.
+  "/email/helivanta-lockup.png",
 ]);
 const PUBLIC_PATHS = ["/login", "/api/auth", "/api/v1/auth/login", "/api/v1/auth/branding/"];
 

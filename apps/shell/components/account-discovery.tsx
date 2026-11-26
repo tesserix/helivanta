@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
+  ApiError,
   AccountDiscoveryCodeContract,
   AccountDiscoveryRequestContract,
   getAccountChoices,
@@ -139,7 +140,7 @@ export function AccountDiscovery({ onSelect }: Props) {
                 recover.mutate();
               }}
             >
-              Retry account selection
+              Show my accounts again
             </Button>
             <Button
               variant="ghost"
@@ -208,7 +209,8 @@ export function AccountDiscovery({ onSelect }: Props) {
       )}
       {error ? (
         <p role="alert" className="text-sm text-destructive">
-          {error.message}
+          {/* Only the API's own wording; a fetch or redirect failure is not ours. */}
+          {error instanceof ApiError ? error.message : "Check your connection and try again."}
         </p>
       ) : null}
     </div>

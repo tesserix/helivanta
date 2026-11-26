@@ -3,6 +3,11 @@ import { afterEach, expect, it, vi } from "vitest";
 import { releaseSnapshotForTest, renderWithProviders } from "@helivanta/api/testing";
 import SignupPage from "./page";
 
+// The sign-in card's branding provider reads the URL (#1853).
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams(window.location.search),
+}));
+
 afterEach(() => vi.unstubAllGlobals());
 
 it("offers real tenant signup for a new owner and keeps the existing sign-in path", async () => {

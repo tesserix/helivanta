@@ -1,4 +1,5 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
+import { renderWithProviders } from "@helivanta/api/testing";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { PERMISSIONS_CACHE_KEY, loadExpiresAt, loadRenewAt } from "@helivanta/api";
 import AuthCallbackPage from "./page";
@@ -8,7 +9,10 @@ const getUserManager = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/oidc", () => ({ getUserManager }));
 
 const replace = vi.hoisted(() => vi.fn());
-vi.mock("next/navigation", () => ({ useRouter: () => ({ replace }) }));
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ replace }),
+  useSearchParams: () => new URLSearchParams(window.location.search),
+}));
 
 describe("AuthCallbackPage", () => {
   beforeEach(() => {
@@ -26,7 +30,7 @@ describe("AuthCallbackPage", () => {
       vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ tenant_id: "t1" }) }),
     );
 
-    render(<AuthCallbackPage />);
+    renderWithProviders(<AuthCallbackPage />);
 
     await waitFor(() => expect(replace).toHaveBeenCalledWith("/dashboard"));
     expect(window.localStorage.getItem("hms.session-change.v1")).not.toBeNull();
@@ -60,7 +64,7 @@ describe("AuthCallbackPage", () => {
       }),
     );
 
-    render(<AuthCallbackPage />);
+    renderWithProviders(<AuthCallbackPage />);
 
     await waitFor(() => expect(replace).toHaveBeenCalledWith("/dashboard"));
     expect(loadRenewAt()?.toISOString()).toBe(renewAt);
@@ -85,7 +89,7 @@ describe("AuthCallbackPage", () => {
       }),
     );
 
-    render(<AuthCallbackPage />);
+    renderWithProviders(<AuthCallbackPage />);
 
     await waitFor(() => expect(replace).toHaveBeenCalledWith("/dashboard"));
     expect(loadExpiresAt()?.toISOString()).toBe(expiresAt);
@@ -103,7 +107,7 @@ describe("AuthCallbackPage", () => {
       vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ tenant_id: "t1" }) }),
     );
 
-    render(<AuthCallbackPage />);
+    renderWithProviders(<AuthCallbackPage />);
 
     await waitFor(() => expect(replace).toHaveBeenCalledWith("/dashboard"));
     expect(loadRenewAt()).toBeUndefined();
@@ -123,7 +127,7 @@ describe("AuthCallbackPage", () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
 
-    render(<AuthCallbackPage />);
+    renderWithProviders(<AuthCallbackPage />);
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Your sign-in took too long. Sign in again.",
@@ -154,7 +158,7 @@ describe("AuthCallbackPage", () => {
       vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ tenant_id: "t1" }) }),
     );
 
-    render(<AuthCallbackPage />);
+    renderWithProviders(<AuthCallbackPage />);
 
     await waitFor(() => expect(window.localStorage.getItem(PERMISSIONS_CACHE_KEY)).toBeNull());
     vi.unstubAllGlobals();
@@ -165,7 +169,7 @@ describe("AuthCallbackPage", () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
 
-    render(<AuthCallbackPage />);
+    renderWithProviders(<AuthCallbackPage />);
 
     // Never the library's or provider's own text (#1767).
     expect(await screen.findByRole("alert")).toHaveTextContent(
@@ -194,7 +198,7 @@ describe("AuthCallbackPage", () => {
       }),
     );
 
-    render(<AuthCallbackPage />);
+    renderWithProviders(<AuthCallbackPage />);
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "no accessible hospital for this account",
@@ -204,6 +208,37 @@ describe("AuthCallbackPage", () => {
       "/login?again=1",
     );
     expect(replace).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+
+  // #1856 D2: a fetch failure during the exchange is not our wording.
+  it("shows a fixed sentence, never the raw text, when the exchange cannot be reached", async () => {
+    signinRedirectCallback.mockResolvedValue({ id_token: "real-id-token" });
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
+
+    render(<AuthCallbackPage />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Check your connection and try again.",
+    );
+    expect(screen.queryByText(/Failed to fetch/)).not.toBeInTheDocument();
+    expect(replace).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+
+  it("shows a fixed sentence, never the raw text, when the signup call cannot be reached", async () => {
+    signinRedirectCallback.mockResolvedValue({
+      id_token: "native-signup-proof",
+      state: { purpose: "customer-signup" },
+    });
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
+
+    render(<AuthCallbackPage />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Check your connection and try again.",
+    );
+    expect(screen.queryByText(/Failed to fetch/)).not.toBeInTheDocument();
     vi.unstubAllGlobals();
   });
 
@@ -231,7 +266,7 @@ describe("AuthCallbackPage", () => {
       }),
     );
 
-    render(<AuthCallbackPage />);
+    renderWithProviders(<AuthCallbackPage />);
 
     expect(await screen.findByRole("alert")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Sign in again" })).toHaveAttribute("href", href);
@@ -251,7 +286,7 @@ describe("AuthCallbackPage", () => {
           new Response(JSON.stringify({ state: "provisioning" }), { status: 200 }),
         ),
     );
-    render(<AuthCallbackPage />);
+    renderWithProviders(<AuthCallbackPage />);
     await waitFor(() => expect(replace).toHaveBeenCalledWith("/signup"));
     expect(fetch).toHaveBeenCalledWith(
       "/api/v1/auth/signup/sign-in",
@@ -281,7 +316,7 @@ describe("AuthCallbackPage", () => {
             new Response(JSON.stringify({ tenant_id: tenantId }), { status: 200 }),
           ),
       );
-      render(<AuthCallbackPage />);
+      renderWithProviders(<AuthCallbackPage />);
       await waitFor(() => expect(replace).toHaveBeenCalledWith("/dashboard"));
       expect(fetch).toHaveBeenCalledWith(
         "/api/v1/auth/login",
@@ -307,7 +342,7 @@ describe("AuthCallbackPage", () => {
         .fn()
         .mockResolvedValue(new Response(JSON.stringify({ tenant_id: tenantId }), { status: 200 })),
     );
-    render(<AuthCallbackPage />);
+    renderWithProviders(<AuthCallbackPage />);
     await waitFor(() => expect(replace).toHaveBeenCalledWith("/dashboard"));
     expect(fetch).toHaveBeenCalledWith(
       "/api/v1/auth/login",
@@ -335,7 +370,7 @@ describe("AuthCallbackPage", () => {
         ),
       ),
     );
-    render(<AuthCallbackPage />);
+    renderWithProviders(<AuthCallbackPage />);
     expect(await screen.findByRole("alert")).toHaveTextContent("Check your details");
     expect(replace).not.toHaveBeenCalled();
     expect(vi.mocked(fetch).mock.calls.some(([url]) => url === "/api/v1/auth/login")).toBe(false);
@@ -349,10 +384,40 @@ describe("AuthCallbackPage", () => {
     });
     const fetcher = vi.fn();
     vi.stubGlobal("fetch", fetcher);
-    render(<AuthCallbackPage />);
+    renderWithProviders(<AuthCallbackPage />);
     await screen.findByRole("alert");
     expect(fetcher).not.toHaveBeenCalled();
     expect(replace).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+  // #1853 D2: both states sit in the sign-in card, under the Helivanta mark.
+  function expectSignInCard(container: HTMLElement, content: HTMLElement) {
+    expect(screen.getByRole("link", { name: "Helivanta home" })).toHaveAttribute("href", "/");
+    expect(container.querySelector(".login-page")).not.toBeNull();
+    expect(content.closest("section")?.parentElement).toHaveClass("rounded-2xl", "shadow-2xl");
+  }
+
+  it("shows the loading card with a status while the callback runs", () => {
+    signinRedirectCallback.mockReturnValue(new Promise(() => {}));
+    const { container } = renderWithProviders(<AuthCallbackPage />);
+    const status = screen.getByRole("status");
+    expect(status).toHaveTextContent("Signing you in…");
+    expectSignInCard(container, status);
+  });
+
+  it("shows the error in the same card with a Sign in again button", async () => {
+    signinRedirectCallback.mockRejectedValue(new Error("No matching state found in storage"));
+    vi.stubGlobal("fetch", vi.fn());
+    const { container } = renderWithProviders(<AuthCallbackPage />);
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveClass("text-destructive");
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    const again = screen.getByRole("link", { name: "Sign in again" });
+    expect(again).toHaveAttribute("href", "/login?again=1");
+    // Button asChild: the link carries the button's styling.
+    expect(again).toHaveClass("w-full");
+    expectSignInCard(container, alert);
+    expect(alert.closest("section")).toContainElement(again);
     vi.unstubAllGlobals();
   });
 });

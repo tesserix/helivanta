@@ -30,13 +30,13 @@ test("an uncertain password is never resubmitted after refresh or reload", async
     .getByLabel("Confirm new password", { exact: true })
     .fill("Synthetic-password-only-42!");
   await page.getByRole("button", { name: "Set new password" }).click();
-  await expect(page.getByText(/could not confirm the result/i)).toBeVisible();
+  await expect(page.getByText(/couldn't confirm whether that worked/i)).toBeVisible();
   await expect(page.getByLabel("New password", { exact: true })).toHaveCount(0);
-  await page.getByRole("button", { name: "Check recovery status" }).click();
-  await expect(page.getByRole("button", { name: "Cancel prepared attempt" })).toBeVisible();
+  await page.getByRole("button", { name: "Check again" }).click();
+  await expect(page.getByRole("button", { name: "Cancel and start again" })).toBeVisible();
   await page.reload();
   await expect(page.getByLabel("New password", { exact: true })).toHaveCount(0);
-  await page.getByRole("button", { name: "Cancel prepared attempt" }).click();
+  await page.getByRole("button", { name: "Cancel and start again" }).click();
   await expect(page.getByRole("button", { name: "Choose a new password" })).toBeVisible();
   expect(writes.map(({ action }) => action)).toEqual(["prepare", "password", "cancel"]);
   expect(writes[0]?.body).not.toHaveProperty("password");

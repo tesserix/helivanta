@@ -216,7 +216,7 @@ describe("AuthCallbackPage", () => {
     signinRedirectCallback.mockResolvedValue({ id_token: "real-id-token" });
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
 
-    render(<AuthCallbackPage />);
+    renderWithProviders(<AuthCallbackPage />);
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Check your connection and try again.",
@@ -233,7 +233,7 @@ describe("AuthCallbackPage", () => {
     });
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
 
-    render(<AuthCallbackPage />);
+    renderWithProviders(<AuthCallbackPage />);
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Check your connection and try again.",

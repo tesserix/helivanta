@@ -22,6 +22,7 @@ import {
   Controller,
   Field,
   LoadMore,
+  Panel,
   useZodForm,
   RequestFailure,
   RefreshButton,
@@ -56,10 +57,7 @@ export function OrganisationAccessLimits({ scope }: { scope: SupplyRegistryScope
   if (!policy.data) return <p role="status">Loading organisation access limits…</p>;
   const row = policy.data;
   return (
-    <section
-      aria-label="Organisation access limits"
-      className="space-y-4 rounded-xl sm:border sm:bg-muted/20 sm:p-4"
-    >
+    <Panel aria-label="Organisation access limits" className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h5 className="font-semibold">Access duration limits</h5>
@@ -109,7 +107,7 @@ export function OrganisationAccessLimits({ scope }: { scope: SupplyRegistryScope
         {history ? "Hide access limit history" : "View access limit history"}
       </Button>
       {history && <LimitsHistory scope={scope} />}
-    </section>
+    </Panel>
   );
 }
 
@@ -164,84 +162,86 @@ function LimitsEditor({
       />
     );
   return (
-    <form
-      ref={reveal}
-      noValidate
-      onSubmit={form.handleSubmit((values) => {
-        if (!save.isPending) save.mutate(values);
-      })}
-      className="scroll-mt-32 space-y-4 rounded-xl border bg-background p-3 sm:p-4"
-    >
-      <h6 className="font-medium">Edit organisation access limits</h6>
-      <div className="grid gap-4 sm:grid-cols-2">
-        {(
-          [
-            ["max_grant_hours", "Maximum grant duration (hours)"],
-            ["max_support_hours", "Maximum support duration (hours)"],
-          ] as const
-        ).map(([name, label]) => (
-          <Controller
-            key={name}
-            control={form.control}
-            name={name}
-            render={({ field, fieldState }) => (
-              <Field id={`limits-${name}`} label={label} error={fieldState.error?.message}>
-                <Input
-                  {...field}
-                  id={`limits-${name}`}
-                  type="number"
-                  min={supplyAccessLimitsInputSchema.shape[name].minValue ?? undefined}
-                  max={supplyAccessLimitsInputSchema.shape[name].maxValue ?? undefined}
-                  step={1}
-                  value={Number.isFinite(field.value) ? field.value : ""}
-                  onChange={(event) => field.onChange(event.target.valueAsNumber)}
-                  disabled={save.isPending}
-                  aria-invalid={fieldState.invalid}
-                  aria-describedby={fieldState.error ? `limits-${name}-error` : undefined}
-                />
-              </Field>
-            )}
-          />
-        ))}
-      </div>
-      <Field
-        id="limits-reason"
-        label="Reason for policy change"
-        error={form.formState.errors.reason?.message}
+    <Panel as="div">
+      <form
+        ref={reveal}
+        noValidate
+        onSubmit={form.handleSubmit((values) => {
+          if (!save.isPending) save.mutate(values);
+        })}
+        className="scroll-mt-32 space-y-4"
       >
-        <Input
-          id="limits-reason"
-          {...form.register("reason")}
-          disabled={save.isPending}
-          aria-invalid={!!form.formState.errors.reason}
-          aria-describedby={form.formState.errors.reason ? "limits-reason-error" : undefined}
-        />
-      </Field>
-      {save.error && (
-        <div className="space-y-2">
-          <p role="alert" className="text-sm text-destructive">
-            {save.error.message}
-          </p>
-          <RefreshButton refresh={refresh} error={null}>
-            Reload access limits
-          </RefreshButton>
+        <h6 className="font-medium">Edit organisation access limits</h6>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {(
+            [
+              ["max_grant_hours", "Maximum grant duration (hours)"],
+              ["max_support_hours", "Maximum support duration (hours)"],
+            ] as const
+          ).map(([name, label]) => (
+            <Controller
+              key={name}
+              control={form.control}
+              name={name}
+              render={({ field, fieldState }) => (
+                <Field id={`limits-${name}`} label={label} error={fieldState.error?.message}>
+                  <Input
+                    {...field}
+                    id={`limits-${name}`}
+                    type="number"
+                    min={supplyAccessLimitsInputSchema.shape[name].minValue ?? undefined}
+                    max={supplyAccessLimitsInputSchema.shape[name].maxValue ?? undefined}
+                    step={1}
+                    value={Number.isFinite(field.value) ? field.value : ""}
+                    onChange={(event) => field.onChange(event.target.valueAsNumber)}
+                    disabled={save.isPending}
+                    aria-invalid={fieldState.invalid}
+                    aria-describedby={fieldState.error ? `limits-${name}-error` : undefined}
+                  />
+                </Field>
+              )}
+            />
+          ))}
         </div>
-      )}
-      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-        <Button type="submit" className="w-full sm:w-auto" disabled={save.isPending}>
-          {save.isPending ? "Saving…" : "Save access limits"}
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          className="w-full sm:w-auto"
-          disabled={save.isPending}
-          onClick={onDone}
+        <Field
+          id="limits-reason"
+          label="Reason for policy change"
+          error={form.formState.errors.reason?.message}
         >
-          Cancel limit changes
-        </Button>
-      </div>
-    </form>
+          <Input
+            id="limits-reason"
+            {...form.register("reason")}
+            disabled={save.isPending}
+            aria-invalid={!!form.formState.errors.reason}
+            aria-describedby={form.formState.errors.reason ? "limits-reason-error" : undefined}
+          />
+        </Field>
+        {save.error && (
+          <div className="space-y-2">
+            <p role="alert" className="text-sm text-destructive">
+              {save.error.message}
+            </p>
+            <RefreshButton refresh={refresh} error={null}>
+              Reload access limits
+            </RefreshButton>
+          </div>
+        )}
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+          <Button type="submit" className="w-full sm:w-auto" disabled={save.isPending}>
+            {save.isPending ? "Saving…" : "Save access limits"}
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            className="w-full sm:w-auto"
+            disabled={save.isPending}
+            onClick={onDone}
+          >
+            Cancel limit changes
+          </Button>
+        </div>
+      </form>
+    </Panel>
   );
 }
 

@@ -26,6 +26,7 @@ import {
   Field,
   FormSelectField,
   LoadMore,
+  Panel,
   useZodForm,
   firstError,
   RequestFailure,
@@ -75,7 +76,7 @@ function CorporatePanel({ scope, roles }: { scope: SupplyRegistryScope; roles: s
   });
   const writable = can("supply.organization.manage") && roles.includes("administrator");
   return (
-    <section aria-label="Organisation structure" className="space-y-5 rounded-xl border p-5">
+    <Panel aria-label="Organisation structure" className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h4 className="font-semibold">Organisation structure</h4>
@@ -143,7 +144,7 @@ function CorporatePanel({ scope, roles }: { scope: SupplyRegistryScope; roles: s
           {history && <CorporateHistory scope={scope} />}
         </details>
       )}
-    </section>
+    </Panel>
   );
 }
 
@@ -172,18 +173,20 @@ function CorporateHistory({ scope }: { scope: SupplyRegistryScope }) {
       {rows.items.length === 0 && (
         <p className="text-sm text-muted-foreground">No corporate revisions recorded.</p>
       )}
-      {rows.items.map((row) => (
-        <div className="rounded-lg border p-3 text-sm" key={row.id}>
-          <p>
-            Version {row.version} · {new Date(row.created_at).toLocaleString()}
-          </p>
-          {row.snapshot.parent_party_id ? (
-            <CorporateParent scope={scope} id={row.snapshot.parent_party_id} />
-          ) : (
-            <p>Root organisation</p>
-          )}
-        </div>
-      ))}
+      <div className="divide-y">
+        {rows.items.map((row) => (
+          <div className="py-3 text-sm" key={row.id}>
+            <p>
+              Version {row.version} · {new Date(row.created_at).toLocaleString()}
+            </p>
+            {row.snapshot.parent_party_id ? (
+              <CorporateParent scope={scope} id={row.snapshot.parent_party_id} />
+            ) : (
+              <p>Root organisation</p>
+            )}
+          </div>
+        ))}
+      </div>
       <LoadMore hasMore={rows.hasMore} isLoading={rows.isFetchingMore} onClick={rows.loadMore} />
     </div>
   );
@@ -382,7 +385,7 @@ function TerritoryPanel({
     });
   }
   return (
-    <section aria-label="Sales territories" className="space-y-5 rounded-xl border p-5">
+    <Panel aria-label="Sales territories" className="space-y-5">
       <div className="flex flex-wrap justify-between gap-3">
         <div>
           <h4 className="font-semibold">Sales territories</h4>
@@ -486,7 +489,7 @@ function TerritoryPanel({
           />
         )}
       </div>
-    </section>
+    </Panel>
   );
 }
 function TerritoryEditor({
@@ -602,175 +605,179 @@ function TerritoryEditor({
   );
   const error = (name: keyof TerritoryInput) => form.formState.errors[name]?.message;
   return (
-    <form
-      noValidate
-      onSubmit={form.handleSubmit((values) => {
-        if (validBranch && !premises.isError && !mutation.isPending) mutation.mutate(values);
-      })}
-      className="space-y-4 rounded-xl bg-muted/30 p-4"
-    >
-      <h5 className="font-medium">{territory ? "Edit sales territory" : "New sales territory"}</h5>
-      <div className="grid gap-4 sm:grid-cols-2">
-        {(
-          [
-            ["code", "Territory code"],
-            ["name", "Territory name"],
-            ["region", "State or province"],
-            ["city", "City"],
-            ["description", "Coverage description"],
-          ] as const
-        ).map(([name, text]) => (
-          <Field key={name} id={`territory-${name}`} label={text} error={error(name)}>
-            <Input
-              id={`territory-${name}`}
-              {...form.register(name)}
-              disabled={mutation.isPending}
-              aria-invalid={!!error(name)}
-              aria-describedby={error(name) ? `territory-${name}-error` : undefined}
-            />
-          </Field>
-        ))}
+    <Panel as="div">
+      <form
+        noValidate
+        onSubmit={form.handleSubmit((values) => {
+          if (validBranch && !premises.isError && !mutation.isPending) mutation.mutate(values);
+        })}
+        className="space-y-4"
+      >
+        <h5 className="font-medium">
+          {territory ? "Edit sales territory" : "New sales territory"}
+        </h5>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {(
+            [
+              ["code", "Territory code"],
+              ["name", "Territory name"],
+              ["region", "State or province"],
+              ["city", "City"],
+              ["description", "Coverage description"],
+            ] as const
+          ).map(([name, text]) => (
+            <Field key={name} id={`territory-${name}`} label={text} error={error(name)}>
+              <Input
+                id={`territory-${name}`}
+                {...form.register(name)}
+                disabled={mutation.isPending}
+                aria-invalid={!!error(name)}
+                aria-describedby={error(name) ? `territory-${name}-error` : undefined}
+              />
+            </Field>
+          ))}
+          <FormSelectField
+            control={form.control}
+            name="status"
+            id="territory-status"
+            label="Territory status"
+            disabled={mutation.isPending}
+            options={[
+              { value: "active", label: "Active" },
+              { value: "inactive", label: "Inactive" },
+            ]}
+          />
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Country: India. Territory country follows the owning organisation.
+        </p>
         <FormSelectField
           control={form.control}
-          name="status"
-          id="territory-status"
-          label="Territory status"
-          disabled={mutation.isPending}
+          name="branch_premise_id"
+          id="territory-branch"
+          label="Operating branch"
+          emptyValue={null}
+          disabled={
+            mutation.isPending ||
+            premises.isPending ||
+            premises.isError ||
+            !can("supply.premise.read")
+          }
           options={[
-            { value: "active", label: "Active" },
-            { value: "inactive", label: "Inactive" },
+            { value: "", label: "No specific operating branch" },
+            ...options.map((row) => ({ value: row.id, label: `${row.code} · ${row.name}` })),
           ]}
         />
-      </div>
-      <p className="text-sm text-muted-foreground">
-        Country: India. Territory country follows the owning organisation.
-      </p>
-      <FormSelectField
-        control={form.control}
-        name="branch_premise_id"
-        id="territory-branch"
-        label="Operating branch"
-        emptyValue={null}
-        disabled={
-          mutation.isPending ||
-          premises.isPending ||
-          premises.isError ||
-          !can("supply.premise.read")
-        }
-        options={[
-          { value: "", label: "No specific operating branch" },
-          ...options.map((row) => ({ value: row.id, label: `${row.code} · ${row.name}` })),
-        ]}
-      />
-      <LoadMore
-        hasMore={premises.hasMore}
-        isLoading={premises.isFetchingMore}
-        onClick={premises.loadMore}
-      />
-      {premises.isError && (
-        <RequestFailure
-          message="Could not load operating branches."
-          retry={premises.retry}
-          error={premises.error}
+        <LoadMore
+          hasMore={premises.hasMore}
+          isLoading={premises.isFetchingMore}
+          onClick={premises.loadMore}
         />
-      )}
-      {branch && selected.isPending && <p role="status">Checking operating branch…</p>}
-      {branch && !validBranch && !selected.isPending && (
-        <p role="alert" className="text-sm text-destructive">
-          The selected branch is unavailable. Refresh access or choose an active branch of this
-          organisation.
-        </p>
-      )}
-      <fieldset className="space-y-2 rounded-lg border p-3">
-        <legend className="px-1 text-sm font-medium">Assigned sales representatives</legend>
-        <p className="text-sm text-muted-foreground">
-          Choose members with an existing active organisation-wide sales grant. Assignment does not
-          create permissions.
-        </p>
-        {admin ? (
-          candidates.isError || legacy.isError ? (
-            <RequestFailure
-              message="Could not load eligible sales representatives. Existing assignments are preserved."
-              retry={() => {
-                candidates.retry();
-                legacy.retry();
-              }}
-              error={firstError(candidates.error, legacy.error)}
-            />
-          ) : (
-            <>
-              {[...new Set([...subjects, ...assigned])].map((subject) => (
-                <label className="flex items-start gap-2 break-words text-sm" key={subject}>
-                  <input
-                    type="checkbox"
-                    checked={assigned.includes(subject)}
-                    disabled={
-                      mutation.isPending ||
-                      (!subjects.includes(subject) && !assigned.includes(subject))
-                    }
-                    onChange={(event) =>
-                      form.setValue(
-                        "assigned_sales_subjects",
-                        event.target.checked
-                          ? [...assigned, subject]
-                          : assigned.filter((value) => value !== subject),
-                        { shouldValidate: true, shouldDirty: true },
-                      )
-                    }
-                  />
-                  <AccountName subject={subject} />
-                  {!subjects.includes(subject) && " · Current grant unavailable"}
-                </label>
-              ))}
-              {subjects.length === 0 && !candidates.isPending && !legacy.isPending && (
-                <p className="text-sm text-muted-foreground">
-                  No eligible sales grants. An organisation administrator must grant sales access
-                  first.
-                </p>
-              )}
-              <LoadMore
-                hasMore={candidates.hasMore}
-                isLoading={candidates.isFetchingMore}
-                onClick={candidates.loadMore}
-              />
-              <LoadMore
-                hasMore={legacy.hasMore}
-                isLoading={legacy.isFetchingMore}
-                onClick={legacy.loadMore}
-              />
-            </>
-          )
-        ) : (
+        {premises.isError && (
+          <RequestFailure
+            message="Could not load operating branches."
+            retry={premises.retry}
+            error={premises.error}
+          />
+        )}
+        {branch && selected.isPending && <p role="status">Checking operating branch…</p>}
+        {branch && !validBranch && !selected.isPending && (
+          <p role="alert" className="text-sm text-destructive">
+            The selected branch is unavailable. Refresh access or choose an active branch of this
+            organisation.
+          </p>
+        )}
+        <fieldset className="space-y-2 border-t border-border pt-4">
+          <legend className="text-sm font-medium">Assigned sales representatives</legend>
           <p className="text-sm text-muted-foreground">
-            An organisation administrator manages representative assignments. Current assignments:{" "}
-            {assigned.length ? assigned.join(", ") : "None"}.
+            Choose members with an existing active organisation-wide sales grant. Assignment does
+            not create permissions.
           </p>
+          {admin ? (
+            candidates.isError || legacy.isError ? (
+              <RequestFailure
+                message="Could not load eligible sales representatives. Existing assignments are preserved."
+                retry={() => {
+                  candidates.retry();
+                  legacy.retry();
+                }}
+                error={firstError(candidates.error, legacy.error)}
+              />
+            ) : (
+              <>
+                {[...new Set([...subjects, ...assigned])].map((subject) => (
+                  <label className="flex items-start gap-2 break-words text-sm" key={subject}>
+                    <input
+                      type="checkbox"
+                      checked={assigned.includes(subject)}
+                      disabled={
+                        mutation.isPending ||
+                        (!subjects.includes(subject) && !assigned.includes(subject))
+                      }
+                      onChange={(event) =>
+                        form.setValue(
+                          "assigned_sales_subjects",
+                          event.target.checked
+                            ? [...assigned, subject]
+                            : assigned.filter((value) => value !== subject),
+                          { shouldValidate: true, shouldDirty: true },
+                        )
+                      }
+                    />
+                    <AccountName subject={subject} />
+                    {!subjects.includes(subject) && " · Current grant unavailable"}
+                  </label>
+                ))}
+                {subjects.length === 0 && !candidates.isPending && !legacy.isPending && (
+                  <p className="text-sm text-muted-foreground">
+                    No eligible sales grants. An organisation administrator must grant sales access
+                    first.
+                  </p>
+                )}
+                <LoadMore
+                  hasMore={candidates.hasMore}
+                  isLoading={candidates.isFetchingMore}
+                  onClick={candidates.loadMore}
+                />
+                <LoadMore
+                  hasMore={legacy.hasMore}
+                  isLoading={legacy.isFetchingMore}
+                  onClick={legacy.loadMore}
+                />
+              </>
+            )
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              An organisation administrator manages representative assignments. Current assignments:{" "}
+              {assigned.length ? assigned.join(", ") : "None"}.
+            </p>
+          )}
+          {error("assigned_sales_subjects") && (
+            <p role="alert" className="text-sm text-destructive">
+              {error("assigned_sales_subjects")}
+            </p>
+          )}
+        </fieldset>
+        {mutation.error && (
+          <div className="space-y-2">
+            <p role="alert" className="text-sm text-destructive">
+              {mutation.error.message}
+            </p>
+            <RefreshButton refresh={refresh} error={null}>
+              Reload sales territories
+            </RefreshButton>
+          </div>
         )}
-        {error("assigned_sales_subjects") && (
-          <p role="alert" className="text-sm text-destructive">
-            {error("assigned_sales_subjects")}
-          </p>
-        )}
-      </fieldset>
-      {mutation.error && (
-        <div className="space-y-2">
-          <p role="alert" className="text-sm text-destructive">
-            {mutation.error.message}
-          </p>
-          <RefreshButton refresh={refresh} error={null}>
-            Reload sales territories
-          </RefreshButton>
+        <div className="flex flex-wrap gap-2">
+          <Button type="submit" disabled={mutation.isPending || !validBranch || premises.isError}>
+            {mutation.isPending ? "Saving…" : "Save sales territory"}
+          </Button>
+          <Button type="button" variant="ghost" disabled={mutation.isPending} onClick={onDone}>
+            Cancel territory changes
+          </Button>
         </div>
-      )}
-      <div className="flex flex-wrap gap-2">
-        <Button type="submit" disabled={mutation.isPending || !validBranch || premises.isError}>
-          {mutation.isPending ? "Saving…" : "Save sales territory"}
-        </Button>
-        <Button type="button" variant="ghost" disabled={mutation.isPending} onClick={onDone}>
-          Cancel territory changes
-        </Button>
-      </div>
-    </form>
+      </form>
+    </Panel>
   );
 }
 function TerritoryHistory({ scope, id }: { scope: SupplyRegistryScope; id: string }) {
@@ -794,7 +801,7 @@ function TerritoryHistory({ scope, id }: { scope: SupplyRegistryScope; id: strin
     );
   if (rows.isPending) return <p role="status">Loading territory history…</p>;
   return (
-    <div className="space-y-2 rounded-lg border p-3">
+    <div className="space-y-2 border-t pt-3">
       {rows.items.map((row) => (
         <div key={row.id} className="text-sm">
           <p>

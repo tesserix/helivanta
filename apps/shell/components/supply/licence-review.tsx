@@ -27,6 +27,8 @@ import {
   LoadMore,
   formatDateTime,
   useZodForm,
+  controlClass,
+  Panel,
   RequestFailure,
 } from "@helivanta/ui";
 
@@ -85,10 +87,7 @@ export function LicenceReview({ scope, licence, roles, onClose }: Props) {
       : can("supply.license.review") && roles.includes("compliance"),
   );
   return (
-    <section
-      aria-label="Licence review"
-      className="scroll-mt-32 rounded-2xl border bg-card p-4 sm:p-6"
-    >
+    <Panel aria-label="Licence review" className="scroll-mt-32">
       <header className="flex items-start justify-between gap-4">
         <div>
           <h5 ref={heading} tabIndex={-1} className="text-lg font-semibold outline-none">
@@ -114,10 +113,10 @@ export function LicenceReview({ scope, licence, roles, onClose }: Props) {
         <p role="alert">You do not have access to this organisation’s licence reviews.</p>
       ) : state.isError ? (
         state.error instanceof ApiError && state.error.code === "session_changed" ? (
-          <div role="alert" className="my-4 space-y-3 rounded-xl border p-4">
+          <Panel as="div" role="alert" className="my-4 space-y-3">
             <p>{state.error.message}</p>
             <Button onClick={() => window.location.reload()}>Refresh workspace</Button>
-          </div>
+          </Panel>
         ) : (
           <RequestFailure
             message="Could not load the current licence review."
@@ -132,13 +131,13 @@ export function LicenceReview({ scope, licence, roles, onClose }: Props) {
       ) : (
         state.data && (
           <>
-            <div className="my-5 rounded-xl border bg-muted/20 p-4">
+            <Panel as="div" className="my-5">
               <p className="font-semibold">{statusLabels[state.data.effective_status]}</p>
               <p className="mt-1 text-xs text-muted-foreground">
                 Current organisation revision {state.data.party_version} · Premise revision{" "}
                 {state.data.premise_version} · Licence revision {state.data.license_version}
               </p>
-            </div>
+            </Panel>
             {state.data.latest?.status === "submitted" &&
               !actions.includes("verify") &&
               !actions.includes("reject") && (
@@ -227,7 +226,7 @@ export function LicenceReview({ scope, licence, roles, onClose }: Props) {
           </>
         )
       )}
-    </section>
+    </Panel>
   );
 }
 
@@ -294,125 +293,126 @@ function ReviewForm({
   );
   const decision = action === "verify" || action === "reject";
   return (
-    <form
-      noValidate
-      aria-label={actionLabels[action]}
-      className="space-y-4 rounded-xl border bg-background p-4 sm:p-5"
-      onSubmit={(event) =>
-        void form.handleSubmit((input) => {
-          if (busy.current) return;
-          busy.current = true;
-          mutation.mutate(input, {
-            onSettled: () => {
-              busy.current = false;
-            },
-          });
-        })(event)
-      }
-    >
-      <h6 className="font-semibold">{actionLabels[action]}</h6>
-      <fieldset disabled={mutation.isPending} className="space-y-4">
-        {action === "submit" ? (
-          <>
-            {files.isError ? (
-              <RequestFailure
-                message="Could not load released evidence images."
-                retry={() => void files.refetch()}
-                error={files.error}
+    <Panel as="div">
+      <form
+        noValidate
+        aria-label={actionLabels[action]}
+        className="space-y-4"
+        onSubmit={(event) =>
+          void form.handleSubmit((input) => {
+            if (busy.current) return;
+            busy.current = true;
+            mutation.mutate(input, {
+              onSettled: () => {
+                busy.current = false;
+              },
+            });
+          })(event)
+        }
+      >
+        <h6 className="font-semibold">{actionLabels[action]}</h6>
+        <fieldset disabled={mutation.isPending} className="space-y-4">
+          {action === "submit" ? (
+            <>
+              {files.isError ? (
+                <RequestFailure
+                  message="Could not load released evidence images."
+                  retry={() => void files.refetch()}
+                  error={files.error}
+                />
+              ) : (
+                <FormSelectField
+                  control={form.control}
+                  name="evidence_id"
+                  id="review-evidence"
+                  label="Supporting evidence"
+                  disabled={files.isPending}
+                  options={
+                    files.data?.pages
+                      .flatMap((p) => p.data)
+                      .filter(
+                        (f) =>
+                          f.status === "available" && f.license_version === state.license_version,
+                      )
+                      .map((f) => ({ value: f.id, label: f.filename })) ?? []
+                  }
+                />
+              )}
+              <p className="text-xs text-muted-foreground">
+                Choose a released image for the current licence revision. Open Evidence to inspect
+                the document before submitting.
+              </p>
+              <LoadMore
+                hasMore={files.hasNextPage}
+                isLoading={files.isFetchingNextPage}
+                onClick={() => {
+                  if (!files.isFetchingNextPage) void files.fetchNextPage({ cancelRefetch: false });
+                }}
               />
-            ) : (
+            </>
+          ) : (
+            <p className="break-all text-xs text-muted-foreground">
+              Pinned evidence: {state.latest?.evidence_id} · Organisation {source.party_version} ·
+              Premise {source.premise_version} · Licence {source.license_version}
+            </p>
+          )}
+          {decision && (
+            <>
               <FormSelectField
                 control={form.control}
-                name="evidence_id"
-                id="review-evidence"
-                label="Supporting evidence"
-                disabled={files.isPending}
-                options={
-                  files.data?.pages
-                    .flatMap((p) => p.data)
-                    .filter(
-                      (f) =>
-                        f.status === "available" && f.license_version === state.license_version,
-                    )
-                    .map((f) => ({ value: f.id, label: f.filename })) ?? []
-                }
+                name="method"
+                id="review-method"
+                label="Independent verification method"
+                options={[
+                  { value: "authority_portal", label: "Issuing authority portal" },
+                  { value: "authority_contact", label: "Direct authority contact" },
+                  { value: "physical_inspection", label: "Original document inspection" },
+                ]}
               />
-            )}
-            <p className="text-xs text-muted-foreground">
-              Choose a released image for the current licence revision. Open Evidence to inspect the
-              document before submitting.
-            </p>
-            <LoadMore
-              hasMore={files.hasNextPage}
-              isLoading={files.isFetchingNextPage}
-              onClick={() => {
-                if (!files.isFetchingNextPage) void files.fetchNextPage({ cancelRefetch: false });
-              }}
-            />
-          </>
-        ) : (
-          <p className="break-all text-xs text-muted-foreground">
-            Pinned evidence: {state.latest?.evidence_id} · Organisation {source.party_version} ·
-            Premise {source.premise_version} · Licence {source.license_version}
-          </p>
-        )}
-        {decision && (
-          <>
-            <FormSelectField
-              control={form.control}
-              name="method"
-              id="review-method"
-              label="Independent verification method"
-              options={[
-                { value: "authority_portal", label: "Issuing authority portal" },
-                { value: "authority_contact", label: "Direct authority contact" },
-                { value: "physical_inspection", label: "Original document inspection" },
-              ]}
-            />
-            <Field
-              id="review-reference"
-              label="Authority-check reference"
-              error={form.formState.errors.reference?.message}
-            >
-              <Input id="review-reference" {...form.register("reference")} />
-            </Field>
-            <p className="text-xs text-muted-foreground">
-              Record the check you actually performed. A clean antivirus result is not licence
-              verification.
-            </p>
-          </>
-        )}
-        <Field
-          id="review-reason"
-          label="Review reason"
-          error={form.formState.errors.reason?.message}
-        >
-          <textarea
-            id="review-reason"
-            {...form.register("reason")}
-            rows={3}
-            maxLength={2000}
-            className="w-full rounded-md border bg-background p-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          />
-        </Field>
-        <p className="text-xs text-muted-foreground">
-          Use business review details only. Exclude patient information, credentials and payment
-          account details.
-        </p>
-      </fieldset>
-      {mutation.isError && (
-        <div role="alert" className="space-y-3 text-sm text-destructive">
-          <p>{mutation.error.message}</p>
-          {mutation.error instanceof ApiError && mutation.error.code === "session_changed" && (
-            <Button type="button" onClick={() => window.location.reload()}>
-              Refresh workspace
-            </Button>
+              <Field
+                id="review-reference"
+                label="Authority-check reference"
+                error={form.formState.errors.reference?.message}
+              >
+                <Input id="review-reference" {...form.register("reference")} />
+              </Field>
+              <p className="text-xs text-muted-foreground">
+                Record the check you actually performed. A clean antivirus result is not licence
+                verification.
+              </p>
+            </>
           )}
-        </div>
-      )}
-      <Button type="submit" disabled={mutation.isPending}>
-        {mutation.isPending ? "Recording…" : actionLabels[action]}
-      </Button>
-    </form>
+          <Field
+            id="review-reason"
+            label="Review reason"
+            error={form.formState.errors.reason?.message}
+          >
+            <textarea
+              id="review-reason"
+              {...form.register("reason")}
+              rows={3}
+              className={controlClass}
+            />
+          </Field>
+          <p className="text-xs text-muted-foreground">
+            Use business review details only. Exclude patient information, credentials and payment
+            account details.
+          </p>
+        </fieldset>
+        {mutation.isError && (
+          <div role="alert" className="space-y-3 text-sm text-destructive">
+            <p>{mutation.error.message}</p>
+            {mutation.error instanceof ApiError && mutation.error.code === "session_changed" && (
+              <Button type="button" onClick={() => window.location.reload()}>
+                Refresh workspace
+              </Button>
+            )}
+          </div>
+        )}
+        <Button type="submit" disabled={mutation.isPending}>
+          {mutation.isPending ? "Recording…" : actionLabels[action]}
+        </Button>
+      </form>
+    </Panel>
   );
 }

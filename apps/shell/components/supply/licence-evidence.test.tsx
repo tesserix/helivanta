@@ -11,6 +11,11 @@ const scope = {
   licenseId: "0199e000-0000-7000-8000-000000000002",
 };
 const licence = { id: scope.licenseId, version: 2, number: "TEST-LIC" };
+// #1260: cards are Panel, so no hand-painted card class survives.
+// Controls are not cards: the design system's outline button, Input and
+// Textarea carry shadow-sm, and a select trigger is a button-like combobox.
+const CARDS =
+  ":is(.rounded-xl, .rounded-2xl, .shadow-sm):not(button, input, textarea, [role=combobox])";
 afterEach(() => vi.unstubAllGlobals());
 it("shows source revisions and keeps auditors read-only despite broad global permissions", async () => {
   vi.stubGlobal(
@@ -60,6 +65,7 @@ it("shows source revisions and keeps auditors read-only despite broad global per
   expect(screen.queryByLabelText("Licence evidence image")).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: /Download/ })).not.toBeInTheDocument();
   expect(screen.getByText(/does not verify/)).toBeInTheDocument();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
 });
 it("focuses the evidence panel and keeps upload failures beside the form", async () => {
   const fetcher = vi.fn(
@@ -97,6 +103,7 @@ it("focuses the evidence panel and keeps upload failures beside the form", async
     await screen.findByText("Choose a PNG or JPEG image up to 10 MiB with a safe filename."),
   ).toBeInTheDocument();
   expect(fetcher.mock.calls.filter(([url]) => url.includes("/content"))).toHaveLength(0);
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
 });
 
 it("collapses rapid repeated form submission into one stable upload", async () => {

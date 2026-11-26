@@ -17,6 +17,11 @@ const scope = {
   subject: "TEST-owner",
   partyId: "0199e000-0000-7000-8000-000000000001",
 };
+// #1260: cards are Panel, so no hand-painted card class survives.
+// Controls are not cards: the design system's outline button, Input and
+// Textarea carry shadow-sm, and a select trigger is a button-like combobox.
+const CARDS =
+  ":is(.rounded-xl, .rounded-2xl, .shadow-sm):not(button, input, textarea, [role=combobox])";
 afterEach(() => vi.unstubAllGlobals());
 it("does not request operational records without a current capability", async () => {
   const fetcher = vi.fn(
@@ -101,6 +106,7 @@ it("opens warehouse receipts only through current stock capabilities", async () 
   const user = (await import("@testing-library/user-event")).default.setup();
   await user.click(await screen.findByRole("button", { name: "Stock TEST-WAREHOUSE" }));
   expect(await screen.findByRole("form", { name: "Record physical receipt" })).toBeInTheDocument();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
 });
 it("uses assigned delivery projection and retries the exact versioned driver command", async () => {
   const writes: Array<{ url: string; body: string }> = [];
@@ -139,6 +145,7 @@ it("uses assigned delivery projection and retries the exact versioned driver com
   );
   await user.click(screen.getByRole("button", { name: "Record delivery update" }));
   expect(await screen.findByText(/TEST handoff unavailable/)).toBeInTheDocument();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   await user.click(screen.getByRole("button", { name: "Record delivery update" }));
   await waitFor(() => expect(writes).toHaveLength(2));
   expect(writes[0]).toEqual(writes[1]);
@@ -239,6 +246,7 @@ it("validates manual scheduling and reuses one task identity on a failed write",
   });
   await user.click(screen.getByRole("button", { name: "Save delivery task" }));
   expect(await screen.findByText(/TEST scheduling unavailable/)).toBeInTheDocument();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   await user.click(screen.getByRole("button", { name: "Save delivery task" }));
   await waitFor(() => expect(writes).toHaveLength(2));
   expect(writes[0]).toEqual(writes[1]);
@@ -308,6 +316,7 @@ it.each(["administrator", "auditor"])(
     await user.click(screen.getByRole("button", { name: "View deliveries TEST-WAREHOUSE" }));
     await user.click(await screen.findByRole("button", { name: "History delivery TEST-DELIVERY" }));
     expect(await screen.findByText(accountText(/Actor QA Driver/))).toBeInTheDocument();
+    expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
     expect(
       screen.queryByRole("button", { name: "Schedule delivery task" }),
     ).not.toBeInTheDocument();

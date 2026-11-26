@@ -23,6 +23,7 @@ import {
   formatDateTime,
   LoadMore,
   PageHeading,
+  Panel,
   RequestFailure,
   useZodForm,
 } from "@helivanta/ui";
@@ -89,25 +90,25 @@ function TenantParties({ scope }: { scope: SupplyScope }) {
   }
   if (!can("supply.directory.read"))
     return (
-      <section className="rounded-2xl border bg-card p-7">
+      <Panel>
         <h2 className="text-xl font-semibold">Supply access required</h2>
         <p className="mt-2 text-sm text-muted-foreground">
           Ask your administrator for the appropriate SupplyConnect role.
         </p>
-      </section>
+      </Panel>
     );
   return (
     <div className="space-y-6">
-      <PageHeading description="Your organisations and supplier records. Profiles stay private unless access is granted." />
+      <PageHeading description="Your organisations and supplier records." />
       <WorkspaceConnections current="supply" />
-      <div className="flex items-start gap-3 rounded-xl border bg-card p-5">
+      <Panel as="div" className="flex items-start gap-3">
         <ShieldCheck className="mt-0.5 size-5 shrink-0 text-(--hms-accent)" />
         <p className="text-sm leading-6 text-muted-foreground">
-          Shared ownership or a hospital affiliation does not share private records. Draft profiles
-          await verification before trading approval.
+          Profiles stay private unless access is granted. Shared ownership or a hospital affiliation
+          does not share private records. Draft profiles await verification before trading approval.
         </p>
-      </div>
-      <section className="overflow-hidden rounded-2xl border bg-card">
+      </Panel>
+      <Panel flush>
         <div className="flex flex-wrap items-start justify-between gap-4 border-b p-5">
           <div>
             <h3 className="font-semibold">Organisation directory</h3>
@@ -172,7 +173,7 @@ function TenantParties({ scope }: { scope: SupplyScope }) {
                   onClick={() => reveal(party)}
                   className="flex w-full items-center gap-4 px-5 py-5 text-left transition-colors hover:bg-muted/40 focus-visible:outline-2 focus-visible:outline-(--hms-accent)"
                 >
-                  <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-(--hms-accent-dim) text-(--hms-accent)">
+                  <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-(--hms-accent-dim) text-(--hms-accent)">
                     <Building2 className="size-5" />
                   </span>
                   <span className="min-w-0 flex-1">
@@ -197,7 +198,7 @@ function TenantParties({ scope }: { scope: SupplyScope }) {
           isLoading={parties.isFetchingMore}
           onClick={parties.loadMore}
         />
-      </section>
+      </Panel>
       {selected !== undefined && (
         <section ref={editor} className="scroll-mt-32" aria-label="Selected organisation">
           {selected === null ? (
@@ -250,7 +251,7 @@ function PartyDetail({
   );
   if (supportOnly)
     return (
-      <div className="space-y-5 rounded-2xl border bg-card p-3 sm:p-7">
+      <Panel as="div" className="space-y-5">
         <div className="flex flex-wrap justify-between gap-3">
           <h3 ref={heading} tabIndex={-1} className="scroll-mt-32 text-xl font-semibold">
             {summary.legal_name}
@@ -260,7 +261,7 @@ function PartyDetail({
           </Button>
         </div>
         <OrganisationSupport scope={{ ...scope, partyId: summary.id }} roles={[]} />
-      </div>
+      </Panel>
     );
   if (access.isPending) return <p role="status">Checking organisation access…</p>;
   if (access.isError)
@@ -294,7 +295,7 @@ function PartyDetail({
     )
   )
     return (
-      <div className="space-y-5 rounded-2xl border bg-card p-3 sm:p-7">
+      <Panel as="div" className="space-y-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h3
@@ -319,11 +320,11 @@ function PartyDetail({
         />
         <OrganisationOperations scope={{ ...scope, partyId: summary.id }} roles={operatingRoles} />
         <OrganisationSupport scope={{ ...scope, partyId: summary.id }} roles={globalRoles} />
-      </div>
+      </Panel>
     );
   if (!privateProfile)
     return (
-      <div className="rounded-2xl border bg-card p-6">
+      <Panel as="div">
         <h3 ref={heading} tabIndex={-1} className="scroll-mt-32 font-semibold">
           Private profile access required
         </h3>
@@ -333,7 +334,7 @@ function PartyDetail({
         <Button variant="outline" className="mt-4" onClick={onClose}>
           Close profile
         </Button>
-      </div>
+      </Panel>
     );
   return (
     <PrivateParty
@@ -392,7 +393,7 @@ function PrivateParty({
       />
     );
   return (
-    <div className="space-y-5 rounded-2xl border bg-card p-3 sm:p-7">
+    <Panel as="div" className="space-y-5">
       <div className="flex flex-wrap justify-between gap-4">
         <div>
           <p className="text-xs font-semibold text-muted-foreground">
@@ -448,9 +449,9 @@ function PrivateParty({
         {party.contacts.length === 0 ? (
           <p className="mt-2 text-sm text-muted-foreground">No contacts recorded.</p>
         ) : (
-          <ul className="mt-3 grid gap-3 sm:grid-cols-2">
+          <ul className="mt-3 divide-y">
             {party.contacts.map((row) => (
-              <li key={row.id} className="min-w-0 rounded-xl border p-4 text-sm">
+              <li key={row.id} className="min-w-0 py-3 text-sm">
                 <p className="break-words font-medium">
                   {row.name} · {row.role}
                 </p>
@@ -468,9 +469,9 @@ function PrivateParty({
         {party.addresses.length === 0 ? (
           <p className="mt-2 text-sm text-muted-foreground">No addresses recorded.</p>
         ) : (
-          <ul className="mt-3 grid gap-3 sm:grid-cols-2">
+          <ul className="mt-3 divide-y">
             {party.addresses.map((row) => (
-              <li key={row.id} className="min-w-0 rounded-xl border p-4 text-sm">
+              <li key={row.id} className="min-w-0 py-3 text-sm">
                 <p className="font-medium capitalize">{row.kind}</p>
                 <p className="mt-1 break-words text-muted-foreground">
                   {[
@@ -494,9 +495,9 @@ function PrivateParty({
         {party.tax_registrations.length === 0 ? (
           <p className="mt-2 text-sm text-muted-foreground">No tax registrations recorded.</p>
         ) : (
-          <ul className="mt-3 space-y-2">
+          <ul className="mt-3 divide-y">
             {party.tax_registrations.map((row) => (
-              <li key={row.id} className="break-words rounded-xl border p-4 text-sm">
+              <li key={row.id} className="break-words py-3 text-sm">
                 <strong>{row.kind.toUpperCase()}</strong> · {row.number} · {row.jurisdiction}
                 <span className="ml-2 text-xs text-muted-foreground">Unverified declaration</span>
               </li>
@@ -537,7 +538,7 @@ function PrivateParty({
         <summary className="cursor-pointer text-sm font-medium">Profile revision history</summary>
         <PartyHistory scope={scope} id={id} />
       </details>
-    </div>
+    </Panel>
   );
 }
 function PartyHistory({ scope, id }: { scope: SupplyScope; id: string }) {

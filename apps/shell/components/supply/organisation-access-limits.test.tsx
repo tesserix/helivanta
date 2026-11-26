@@ -26,6 +26,11 @@ const defaults = {
   created_at: null,
   updated_at: null,
 };
+// #1260: cards are Panel, so no hand-painted card class survives.
+// Controls are not cards: the design system's outline button, Input and
+// Textarea carry shadow-sm, and a select trigger is a button-like combobox.
+const CARDS =
+  ":is(.rounded-xl, .rounded-2xl, .shadow-sm):not(button, input, textarea, [role=combobox])";
 afterEach(() => vi.unstubAllGlobals());
 
 it("saves reasoned access limits with optimistic version and refreshes the current policy", async () => {
@@ -68,6 +73,7 @@ it("saves reasoned access limits with optimistic version and refreshes the curre
   await user.click(screen.getByRole("button", { name: "Edit access limits" }));
   expect(screen.getByLabelText("Maximum grant duration (hours)")).toHaveValue(8784);
   expect(screen.getByLabelText("Maximum support duration (hours)")).toHaveValue(24);
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   fireEvent.change(screen.getByLabelText("Maximum grant duration (hours)"), {
     target: { value: "72" },
   });
@@ -231,6 +237,7 @@ it("renders recorded limit changes with actor and timestamp only when history is
   expect(screen.getByText("48 grant hours · 2 support hours")).toBeInTheDocument();
   expect(screen.getByText("TEST shorter temporary access")).toBeInTheDocument();
   expect(historyReads).toBe(1);
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   await user.click(screen.getByRole("button", { name: "Hide access limit history" }));
   expect(screen.queryByRole("region", { name: "Access limit history" })).not.toBeInTheDocument();
 });

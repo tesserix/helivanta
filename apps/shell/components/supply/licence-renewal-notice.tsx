@@ -2,6 +2,7 @@
 
 import { AlertTriangle, CalendarClock } from "lucide-react";
 import { supplyLicenseRenewalSchema, type SupplyLicense } from "@helivanta/api";
+import { Panel } from "@helivanta/ui";
 
 export function LicenceRenewalNotice({ renewal }: { renewal: SupplyLicense["renewal"] }) {
   const parsed = supplyLicenseRenewalSchema.safeParse(renewal);
@@ -26,8 +27,9 @@ export function LicenceRenewalNotice({ renewal }: { renewal: SupplyLicense["rene
   );
   const Icon = urgent ? AlertTriangle : CalendarClock;
   return (
-    <div
-      className="mt-3 flex max-w-xl items-start gap-2 rounded-xl border bg-muted/20 p-3 text-sm"
+    <Panel
+      as="div"
+      className="mt-3 flex max-w-xl items-start gap-2 text-sm"
       aria-label="Licence renewal date notice"
     >
       <Icon className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
@@ -47,6 +49,6 @@ export function LicenceRenewalNotice({ renewal }: { renewal: SupplyLicense["rene
           Date notice only. Licence verification and trading approval are separate.
         </p>
       </div>
-    </div>
+    </Panel>
   );
 }

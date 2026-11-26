@@ -62,6 +62,11 @@ const identity = {
   actor_subject: "TEST-counter",
   created_at: "2026-11-08T00:00:00Z",
 };
+// #1260: cards are Panel, so no hand-painted card class survives.
+// Controls are not cards: the design system's outline button, Input and
+// Textarea carry shadow-sm, and a select trigger is a button-like combobox.
+const CARDS =
+  ":is(.rounded-xl, .rounded-2xl, .shadow-sm):not(button, input, textarea, [role=combobox])";
 afterEach(() => vi.unstubAllGlobals());
 it("recovers a lost quality response with one write and freezes intent", async () => {
   let saved: Record<string, unknown> | undefined;
@@ -108,6 +113,7 @@ it("recovers a lost quality response with one write and freezes intent", async (
   );
   await user.click(screen.getByRole("button", { name: "Release inspected stock" }));
   await screen.findByRole("button", { name: "Recover quality decision" });
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   expect(screen.getByLabelText("Quality review reason")).toBeDisabled();
   await user.click(screen.getByRole("button", { name: "Recover quality decision" }));
   await screen.findByText("Quality decision recorded.");

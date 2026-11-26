@@ -18,6 +18,11 @@ const scope = {
   partyId: "0199e000-0000-7000-8000-000000000001",
 };
 const page = (data: unknown[]) => ({ data, page: { has_more: false, next_cursor: null } });
+// #1260: cards are Panel, so no hand-painted card class survives.
+// Controls are not cards: the design system's outline button, Input and
+// Textarea carry shadow-sm, and a select trigger is a button-like combobox.
+const CARDS =
+  ":is(.rounded-xl, .rounded-2xl, .shadow-sm):not(button, input, textarea, [role=combobox])";
 afterEach(() => vi.unstubAllGlobals());
 function fixture(perms: string[], roles: string[]) {
   const fetcher = vi.fn(async (url: string) => {
@@ -153,6 +158,7 @@ it("displays the server effective status and prevents expiry before the start", 
   expect(writes).toHaveLength(0);
   expect(screen.getByLabelText("Tenant member")).toBeDisabled();
   expect(screen.getByLabelText("Organisation role")).toBeDisabled();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
 });
 
 it("clears a selected location when choosing a role that is organisation-wide only", async () => {

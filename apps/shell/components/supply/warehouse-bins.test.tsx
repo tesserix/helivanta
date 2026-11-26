@@ -47,6 +47,11 @@ function fixture(permissions = ["supply.bin.read", "supply.bin.write"]) {
   vi.stubGlobal("fetch", fetcher);
   return fetcher;
 }
+// #1260: cards are Panel, so no hand-painted card class survives.
+// Controls are not cards: the design system's outline button, Input and
+// Textarea carry shadow-sm, and a select trigger is a button-like combobox.
+const CARDS =
+  ":is(.rounded-xl, .rounded-2xl, .shadow-sm):not(button, input, textarea, [role=combobox])";
 afterEach(() => vi.unstubAllGlobals());
 it("makes no bin query without permission, even with an organisation role", async () => {
   const fetcher = fixture([]);
@@ -92,6 +97,7 @@ it("allows auditor history without rendering write controls", async () => {
   expect(await screen.findByRole("region", { name: "Bin revision history" })).toHaveTextContent(
     "Version 1",
   );
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
 });
 it("focuses the new form and retains the same ID and draft across failed saves", async () => {
   const fetcher = fixture();
@@ -107,6 +113,7 @@ it("focuses the new form and retains the same ID and draft across failed saves",
   await user.click(screen.getByRole("button", { name: "Save bin" }));
   expect(await screen.findByRole("alert")).toHaveTextContent("TEST service unavailable");
   expect(screen.getByLabelText("Bin name")).toHaveValue("TEST New Bin");
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   await user.click(screen.getByRole("button", { name: "Save bin" }));
   await waitFor(() =>
     expect(fetcher.mock.calls.filter(([, init]) => init?.method === "PUT")).toHaveLength(2),

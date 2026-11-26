@@ -167,7 +167,7 @@
 - Modify: `apps/shell/lib/security-headers.test.ts` (D6 assertion)
 - Test: `apps/shell/lib/webauthn.test.ts`, `apps/shell/app/login/login.test.tsx`, `e2e/tests/security-key-enrol.spec.ts`
 
-**Copy for approval (send to the product owner before merge):**
+**Copy (approved by the product owner 2026-11-27, use verbatim):**
 
 - Choice heading: "Set up two-step verification"
 - Options: "Authenticator app" / "Security key"

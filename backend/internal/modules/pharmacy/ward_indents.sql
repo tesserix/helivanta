@@ -84,17 +84,22 @@ CREATE TABLE pharmacy_ward_indents(
 );
 CREATE INDEX pharmacy_ward_indent_queue ON pharmacy_ward_indents(tenant_id,outlet_id,raised_at,id)WHERE status='open';
 CREATE INDEX pharmacy_ward_indent_department ON pharmacy_ward_indents(tenant_id,outlet_id,hospital_id,department_id,raised_at DESC,id DESC);
+-- The held path starts at the indent's department; each grant may sit on it or any ancestor in that path.
+ALTER TABLE pharmacy_ward_indents ADD CONSTRAINT pharmacy_ward_indent_path CHECK(COALESCE(
+ jsonb_typeof(authority_basis->'department_path')='array'AND jsonb_array_length(authority_basis->'department_path')BETWEEN 1 AND 8
+ AND authority_basis->'department_path'->>0=department_id::text,false));
 DO $proof$DECLARE proof text;BEGIN
  FOREACH proof IN ARRAY ARRAY['operation','source']LOOP
   EXECUTE format($constraint$ALTER TABLE pharmacy_ward_indents ADD CONSTRAINT %I CHECK(COALESCE(
    jsonb_typeof(authority_basis->%L)='object'
    AND(authority_basis->%L->>'AssignmentID')::uuid<>'00000000-0000-0000-0000-000000000000'::uuid
    AND authority_basis->%L->>'ScopeKind'='department'
-   AND(authority_basis->%L->>'DepartmentID')::uuid=department_id
+   AND substring(authority_basis->%L->>'DepartmentID',15,1)='7'
+   AND authority_basis->'department_path'@>jsonb_build_array(authority_basis->%L->>'DepartmentID')
    AND(authority_basis->%L->>'Version')::bigint BETWEEN 1 AND 9007199254740991
    AND(authority_basis->%L->>'ScopeEpoch')::bigint BETWEEN 1 AND 9007199254740991
    AND(authority_basis->%L->>'MembershipEpoch')::bigint BETWEEN 1 AND 9007199254740991,false))$constraint$,
-   'pharmacy_ward_indent_'||proof,proof,proof,proof,proof,proof,proof,proof);
+   'pharmacy_ward_indent_'||proof,proof,proof,proof,proof,proof,proof,proof,proof);
  END LOOP;
 END $proof$;
 ALTER TABLE pharmacy_ward_indents ADD CONSTRAINT pharmacy_ward_indent_actor CHECK(COALESCE(

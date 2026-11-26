@@ -34,6 +34,7 @@ import (
 type catalogueHandlers struct {
 	stocktakeAuthority   authz.ScopedAuthorizer
 	stocktakeActors      authz.HospitalStocktakeActorGuard
+	wardIndentActors     authz.CurrentWardIndentActorGuard
 	stocktakeDepartments authz.DepartmentScopeGuard
 	stocktakeReferences  authz.DepartmentReferenceGuard
 	db                   *tenantdb.DB

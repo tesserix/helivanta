@@ -14,7 +14,7 @@ import {
   type EmergencyCase,
   type EmergencyIntakeInput,
 } from "@helivanta/api";
-import { Field, FormSelectField, useZodForm } from "@helivanta/ui";
+import { Field, FormSelectField, Panel, useZodForm } from "@helivanta/ui";
 
 export function EmergencyIntake({ base }: { base: EmergencyBase }) {
   const form = useZodForm(emergencyIntakeSchema, {
@@ -45,7 +45,7 @@ export function EmergencyIntake({ base }: { base: EmergencyBase }) {
   );
   if (receive.data)
     return (
-      <section className="space-y-3 rounded-xl border bg-card p-5">
+      <Panel className="space-y-3">
         <h3 className="font-semibold">Report received</h3>
         <p>No ambulance has been assigned. Clinical review and dispatch are separate steps.</p>
         <Link
@@ -63,13 +63,13 @@ export function EmergencyIntake({ base }: { base: EmergencyBase }) {
         >
           Receive another report
         </Button>
-      </section>
+      </Panel>
     );
   const options = (group: Record<string, string>) =>
     Object.entries(group).map(([value, label]) => ({ value, label }));
   const rejected = receive.error instanceof ApiError && [400, 413].includes(receive.error.status);
   return (
-    <section className="space-y-4 rounded-xl border bg-card p-5">
+    <Panel className="space-y-4">
       <div>
         <h3 className="font-semibold">Receive a report</h3>
         <p className="text-sm text-muted-foreground">
@@ -168,6 +168,6 @@ export function EmergencyIntake({ base }: { base: EmergencyBase }) {
           {receive.isPending ? "Receiving…" : "Receive report"}
         </Button>
       </form>
-    </section>
+    </Panel>
   );
 }

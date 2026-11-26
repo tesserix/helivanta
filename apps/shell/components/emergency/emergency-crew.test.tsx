@@ -15,6 +15,10 @@ const row = {
   clinician_acknowledged: false,
   acknowledgement_deadline: "2030-01-01T00:00:00Z",
 };
+// #1262: cards are Panel, so no hand-painted card class survives.
+// Buttons and design-system inputs are controls: they carry shadow-sm.
+const CARDS =
+  ":is(.rounded-xl, .rounded-2xl, .shadow-sm):not(button, input, textarea, [role=combobox])";
 const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status });
 function fixture(
   permissions = ["emergency.crew.read", "emergency.crew.act"],
@@ -53,6 +57,18 @@ it("opens only the selected assignment and retries the unchanged acknowledgement
   const { user } = renderWithProviders(<EmergencyCrewWorkspace />);
   await user.click(await screen.findByRole("button", { name: "Open assignment" }));
   expect(await screen.findByText("Synthetic Gate C")).toBeInTheDocument();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
+  // The zod schema (reference max 120), not native maxLength, refuses an overlong reference (#1262).
+  const reference = screen.getByLabelText("Operational evidence reference");
+  expect(reference).not.toHaveAttribute("maxlength");
+  await user.click(reference);
+  await user.paste("A".repeat(121));
+  await user.click(screen.getByRole("button", { name: "Acknowledge assignment" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "Enter an operational reference without patient or contact details.",
+  );
+  expect(fetcher.mock.calls.some(([, init]) => init?.method === "PUT")).toBe(false);
+  await user.clear(reference);
   await user.type(screen.getByLabelText("Operational evidence reference"), "TEST-ACK-1");
   await user.click(screen.getByRole("button", { name: "Acknowledge assignment" }));
   await screen.findByText(/TEST response uncertain/);
@@ -197,6 +213,7 @@ it("binds hospital transport to the current actionable receiving request", async
   const { user } = renderWithProviders(<EmergencyCrewWorkspace />);
   await user.click(await screen.findByRole("button", { name: "Open assignment" }));
   expect(await screen.findByText("Synthetic Receiving Hospital")).toBeInTheDocument();
+  expect(document.body.querySelectorAll(CARDS)).toHaveLength(0);
   await user.type(
     screen.getByLabelText("Operational evidence reference"),
     "TEST-HOSPITAL-TRANSPORT",

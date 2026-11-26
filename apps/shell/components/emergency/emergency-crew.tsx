@@ -24,6 +24,7 @@ import {
   formatTime,
   LoadMore,
   PageHeading,
+  Panel,
   RefreshButton,
   RequestFailure,
 } from "@helivanta/ui";
@@ -60,20 +61,21 @@ export function EmergencyCrewWorkspace() {
           recheck="Check access again"
         />
       ) : (
-        <ul className="space-y-3">
-          {!rows.isPending && rows.items.length === 0 && <li>No offered assignments.</li>}
-          {rows.items.map((row) => (
-            <li
-              key={row.id}
-              className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card p-4"
-            >
-              <Badge>{EMERGENCY_DISPATCH_STATES[row.state]}</Badge>
-              <Button className="min-h-11" onClick={() => select(row)}>
-                Open assignment
-              </Button>
-            </li>
-          ))}
-        </ul>
+        <Panel flush>
+          <ul className="divide-y">
+            {!rows.isPending && rows.items.length === 0 && (
+              <li className="p-4">No offered assignments.</li>
+            )}
+            {rows.items.map((row) => (
+              <li key={row.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
+                <Badge>{EMERGENCY_DISPATCH_STATES[row.state]}</Badge>
+                <Button className="min-h-11" onClick={() => select(row)}>
+                  Open assignment
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </Panel>
       )}
       <LoadMore hasMore={rows.hasMore} isLoading={rows.isFetchingMore} onClick={rows.loadMore} />
       {selected && (
@@ -135,10 +137,7 @@ function CrewAssignment({
     if (receivingEnabled) receiving.refresh();
   };
   return (
-    <section
-      aria-label="Current crew assignment"
-      className="space-y-4 rounded-xl border bg-card p-5"
-    >
+    <Panel aria-label="Current crew assignment" className="space-y-4">
       <Button variant="outline" onClick={close}>
         Close assignment
       </Button>
@@ -223,7 +222,7 @@ function CrewAssignment({
           }
         />
       )}
-    </section>
+    </Panel>
   );
 }
 
@@ -338,6 +337,7 @@ function CrewAction({
   }
   return (
     <form
+      noValidate
       className="space-y-3"
       onSubmit={(event) => {
         event.preventDefault();
@@ -349,7 +349,6 @@ function CrewAction({
         <Input
           id={referenceID}
           value={reference}
-          maxLength={120}
           disabled={frozen}
           onChange={(event) => setReference(event.target.value)}
         />

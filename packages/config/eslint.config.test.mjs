@@ -305,7 +305,7 @@ describe("workspace surface rules", () => {
     overrideConfigFile: true,
     overrideConfig: [
       ...hmsEslint(import.meta.dirname, { design: true }),
-      ...hmsWorkspacePages(["workspace/**"], [], ["workspace/legacy.tsx"]),
+      ...hmsWorkspacePages(["workspace/**"]),
     ],
   });
   const lint = async (code, filePath = "workspace/page.tsx") =>
@@ -344,14 +344,6 @@ describe("workspace surface rules", () => {
     "rounded-lg bg-destructive/5 p-4 text-destructive",
   ])("accepts %s", async (classes) => {
     expect(await lint(`export const A = () => <div className="${classes}">x</div>;`)).toEqual([]);
-  });
-
-  it("holds a listed legacy file to the other workspace rules only", async () => {
-    const legacy = (jsx) => lint(`export const A = () => ${jsx};`, "workspace/legacy.tsx");
-    expect(await legacy(`<div className="rounded-2xl border bg-card p-6">x</div>`)).toEqual([]);
-    expect(await legacy(`<h1 className="text-xl">x</h1>`)).toEqual([
-      expect.stringMatching(/shell header owns the h1/),
-    ]);
   });
 });
 

@@ -21,6 +21,7 @@ import {
   Field,
   FormSelectField,
   LoadMore,
+  Panel,
   RequestFailure,
   formatTime,
   useZodForm,
@@ -61,7 +62,7 @@ export function EmergencyCaseDetailPanel({ baseID, caseID }: { baseID: string; c
           receiving hospital.
         </p>
       </header>
-      <section className="space-y-3 rounded-xl border bg-card p-5">
+      <Panel className="space-y-3">
         <h2 className="font-semibold">Protected report</h2>
         <dl className="grid gap-4 sm:grid-cols-2">
           <div>
@@ -106,7 +107,7 @@ export function EmergencyCaseDetailPanel({ baseID, caseID }: { baseID: string; c
         {row.closure_explanation && (
           <p className="whitespace-pre-wrap">Closure review: {row.closure_explanation}</p>
         )}
-      </section>
+      </Panel>
       <EmergencyTransportReviewPanel key={`${row.id}-${row.version}`} row={row} />
       <EmergencyDispatchPanel baseID={baseID} caseID={caseID} />
       {row.status === "received" && <EmergencyClose key={row.version} row={row} path={path} />}
@@ -143,7 +144,7 @@ function EmergencyClose({ row, path }: { row: EmergencyCase; path: string }) {
   if (!can("emergency.case.close") || access.isError || access.data?.level !== "supervisor")
     return null;
   return (
-    <section className="space-y-4 rounded-xl border bg-card p-5">
+    <Panel className="space-y-4">
       <h2 className="font-semibold">Supervisor review and closure</h2>
       <p className="text-sm text-muted-foreground">
         Only close an unassigned intake after review. This cannot cancel or stand down a crew.
@@ -192,7 +193,7 @@ function EmergencyClose({ row, path }: { row: EmergencyCase; path: string }) {
           if (pending) close.mutate(pending);
         }}
       />
-    </section>
+    </Panel>
   );
 }
 function EmergencyHistory({
@@ -209,7 +210,7 @@ function EmergencyHistory({
     `${path}/timeline`,
   );
   return (
-    <section className="space-y-3 rounded-xl border bg-card p-5">
+    <Panel className="space-y-3">
       <h2 className="font-semibold">Case history</h2>
       {history.isPending && <p role="status">Loading case history…</p>}
       {history.isError ? (
@@ -236,6 +237,6 @@ function EmergencyHistory({
           />
         </>
       )}
-    </section>
+    </Panel>
   );
 }

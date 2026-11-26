@@ -26,6 +26,7 @@ import {
   Field,
   FormSelectField,
   LoadMore,
+  Panel,
   RefreshButton,
   RequestFailure,
   formatTime,
@@ -134,70 +135,74 @@ function ClinicalAccessEditor({
     [["emergency", "clinical", base]],
   );
   return (
-    <form
-      noValidate
-      className="space-y-4 rounded-lg border p-4"
-      onSubmit={form.handleSubmit((values) => save.mutate(values))}
-    >
-      <p className="break-all text-sm">
-        Reviewing <AccountName subject={subject} /> · version {current?.version ?? 0}
-      </p>
-      {current && (
-        <p className="text-sm text-muted-foreground">
-          Verified by <AccountName subject={current.verified_by} /> ·{" "}
-          {current.currently_active ? "Active" : "Inactive or expired"}
-        </p>
-      )}
-      <fieldset disabled={save.frozen} className="space-y-4">
-        <Field
-          id="clinical-evidence"
-          label="Clinical privilege approval reference"
-          error={form.formState.errors.evidence_reference?.message}
-        >
-          <Input id="clinical-evidence" {...form.register("evidence_reference")} />
-        </Field>
-        <Field
-          id="clinical-expiry"
-          label="Clinical review access expires at"
-          error={form.formState.errors.expires_at?.message}
-        >
-          <Input
-            id="clinical-expiry"
-            type="datetime-local"
-            {...form.register("expires_at", { setValueAs: emergencyLocalTime })}
-          />
-        </Field>
-        <label className="flex min-h-11 items-center gap-3">
-          <input type="checkbox" disabled={actor === subject} {...form.register("enabled")} />
-          Clinical review access enabled
-        </label>
-      </fieldset>
-      {actor === subject && <p role="status">You cannot enable or renew your own review access.</p>}
-      <EmergencyCommandFailure message={save.error?.message} uncertain={save.uncertain} />
-      <Button
-        type="submit"
-        disabled={save.isPending || (actor === subject && form.watch("enabled"))}
+    <Panel as="div">
+      <form
+        noValidate
+        className="space-y-4"
+        onSubmit={form.handleSubmit((values) => save.mutate(values))}
       >
-        Save clinical review access
-      </Button>
-      {current?.enabled && save.data?.enabled !== false && (
+        <p className="break-all text-sm">
+          Reviewing <AccountName subject={subject} /> · version {current?.version ?? 0}
+        </p>
+        {current && (
+          <p className="text-sm text-muted-foreground">
+            Verified by <AccountName subject={current.verified_by} /> ·{" "}
+            {current.currently_active ? "Active" : "Inactive or expired"}
+          </p>
+        )}
+        <fieldset disabled={save.frozen} className="space-y-4">
+          <Field
+            id="clinical-evidence"
+            label="Clinical privilege approval reference"
+            error={form.formState.errors.evidence_reference?.message}
+          >
+            <Input id="clinical-evidence" {...form.register("evidence_reference")} />
+          </Field>
+          <Field
+            id="clinical-expiry"
+            label="Clinical review access expires at"
+            error={form.formState.errors.expires_at?.message}
+          >
+            <Input
+              id="clinical-expiry"
+              type="datetime-local"
+              {...form.register("expires_at", { setValueAs: emergencyLocalTime })}
+            />
+          </Field>
+          <label className="flex min-h-11 items-center gap-3">
+            <input type="checkbox" disabled={actor === subject} {...form.register("enabled")} />
+            Clinical review access enabled
+          </label>
+        </fieldset>
+        {actor === subject && (
+          <p role="status">You cannot enable or renew your own review access.</p>
+        )}
+        <EmergencyCommandFailure message={save.error?.message} uncertain={save.uncertain} />
         <Button
-          type="button"
-          variant="destructive"
-          disabled={save.isPending}
-          onClick={() =>
-            save.mutate({
-              version: current.version,
-              enabled: false,
-              evidence_reference: current.evidence_reference,
-              expires_at: current.expires_at,
-            })
-          }
+          type="submit"
+          disabled={save.isPending || (actor === subject && form.watch("enabled"))}
         >
-          Revoke clinical review access
+          Save clinical review access
         </Button>
-      )}
-    </form>
+        {current?.enabled && save.data?.enabled !== false && (
+          <Button
+            type="button"
+            variant="destructive"
+            disabled={save.isPending}
+            onClick={() =>
+              save.mutate({
+                version: current.version,
+                enabled: false,
+                evidence_reference: current.evidence_reference,
+                expires_at: current.expires_at,
+              })
+            }
+          >
+            Revoke clinical review access
+          </Button>
+        )}
+      </form>
+    </Panel>
   );
 }
 
@@ -226,7 +231,7 @@ export function EmergencyTransportReviewPanel({ row }: { row: ReviewCase }) {
     if (can("emergency.case.assess") && row.status === "received") void own.refetch();
   };
   return (
-    <section className="min-w-0 space-y-4 rounded-xl border bg-card p-5">
+    <Panel className="min-w-0 space-y-4">
       <h2 className="font-semibold">Reviewed transport requirement</h2>
       <p className="text-sm text-muted-foreground">
         An attributed transport review records the required class under an approved policy. Review
@@ -275,7 +280,7 @@ export function EmergencyTransportReviewPanel({ row }: { row: ReviewCase }) {
         isLoading={history.isFetchingMore}
         onClick={history.loadMore}
       />
-    </section>
+    </Panel>
   );
 }
 

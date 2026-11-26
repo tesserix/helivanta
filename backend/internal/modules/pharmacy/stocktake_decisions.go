@@ -125,6 +125,10 @@ func (h *catalogueHandlers) writeStocktakeDecision(c *gin.Context, cancelOnly bo
 func postStocktakeDecision(tx *gorm.DB, p authn.Principal, pharmacy, outlet, take, command uuid.UUID, in StocktakeDecisionInput, hash string) error {
 	var plans []stocktakeAdjustmentPlan
 	if in.Decision == "approve" {
+		// Avoid JIT setup overhead for bounded OLTP checks (ADR-0073).
+		if err := tx.Exec(`SET LOCAL jit=off`).Error; err != nil {
+			return err
+		}
 		if err := tx.Raw(`SELECT d.line_id,d.batch_id,CASE WHEN d.quantity_units>0 THEN s.quarantine_location_id ELSE d.from_location_id END location_id,d.quantity_units
  FROM pharmacy_stocktake_differences(?,?,?)d JOIN pharmacy_stocktakes s ON s.tenant_id=? AND s.outlet_id=? AND s.id=?
  ORDER BY location_id,d.batch_id,d.line_id LIMIT 501`, p.TenantID, outlet, take, p.TenantID, outlet, take).Scan(&plans).Error; err != nil {

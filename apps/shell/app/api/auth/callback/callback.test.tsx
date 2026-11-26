@@ -207,6 +207,37 @@ describe("AuthCallbackPage", () => {
     vi.unstubAllGlobals();
   });
 
+  // #1856 D2: a fetch failure during the exchange is not our wording.
+  it("shows a fixed sentence, never the raw text, when the exchange cannot be reached", async () => {
+    signinRedirectCallback.mockResolvedValue({ id_token: "real-id-token" });
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
+
+    render(<AuthCallbackPage />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Check your connection and try again.",
+    );
+    expect(screen.queryByText(/Failed to fetch/)).not.toBeInTheDocument();
+    expect(replace).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+
+  it("shows a fixed sentence, never the raw text, when the signup call cannot be reached", async () => {
+    signinRedirectCallback.mockResolvedValue({
+      id_token: "native-signup-proof",
+      state: { purpose: "customer-signup" },
+    });
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
+
+    render(<AuthCallbackPage />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Check your connection and try again.",
+    );
+    expect(screen.queryByText(/Failed to fetch/)).not.toBeInTheDocument();
+    vi.unstubAllGlobals();
+  });
+
   // #1820 slice 2 D1: the workspace this flow's own state named, never memory.
   it.each([
     [

@@ -489,7 +489,11 @@ describe("LoginPage", () => {
       renderWithProviders(<LoginPage />);
 
       await userEvent.click(screen.getByRole("button", { name: "Sign in" }));
-      expect(await screen.findByRole("alert")).toHaveTextContent("Zitadel unreachable");
+      // A library or network error is never ours to show (#1856 D2).
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "Check your connection and try again.",
+      );
+      expect(screen.queryByText(/Zitadel unreachable/)).not.toBeInTheDocument();
       // Re-enabled, so a transient failure does not strand the user on a page
       // whose only control is dead.
       expect(screen.getByRole("button", { name: "Sign in" })).toBeEnabled();
@@ -541,9 +545,12 @@ describe("LoginPage", () => {
       });
 
       it("shows the error and a working button when the redirect cannot start", async () => {
-        signinRedirect.mockRejectedValue(new Error("Zitadel unreachable"));
+        signinRedirect.mockRejectedValue(new TypeError("Failed to fetch"));
         renderWithProviders(<LoginPage />);
-        expect(await screen.findByRole("alert")).toHaveTextContent("Zitadel unreachable");
+        expect(await screen.findByRole("alert")).toHaveTextContent(
+          "Check your connection and try again.",
+        );
+        expect(screen.queryByText(/Failed to fetch/)).not.toBeInTheDocument();
         expect(screen.getByRole("button", { name: "Sign in" })).toBeEnabled();
       });
     });

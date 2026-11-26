@@ -6981,7 +6981,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/pharmacy/module.go",
-          "sha256": "2ac5952cf8385f9ee7ef19a5745cb425c914bbebef4c6f7cf79e47af9eef9944",
+          "sha256": "cceb0ddb02406ef4ab89557f5fbf1cc9824784c030393050cea0f6e42406c056",
           "symbol": "PermAccountsExport"
         },
         {
@@ -7014,7 +7014,7 @@
       "authority_sources": [
         {
           "path": "backend/internal/modules/pharmacy/module.go",
-          "sha256": "2ac5952cf8385f9ee7ef19a5745cb425c914bbebef4c6f7cf79e47af9eef9944",
+          "sha256": "cceb0ddb02406ef4ab89557f5fbf1cc9824784c030393050cea0f6e42406c056",
           "symbol": "PermAccountsExport"
         },
         {

@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "company": "Helivanta Qa 1690",
+  "currency": "INR",
+  "from": "2026-11-25",
+  "to": "2026-11-25",
+  "voucher_counts": {
+    "TEST #1689 Sales": 6,
+    "TEST #1689 Credit Note": 8,
+    "Purchase": 3,
+    "Payment": 2,
+    "Receipt": 1
+  },
+  "ledger_balances_minor": {
+    "TEST #1690 Supplier LOCAL": 10800,
+    "TEST #1690 Supplier IGST": 11200,
+    "TEST #1690 Supplier UTGST": 10500,
+    "TEST #1690 Synthetic Bank": 1000,
+    "TEST #1690 Utilities 18%": -10000,
+    "TEST #1690 Utilities 12%": -10000,
+    "TEST #1690 Utilities 5%": -10000,
+    "TEST #1690 Input CGST 18%": -900,
+    "TEST #1690 Input SGST 18%": -900,
+    "TEST #1690 Input CGST 5%": -250,
+    "TEST #1690 Input UTGST 5%": -250,
+    "TEST #1690 Input IGST 12%": -600,
+    "TEST #1690 Nonrecoverable IGST 12%": -600
+  }
+}

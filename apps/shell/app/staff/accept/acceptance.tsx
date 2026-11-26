@@ -1,30 +1,60 @@
 "use client";
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { z } from "zod";
 import {
   newStaffInvitationDeliveryID,
   staffSetup,
+  useApiMutation,
   type StaffRecipientInput,
   type StaffSetupAction,
   type StaffSetupReceipt,
 } from "@helivanta/api";
-import { Button, Field, RequestFailure } from "@helivanta/ui";
+import { Button, Field, RequestFailure, useZodForm } from "@helivanta/ui";
 
-type Link = { id: string; ticket: string; phase: "email" | "password"; code: string };
+type Invitation = { id: string; ticket: string; phase: "email" | "password"; code: string };
+
+// Presence and the match are checked here; StaffRecipientInput (onboarding
+// contracts) is a plain type, and the identity provider owns the password
+// policy, so no length or strength rule is invented on the client (#1855).
+const passwordSchema = z
+  .object({
+    password: z.string().min(1, "Enter a new password."),
+    confirmation: z.string().min(1, "Confirm your new password."),
+  })
+  .refine((value) => value.password === value.confirmation, {
+    path: ["confirmation"],
+    message: "Passwords must match.",
+  });
 
 export function StaffAcceptance() {
-  const router = useRouter();
   const [store] = useState(invitationStore);
   const link = useSyncExternalStore(store.subscribe, store.snapshot, () => undefined);
   const [receipt, setReceipt] = useState<StaffSetupReceipt>();
   const [delivery, setDelivery] = useState<StaffSetupReceipt>();
   const [pending, setPending] = useState<StaffSetupAction | null>("status");
   const [problem, setProblem] = useState<{ error: unknown; action: StaffSetupAction }>();
-  const [fieldError, setFieldError] = useState<string>();
   const busy = useRef(false);
   const deliveryID = useRef<string | undefined>(undefined);
+  const secret = useRef<string | undefined>(undefined);
+  const form = useZodForm(passwordSchema, { password: "", confirmation: "" });
+  // The action is the only variable, so neither the password nor the link's
+  // code lands in the mutation cache. RequestFailure is the error surface.
+  const step = useApiMutation(
+    (action: StaffSetupAction) => {
+      const input: StaffRecipientInput = { invitation_id: link!.id, ticket: link!.ticket };
+      if (action === "email" || action === "password") input.code = link!.code;
+      if (action === "password") input.password = secret.current;
+      secret.current = undefined;
+      if (action === "resend") {
+        deliveryID.current ??= newStaffInvitationDeliveryID();
+        input.delivery_id = deliveryID.current;
+      }
+      return staffSetup(action, input);
+    },
+    { suppressErrorToast: true },
+  );
 
   useEffect(() => {
     if (!link) return;
@@ -46,40 +76,29 @@ export function StaffAcceptance() {
     };
   }, [link]);
 
-  useEffect(() => {
-    if (receipt?.state !== "complete") return;
-    const timer = window.setTimeout(() => router.replace("/login"), 7000);
-    return () => window.clearTimeout(timer);
-  }, [receipt?.state, router]);
-
-  async function run(action: StaffSetupAction, password?: string) {
+  function run(action: StaffSetupAction, password?: string) {
     if (!link || busy.current || pending) return;
     busy.current = true;
     setPending(action);
     setProblem(undefined);
-    const input: StaffRecipientInput = { invitation_id: link.id, ticket: link.ticket };
-    if (action === "email" || action === "password") input.code = link.code;
-    if (action === "password") input.password = password;
-    if (action === "resend") {
-      deliveryID.current ??= newStaffInvitationDeliveryID();
-      input.delivery_id = deliveryID.current;
-    }
-    try {
-      const value = await staffSetup(action, input);
-      if (action === "resend" && value.state !== "complete") setDelivery(value);
-      else setReceipt(value);
-    } catch (error: unknown) {
-      setProblem({ error, action });
-    } finally {
-      busy.current = false;
-      setPending(null);
-    }
+    secret.current = password;
+    step.mutate(action, {
+      onSuccess: (value) => {
+        if (action === "resend" && value.state !== "complete") setDelivery(value);
+        else setReceipt(value);
+      },
+      onError: (error) => setProblem({ error, action }),
+      onSettled: () => {
+        busy.current = false;
+        setPending(null);
+      },
+    });
   }
 
   function freshDelivery() {
     if (busy.current || pending) return;
     deliveryID.current = undefined;
-    void run("resend");
+    run("resend");
   }
 
   if (link === undefined) return <p role="status">Opening your invitation…</p>;
@@ -92,7 +111,7 @@ export function StaffAcceptance() {
           administrator for another invitation.
         </p>
         <a href="/login" className="underline">
-          Go to login
+          Sign in
         </a>
       </div>
     );
@@ -105,9 +124,7 @@ export function StaffAcceptance() {
             : "We could not confirm this step. Check its status before continuing."
         }
         error={problem.error}
-        retry={() => {
-          void run(problem.action === "resend" ? "resend" : "status");
-        }}
+        retry={() => run(problem.action === "resend" ? "resend" : "status")}
       />
     );
   if (!receipt) return <p role="status">Checking your invitation…</p>;
@@ -119,10 +136,9 @@ export function StaffAcceptance() {
           Your email is verified and your password is set. Your organisation administrator will
           confirm your staff access.
         </p>
-        <p className="text-sm text-muted-foreground">Redirecting to login in 7 seconds.</p>
-        <a className="font-medium underline" href="/login">
-          Go to login
-        </a>
+        <Button asChild>
+          <Link href="/login">Sign in</Link>
+        </Button>
       </div>
     );
 
@@ -134,7 +150,7 @@ export function StaffAcceptance() {
           Open the latest setup email. Older links cannot verify your email or change your password.
         </p>
         <a className="font-medium underline" href="/login">
-          Go to login
+          Sign in
         </a>
       </div>
     );
@@ -189,53 +205,47 @@ export function StaffAcceptance() {
                   : "Confirm your email to continue setting up your staff account."}
       </p>
       {email && (
-        <Button
-          type="button"
-          disabled={!!pending}
-          onClick={() => {
-            void run("email");
-          }}
-        >
+        <Button type="button" disabled={!!pending} onClick={() => run("email")}>
           Verify email
         </Button>
       )}
       {password && (
         <form
+          noValidate
           className="space-y-4"
-          onSubmit={(event) => {
-            event.preventDefault();
-            const form = event.currentTarget;
-            const values = new FormData(form);
-            const value = values.get("password");
-            if (typeof value !== "string" || value !== values.get("confirmation")) {
-              setFieldError("Passwords must match.");
-              return;
-            }
-            setFieldError(undefined);
-            form.reset();
-            void run("password", value);
-          }}
+          onSubmit={(event) =>
+            void form.handleSubmit(({ password: value }) => {
+              form.reset();
+              run("password", value);
+            })(event)
+          }
         >
-          <Field id="staff-password" label="New password">
+          <Field
+            id="staff-password"
+            label="New password"
+            error={form.formState.errors.password?.message}
+          >
             <input
               id="staff-password"
-              name="password"
               className="h-11 w-full rounded-md border bg-background px-3"
               type="password"
               autoComplete="new-password"
-              required
               disabled={!!pending}
+              {...form.register("password")}
             />
           </Field>
-          <Field id="staff-confirmation" label="Confirm password" error={fieldError}>
+          <Field
+            id="staff-confirmation"
+            label="Confirm password"
+            error={form.formState.errors.confirmation?.message}
+          >
             <input
               id="staff-confirmation"
-              name="confirmation"
               className="h-11 w-full rounded-md border bg-background px-3"
               type="password"
               autoComplete="new-password"
-              required
               disabled={!!pending}
+              {...form.register("confirmation")}
             />
           </Field>
           <Button type="submit" disabled={!!pending}>
@@ -244,13 +254,7 @@ export function StaffAcceptance() {
         </form>
       )}
       {uncertain && (
-        <Button
-          type="button"
-          disabled={!!pending}
-          onClick={() => {
-            void run("status");
-          }}
-        >
+        <Button type="button" disabled={!!pending} onClick={() => run("status")}>
           Check status
         </Button>
       )}
@@ -272,7 +276,7 @@ export function StaffAcceptance() {
 }
 
 function invitationStore() {
-  let current: Link | null | undefined;
+  let current: Invitation | null | undefined;
   let initialized = false;
   return {
     snapshot: () => current,

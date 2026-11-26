@@ -18,8 +18,10 @@ it.each([
 });
 import { describe, expect, it } from "vitest";
 import {
+  NATIVE_VALIDATION_RULE,
   READ_RETRY_RULE,
   hmsEslint,
+  hmsNoNativeValidation,
   hmsPublicPages,
   hmsReadRetries,
   hmsWorkspacePages,
@@ -384,6 +386,60 @@ describe("read retries (#1595)", () => {
 
   it("leaves tests alone", async () => {
     expect(await lint("<Button onClick={q.refetch}>x</Button>", "fixture.test.tsx")).toEqual([]);
+  });
+});
+
+describe("no native validation (#1855)", () => {
+  const eslint = new ESLint({
+    cwd: import.meta.dirname,
+    overrideConfigFile: true,
+    overrideConfig: [
+      ...hmsEslint(import.meta.dirname, { design: true }),
+      hmsPublicPages(["auth/**"]),
+      hmsNoNativeValidation(["auth/**"]),
+    ],
+  });
+  const all = async (jsx, filePath = "auth/page.tsx") =>
+    (await eslint.lintText(`export const A = () => ${jsx};`, { filePath }))[0].messages;
+  const lint = async (jsx, filePath) =>
+    (await all(jsx, filePath))
+      .filter((m) => m.ruleId === NATIVE_VALIDATION_RULE)
+      .map((m) => m.message);
+
+  it.each([
+    ["required", '<form noValidate><input id="a" required /></form>', /required\/minLength/],
+    ["minLength", '<form noValidate><input id="a" minLength={8} /></form>', /required\/minLength/],
+    ["maxLength", '<form noValidate><input id="a" maxLength={8} /></form>', /required\/minLength/],
+    ["pattern", '<form noValidate><input id="a" pattern="[0-9]+" /></form>', /required\/minLength/],
+    ["type email", '<form noValidate><input id="a" type="email" /></form>', /type="text"/],
+    ["type url", '<form noValidate><input id="a" type={"url"} /></form>', /type="text"/],
+    ["a form without noValidate", '<form><input id="a" /></form>', /sets noValidate/],
+  ])("rejects %s", async (_, jsx, message) => {
+    expect(await lint(jsx)).toEqual([expect.stringMatching(message)]);
+  });
+
+  it("names useZodForm + Field and frontend.md", async () => {
+    expect(await lint("<form />")).toEqual([
+      expect.stringContaining("useZodForm + Field (frontend.md §4)"),
+    ]);
+  });
+
+  it("accepts a compliant form", async () => {
+    const jsx = `<form noValidate onSubmit={submit}>
+      <input id="e" type="text" inputMode="email" autoComplete="email" />
+      <input id="p" type="password" autoComplete="new-password" />
+    </form>`;
+    expect(await all(jsx)).toEqual([]);
+  });
+
+  it("keeps the page's other rules alongside it", async () => {
+    const rules = (await all('<form><select aria-label="x" /></form>')).map((m) => m.ruleId);
+    expect(rules).toEqual(expect.arrayContaining(["no-restricted-syntax", NATIVE_VALIDATION_RULE]));
+  });
+
+  it("leaves tests and other files alone", async () => {
+    expect(await lint("<form />", "auth/page.test.tsx")).toEqual([]);
+    expect(await lint("<form />", "other/page.tsx")).toEqual([]);
   });
 });
 

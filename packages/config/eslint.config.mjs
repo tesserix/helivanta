@@ -4,11 +4,13 @@ import jsxA11y from "eslint-plugin-jsx-a11y";
 import reactHooks from "eslint-plugin-react-hooks";
 import tseslint from "typescript-eslint";
 import { noHandRolledRetry } from "./eslint-rules/no-hand-rolled-retry.mjs";
+import { noNativeValidation } from "./eslint-rules/no-native-validation.mjs";
 import { noRawAccountDisplay } from "./eslint-rules/no-raw-account-display.mjs";
 
 const helivantaPlugin = {
   rules: {
     "no-hand-rolled-retry": noHandRolledRetry,
+    "no-native-validation": noNativeValidation,
     "no-raw-account-display": noRawAccountDisplay,
   },
 };
@@ -175,6 +177,22 @@ export function hmsReadRetries(files, ignores = []) {
     ignores: ["**/*.test.{ts,tsx,mjs}", ...ignores],
     plugins: { helivanta: helivantaPlugin },
     rules: { [READ_RETRY_RULE]: "error" },
+  };
+}
+
+export const NATIVE_VALIDATION_RULE = "helivanta/no-native-validation";
+
+/**
+ * No native validation (#1855): no required/minLength/maxLength/pattern, no
+ * type="email"/"url", and every <form> sets noValidate, so zod via useZodForm
+ * + Field is the only validation a user sees (frontend.md §4). Tests stay exempt.
+ */
+export function hmsNoNativeValidation(files, ignores = []) {
+  return {
+    files,
+    ignores: ["**/*.test.{ts,tsx,mjs}", ...ignores],
+    plugins: { helivanta: helivantaPlugin },
+    rules: { [NATIVE_VALIDATION_RULE]: "error" },
   };
 }
 

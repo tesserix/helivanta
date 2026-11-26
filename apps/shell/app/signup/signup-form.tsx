@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
+import { z } from "zod";
 import type { FormEvent } from "react";
 
 import {
@@ -16,8 +17,13 @@ import {
 import { Button, Field, FormSelectField, RequestFailure, useZodForm } from "@helivanta/ui";
 import { signinForCustomerSignup } from "@/lib/signup-signin";
 
+// The wire contract leaves the owner email a bare string; the form checks its
+// shape, as the native type="email" input did before #1855.
 const signupFormSchema = CustomerSignupInputContract.extend({
   profile: CustomerOrganizationProfileContract,
+  owner: CustomerSignupInputContract.shape.owner.extend({
+    email: z.email("Enter a valid email address."),
+  }),
 });
 const emptyAddress = {
   line1: "",
@@ -162,7 +168,8 @@ export function SignupForm() {
           <input
             className="h-10 rounded-md border bg-background px-3"
             id="signup-contact-email"
-            type="email"
+            type="text"
+            inputMode="email"
             autoComplete="section-business email"
             {...form.register("profile.contact.email")}
           />
@@ -215,7 +222,8 @@ export function SignupForm() {
         <input
           className="h-10 rounded-md border bg-background px-3"
           id="signup-email"
-          type="email"
+          type="text"
+          inputMode="email"
           autoComplete="email"
           {...form.register("owner.email")}
         />

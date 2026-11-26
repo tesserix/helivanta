@@ -1,12 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { Button } from "@tesserix/web";
-import { RefreshButton, RequestFailure } from "@helivanta/ui";
+import { Field, RefreshButton, RequestFailure, useZodForm } from "@helivanta/ui";
 import {
   ApiError,
   PasswordRecoveryRequestContract,
@@ -18,6 +16,7 @@ import {
   cancelRecoveryPassword,
   submitRecoveryPassword,
   newRecoveryCommandId,
+  useApiMutation,
   type PasswordRecoveryStatus,
 } from "@helivanta/api";
 import { MfaCodeForm } from "./mfa-code-form";
@@ -36,6 +35,8 @@ const passwordSchema = z
 export function PasswordRecovery({ authRequestId }: { authRequestId?: string }) {
   const client = useQueryClient();
   const queryKey = ["password-recovery", authRequestId ?? "retained"];
+  // Stays on useQuery: useApiQuery fetches a path without this contract's
+  // parse, cannot turn off the provider's read retry, and polls at 3s, not 2s.
   const status = useQuery({
     queryKey,
     queryFn: getPasswordRecoveryStatus,
@@ -59,14 +60,8 @@ export function PasswordRecovery({ authRequestId }: { authRequestId?: string }) 
   const password = useRef("");
   const proofCode = useRef("");
   const busy = useRef(false);
-  const emailForm = useForm<z.infer<typeof emailSchema>>({
-    resolver: zodResolver(emailSchema),
-    defaultValues: { email: "" },
-  });
-  const replacementForm = useForm<z.infer<typeof passwordSchema>>({
-    resolver: zodResolver(passwordSchema),
-    defaultValues: { password: "", confirm: "" },
-  });
+  const emailForm = useZodForm(emailSchema, { email: "" });
+  const replacementForm = useZodForm(passwordSchema, { password: "", confirm: "" });
   useEffect(
     () => () => {
       password.current = "";
@@ -88,108 +83,128 @@ export function PasswordRecovery({ authRequestId }: { authRequestId?: string }) 
     client.setQueryData(queryKey, value);
     setUncertain(false);
   }
-  const mail = useMutation({
-    mutationFn: async () => {
+  function settled() {
+    busy.current = false;
+  }
+  // Every command renders its own outcome in `problem`, so none also toasts.
+  // beforeCommand runs first inside each command, where onMutate ran it before.
+  const mail = useApiMutation(
+    async () => {
+      await beforeCommand();
       if (!authRequestId || !delivery.current) throw new Error("missing recovery intent");
       return requestPasswordRecovery({ auth_request_id: authRequestId, ...delivery.current });
     },
-    onMutate: beforeCommand,
-    retry: false,
-    onSuccess: () => {
-      setDelivered(true);
-      setDeliveryUncertain(false);
+    {
+      suppressErrorToast: true,
+      onSuccess: () => {
+        setDelivered(true);
+        setDeliveryUncertain(false);
+        settled();
+      },
+      onError: (error) => {
+        setDeliveryUncertain(true);
+        setProblem(
+          error instanceof ApiError && error.status === 429
+            ? "Too many codes requested. Wait before retrying. Up to three per hour and ten per day are allowed."
+            : "Delivery could not be confirmed. Retry this delivery request before requesting a different code.",
+        );
+        settled();
+      },
     },
-    onError: (error) => {
-      setDeliveryUncertain(true);
-      setProblem(
-        error instanceof ApiError && error.status === 429
-          ? "Too many codes requested. Wait before retrying. Up to three per hour and ten per day are allowed."
-          : "Delivery could not be confirmed. Retry this delivery request before requesting a different code.",
-      );
-    },
-    onSettled: () => {
-      busy.current = false;
-    },
-  });
-  const proof = useMutation({
-    mutationFn: () => {
+  );
+  const proof = useApiMutation(
+    async () => {
+      await beforeCommand();
       const transientCode = proofCode.current;
       proofCode.current = "";
-      return verifyPasswordRecovery(transientCode);
-    },
-    onMutate: beforeCommand,
-    retry: false,
-    onSuccess: async () => {
-      setVerified(true);
-      setCode("");
+      const verifiedReceipt = await verifyPasswordRecovery(transientCode);
+      // Awaited inside the command, as onSuccess awaited it, so the command
+      // stays pending until the verified status has been read.
       await client.invalidateQueries({ queryKey });
+      return verifiedReceipt;
     },
-    onError: () => {
-      setCode("");
-      setProblem(
-        "The code could not be verified. Check the eight digits or request a new code if it expired.",
-      );
+    {
+      suppressErrorToast: true,
+      onSuccess: () => {
+        setVerified(true);
+        setCode("");
+        settled();
+      },
+      onError: () => {
+        setCode("");
+        setProblem(
+          "The code could not be verified. Check the eight digits or request a new code if it expired.",
+        );
+        settled();
+      },
     },
-    onSettled: () => {
-      busy.current = false;
+  );
+  const prepare = useApiMutation(
+    async () => {
+      await beforeCommand();
+      return prepareRecoveryPassword(command.current!);
     },
-  });
-  const prepare = useMutation({
-    mutationFn: () => prepareRecoveryPassword(command.current!),
-    onMutate: beforeCommand,
-    retry: false,
-    onSuccess: (value) => {
-      receipt(value);
-      setFreshCommand(value.state === "prepared" ? command.current : undefined);
+    {
+      suppressErrorToast: true,
+      onSuccess: (value) => {
+        receipt(value);
+        setFreshCommand(value.state === "prepared" ? command.current : undefined);
+        settled();
+      },
+      onError: () => {
+        setUncertain(true);
+        setProblem("We could not confirm the result. Check recovery status before continuing.");
+        settled();
+      },
     },
-    onError: () => {
-      setUncertain(true);
-      setProblem("We could not confirm the result. Check recovery status before continuing.");
+  );
+  const cancel = useApiMutation(
+    async () => {
+      await beforeCommand();
+      return cancelRecoveryPassword(command.current);
     },
-    onSettled: () => {
-      busy.current = false;
+    {
+      suppressErrorToast: true,
+      onSuccess: (value) => {
+        receipt(value);
+        command.current = undefined;
+        setFreshCommand(undefined);
+        settled();
+      },
+      onError: () => {
+        setUncertain(true);
+        setProblem(
+          "This attempt could not be cancelled. Check its status; a password update may already be processing.",
+        );
+        settled();
+      },
     },
-  });
-  const cancel = useMutation({
-    mutationFn: () => cancelRecoveryPassword(command.current),
-    onMutate: beforeCommand,
-    retry: false,
-    onSuccess: (value) => {
-      receipt(value);
-      command.current = undefined;
-      setFreshCommand(undefined);
-    },
-    onError: () => {
-      setUncertain(true);
-      setProblem(
-        "This attempt could not be cancelled. Check its status; a password update may already be processing.",
-      );
-    },
-    onSettled: () => {
-      busy.current = false;
-    },
-  });
-  const submit = useMutation({
-    mutationFn: () => {
+  );
+  const submit = useApiMutation(
+    async () => {
+      await beforeCommand();
       const transientPassword = password.current;
       password.current = "";
       if (!command.current || !transientPassword) throw new Error("missing prepared password");
       return submitRecoveryPassword({ command_id: command.current, password: transientPassword });
     },
-    onMutate: beforeCommand,
-    retry: false,
-    onSuccess: receipt,
-    onError: () => {
-      setUncertain(true);
-      setProblem(
-        "We could not confirm the result. Check recovery status before continuing. Your password will not be submitted again automatically.",
-      );
+    {
+      suppressErrorToast: true,
+      onSuccess: (value) => {
+        receipt(value);
+        password.current = "";
+        settled();
+      },
+      onError: () => {
+        setUncertain(true);
+        setProblem(
+          "We could not confirm the result. Check recovery status before continuing. Your password will not be submitted again automatically.",
+        );
+        password.current = "";
+        settled();
+      },
     },
-    onSettled: () => {
-      password.current = "";
-      busy.current = false;
-    },
-  });
+  );
   const pending =
     mail.isPending || proof.isPending || prepare.isPending || cancel.isPending || submit.isPending;
   const state = status.isError ? undefined : status.data?.state;
@@ -245,6 +260,7 @@ export function PasswordRecovery({ authRequestId }: { authRequestId?: string }) 
   } else if (freshCommand && state === "prepared" && !unresolved) {
     content = (
       <form
+        noValidate
         className="space-y-4"
         onSubmit={(event) =>
           void replacementForm.handleSubmit((values) => {
@@ -257,30 +273,37 @@ export function PasswordRecovery({ authRequestId }: { authRequestId?: string }) 
           })(event)
         }
       >
-        <label className="block space-y-2">
-          New password
+        {/* PasswordRecoverySubmitContract bounds the password at 200 characters, not maxLength. */}
+        <Field
+          id="recovery-password"
+          label="New password"
+          error={
+            replacementForm.formState.errors.password
+              ? "Enter a new password using up to 200 characters."
+              : undefined
+          }
+        >
           <input
+            id="recovery-password"
             className="w-full rounded-md border p-3"
             type="password"
             autoComplete="new-password"
-            maxLength={400}
             {...replacementForm.register("password")}
           />
-        </label>
-        {replacementForm.formState.errors.password && (
-          <p role="alert">Enter a new password using up to 200 characters.</p>
-        )}
-        <label className="block space-y-2">
-          Confirm new password
+        </Field>
+        <Field
+          id="recovery-confirm"
+          label="Confirm new password"
+          error={replacementForm.formState.errors.confirm ? "The passwords must match." : undefined}
+        >
           <input
+            id="recovery-confirm"
             className="w-full rounded-md border p-3"
             type="password"
             autoComplete="new-password"
-            maxLength={400}
             {...replacementForm.register("confirm")}
           />
-        </label>
-        {replacementForm.formState.errors.confirm && <p role="alert">The passwords must match.</p>}
+        </Field>
         <p className="text-sm text-muted-foreground">
           Your organization’s password policy applies.
         </p>
@@ -395,6 +418,7 @@ export function PasswordRecovery({ authRequestId }: { authRequestId?: string }) 
   } else if (authRequestId) {
     content = (
       <form
+        noValidate
         className="space-y-4"
         onSubmit={(event) => void emailForm.handleSubmit((values) => send(values.email))(event)}
       >
@@ -402,16 +426,21 @@ export function PasswordRecovery({ authRequestId }: { authRequestId?: string }) 
           Use the email for the account in your selected organization. We will verify your mailbox
           before checking recovery eligibility.
         </p>
-        <label className="block space-y-2">
-          Email
+        <Field
+          id="recovery-email"
+          label="Email"
+          error={emailForm.formState.errors.email ? "Enter a valid email address." : undefined}
+        >
+          {/* Text, not type="email": the contract's zod rule validates, not the browser. */}
           <input
+            id="recovery-email"
             className="w-full rounded-md border p-3"
-            type="email"
+            type="text"
+            inputMode="email"
             autoComplete="email"
             {...emailForm.register("email")}
           />
-        </label>
-        {emailForm.formState.errors.email && <p role="alert">Enter a valid email address.</p>}
+        </Field>
         <Button type="submit">Send recovery code</Button>
         <Button variant="ghost" type="button" onClick={() => setDelivered(true)}>
           I already have a recovery code

@@ -36,7 +36,8 @@ The 2026-11-25 audit found four gaps in the auth forms:
 Both rebuild on `useZodForm`, `Field` and `useApiMutation`, with `noValidate`, and keep their existing contracts and calls.
 
 - **Recovery:** the email field becomes `type="text"`, with `inputMode="email"` and `autoComplete="email"`. Zod validates it, not the browser.
-- **Staff acceptance:** its password inputs lose `required`. The existing schema enforces presence and length; any rule it does not enforce is reported, not invented.
+- **Staff acceptance:** its password inputs lose `required`. Its contract (`StaffRecipientInput`, onboarding contracts) is a plain type with no rule, so the form's own schema takes over exactly what the native attribute did: presence ("Enter a new password." / "Confirm your new password."), plus the existing match check. The identity provider owns the password policy, so no length or strength rule is added on the client.
+- **Signup:** the owner email loses `type="email"`. The wire contract leaves it a bare string, so the form schema checks its shape with zod ("Enter a valid email address.", the wording the other auth pages already use). The generated contract is not edited.
 - **Behaviour stays the same:** command ids, retries, status polling, the order of steps, and what is sent all stay as they are.
 - **Mutation errors keep their dedicated surfaces.** Where a step already renders its own error next to its fields, it passes `suppressErrorToast`, as the login credential check does.
 - **No copy changes**, except the staff-acceptance button and the timer (D3). Recovery's wording is #1856.

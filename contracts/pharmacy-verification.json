@@ -1,5 +1,5 @@
 {
-  "status": "draft_not_registered",
+  "status": "unreleased_review_projections_and_draft_decision_inputs",
   "blank_note_characters": "\t\n\u000b\f\r \u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000\ufeff",
   "decisions": {
     "approved": {
@@ -257,6 +257,202 @@
       {
         "name": "record",
         "type": "PrescriptionReviewRecord"
+      }
+    ],
+    "VerificationPolicyDraftInput": [
+      {
+        "name": "expected_version",
+        "type": "int64",
+        "min": 0,
+        "max": 9007199254740990,
+        "pointer": true
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "min": 1,
+        "max": 120,
+        "format": "text",
+        "no_ascii_controls": true
+      },
+      {
+        "name": "second_check_required",
+        "type": "bool",
+        "pointer": true
+      },
+      {
+        "name": "review_valid_for_seconds",
+        "type": "int64",
+        "min": 1,
+        "max": 9223372036
+      },
+      {
+        "name": "query_response_target_seconds",
+        "type": "int64",
+        "min": 1,
+        "max": 9223372036
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "max": 500,
+        "format": "text"
+      }
+    ],
+    "VerificationPolicyDraftRevision": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "policy_id",
+        "type": "uuid"
+      },
+      {
+        "name": "outlet_id",
+        "type": "uuid"
+      },
+      {
+        "name": "expected_version",
+        "type": "int64",
+        "min": 0,
+        "max": 9007199254740990
+      },
+      {
+        "name": "version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "min": 1,
+        "max": 120
+      },
+      {
+        "name": "second_check_required",
+        "type": "bool"
+      },
+      {
+        "name": "review_valid_for_seconds",
+        "type": "int64",
+        "min": 1,
+        "max": 9223372036
+      },
+      {
+        "name": "query_response_target_seconds",
+        "type": "int64",
+        "min": 1,
+        "max": 9223372036
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "max": 500
+      },
+      {
+        "name": "prepared_by",
+        "type": "string",
+        "min": 1,
+        "max": 512
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      },
+      {
+        "name": "state",
+        "type": "string",
+        "enum": ["draft"]
+      },
+      {
+        "name": "clinical_authority",
+        "type": "string",
+        "enum": ["not_evaluated"]
+      }
+    ],
+    "PrescriptionFulfilmentReviewLineInput": [
+      {
+        "name": "line_number",
+        "type": "int",
+        "min": 1,
+        "max": 20
+      },
+      {
+        "name": "quantity_units",
+        "type": "int64",
+        "min": 1,
+        "max": 100000
+      }
+    ],
+    "PrescriptionFulfilmentReviewInput": [
+      {
+        "name": "source_state_hash",
+        "type": "string",
+        "min": 64,
+        "max": 64,
+        "pattern": "^[a-f0-9]{64}$"
+      },
+      {
+        "name": "lines",
+        "type": "[]PrescriptionFulfilmentReviewLineInput",
+        "min": 1,
+        "max": 20
+      }
+    ],
+    "PrescriptionFulfilmentReviewLine": [
+      {
+        "name": "line_number",
+        "type": "int",
+        "min": 1,
+        "max": 20
+      },
+      {
+        "name": "product_id",
+        "type": "uuid"
+      },
+      {
+        "name": "quantity_units",
+        "type": "int64",
+        "min": 1,
+        "max": 100000
+      }
+    ],
+    "PrescriptionFulfilmentReviewContext": [
+      {
+        "name": "source",
+        "type": "PrescriptionReviewContext"
+      },
+      {
+        "name": "lines",
+        "type": "[]PrescriptionFulfilmentReviewLine",
+        "min": 1,
+        "max": 20
+      },
+      {
+        "name": "fulfilment_state_hash",
+        "type": "string",
+        "min": 64,
+        "max": 64,
+        "pattern": "^[a-f0-9]{64}$"
+      },
+      {
+        "name": "state",
+        "type": "string",
+        "enum": ["proposed"]
+      },
+      {
+        "name": "stock_reservation",
+        "type": "string",
+        "enum": ["not_reserved"]
+      },
+      {
+        "name": "clinical_authority",
+        "type": "string",
+        "enum": ["not_evaluated"]
       }
     ]
   },

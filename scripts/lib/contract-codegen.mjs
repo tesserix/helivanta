@@ -56,6 +56,9 @@ export function emitModels(models, kindSchema) {
         if (f.max !== undefined) schema += `.max(${f.max})`;
         if (base === "string" && f.pattern !== undefined)
           schema += `.regex(new RegExp(${JSON.stringify(f.pattern)}, "u"), "Use a valid identifier.")`;
+        if (base === "string" && f.no_ascii_controls)
+          schema +=
+            '.refine(value=>[...value].every(char=>{const code=char.charCodeAt(0);return code>=32 && code!==127;}),"Remove control characters.")';
         if (base === "string" && f.no_nul)
           schema += `.refine(value=>!value.includes(String.fromCharCode(0)), "Use a valid identifier.")`;
         if (f.format === "clock")

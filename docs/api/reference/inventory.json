@@ -5865,6 +5865,15 @@
           "counted": false
         },
         {
+          "method": "POST",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id/fulfilment-review-context",
+          "permission": "pharmacy.prescription.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
           "method": "PUT",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id/images/:file/content",
           "permission": "pharmacy.prescription.record",
@@ -6615,6 +6624,42 @@
           "method": "GET",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/trading-scopes",
           "permission": "pharmacy.trading_scope.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/verification-policy-drafts/:policy/revisions/:revision",
+          "permission": "pharmacy.access.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/verification-policy-drafts/:policy/revisions/:revision",
+          "permission": "pharmacy.access.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/verification-policy-drafts/:policy/revisions",
+          "permission": "pharmacy.access.manage",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/verification-policy-drafts",
+          "permission": "pharmacy.access.manage",
           "authentication_required": true,
           "membership_required": true,
           "paginated": true,
@@ -7789,6 +7834,13 @@
                 }
               ]
             }
+          ]
+        },
+        {
+          "id": "0076_pharmacy_verification_policy_preparation",
+          "sql_sha256": "ad6cce7d23eb95bfd376f5d38f7cb12a5cc0d6b1f8f7628af2c1e729bc3ecc38",
+          "creates_tables": [
+            "pharmacy_verification_policy_drafts"
           ]
         }
       ]

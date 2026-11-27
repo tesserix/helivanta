@@ -44,6 +44,7 @@ import { OutletsSetup } from "./outlets-setup";
 import { CounterSale } from "./counter-sale";
 import { ServiceChargesSetup } from "./service-charges";
 import { Prescriptions } from "./prescriptions";
+import { VerificationPolicyDrafts } from "./verification-policy-drafts";
 import { Returns } from "./returns";
 import { DailyReport } from "./daily-report";
 import { H1Register } from "./h1-register";
@@ -511,15 +512,23 @@ function OutletPharmacy({
           canReturn={access.data?.level === "editor" && can("pharmacy.sale.return")}
         />
       ) : view === "prescriptions" ? (
-        <Prescriptions
-          scope={scope}
-          canRecord={access.data?.level === "editor" && can("pharmacy.prescription.record")}
-          reviewSubject={
-            can("pharmacy.prescription.read") && release.available("unreleased")
-              ? subject
-              : undefined
-          }
-        />
+        <div className="space-y-6">
+          <Prescriptions
+            scope={scope}
+            canRecord={access.data?.level === "editor" && can("pharmacy.prescription.record")}
+            reviewSubject={
+              can("pharmacy.prescription.read") && release.available("unreleased")
+                ? subject
+                : undefined
+            }
+          />
+
+          {access.data?.level === "editor" &&
+            can("pharmacy.access.manage") &&
+            release.available("unreleased") && (
+              <VerificationPolicyDrafts scope={{ ...scope, subject }} timeZone={outlet.timezone} />
+            )}
+        </div>
       ) : view === "accounts" ? (
         <AccountsPanel
           scope={scope}

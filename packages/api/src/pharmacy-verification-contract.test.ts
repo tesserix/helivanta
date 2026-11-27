@@ -155,3 +155,22 @@ describe("Prescription second-check command intent", () => {
     }
   });
 });
+
+it("rejects interior ASCII controls in policy names while preserving other Unicode", async () => {
+  const { VerificationPolicyDraftInputContract } = await import("./pharmacy-verification-contract");
+  const input = {
+    expected_version: 0,
+    label: "Synthetic policy",
+    second_check_required: true,
+    review_valid_for_seconds: 600,
+    query_response_target_seconds: 1200,
+    reason: "Synthetic proposal",
+  };
+  for (const label of ["Synthetic\u0001policy", "Synthetic\u001fpolicy", "Synthetic\u007fpolicy"]) {
+    expect(VerificationPolicyDraftInputContract.safeParse({ ...input, label }).success).toBe(false);
+  }
+  expect(
+    VerificationPolicyDraftInputContract.safeParse({ ...input, label: "Synthetic\u0080policy" })
+      .success,
+  ).toBe(true);
+});

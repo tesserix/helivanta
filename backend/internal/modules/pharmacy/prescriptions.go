@@ -62,6 +62,7 @@ func prescriptionRoutes(s *platform.Router, h *catalogueHandlers) {
 	s.GET("/prescriptions/open-lines", PermPrescriptionRead, h.getOpenPrescriptionLines)
 	s.GET("/prescriptions/:id", PermPrescriptionRead, h.getPrescription)
 	s.GET("/prescriptions/:id/review-context", PermPrescriptionRead, h.getPrescriptionReviewContext)
+	s.POST("/prescriptions/:id/fulfilment-review-context", PermPrescriptionRead, h.postPrescriptionFulfilmentReview)
 	platform.ListRoute(s, "/prescriptions", PermPrescriptionRead, h.listPrescriptions)
 }
 

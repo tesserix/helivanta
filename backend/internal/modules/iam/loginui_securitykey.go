@@ -140,13 +140,17 @@ func (r factorRequest) validate() error {
 // (SecurityKeyID is the just-registered key, Enrolling still true) or a
 // sign-in with a Helivanta-registered key (securityKeySignIn). Any other attempt is
 // refused before any round trip, indistinguishably from a wrong code (spec
-// D4's rule for the TOTP pair). A refused or cancelled assertion spends one
-// of the five guesses, as a wrong code does.
+// D4's rule for the TOTP pair). A refused assertion spends one of the five
+// guesses, as a wrong code does; a cancelled ceremony posts nothing.
 func (h *LoginUIHandlers) checkSecurityKey(c *gin.Context, start time.Time, authRequestID string, attempt loginAttempt, assertion json.RawMessage) {
 	if attempt.SecurityKeyID == "" || h.webauthnRPID == "" {
 		h.bumpFactorAttempt(c, authRequestID, errAttemptInOtherFlow, start)
 		return
 	}
+	// An Enrolling attempt whose key /enroll has not confirmed yet is admitted
+	// too; harmless: its session holds no WebAuthn challenge, so Zitadel
+	// refuses the assertion (one guess spent), and CompleteAfterFactor would
+	// still refuse a key absent from the registry.
 	verified, err := h.client.CheckSecurityKey(c.Request.Context(),
 		loginclient.Session{ID: attempt.SessionID, Token: attempt.SessionToken}, assertion)
 	if err != nil {

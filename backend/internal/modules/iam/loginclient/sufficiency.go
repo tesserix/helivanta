@@ -411,8 +411,9 @@ func (c *Client) CompleteIfSufficient(ctx context.Context, authRequestID string,
 		// headline case this whole spec exists for, and the one Finding 1
 		// found was unreachable when forceMfa was also true. Nothing is
 		// finalized here — the login completes only once
-		// CompleteAfterFactor confirms VerifyTOTP actually succeeded
-		// against this session, independent of what ForceMFA says.
+		// CompleteAfterFactor confirms the second factor (TOTP or a
+		// Helivanta-registered key) was actually proven on this session,
+		// independent of what ForceMFA says.
 		return Result{Outcome: OutcomeFactorRequired, Factors: collectible}, nil
 	}
 
@@ -470,13 +471,13 @@ func (c *Client) CompleteIfSufficient(ctx context.Context, authRequestID string,
 }
 
 // CompleteAfterFactor is the second half of the OutcomeFactorRequired
-// flow: after CompleteIfSufficient asks for a TOTP code and the caller
-// checks one against the session (VerifyTOTP, Task 2), this function
-// decides whether that check actually succeeded and, only then, finalizes
-// the login.
+// flow: after CompleteIfSufficient asks for the second factor (TOTP or a
+// Helivanta-registered key) and the caller checks it against the session
+// (VerifyTOTP or CheckSecurityKey), this function decides whether that check
+// actually succeeded and, only then, finalizes the login.
 //
 // It re-evaluates BOTH questions CompleteIfSufficient did, not just the
-// TOTP-verified one, so it can never finalize a case CompleteIfSufficient
+// second-factor one, so it can never finalize a case CompleteIfSufficient
 // itself would have handed off:
 //
 //  1. Enrolled methods, again (#867 fix round 1, Finding 2). A session can
@@ -496,8 +497,8 @@ func (c *Client) CompleteIfSufficient(ctx context.Context, authRequestID string,
 //     factor (a caller bug, a stale Session value from before a rotated
 //     token, or a race with a second request could all make that belief
 //     wrong). Instead it re-reads the session's ACTUAL verified factors
-//     (SessionFactors, Task 2) and finalizes only if that read reports
-//     TOTP true.
+//     (SessionFactors, Task 2) and finalizes only if that read proves the
+//     second factor (TOTP or a Helivanta-registered key).
 //
 // This is what keeps finalize reachable solely through a sufficiency
 // decision even on this second path: finalize requires a `sufficient`
@@ -548,8 +549,8 @@ func (c *Client) CompleteAfterFactor(ctx context.Context, authRequestID string, 
 		return refused(RefusalFactorNotVerified), nil
 	}
 
-	// The TOTP is proven; only now may a due password change be asked for
-	// (#856 spec D2).
+	// The second factor (TOTP or a Helivanta-registered key) is proven;
+	// only now may a due password change be asked for (#856 spec D2).
 	change, due, err := c.passwordGate(ctx, subject)
 	if err != nil {
 		return Result{}, err
@@ -577,8 +578,8 @@ func (c *Client) CompleteAfterFactor(ctx context.Context, authRequestID string, 
 //
 //  1. Enrolled methods: an uncollectible factor refuses.
 //  2. The second factor: when TOTP or a registered key is enrolled, the
-//     session must carry a VERIFIED second factor (SessionFactors), exactly as CompleteAfterFactor
-//     requires; otherwise neither native org policy nor retained recovery may
+//     session must carry a VERIFIED second factor (SessionFactors), exactly
+//     as CompleteAfterFactor requires; otherwise neither native org policy nor retained recovery may
 //     require MFA (an unproven requirement is RefusalFactorNotVerified).
 //  3. The password gate: after a change Zitadel accepted it must say "not
 //     due". If it still says due, that is RefusalPasswordChangeUnconfirmed —

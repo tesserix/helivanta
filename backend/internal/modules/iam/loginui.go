@@ -1094,8 +1094,9 @@ func (h *LoginUIHandlers) completeVerifiedFactor(c *gin.Context, authRequestID s
 			"auth_request_id", authRequestID, "outcome", "complete")
 		respond.OK(c, passwordSuccessResponse{CallbackURL: result.CallbackURL})
 	case loginclient.OutcomePasswordChangeRequired:
-		// The TOTP — an enrolled one, or one just enrolled (#948) — is
-		// proven and the password must change (#856). The same row carries
+		// The second factor (TOTP or a Helivanta-registered key) — an
+		// enrolled one, or one just enrolled (#948, #1898) — is proven and
+		// the password must change (#856). The same row carries
 		// on, advanced to stagePasswordChange so neither Factor nor Enroll
 		// can resume it and PasswordChange can.
 		if err := h.store.AdvanceToPasswordChange(c.Request.Context(), authRequestID); err != nil {

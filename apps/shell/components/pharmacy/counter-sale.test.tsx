@@ -5,6 +5,42 @@ import { chooseOption } from "../../test/select";
 import type { PharmacySaleCharge, PharmacyServiceCharge } from "@helivanta/api";
 import { CounterSale } from "./counter-sale";
 
+const nav = vi.hoisted(() => ({ indent: null as string | null, indentFails: false }));
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => (nav.indent ? new URLSearchParams({ indent: nav.indent }) : null),
+}));
+const indentId = "0199e000-0000-7000-8000-0000000000d1";
+const openIndent = (status = "open") => ({
+  id: indentId,
+  outlet_id: "0199e000-0000-7000-8000-000000000002",
+  hospital_id: "22222222-2222-4222-8222-222222222222",
+  department_id: "0199e000-0000-7000-8000-0000000000d2",
+  kind: "patient",
+  ward_code: "W-A",
+  room_code: "R-1",
+  bed_code: "A-1",
+  hospital_name: "TEST General",
+  department_name: "TEST Ward",
+  line_count: 1,
+  status,
+  version: 1,
+  close_reason: null,
+  raised_at: "2026-11-26T04:00:00Z",
+  closed_at: null,
+  occupancy_id: "0199e000-0000-7000-8000-0000000000c1",
+  lines: [
+    {
+      line_number: 1,
+      product_id: "0199e000-0000-7000-8000-000000000003",
+      brand_name: "TEST Brand",
+      generic_name: "TEST generic",
+      requested_units: 10,
+      issued_units: 2,
+      returned_units: 0,
+    },
+  ],
+});
+
 const scope = {
   tenantId: "11111111-1111-1111-1111-111111111111",
   pharmacyId: "0199e000-0000-7000-8000-000000000010",
@@ -56,6 +92,8 @@ const totals = {
 };
 
 afterEach(() => {
+  nav.indent = null;
+  nav.indentFails = false;
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
@@ -261,6 +299,10 @@ function fixture(
           { status: 201 },
         )
       );
+    if (url.endsWith(`/ward-indents/${indentId}`))
+      return nav.indentFails
+        ? new Response(JSON.stringify({ message: "down" }), { status: 500 })
+        : new Response(JSON.stringify(openIndent()));
     return new Response(JSON.stringify({ message: `unexpected ${url}` }), { status: 500 });
   });
   vi.stubGlobal("fetch", fetcher);
@@ -872,6 +914,44 @@ describe("CounterSale", () => {
     ]);
     expect(body.patient).toBeUndefined();
     expect(body.buyer).toBeUndefined();
+  });
+
+  it("issues a ward indent: billed to its admission with the indent id, no customer choice", async () => {
+    nav.indent = indentId;
+    const fetcher = fixture();
+    const { user } = renderWithProviders(
+      <CounterSale scope={scope} canSell canManageProfile={false} />,
+    );
+    expect(await screen.findByText("TEST Brand: 2 of 10 issued")).toBeVisible();
+    await basketOfEight(user);
+    await user.click(screen.getByRole("button", { name: "Price basket" }));
+    expect(await screen.findByText(/Issuing a ward indent for room R-1, bed A-1/)).toBeVisible();
+    expect(screen.queryByRole("combobox", { name: "Customer" })).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Post sale" }));
+    await screen.findByRole("heading", { name: "Tax invoice TS/2627/1" });
+    const put = fetcher.mock.calls.find(
+      ([url, init]) => /\/sales\/[0-9a-f-]{36}$/.test(url) && init?.method === "PUT",
+    );
+    const body = JSON.parse(String(put?.[1]?.body));
+    expect(body.ward_indent_id).toBe(indentId);
+    expect(body.admission).toEqual({ occupancy_id: "0199e000-0000-7000-8000-0000000000c1" });
+    expect(body.tenders).toEqual([
+      { kind: "admission_account", amount_minor: body.tenders[0].amount_minor },
+    ]);
+  });
+
+  it("never sells as a walk-in when the ward indent cannot be loaded", async () => {
+    nav.indent = indentId;
+    nav.indentFails = true;
+    const fetcher = fixture();
+    const { user } = renderWithProviders(
+      <CounterSale scope={scope} canSell canManageProfile={false} />,
+    );
+    expect(await screen.findByText("Could not load the ward indent to issue.")).toBeVisible();
+    await basketOfEight(user);
+    await user.click(screen.getByRole("button", { name: "Price basket" }));
+    expect(screen.queryByRole("button", { name: "Post sale" })).toBeNull();
+    expect(fetcher.mock.calls.filter(([, init]) => init?.method === "PUT").length).toBe(0);
   });
 
   it("bills service charges of one channel as their own lines (#1388)", async () => {

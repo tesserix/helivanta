@@ -6845,6 +6845,14 @@
     {
       "path": "/pharmacy/low-stock",
       "capability": "pharmacy_low_stock"
+    },
+    {
+      "path": "/pharmacy/ward-indents",
+      "capability": "pharmacy_ward_indents"
+    },
+    {
+      "path": "/pharmacy/ward-indent-requests",
+      "capability": "pharmacy_ward_indents"
     }
   ],
   "panels": [

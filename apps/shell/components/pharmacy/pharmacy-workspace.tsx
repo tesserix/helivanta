@@ -50,6 +50,7 @@ import { DailyReport } from "./daily-report";
 import { H1Register } from "./h1-register";
 import { PrescriptionRegister } from "./prescription-register";
 import { SalesWorklist } from "./sales-worklist";
+import { WardIndentQueue } from "./ward-indent-queue";
 
 type PharmacyIdentity = { subject: string; tenant_id: string };
 // The outlet-scoped pages (#1258 D2). Dispensing is tenant-wide and has its own pages.
@@ -63,6 +64,7 @@ type PharmacyView =
   | "h1-register"
   | "prescription-register"
   | "stocktake-recovery"
+  | "ward-indents"
   | "stock-overview"
   | "stock"
   | "low-stock"
@@ -83,6 +85,8 @@ const DESCRIPTIONS: Record<PharmacyView, string> = {
     "Each Schedule H1 supply and its returns, as recorded at the sale, for inspection.",
   "prescription-register":
     "Every Schedule G, H and H1 supply on a prescription and its returns, for inspection.",
+  "ward-indents":
+    "Patient medicine requests from wards: issue them at the counter or close them short.",
   "stocktake-recovery": "Inspect retained count outcomes or cancel unfinished work at this outlet.",
   "stock-overview": "Stock, expiry and recorded purchase value across your accessible outlets.",
   stock: "What each outlet holds, by product and batch, with reconciliation and export.",
@@ -445,6 +449,17 @@ function OutletPharmacy({
           />
         ) : (
           <p>You do not have permission to read stock.</p>
+        )
+      ) : view === "ward-indents" ? (
+        can("pharmacy.indent.fulfil") ? (
+          <WardIndentQueue
+            key={subject}
+            scope={scope}
+            timeZone={outlet.timezone}
+            canFulfil={access.data?.level === "editor"}
+          />
+        ) : (
+          <p>You do not have permission to fulfil ward indents.</p>
         )
       ) : view === "setup" ? null : view === "low-stock" ? (
         can("pharmacy.stock.read") ? (

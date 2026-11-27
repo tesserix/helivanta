@@ -1,12 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 import { Button, Input } from "@tesserix/web";
 import {
   ApiError,
   apiFetch,
   countryProfile,
+  fetchFulfilmentIndent,
   newPharmacyId,
   pharmacyKey,
   pharmacyRoot,
@@ -24,6 +27,7 @@ import {
   type PharmacySaleQuote,
   type PharmacyScope,
   type PharmacyServiceCharge,
+  type WardIndent,
 } from "@helivanta/api";
 import { Field, FormSelectField, LoadMore, Panel, RequestFailure, useZodForm } from "@helivanta/ui";
 import { CounterPatientLookup, CounterVisit, type CounterPatient } from "./counter-patient";
@@ -212,6 +216,15 @@ function Counter({
   canDiscount: boolean;
   canRefund: boolean;
 }) {
+  const indentParam = useSearchParams()?.get("indent") ?? null;
+  const indentId = z.string().guid().safeParse(indentParam).data ?? null;
+  const indentQuery = useQuery({
+    queryKey: pharmacyKey(scope, "counter", "ward-indent", indentId),
+    queryFn: ({ signal }) => fetchFulfilmentIndent(scope, indentId!, signal),
+    enabled: indentId !== null,
+    staleTime: 0,
+  });
+  const indent = indentQuery.data?.status === "open" ? indentQuery.data : undefined;
   const ceiling = useApiQuery<{ ceiling: PharmacyDiscountCeiling | null }>(
     pharmacyKey(scope, "counter", "discount-ceiling"),
     `${pharmacyRoot(scope)}/discount-ceiling`,
@@ -325,6 +338,26 @@ function Counter({
   return (
     <Panel>
       <h3 className="font-semibold">Counter sale</h3>
+      {indentId !== null &&
+        (indentQuery.isError ? (
+          <RequestFailure
+            message="Could not load the ward indent to issue."
+            retry={indentQuery.refetch}
+            error={indentQuery.error}
+          />
+        ) : !indentQuery.data ? (
+          <p role="status">Loading ward indent…</p>
+        ) : !indent ? (
+          <p role="alert">This ward indent is no longer open, so it cannot be issued.</p>
+        ) : (
+          <ul className="text-sm text-muted-foreground">
+            {(indent.lines ?? []).map((line) => (
+              <li key={line.line_number}>
+                {line.brand_name}: {line.issued_units} of {line.requested_units} issued
+              </li>
+            ))}
+          </ul>
+        ))}
       <FormSelectField
         control={destinationForm.control}
         name="place_of_supply"
@@ -527,7 +560,7 @@ function Counter({
           {price.error.message}
         </p>
       )}
-      {quote && (
+      {quote && (indentId === null || indent) && (
         <>
           <SaleLines lines={quote.lines} currency={quote.currency} products={products.items} />
           <SaleCharges charges={quote.charges} currency={quote.currency} />
@@ -539,6 +572,7 @@ function Counter({
             placeOfSupply={destination}
             basket={basket}
             chargeChannel={chargeChannel}
+            indent={indent}
             onPosted={(sale) => {
               setPaymentHeld(false);
               setUncertain(false);
@@ -772,6 +806,7 @@ function TenderForm({
   quote,
   basket,
   chargeChannel,
+  indent,
   onPosted,
   onStale,
   canRefund,
@@ -786,6 +821,8 @@ function TenderForm({
   basket: BasketLine[];
   /** Ward-delivery charges bill an admission; counter charges never do. */
   chargeChannel: "counter" | "ward_delivery" | null;
+  /** The open ward indent this sale issues; the sale is billed to its admission. */
+  indent?: WardIndent;
   onPosted: (sale: PharmacySale) => void;
   onStale: () => void;
   canRefund: boolean;
@@ -801,10 +838,10 @@ function TenderForm({
     reference: "",
     payment_request_id: "",
     total: quote.total_minor,
-    customer: chargeChannel === "ward_delivery" ? "admission" : "walk_in",
+    customer: indent || chargeChannel === "ward_delivery" ? "admission" : "walk_in",
     patient_id: "",
     encounter_id: "",
-    occupancy_id: "",
+    occupancy_id: indent?.occupancy_id ?? "",
     buyer_name: "",
     buyer_phone: "",
     discounted: basket.some((l) => l.discount_bps),
@@ -881,9 +918,10 @@ function TenderForm({
                   : {}),
               }
             : {}),
-          ...(values.customer === "admission" && admission
-            ? { admission: { occupancy_id: admission.occupancy_id } }
+          ...(values.customer === "admission" && (indent?.occupancy_id ?? admission?.occupancy_id)
+            ? { admission: { occupancy_id: indent?.occupancy_id ?? admission?.occupancy_id } }
             : {}),
+          ...(indent ? { ward_indent_id: indent.id } : {}),
           ...(values.customer === "walk_in" && (values.buyer_name || values.buyer_phone)
             ? {
                 buyer: {
@@ -1014,31 +1052,39 @@ function TenderForm({
             <Input id="discount-reason" maxLength={200} {...form.register("discount_reason")} />
           </Field>
         )}
-        <FormSelectField
-          control={form.control}
-          name="customer"
-          id="sale-customer"
-          label="Customer"
-          disabled={paymentHeld || post.isPending}
-          options={[
-            { value: "walk_in", label: "Walk-in buyer" },
-            { value: "patient", label: "Registered patient" },
-            { value: "admission", label: "Bill to admission" },
-          ].filter((o) =>
-            chargeChannel === "ward_delivery"
-              ? o.value === "admission"
-              : chargeChannel === "counter"
-                ? o.value !== "admission"
-                : true,
-          )}
-        />
+        {indent && (
+          <p role="status" className="text-sm">
+            Issuing a ward indent for room {indent.room_code}, bed {indent.bed_code}. Billed to the
+            patient&apos;s admission; nothing is collected at the counter.
+          </p>
+        )}
+        {!indent && (
+          <FormSelectField
+            control={form.control}
+            name="customer"
+            id="sale-customer"
+            label="Customer"
+            disabled={paymentHeld || post.isPending}
+            options={[
+              { value: "walk_in", label: "Walk-in buyer" },
+              { value: "patient", label: "Registered patient" },
+              { value: "admission", label: "Bill to admission" },
+            ].filter((o) =>
+              chargeChannel === "ward_delivery"
+                ? o.value === "admission"
+                : chargeChannel === "counter"
+                  ? o.value !== "admission"
+                  : true,
+            )}
+          />
+        )}
         {paymentHeld && (
           <p role="status" className="text-sm">
             Finish the sale or record the completed refund before changing the customer or tender.
             Cancel an unpaid QR and wait for confirmation before changing them.
           </p>
         )}
-        {customer === "admission" ? (
+        {indent ? null : customer === "admission" ? (
           <div>
             <CounterAdmissionLookup scope={scope} value={admission} onChange={chooseAdmission} />
             {form.formState.errors.occupancy_id && (

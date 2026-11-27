@@ -277,6 +277,8 @@ export const releasePages = [
   { path: "/workforce/shared-shipments", capability: "supplier_collaboration" },
   { path: "/pharmacy/working-stocktakes", capability: "pharmacy_setup" },
   { path: "/pharmacy/low-stock", capability: "pharmacy_low_stock" },
+  { path: "/pharmacy/ward-indents", capability: "pharmacy_ward_indents" },
+  { path: "/pharmacy/ward-indent-requests", capability: "pharmacy_ward_indents" },
 ] as const;
 export const releasePanels = [
   { key: "staff.posting_drafts", capability: "department_teams" },

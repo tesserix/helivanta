@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
@@ -244,4 +245,43 @@ func TestVerificationPolicyDraftForcedRLSRequiresCurrentOutletScope(t *testing.T
 		require.EqualValues(t, 1, count)
 		return nil
 	}))
+}
+
+func TestVerificationPolicyDraftAccessManagerWithReaderGrantCannotEdit(t *testing.T) {
+	r, _ := catalogueHarness(t)
+	grantCatalogue(t, r, "user-editor", "editor")
+	grantCatalogue(t, r, "user-steward", "reader")
+	policy, revision := uuid.Must(uuid.NewV7()).String(), uuid.Must(uuid.NewV7()).String()
+	require.Equal(t, 201, do(r, "PUT", policyDraftPath(policy, revision), "editor", policyDraftBody(0, "TEST reader view")).Code)
+	read := do(r, "GET", policyDraftPath(policy, revision), "steward", "")
+	require.Equal(t, 200, read.Code, read.Body.String())
+	require.Contains(t, read.Body.String(), "TEST reader view")
+	require.Equal(t, 404, do(r, "PUT", policyDraftPath(policy, uuid.Must(uuid.NewV7()).String()), "steward", policyDraftBody(1, "TEST denied edit")).Code)
+}
+
+func TestVerificationPolicyDraftWriteRollsBackWhenAuditFails(t *testing.T) {
+	r, db := catalogueHarness(t)
+	grantCatalogue(t, r, "user-editor", "editor")
+	policy, revision := uuid.Must(uuid.NewV7()).String(), uuid.Must(uuid.NewV7()).String()
+	err := catalogueTx(t, db, func(tx *gorm.DB) error {
+		if err := tx.Exec("SELECT set_config('app.actor_subject','',true)").Error; err != nil {
+			return err
+		}
+		return tx.Exec(`INSERT INTO pharmacy_verification_policy_drafts
+   (tenant_id,outlet_id,policy_id,id,expected_version,version,label,second_check_required,review_valid_for_seconds,query_response_target_seconds,reason,intent_sha256,prepared_by)
+   VALUES(?,?,?,?,0,1,'TEST audited write',true,600,1200,'Synthetic audit failure',?,'user-editor')`, testutil.TenantA, pharmaOutlet, policy, revision, strings.Repeat("a", 64)).Error
+	})
+	var pg *pgconn.PgError
+	require.ErrorAs(t, err, &pg)
+	require.Equal(t, "42501", pg.Code)
+	require.Contains(t, pg.Message, "audit actor not set")
+	require.NoError(t, catalogueTx(t, db, func(tx *gorm.DB) error {
+		var count int64
+		if err := tx.Table("pharmacy_verification_policy_drafts").Where("policy_id=?", policy).Count(&count).Error; err != nil {
+			return err
+		}
+		require.Zero(t, count)
+		return nil
+	}))
+	require.Equal(t, 201, do(r, "PUT", policyDraftPath(policy, revision), "editor", policyDraftBody(0, "TEST audited retry")).Code)
 }

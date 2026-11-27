@@ -86,7 +86,18 @@ type ManualIdentityCommandReceipt struct {
 	ClinicalAuthority string     `json:"clinical_authority"`
 }
 
+type ManualIdentityImportReceipt struct {
+	SourceProfileID   uuid.UUID `json:"source_profile_id"`
+	People            int       `json:"people"`
+	Accounts          int       `json:"accounts"`
+	ImportedAt        time.Time `json:"imported_at"`
+	ClinicalAuthority string    `json:"clinical_authority"`
+}
+
 const manualIdentitySourceVersion = 1
+
+var manualIdentityImportInstantFields = []string{"observed_at", "valid_from", "valid_until"}
+
 const manualIdentityResourceUUIDVersion = 7
 const manualIdentityRootMinimum = 2
 const manualIdentityRootMaximum = 10

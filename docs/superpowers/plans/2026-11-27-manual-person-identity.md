@@ -21,3 +21,8 @@ approval of any actual source profile or operational clinical policy.
 Implemented internal validation and pure transitions are described in
 [the current API boundary](../../api/manual-person-identity.md). Persistence,
 current-record authority and commit-time controls are still unchecked above.
+
+Source-only persistence and the default-validation operator CLI are implemented
+in the follow-up described in [the import contract](../../api/manual-person-source-import.md).
+Hosted PostgreSQL acceptance is required before marking that slice verified.
+Case/review persistence, revocation and the clinical consumers remain open.

@@ -38,14 +38,22 @@ current owner records, verify tenant/source/account/person incarnations, audit
 disclosure and effects, retain replay receipts and enforce the validity deadline
 at commit. Unit tests of these rules do not prove those boundaries.
 
+## Operator source persistence
+
+The [source import command](manual-person-source-import.md) adds unreleased,
+operator-only source/person/account persistence and retained import receipts.
+Application-role source reads, case persistence and clinical consumers remain
+unimplemented. The command grants no membership, role or clinical authority.
+
 ## Remaining delivery
 
-Forced-RLS persistence/purpose guards and integrity-seal compatibility; an
-operator-only source import command; explicit reviewed examiner/reviewer grants;
+Account-case/examination/decision persistence and purpose guards; source
+replacement/revocation; explicit reviewed examiner/reviewer grants;
 account-bound APIs and audited named projections; SDK and complete review UI;
 revocation and retained replay; hosted real-database negative/concurrency tests;
 qualified policy approval/publication; prescribing resolution and mandatory
 verification inside the actual dispensing, stock and financial transaction.
 
-No migration, live profile/root import, feature activation or deployment is
-included in this validation and transition change. #169 remains open.
+Migration `0058_iam_manual_person_source_import` is proposed for the source-import
+change. No live migration, profile/root import, feature activation or deployment
+has been performed. #169 remains open.

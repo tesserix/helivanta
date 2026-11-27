@@ -1532,6 +1532,17 @@
           "creates_tables": [
             "iam_security_keys"
           ]
+        },
+        {
+          "id": "0058_iam_manual_person_source_import",
+          "sql_sha256": "14c7830f5a165cc454602df69a777a42ac2a66165b2aef6860d0c38b77a56ea2",
+          "creates_tables": [
+            "iam_manual_identity_profiles",
+            "iam_manual_identity_people",
+            "iam_manual_identity_bindings",
+            "iam_manual_identity_source_heads",
+            "iam_manual_identity_imports"
+          ]
         }
       ]
     },

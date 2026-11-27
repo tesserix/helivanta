@@ -42,15 +42,17 @@ future correction/verification commands must preserve attribution and prior fact
 See the [implementation specification](../superpowers/specs/2026-10-26-practitioner-master.md)
 for capacity assumptions, dependency failure behavior and remaining release gates.
 
-## Runtime integration candidate (2026-11-27)
+## Runtime integration delivery (2026-11-27)
 
 The professional-source runtime change registers the existing owner in the shared
 bootstrap and independent architecture registry, routes `/v1/practitioners` through
 Global API's platform destination, and includes the generation-bound evidence
 worker in the promoted API image. All 68 routes remain compiled `unreleased`.
-This candidate introduces execution of sixteen existing source migrations; it
-requires specific migration approval before merge and deployment. It is not
-deployed merely because it appears in the generated inventory. See the
-[runtime integration record](../api/practitioner-runtime.md). Clinical privilege
+The approved initial rollout recorded all sixteen existing source migrations.
+Core API/Global API/shell runtime delivery is observed; all professional HTTP
+routes remain unreleased and private-evidence processing activation is pending.
+See the [runtime integration record](../api/practitioner-runtime.md) and its
+deployment evidence for the exact artifact, metadata checks and health limits.
+Clinical privilege
 policy authority remains proposed separately in ADR-0077; registration
 attestations continue to report `clinical_authority: not_evaluated`.

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strings"
 	"time"
 	"unicode"
@@ -116,7 +117,8 @@ type securityKeyChallengeResponse struct {
 // on /factor. The order is the recovery argument: the registry row is
 // written before any challenge exists, and a retry that finds the row skips
 // the verify (Zitadel would refuse a second verify of the same key) and only
-// issues a fresh challenge. Refusals and the five-guess budget are exactly
+// issues a fresh challenge. A retry after a failed registry write finds the
+// key READY in Zitadel and records it without verifying again. Refusals and the five-guess budget are exactly
 // the TOTP enrolment's.
 func (h *LoginUIHandlers) enrollSecurityKey(c *gin.Context, start time.Time, authRequestID string, attempt loginAttempt, credential json.RawMessage, name string) {
 	ctx := c.Request.Context()
@@ -139,13 +141,24 @@ func (h *LoginUIHandlers) enrollSecurityKey(c *gin.Context, start time.Time, aut
 		return
 	}
 	if !recorded {
-		if err := h.client.VerifySecurityKey(ctx, attempt.SessionID, attempt.SecurityKeyID, credential, name); err != nil {
-			if loginclient.IsCredentialRefusal(err) {
-				h.bumpFactorAttempt(c, authRequestID, err, start)
+		// Recovery: a verify that succeeded before an earlier registry write
+		// failed leaves the key READY in Zitadel. Verifying it again would be
+		// refused and spend a guess, so record it without a second verify.
+		// Safe: this attempt's own password-checked session registered the id.
+		ready, err := h.client.ReadySecurityKeyIDs(ctx, attempt.SessionID)
+		if err != nil {
+			h.respondLoginClientError(c, err, "security_key_ready")
+			return
+		}
+		if !slices.Contains(ready, attempt.SecurityKeyID) {
+			if err := h.client.VerifySecurityKey(ctx, attempt.SessionID, attempt.SecurityKeyID, credential, name); err != nil {
+				if loginclient.IsCredentialRefusal(err) {
+					h.bumpFactorAttempt(c, authRequestID, err, start)
+					return
+				}
+				h.respondLoginClientError(c, err, "verify_security_key")
 				return
 			}
-			h.respondLoginClientError(c, err, "verify_security_key")
-			return
 		}
 		if err := h.keys.Add(ctx, subject, attempt.SecurityKeyID, h.webauthnRPID); err != nil {
 			// Zitadel holds a verified key Helivanta has not recorded; a key

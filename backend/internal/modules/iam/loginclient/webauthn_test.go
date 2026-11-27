@@ -113,3 +113,32 @@ func TestSessionUserIDReadsTheSessionsUser(t *testing.T) {
 	_, err = c.SessionUserID(context.Background(), "unknown")
 	require.Error(t, err, "a session Zitadel cannot describe must not yield a subject")
 }
+
+func TestReadySecurityKeyIDsReturnsOnlyReadyKeys(t *testing.T) {
+	answer := `{"result":[{"state":"AUTH_FACTOR_STATE_READY","u2f":{"id":"401","name":"spike key"}},` +
+		`{"state":"AUTH_FACTOR_STATE_NOT_READY","u2f":{"id":"402","name":"half"}},` +
+		`{"state":"AUTH_FACTOR_STATE_READY","otp":{}},{"state":"AUTH_FACTOR_STATE_READY","newKind":{"id":"403"}}]}`
+	var gotBody, gotOrg, gotPath string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/v2/sessions/s" {
+			_, _ = w.Write([]byte(`{"session":{"factors":{"user":{"id":"u1","organizationId":"o1"}}}}`))
+			return
+		}
+		b, _ := io.ReadAll(r.Body)
+		gotBody, gotOrg, gotPath = string(b), r.Header.Get("x-zitadel-orgid"), r.Method+" "+r.URL.Path
+		_, _ = w.Write([]byte(answer))
+	}))
+	t.Cleanup(srv.Close)
+	ids, err := New(srv.URL, "synthetic", srv.Client()).ReadySecurityKeyIDs(context.Background(), "s")
+	require.NoError(t, err)
+	require.Equal(t, []string{"401"}, ids)
+	require.Equal(t, "POST /management/v1/users/u1/auth_factors/_search", gotPath)
+	require.Equal(t, `{}`, gotBody)
+	require.Equal(t, "o1", gotOrg)
+
+	for _, malformed := range []string{`{}`, `{"result":null}`, `{"result":{"state":"x"}}`, `not json`} {
+		answer = malformed
+		_, err := New(srv.URL, "synthetic", srv.Client()).ReadySecurityKeyIDs(context.Background(), "s")
+		require.ErrorIs(t, err, ErrUnavailable, malformed)
+	}
+}

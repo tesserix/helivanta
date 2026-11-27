@@ -1528,7 +1528,7 @@
         },
         {
           "id": "0057_iam_security_keys",
-          "sql_sha256": "4b79ae719daa7eec958e01d03103a716b99ecf30abf53d1e2bbcb4f5fd749282",
+          "sql_sha256": "65cb4e0ed795186c604be7a94379878760f9d2201e4fb9d696bdea65f7e9c33a",
           "creates_tables": [
             "iam_security_keys"
           ]

@@ -13,6 +13,10 @@ END $prerequisites$;
 
 CREATE TRIGGER iam_operating_native_global_mutation_guard BEFORE INSERT OR UPDATE OR DELETE OR TRUNCATE ON iam_security_keys FOR EACH STATEMENT EXECUTE FUNCTION iam_operating_native_global_mutation_guard();
 
+-- iam_operating_governance_support() is deliberately not asserted here: it
+-- refuses any caller holding TRUNCATE, which the migrating owner always does,
+-- so it can only be true for the application role. The migration test checks
+-- it as that role.
 -- Recapture: the prerequisite above proved every other fingerprint unchanged
 -- in this transaction, so the only difference is the trigger just created.
 DO $migration$

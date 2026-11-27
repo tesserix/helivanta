@@ -155,6 +155,9 @@ refusal. Local development uses the dev shell host the same way.
   `navigator.credentials.create` and posts the result. The registration is bound
   to the same login attempt as TOTP enrolment, and a new attempt needs a new
   password check, as with TOTP's secret.
+- **Recovery.** If Zitadel verified the key but Helivanta's registry write
+  failed (503), the retry reads the user's ready auth factors and records a key
+  this attempt registered that is already READY, without verifying it again.
 - **Signed-in account.** A "Security keys" section on the account's security page
   lists keys by name and lets the user add or remove one. Both actions need a
   sign-in within the last 5 minutes, otherwise the page asks for the password

@@ -1365,6 +1365,7 @@ type zitadelEnrollmentFake struct {
 	// Security-key state (#1898): u2f verifies and WebAuthn challenges seen,
 	// and an optional hook run inside the challenge, before it answers.
 	keyVerifies   atomic.Int32
+	keyReady      atomic.Bool
 	keyChallenges atomic.Int32
 	onChallenge   atomic.Pointer[func()]
 }
@@ -1430,7 +1431,18 @@ func newZitadelEnrollmentFake(t *testing.T) *zitadelEnrollmentFake {
 			_, _ = w.Write([]byte(`{"code":3,"message":"invalid attestation (COMMAND-webauthn)","details":[{"id":"COMMAND-webauthn"}]}`))
 			return
 		}
+		f.keyReady.Store(true)
 		_, _ = w.Write([]byte(`{"details":{}}`))
+	})
+	mux.HandleFunc("POST /management/v1/users/{id}/auth_factors/_search", func(w http.ResponseWriter, r *http.Request) {
+		if r.PathValue("id") != "user-enrol" || r.Header.Get("x-zitadel-orgid") != "org-1" {
+			t.Errorf("auth factors read for %q in org %q, want the session's user and org", r.PathValue("id"), r.Header.Get("x-zitadel-orgid"))
+		}
+		state := "AUTH_FACTOR_STATE_NOT_READY"
+		if f.keyReady.Load() {
+			state = "AUTH_FACTOR_STATE_READY"
+		}
+		_, _ = w.Write([]byte(`{"result":[{"state":"AUTH_FACTOR_STATE_READY","otp":{}},{"state":"` + state + `","u2f":{"id":"` + securityKeyFakeID + `","name":"Security key"}}]}`))
 	})
 	mux.HandleFunc("PATCH /v2/sessions/{id}", func(w http.ResponseWriter, r *http.Request) {
 		var body struct {

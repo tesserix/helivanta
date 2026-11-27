@@ -225,3 +225,32 @@ func TestSecurityKeyNameIsNormalised(t *testing.T) {
 		require.Error(t, err, "%q", raw)
 	}
 }
+
+// Zitadel verified the key but the registry write failed: the retry finds the
+// key READY in Zitadel and records it without a second verify (which Zitadel
+// would refuse, spending a guess and stranding the key unrecorded).
+func TestEnrollSecurityKeyRetryAfterRegistryFailureRecordsWithoutReverifying(t *testing.T) {
+	h, r, fake, _ := startSecurityKeyEnrolment(t)
+	exec := func(sql string) {
+		t.Helper()
+		require.NoError(t, h.keys.db.WithAdmin(context.Background(), func(tx *gorm.DB) error { return tx.Exec(sql).Error }))
+	}
+	exec(`CREATE FUNCTION test_refuse_security_key() RETURNS trigger LANGUAGE plpgsql AS $$
+		BEGIN RAISE EXCEPTION 'registry unavailable'; END $$;
+		CREATE TRIGGER test_refuse_security_key BEFORE INSERT ON iam_security_keys
+		FOR EACH ROW EXECUTE FUNCTION test_refuse_security_key();`)
+	first := doEnrollKey(t, r, loginUITestAuthRequestID, goodKeyCredential)
+	require.Equal(t, http.StatusServiceUnavailable, first.Code, first.Body.String())
+	require.True(t, fake.keyReady.Load(), "precondition: Zitadel verified the key")
+	exec(`DROP TRIGGER test_refuse_security_key ON iam_security_keys`)
+
+	second := doEnrollKey(t, r, loginUITestAuthRequestID, goodKeyCredential)
+	require.Equal(t, http.StatusOK, second.Code, second.Body.String())
+	require.Contains(t, second.Body.String(), "request_options")
+	require.Equal(t, int32(1), fake.keyVerifies.Load(), "a key Zitadel already holds READY must not be verified again")
+	require.Equal(t, int64(1), countSecurityKeys(t, h))
+	require.Equal(t, int32(1), fake.keyChallenges.Load())
+	attempt, err := h.store.Get(context.Background(), loginUITestAuthRequestID, stageFactor)
+	require.NoError(t, err)
+	require.Zero(t, attempt.FactorAttempts, "recovery must not spend a guess")
+}

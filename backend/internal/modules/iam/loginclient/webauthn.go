@@ -109,3 +109,40 @@ func (c *Client) SessionUserID(ctx context.Context, sessionID string) (string, e
 	subject, err := c.sessionSubject(ctx, sessionID)
 	return subject.UserID, err
 }
+
+// ReadySecurityKeyIDs lists the u2fIds Zitadel holds as verified for the
+// session's user (POST /management/v1/users/{id}/auth_factors/_search, scoped
+// to the user's organisation; shape verified live against v4.19.5). Only u2f
+// entries in AUTH_FACTOR_STATE_READY count; other factor kinds and states are
+// ignored. A body without a result list is ErrUnavailable: fail closed.
+func (c *Client) ReadySecurityKeyIDs(ctx context.Context, sessionID string) ([]string, error) {
+	subject, err := c.sessionSubject(ctx, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	path := "/management/v1/users/" + url.PathEscape(subject.UserID) + "/auth_factors/_search"
+	if subject.OrgID == "" {
+		return nil, fmt.Errorf("POST %s: session has no organisation: %w", path, ErrUnavailable)
+	}
+	var wire struct {
+		Result *[]struct {
+			State string `json:"state"`
+			U2F   *struct {
+				ID string `json:"id"`
+			} `json:"u2f"`
+		} `json:"result"`
+	}
+	if err := c.do(ctx, http.MethodPost, path, map[string]any{}, &wire, ErrUnavailable, withOrgID(subject.OrgID)); err != nil {
+		return nil, err
+	}
+	if wire.Result == nil {
+		return nil, fmt.Errorf("POST %s: response missing result: %w", path, ErrUnavailable)
+	}
+	ids := []string{}
+	for _, factor := range *wire.Result {
+		if factor.U2F != nil && factor.U2F.ID != "" && factor.State == "AUTH_FACTOR_STATE_READY" {
+			ids = append(ids, factor.U2F.ID)
+		}
+	}
+	return ids, nil
+}

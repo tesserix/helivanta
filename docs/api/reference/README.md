@@ -172,6 +172,7 @@ Migration table declarations:
 - `0053_iam_login_account_choice`: `login_account_choice`.
 - `0054_iam_staff_mfa_fences`: `iam_staff_mfa_commands`, `iam_staff_mfa_cancellations`, `iam_staff_mfa_fences`.
 - `0057_iam_security_keys`: `iam_security_keys`.
+- `0058_iam_manual_person_source_import`: `iam_manual_identity_profiles`, `iam_manual_identity_people`, `iam_manual_identity_bindings`, `iam_manual_identity_source_heads`, `iam_manual_identity_imports`.
 
 ## reference
 

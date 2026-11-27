@@ -879,6 +879,10 @@ func TestEveryCollectionGETIsPaginated(t *testing.T) {
 // same bypass this rule exists to surface, which is why test files are
 // allowlisted one at a time rather than excluded as a class.
 var withAdminAllowlist = map[string]bool{
+	// Operator-only manual source import has no request route. The application
+	// role cannot bootstrap assurance; tests exercise the actual owner boundary.
+	"cmd/manual-person-source/main.go":                 true,
+	"internal/modules/iam/manual_person_store_test.go": true,
 	// #894 emptied this of its cross-tenant callers. reconcile.go,
 	// events/bus.go and events/retention.go were all here because they
 	// must read across tenants — which WithAdmin never actually did, since

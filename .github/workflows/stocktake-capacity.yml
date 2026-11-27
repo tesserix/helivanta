@@ -56,7 +56,8 @@ concurrency:
   cancel-in-progress: true
 jobs:
   capacity-regressions:
-    if: ${{ inputs.suite == 'capacity-only' }}
+    # Measure latency on a fresh runner, separate from source-use fixtures.
+    if: github.event_name == 'pull_request' || inputs.suite == 'all' || inputs.suite == 'go' || inputs.suite == 'capacity-only'
     runs-on: ubuntu-latest
     timeout-minutes: 35
     defaults:
@@ -190,16 +191,6 @@ jobs:
       - name: Operating duty release admission
         if: inputs.suite != 'reviewed-reads'
         run: go test -race -count=1 -timeout=5m ./internal/modules/iam -run '^(TestOperatingTemplateRelease|TestMigrationIDIsPhaseScoped)'
-      - name: Measure 10000 buckets and 500 reviewed adjustments
-        if: inputs.suite != 'reviewed-reads'
-        env:
-          HELIVANTA_STOCKTAKE_CAPACITY: "1"
-        run: go test -v -count=1 -timeout=35m ./internal/modules/pharmacy -run '^TestStocktakeCapacityAt10000Buckets$'
-      - name: Measure actual reviewed duties at 10000 buckets and 500 corrections
-        if: inputs.suite != 'reviewed-reads'
-        env:
-          HELIVANTA_STOCKTAKE_CAPACITY: "1"
-        run: go test -v -count=1 -timeout=35m ./internal/globalapi -run '^TestStocktakeReviewedCapacityAt10000Buckets$'
   stocktake-staff-ui:
     if: inputs.suite == '' || inputs.suite == 'all' || inputs.suite == 'web' || inputs.suite == 'browser' || inputs.suite == 'hospital-browser'
     runs-on: ubuntu-latest

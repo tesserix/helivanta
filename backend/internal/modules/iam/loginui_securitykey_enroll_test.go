@@ -258,3 +258,57 @@ func TestEnrollSecurityKeyRetryAfterRegistryFailureRecordsWithoutReverifying(t *
 	require.NoError(t, err)
 	require.Zero(t, attempt.FactorAttempts, "recovery must not spend a guess")
 }
+
+// Zitadel verified the key but the registry write failed, and the user then
+// chose the authenticator app: the TOTP enrolment records the READY key first,
+// so CompleteAfterFactor does not refuse a correct code over an uncollectible
+// key (and lock every later sign-in out).
+func TestEnrollTOTPAfterKeyRegistryFailureRecordsTheKey(t *testing.T) {
+	h, r, fake, _ := startSecurityKeyEnrolment(t)
+	refuseSecurityKeyInserts(t, h)
+	first := doEnrollKey(t, r, loginUITestAuthRequestID, goodKeyCredential)
+	require.Equal(t, http.StatusServiceUnavailable, first.Code, first.Body.String())
+	require.True(t, fake.keyReady.Load(), "precondition: Zitadel verified the key")
+	require.Equal(t, int64(0), countSecurityKeys(t, h), "precondition: the key is unrecorded")
+	require.NoError(t, h.keys.db.Migrate(context.Background(), []tenantdb.Migration{{
+		ID: "test_allow_security_key_inserts", SQL: `DROP TRIGGER test_refuse_security_key ON iam_security_keys`,
+	}}))
+
+	w := doEnroll(t, r, loginUITestAuthRequestID, "totp", enrollmentGoodCode)
+	require.Equal(t, http.StatusOK, w.Code, w.Body.String())
+	require.Contains(t, w.Body.String(), "callback_url")
+	require.True(t, fake.finalized.Load())
+	require.Equal(t, int32(1), fake.keyVerifies.Load(), "the READY key must not be verified again")
+	recorded, err := h.keys.Contains(context.Background(), "user-enrol", []string{securityKeyFakeID})
+	require.NoError(t, err)
+	require.True(t, recorded, "the READY key must now be in the registry")
+}
+
+// An unreadable Zitadel on the recovery read fails closed before the code is
+// checked: no TOTP verify, and no guess spent.
+func TestEnrollTOTPReadyKeyReadFailureIs503(t *testing.T) {
+	h, r, fake, _ := startSecurityKeyEnrolment(t)
+	fake.authFactorsDown.Store(true)
+
+	w := doEnroll(t, r, loginUITestAuthRequestID, "totp", enrollmentGoodCode)
+	require.Equal(t, http.StatusServiceUnavailable, w.Code, w.Body.String())
+	require.Equal(t, int32(0), fake.totpVerifies.Load(), "the code must not be checked")
+	require.False(t, fake.finalized.Load())
+	attempt, err := h.store.Get(context.Background(), loginUITestAuthRequestID, stageFactor)
+	require.NoError(t, err)
+	require.Zero(t, attempt.FactorAttempts, "a 503 must not spend a guess")
+}
+
+// A key that was offered but never verified is not READY: the TOTP enrolment
+// completes as before and nothing is written to the registry.
+func TestEnrollTOTPWithUnverifiedKeyLeavesRegistryAlone(t *testing.T) {
+	h, r, fake, _ := startSecurityKeyEnrolment(t)
+
+	w := doEnroll(t, r, loginUITestAuthRequestID, "totp", enrollmentGoodCode)
+	require.Equal(t, http.StatusOK, w.Code, w.Body.String())
+	require.Contains(t, w.Body.String(), "callback_url")
+	require.True(t, fake.finalized.Load())
+	require.Equal(t, int32(1), fake.totpVerifies.Load())
+	require.Equal(t, int32(0), fake.keyVerifies.Load())
+	require.Equal(t, int64(0), countSecurityKeys(t, h))
+}

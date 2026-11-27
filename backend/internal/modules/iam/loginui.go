@@ -1190,6 +1190,24 @@ func (h *LoginUIHandlers) Enroll(c *gin.Context) {
 		h.bumpFactorAttempt(c, req.AuthRequestID, errAttemptInOtherFlow, start)
 		return
 	}
+	if attempt.SecurityKeyID != "" && attempt.SecurityKeyID != securityKeySignIn && h.webauthnRPID != "" {
+		// #1898: a key /enroll verified before its registry write failed is
+		// READY in Zitadel but unrecorded, which CompleteAfterFactor refuses
+		// as an uncollectible factor even after a correct code, and every
+		// later sign-in with it. Record it first, without the browser's
+		// credential: this attempt's own password-checked session registered
+		// that id, and READY means Zitadel verified it. An unreadable
+		// Zitadel is 503 before the code is checked, so no guess is spent;
+		// a key never verified is not READY and the TOTP enrolment goes on.
+		subject, err := h.client.SessionUserID(c.Request.Context(), attempt.SessionID)
+		if err != nil {
+			h.respondLoginClientError(c, err, "security_key_subject")
+			return
+		}
+		if _, ok := h.recordVerifiedSecurityKey(c, subject, attempt); !ok {
+			return
+		}
+	}
 
 	if err := h.client.VerifyTOTPEnrollment(c.Request.Context(), attempt.SessionID, req.Code); err != nil {
 		if loginclient.IsCredentialRefusal(err) {

@@ -1375,6 +1375,10 @@ type zitadelEnrollmentFake struct {
 	keyCheckToken atomic.Value
 	sessionKey    atomic.Bool
 	keyCheckDown  atomic.Bool
+	// totpVerifies counts POST /v2/users/{id}/totp/verify calls, and
+	// authFactorsDown makes the READY-key read answer 503 (#1898).
+	totpVerifies    atomic.Int32
+	authFactorsDown atomic.Bool
 }
 
 func newZitadelEnrollmentFake(t *testing.T) *zitadelEnrollmentFake {
@@ -1415,6 +1419,7 @@ func newZitadelEnrollmentFake(t *testing.T) *zitadelEnrollmentFake {
 		_, _ = w.Write([]byte(`{"details":{"sequence":"4"},"uri":"` + enrollmentFakeURI + `","secret":"` + enrollmentFakeSecret + `"}`))
 	})
 	mux.HandleFunc("POST /v2/users/{id}/totp/verify", func(w http.ResponseWriter, r *http.Request) {
+		f.totpVerifies.Add(1)
 		var body struct {
 			Code string `json:"code"`
 		}
@@ -1450,6 +1455,10 @@ func newZitadelEnrollmentFake(t *testing.T) *zitadelEnrollmentFake {
 	mux.HandleFunc("POST /management/v1/users/{id}/auth_factors/_search", func(w http.ResponseWriter, r *http.Request) {
 		if r.PathValue("id") != "user-enrol" || r.Header.Get("x-zitadel-orgid") != "org-1" {
 			t.Errorf("auth factors read for %q in org %q, want the session's user and org", r.PathValue("id"), r.Header.Get("x-zitadel-orgid"))
+		}
+		if f.authFactorsDown.Load() {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
 		}
 		state := "AUTH_FACTOR_STATE_NOT_READY"
 		if f.keyReady.Load() {

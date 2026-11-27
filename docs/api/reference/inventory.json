@@ -6752,6 +6752,33 @@
           "counted": false
         },
         {
+          "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/ward-indents/:id/closure",
+          "permission": "pharmacy.indent.fulfil",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/ward-indents/:id",
+          "permission": "pharmacy.indent.fulfil",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/ward-indents",
+          "permission": "pharmacy.indent.fulfil",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
           "method": "GET",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet",
           "permission": "pharmacy.catalogue.read",
@@ -7082,6 +7109,12 @@
         },
         {
           "permission": "pharmacy.sale.create",
+          "roles": [
+            "pharmacist"
+          ]
+        },
+        {
+          "permission": "pharmacy.indent.fulfil",
           "roles": [
             "pharmacist"
           ]

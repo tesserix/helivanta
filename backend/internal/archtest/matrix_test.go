@@ -434,6 +434,7 @@ var approvedPermissionMatrix = map[authz.Permission][]authz.Role{
 	// Ward indents likewise need a department-scoped assignment and current Staff.
 	pharmacy.PermIndentRead:         {authz.RoleTenantAdmin},
 	pharmacy.PermIndentRaise:        {authz.RoleTenantAdmin},
+	pharmacy.PermIndentFulfil:       {authz.RolePharmacist, authz.RoleTenantAdmin},
 	pharmacy.PermPrescriptionRecord: {authz.RolePharmacist, authz.RoleTenantAdmin},
 	pharmacy.PermPrescriptionRead:   {authz.RolePharmacist, authz.RoleTenantAdmin},
 	pharmacy.PermSaleDiscount:       {authz.RoleTenantAdmin},

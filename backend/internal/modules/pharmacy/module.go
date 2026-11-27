@@ -208,6 +208,7 @@ const (
 	PermStocktakeReview authz.Permission = "pharmacy.stocktake.review"
 	PermIndentRead      authz.Permission = "pharmacy.indent.read"
 	PermIndentRaise     authz.Permission = "pharmacy.indent.raise"
+	PermIndentFulfil    authz.Permission = "pharmacy.indent.fulfil"
 	PermStockQuarantine authz.Permission = "pharmacy.stock.quarantine"
 	PermCatalogueRead   authz.Permission = "pharmacy.catalogue.read"
 	PermCatalogueWrite  authz.Permission = "pharmacy.catalogue.write"
@@ -320,6 +321,7 @@ func (m *Module) Permissions() []authz.Grant {
 		{Permission: PermServiceChargeReview, Roles: []authz.Role{authz.RolePharmacyOwner}},
 		{Permission: PermStockRelease, Roles: []authz.Role{authz.RolePharmacist}},
 		{Permission: PermSaleCreate, Roles: []authz.Role{authz.RolePharmacist}},
+		{Permission: PermIndentFulfil, Roles: []authz.Role{authz.RolePharmacist}},
 		{Permission: PermSaleRead, Roles: []authz.Role{authz.RolePharmacist, authz.RolePharmacyOwner}},
 		{Permission: PermPrescriptionRecord, Roles: []authz.Role{authz.RolePharmacist}},
 		{Permission: PermPrescriptionRead, Roles: []authz.Role{authz.RolePharmacist}},

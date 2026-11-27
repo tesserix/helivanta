@@ -863,6 +863,9 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/verification-policy-drafts/:policy/revisions/:revision` | `pharmacy.access.manage` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/verification-policy-drafts/:policy/revisions` | `pharmacy.access.manage` | true | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/verification-policy-drafts` | `pharmacy.access.manage` | true | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/ward-indents/:id/closure` | `pharmacy.indent.fulfil` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/ward-indents/:id` | `pharmacy.indent.fulfil` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/ward-indents` | `pharmacy.indent.fulfil` | true | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet` | `pharmacy.catalogue.read` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet` | `pharmacy.access.manage` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets` | `pharmacy.catalogue.read` | true | false |

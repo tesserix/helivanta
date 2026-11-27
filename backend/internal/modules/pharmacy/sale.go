@@ -127,6 +127,8 @@ type saleInput struct {
 	Patient       *salePatient      `json:"patient"`
 	// Admission bills the sale to the admission occupying a bed (#1387).
 	Admission *saleAdmission `json:"admission"`
+	// WardIndentID makes the sale the issue of a ward indent: the sale lines are the indent's products.
+	WardIndentID *uuid.UUID `json:"ward_indent_id"`
 	// Encounter is the registered patient's OPD visit the sale serves.
 	Encounter *saleEncounter `json:"encounter"`
 	// Required exactly when a line is discounted (B-3 decision 2).
@@ -193,6 +195,9 @@ func (in saleInput) digest() string {
 	}
 	if in.Admission != nil {
 		parts = append(parts, "a", in.Admission.OccupancyID.String())
+	}
+	if in.WardIndentID != nil {
+		parts = append(parts, "w", in.WardIndentID.String())
 	}
 	if in.Encounter != nil {
 		parts = append(parts, "e", in.Encounter.EncounterID.String())
@@ -407,6 +412,7 @@ func saleRoutes(s *platform.Router, h *catalogueHandlers) {
 	s.GET("/sales/:id", PermSaleRead, h.getSale)
 	platform.ListRoute(s, "/sales", PermSaleRead, h.listSales)
 	discountRoutes(s, h)
+	wardIndentPharmacyRoutes(s, h)
 }
 
 func (h *catalogueHandlers) putInvoiceProfile(c *gin.Context) {
@@ -1023,6 +1029,10 @@ func (h *catalogueHandlers) putSale(c *gin.Context) {
 		respond.Error(c, http.StatusBadRequest, "invalid_request", "a sale billed to an admission is paid by the admission account alone")
 		return
 	}
+	if in.WardIndentID != nil && (in.Admission == nil || len(in.Charges) > 0 || discounted(in.Lines)) {
+		respond.Error(c, http.StatusBadRequest, "invalid_request", "a ward indent issue is billed to its admission, with no service charge or discount")
+		return
+	}
 	if !mayDiscount(c, in.Lines) {
 		return
 	}
@@ -1167,6 +1177,11 @@ func (h *catalogueHandlers) putSale(c *gin.Context) {
 				return err
 			}
 		}
+		if in.WardIndentID != nil {
+			if err := issueWardIndent(tx, p, outlet, id, *in.WardIndentID, lines); err != nil {
+				return err
+			}
+		}
 		posted := pharmacycontract.SalePostedData{PharmacyID: currentPharmacy(c.Request.Context()).String(), OutletID: outlet.String(), SaleID: id.String(),
 			InvoiceNumber: invoice, Currency: seller.currency, TotalMinor: total}
 		for _, l := range lines {
@@ -1207,6 +1222,7 @@ func (h *catalogueHandlers) putSale(c *gin.Context) {
 		respond.Error(c, http.StatusConflict, "not_sellable", "this UPI payment is already on another sale")
 	case violated(err, "pharmacy_sale_admission_open"), errors.Is(err, errStayEnded):
 		respond.Error(c, http.StatusConflict, "not_sellable", "the patient is no longer in that bed; find the bed again")
+	case wardIndentIssueRefused(c, err):
 	case violated(err, "pharmacy_sale_admission_tendered"):
 		respond.Error(c, http.StatusConflict, "not_sellable", "a sale billed to an admission is paid by the admission account alone")
 	case violated(err, "pharmacy_sale_encounter_unknown"):

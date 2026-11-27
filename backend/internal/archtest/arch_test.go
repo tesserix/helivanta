@@ -655,6 +655,7 @@ var unpaginatedGETAllowlist = map[string]string{
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/invoice-profile":                         "the one invoice profile in force at an outlet",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales/availability":                      "one product's sellable units and nearest expiry",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales/:id":                               "one invoice: at most 200 batch lines and 5 tenders; the sales list is paginated",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/ward-indents/:id":                        "one indent with at most 50 requested lines, not a collection",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales/:id/summary":                       "one sale's statement: its at most 200 lines and 5 charges, tenders by kind, and at most 100 credit notes listed (totals count every note; the credit-notes list is paginated)",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/opd-encounters":                          "a counter lookup bounded to one registered patient's 20 newest citable OPD visits at one hospital",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/category":         "one product's category in force and its 50 newest category declarations",

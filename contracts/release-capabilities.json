@@ -6131,6 +6131,21 @@
     },
     {
       "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/ward-indents",
+      "capability": "pharmacy_ward_indents"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/ward-indents/:id",
+      "capability": "pharmacy_ward_indents"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/ward-indents/:id/closure",
+      "capability": "pharmacy_ward_indents"
+    },
+    {
+      "method": "GET",
       "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/stocktake-outlet-choices",
       "capability": "baseline"
     },

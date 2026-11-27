@@ -6,6 +6,20 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const source = JSON.parse(
   await readFile(path.join(root, "contracts/manual-person-identity.json"), "utf8"),
 );
+if (source.resource_uuid_version !== 7) {
+  throw new Error("Manual identity resources require UUIDv7");
+}
+for (const fields of Object.values(source.models)) {
+  for (const field of fields) {
+    if (
+      field.type === "uuid" &&
+      field.name !== "tenant_id" &&
+      field.uuid_version !== source.resource_uuid_version
+    ) {
+      throw new Error(`Inconsistent identity reference ${field.name}`);
+    }
+  }
+}
 const models = emitModels(source.models);
 for (const [name, fields] of Object.entries(source.models)) {
   const checks = fields.flatMap((field) => {
@@ -35,6 +49,7 @@ for (const [name, fields] of Object.entries(source.models)) {
 const maximum = (model, field) => source.models[model].find((value) => value.name === field).max;
 const rules = `
 const manualIdentitySourceVersion=${source.version}
+const manualIdentityResourceUUIDVersion=${source.resource_uuid_version}
 const manualIdentityRootMinimum=${source.models.ManualIdentitySourceImport.find((field) => field.name === "roots").min}
 const manualIdentityRootMaximum=${maximum("ManualIdentitySourceImport", "roots")}
 const manualIdentityAccountMaximum=${maximum("ManualIdentityRootPerson", "accounts")}

@@ -60,7 +60,7 @@ func validateManualIdentityDecision(in ManualIdentityDecisionInput) error {
 }
 
 func manualIdentityUUID(id uuid.UUID) bool {
-	return id != uuid.Nil && id.Version() == 7 && id.Variant() == uuid.RFC4122
+	return id != uuid.Nil && id.Version() == manualIdentityResourceUUIDVersion && id.Variant() == uuid.RFC4122
 }
 func manualIdentityText(value string, maximum int) bool {
 	return utf8.ValidString(value) && strings.Trim(value, manualIdentityBlankCharacters) != "" && len(utf16.Encode([]rune(value))) <= maximum && !strings.ContainsFunc(value, unicode.IsControl)

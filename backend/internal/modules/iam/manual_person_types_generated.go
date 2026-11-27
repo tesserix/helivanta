@@ -87,6 +87,7 @@ type ManualIdentityCommandReceipt struct {
 }
 
 const manualIdentitySourceVersion = 1
+const manualIdentityResourceUUIDVersion = 7
 const manualIdentityRootMinimum = 2
 const manualIdentityRootMaximum = 10
 const manualIdentityAccountMaximum = 10

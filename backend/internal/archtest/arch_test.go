@@ -802,6 +802,8 @@ var unpaginatedGETAllowlist = map[string]string{
 	"GET /pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes/:stocktake/counts/:command":    "one original Staff/account-bound receipt with at most 100 observations, not a collection",
 	"GET /pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes/:stocktake/decisions/:command": "one original Staff/account-bound decision receipt with scalar totals, not a collection",
 	"GET /pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes/:stocktake/register.csv":       "complete reviewed register export; refuses more than 10000 rows or 8 MiB before disclosure, with audited provenance; JSON lists and lines are cursor-paginated",
+	"GET /pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/ward-indent-occupant":                                          "one bed or room lookup that reads at most 2 stays and refuses an ambiguous room, not a collection",
+	"GET /pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/ward-indents/:indent":                                          "one indent with at most 50 requested lines, not a collection",
 }
 
 // TestEveryCollectionGETIsPaginated is the one hole platform.ListRoute's

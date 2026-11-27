@@ -12,7 +12,8 @@ approval and does not complete dispensing enforcement.
 - [x] Implement account-bound SDK and explicit-quantity UI with stale-result clearing.
 - [x] Add hosted database cases for scope, stale/overfill denial, audit failure and no business effects.
 - [x] Complete local focused builds/lints and final contract/release/source-inventory checks.
-- [ ] Pass focused hosted PostgreSQL and protected checks at the final commit.
+- [x] Pass focused hosted PostgreSQL at `d6ee7978` (run 45933229280).
+- [ ] Pass protected checks on the final commit, including restricted-discovery compatibility.
 - [ ] Integrate qualified-person/policy authority and decision persistence before clinical activation.
 - [ ] Implement and verify mandatory approval enforcement in the real sale/stock/financial transaction.
 
@@ -52,3 +53,19 @@ SDK boundary before a successful production build. The hosted test suite also
 covers source invalidation after partial/final supply, actual scope checks,
 audit-before-disclosure and absence of business effects. Its result must be
 recorded separately from local unit/compilation evidence.
+
+## Hosted and regression evidence
+
+[Run 45933229280](https://github.com/tesserix/helivanta/actions/runs/45933229280)
+passed actual proposed-fill scope/audit/no-business-effect checks and invalidation
+after partial/final supply. A component regression then reproduced retained
+clinical mutation-cache data after closing the review; `gcTime: 0` disposes of it
+and the regression passes.
+
+Broader supplier CI correctly rejected the new draft table because its restrictive
+operating-location/hospital-stocktake purpose policies were missing. The unmerged
+migration now checks existing guard seals before DDL, adds all four restrictive
+policies, and captures the extended inventory using the existing purchase-tax
+migration protocol. Existing integrity checks are preserved. A focused database
+regression checks healthy guard seals and zero draft disclosure in either narrow
+discovery purpose. Required hosted confirmation remains pending.

@@ -38,6 +38,7 @@ function ProposedFill({ scope, source }: Props) {
   const [error, setError] = useState("");
   const [changed, setChanged] = useState(tenantTransitionPending);
   const mutation = useMutation({
+    gcTime: 0,
     mutationFn: (input: Parameters<typeof readPrescriptionFulfilmentReview>[2]) =>
       readPrescriptionFulfilmentReview(scope, source.record.id, input),
   });

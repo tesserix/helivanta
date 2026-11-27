@@ -285,3 +285,36 @@ func TestVerificationPolicyDraftWriteRollsBackWhenAuditFails(t *testing.T) {
 	}))
 	require.Equal(t, 201, do(r, "PUT", policyDraftPath(policy, revision), "editor", policyDraftBody(0, "TEST audited retry")).Code)
 }
+
+func TestVerificationPolicyDraftPreservesRestrictedDiscoveryPurposes(t *testing.T) {
+	r, db := catalogueHarness(t)
+	grantCatalogue(t, r, "user-editor", "editor")
+	policy, revision := uuid.Must(uuid.NewV7()).String(), uuid.Must(uuid.NewV7()).String()
+	require.Equal(t, 201, do(r, "PUT", policyDraftPath(policy, revision), "editor", policyDraftBody(0, "TEST private policy")).Code)
+	require.NoError(t, catalogueTx(t, db, func(tx *gorm.DB) error {
+		var healthy bool
+		if err := tx.Raw("SELECT pharmacy_operating_choice_support() AND pharmacy_stocktake_hospital_choice_integrity() AND pharmacy_stocktake_hospital_integrity()").Scan(&healthy).Error; err != nil {
+			return err
+		}
+		require.True(t, healthy)
+		var policies int64
+		if err := tx.Raw(`SELECT count(*) FROM pg_policy WHERE polrelid='pharmacy_verification_policy_drafts'::regclass AND NOT polpermissive AND polname IN ('operating_choice_purpose','operating_choice_delete','hospital_stocktake_choice_purpose','hospital_stocktake_choice_delete')`).Scan(&policies).Error; err != nil {
+			return err
+		}
+		require.EqualValues(t, 4, policies)
+		return nil
+	}))
+	for _, setting := range []string{"app.pharmacy_operating_choices", "app.pharmacy_stocktake_choices"} {
+		require.NoError(t, catalogueTx(t, db, func(tx *gorm.DB) error {
+			if err := tx.Exec("SELECT set_config(?, '{}', true)", setting).Error; err != nil {
+				return err
+			}
+			var count int64
+			if err := tx.Table("pharmacy_verification_policy_drafts").Count(&count).Error; err != nil {
+				return err
+			}
+			require.Zero(t, count)
+			return nil
+		}))
+	}
+}

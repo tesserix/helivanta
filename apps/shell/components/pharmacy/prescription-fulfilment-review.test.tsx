@@ -99,3 +99,26 @@ it("shows a source-bound proposal then invalidates it when quantities change", a
   await user.type(screen.getByLabelText("Proposed units for Synthetic medicine"), "1");
   expect(screen.queryByText(/Proposed quantities checked/)).not.toBeInTheDocument();
 });
+
+it("discards the clinical projection cache after the review closes", async () => {
+  const client = new QueryClient();
+  const user = userEvent.setup();
+  vi.mocked(readPrescriptionFulfilmentReview).mockResolvedValue({
+    source,
+    lines: [{ line_number: 1, quantity_units: 5, product_id: id }],
+    fulfilment_state_hash: "b".repeat(64),
+    state: "proposed",
+    stock_reservation: "not_reserved",
+    clinical_authority: "not_evaluated",
+  });
+  const mounted = render(
+    <QueryClientProvider client={client}>
+      <PrescriptionFulfilmentReview scope={scope} source={source} />
+    </QueryClientProvider>,
+  );
+  await user.type(screen.getByLabelText("Proposed units for Synthetic medicine"), "5");
+  await user.click(screen.getByRole("button", { name: "Check proposed quantities" }));
+  await screen.findByRole("status");
+  mounted.unmount();
+  await waitFor(() => expect(client.getMutationCache().getAll()).toHaveLength(0));
+});

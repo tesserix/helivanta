@@ -16,7 +16,7 @@ export const ReserveInputContract = z
     reason: z
       .string()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
   .strict();
@@ -30,7 +30,7 @@ export const AllocationPlanContract = z
     order_input_sha256: z
       .string()
       .min(1)
-      .max(64)
+      .max(64, "Use at most 64 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     line_quantity_units: z.number().int().min(1).max(1000000000),
     order_authority_epoch: z.number().int().min(1).max(9007199254740991),
@@ -45,13 +45,13 @@ export const AllocationPlanContract = z
     unit_code: z
       .string()
       .min(1)
-      .max(100)
+      .max(100, "Use at most 100 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     input: ReserveInputContract,
     actor_subject: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     actor_staff_id: identifier,
     created_at: z.string().datetime({ offset: true }),
@@ -67,7 +67,7 @@ export const AllocationContract = z
     lot_number: z
       .string()
       .min(1)
-      .max(100)
+      .max(100, "Use at most 100 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     expires_on: z
       .string()
@@ -80,7 +80,7 @@ export const AllocationContract = z
     product_description: z
       .string()
       .min(1)
-      .max(2000)
+      .max(2000, "Use at most 2000 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     pack_size: z.number().int().min(1).max(1000000000),
     updated_at: z.string().datetime({ offset: true }),
@@ -96,12 +96,12 @@ export const AllocationDecisionInputContract = z
     handoff_reference: z
       .string()
       .min(0)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     reason: z
       .string()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
   .strict();
@@ -115,7 +115,7 @@ export const AllocationCommandReceiptContract = z
     actor_subject: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     actor_staff_id: identifier,
     recorded_at: z.string().datetime({ offset: true }),
@@ -132,7 +132,7 @@ export const ShipmentContract = z
     order_input_sha256: z
       .string()
       .min(1)
-      .max(64)
+      .max(64, "Use at most 64 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     source_tenant_id: identifier,
     source_organization_id: identifier,
@@ -145,13 +145,13 @@ export const ShipmentContract = z
     unit_code: z
       .string()
       .min(1)
-      .max(100)
+      .max(100, "Use at most 100 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     quantity_units: z.number().int().min(1).max(1000000000),
     lot_number: z
       .string()
       .min(1)
-      .max(100)
+      .max(100, "Use at most 100 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     expires_on: z
       .string()
@@ -162,17 +162,17 @@ export const ShipmentContract = z
     handoff_reference: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     actor_subject: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     product_description: z
       .string()
       .min(1)
-      .max(2000)
+      .max(2000, "Use at most 2000 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     pack_size: z.number().int().min(1).max(1000000000),
     dispatched_at: z.string().datetime({ offset: true }),
@@ -193,7 +193,7 @@ export const ReceivingInputContract = z
     observed_lot_number: z
       .string()
       .min(1)
-      .max(100)
+      .max(100, "Use at most 100 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     observed_expires_on: z
       .string()
@@ -204,7 +204,7 @@ export const ReceivingInputContract = z
     reason: z
       .string()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
   .strict();
@@ -227,7 +227,7 @@ export const ReceivingReceiptContract = z
     actor_subject: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     actor_staff_id: identifier,
     created_at: z.string().datetime({ offset: true }),
@@ -242,7 +242,7 @@ export const ReceivingClosureInputContract = z
       .string()
       .trim()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     expected_summary_version: z.number().int().min(1).max(9007199254740991).optional(),
   })
@@ -261,12 +261,12 @@ export const ReceivingClosureContract = z
     reason: z
       .string()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     actor_subject: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     actor_staff_id: identifier,
     created_at: z.string().datetime({ offset: true }),
@@ -299,12 +299,12 @@ export const ReceivingSummaryContract = z
     reason: z
       .string()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     actor_subject: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     recorded_at: z.string().datetime({ offset: true }),
   })
@@ -323,7 +323,7 @@ export const ReceivingCorrectionInputContract = z
       .string()
       .trim()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
   .strict();
@@ -359,7 +359,7 @@ export const ReceivingClearanceInputContract = z
       .string()
       .trim()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
   .strict();
@@ -387,7 +387,7 @@ export const SupplierStockChoiceContract = z
     lot_number: z
       .string()
       .min(1)
-      .max(100)
+      .max(100, "Use at most 100 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     expires_on: z
       .string()
@@ -397,12 +397,12 @@ export const SupplierStockChoiceContract = z
     description: z
       .string()
       .min(1)
-      .max(2000)
+      .max(2000, "Use at most 2000 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     unit_code: z
       .string()
       .min(1)
-      .max(100)
+      .max(100, "Use at most 100 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     pack_size: z.number().int().min(1).max(1000000000),
     available_units: z.number().int().min(0).max(9007199254740991),
@@ -424,12 +424,12 @@ export const SupplierStockLocationChoiceContract = z
     code: z
       .string()
       .min(1)
-      .max(100)
+      .max(100, "Use at most 100 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     name: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     available_units: z.number().int().min(0).max(9007199254740991),
     created_at: z.string().datetime({ offset: true }),
@@ -446,7 +446,7 @@ export const ReceivingResponseInputContract = z
       .string()
       .trim()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
   .strict();
@@ -468,13 +468,13 @@ export const ReceivingResponseRecordContract = z
       .string()
       .trim()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     actor_subject: z
       .string()
       .trim()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     actor_staff_id: identifier,
     created_at: z.string().datetime({ offset: true }),
@@ -493,38 +493,38 @@ export const ReceivingProductChoiceContract = z
     brand_name: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     generic_name: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     manufacturer: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     dosage_form: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     unit_code: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     pack_size: z.number().int().min(1).max(1000000000),
     identity_description: z
       .string()
       .min(1)
-      .max(10000)
+      .max(10000, "Use at most 10000 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     currency: z
       .string()
       .min(3)
-      .max(3)
+      .max(3, "Use at most 3 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     created_at: z.string().datetime({ offset: true }),
   })
@@ -541,12 +541,12 @@ export const ReceivingLocationChoiceContract = z
     code: z
       .string()
       .min(1)
-      .max(40)
+      .max(40, "Use at most 40 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     name: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     stock_status: z.enum(["quarantine", "sellable"]),
     created_at: z.string().datetime({ offset: true }),
@@ -562,7 +562,7 @@ export const ReceivingReleaseInputContract = z
     reason: z
       .string()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
   .strict();
@@ -582,7 +582,7 @@ export const ReceivingReleaseContract = z
     actor_subject: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     actor_staff_id: identifier,
     created_at: z.string().datetime({ offset: true }),
@@ -606,13 +606,13 @@ export const ReceivingSharedResponseContract = z
       .string()
       .trim()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     actor_subject: z
       .string()
       .trim()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     created_at: z.string().datetime({ offset: true }),
   })
@@ -639,7 +639,7 @@ export const ReceivingBatchChoiceContract = z
     lot_number: z
       .string()
       .min(1)
-      .max(100)
+      .max(100, "Use at most 100 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     expires_on: z
       .string()
@@ -665,12 +665,12 @@ export const ReceivingClearanceEvidenceContract = z
     reason: z
       .string()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     actor_subject: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     actor_staff_id: identifier,
     created_at: z.string().datetime({ offset: true }),

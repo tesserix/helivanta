@@ -53,7 +53,12 @@ export function emitModels(models, kindSchema) {
             '.toUpperCase().regex(/^[A-Z0-9_-]{1,40}$/, "Use letters, numbers, underscores or hyphens.")';
         if (f.min !== undefined)
           schema += `.min(${f.min}${f.format === "name" ? ', "Enter a name."' : ""})`;
-        if (f.max !== undefined) schema += `.max(${f.max})`;
+        // A form shows this inline (#1880); zod's default text is not product copy.
+        if (f.max !== undefined)
+          schema +=
+            base === "string"
+              ? `.max(${f.max}, "Use at most ${f.max} characters.")`
+              : `.max(${f.max})`;
         if (base === "string" && f.pattern !== undefined)
           schema += `.regex(new RegExp(${JSON.stringify(f.pattern)}, "u"), "Use a valid identifier.")`;
         if (base === "string" && f.no_ascii_controls)

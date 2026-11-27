@@ -27,7 +27,7 @@ export const EmploymentReviewSubmissionInputContract = z
     identity_hash: z
       .string()
       .min(64)
-      .max(64)
+      .max(64, "Use at most 64 characters.")
       .regex(new RegExp("^[a-f0-9]{64}$", "u"), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     period_id: identifier,
@@ -41,13 +41,13 @@ export const EmploymentReviewSubmissionInputContract = z
       .string()
       .trim()
       .min(1)
-      .max(300)
+      .max(300, "Use at most 300 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     reason: z
       .string()
       .trim()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     terms_examined: z.boolean(),
     known_associations_disclosed: z.boolean(),
@@ -64,7 +64,7 @@ export const EmploymentReviewEvidenceContract = z
     classification_revision_id: z
       .string()
       .min(0)
-      .max(36)
+      .max(36, "Use at most 36 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
   .strict();
@@ -83,7 +83,7 @@ export const EmploymentReviewContract = z
     identity_hash: z
       .string()
       .min(64)
-      .max(64)
+      .max(64, "Use at most 64 characters.")
       .regex(new RegExp("^[a-f0-9]{64}$", "u"), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     period_id: identifier,
@@ -96,13 +96,13 @@ export const EmploymentReviewContract = z
       .string()
       .trim()
       .min(1)
-      .max(300)
+      .max(300, "Use at most 300 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     reason: z
       .string()
       .trim()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     terms_examined: z.boolean(),
     known_associations_disclosed: z.boolean(),
@@ -111,25 +111,25 @@ export const EmploymentReviewContract = z
       .string()
       .trim()
       .min(0)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     proposed_by_subject: z
       .string()
       .trim()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     actor_subject: z
       .string()
       .trim()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     decision_reason: z
       .string()
       .trim()
       .min(0)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     reviewer_terms_examined: z.boolean(),
     independent_person_confirmed: z.boolean(),
@@ -171,7 +171,7 @@ export const EmploymentReviewDecisionInputContract = z
       .string()
       .trim()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     terms_examined: z.boolean(),
     independent_person_confirmed: z.boolean(),
@@ -187,7 +187,7 @@ export const EmploymentReviewActionInputContract = z
       .string()
       .trim()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
   .strict();
@@ -200,7 +200,7 @@ export const EmploymentReviewHospitalScopeContract = z
       .string()
       .trim()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     can_submit: z.boolean(),
     can_review: z.boolean(),
@@ -219,13 +219,13 @@ export const EmploymentReviewSummaryContract = z
       .toUpperCase()
       .regex(/^[A-Z0-9_-]{1,40}$/, "Use letters, numbers, underscores or hyphens.")
       .min(1)
-      .max(40)
+      .max(40, "Use at most 40 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     display_name: z
       .string()
       .trim()
       .min(1)
-      .max(150)
+      .max(150, "Use at most 150 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     status: z.enum(["pending", "approved", "rejected", "withdrawn", "revoked"]),
     version: z.number().int().min(1).max(9007199254740990),
@@ -255,20 +255,20 @@ export const EmploymentPersonFindingOptionContract = z
     identity_hash: z
       .string()
       .min(64)
-      .max(64)
+      .max(64, "Use at most 64 characters.")
       .regex(new RegExp("^[a-f0-9]{64}$", "u"), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     policy_reference: z
       .string()
       .trim()
       .min(1)
-      .max(300)
+      .max(300, "Use at most 300 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     finding_reference: z
       .string()
       .trim()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     valid_until: z.string().datetime({ offset: true }),
     access_intent: z.enum(["digital", "non_digital"]),
@@ -276,7 +276,7 @@ export const EmploymentPersonFindingOptionContract = z
       .string()
       .trim()
       .min(0)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     created_at: z.string().datetime({ offset: true }),
   })
@@ -295,7 +295,7 @@ export const EmploymentActivationInputContract = z
       .string()
       .trim()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     activation_examined: z
       .boolean()
@@ -351,7 +351,7 @@ export const EmploymentGenerationContract = z
     identity_hash: z
       .string()
       .min(64)
-      .max(64)
+      .max(64, "Use at most 64 characters.")
       .regex(new RegExp("^[a-f0-9]{64}$", "u"), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     starts_at: z.string().datetime({ offset: true }),
@@ -361,19 +361,19 @@ export const EmploymentGenerationContract = z
       .string()
       .trim()
       .min(0)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     activated_by_subject: z
       .string()
       .trim()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     reason: z
       .string()
       .trim()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     activated_at: z.string().datetime({ offset: true }),
   })

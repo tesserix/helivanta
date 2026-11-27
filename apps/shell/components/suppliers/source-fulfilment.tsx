@@ -405,6 +405,7 @@ function ReserveLine({
   if (query.isPending) return <p role="status">Loading physical stock choices…</p>;
   const fields = (location?: string, shelfAvailable?: number) => (
     <form
+      noValidate
       className="space-y-3"
       onSubmit={form.handleSubmit((value) => {
         if (!selected || frozen) return;
@@ -652,6 +653,7 @@ function AllocationDecision({
   const prefix = `supplier-allocation-${view.allocation.plan.id}`;
   return (
     <form
+      noValidate
       className="space-y-3 py-3"
       onSubmit={form.handleSubmit((value) => {
         if (frozen) return;
@@ -743,6 +745,7 @@ function SourceOrderReview({
   const decision = form.watch("decision");
   return (
     <form
+      noValidate
       className="space-y-3"
       onSubmit={form.handleSubmit((input) => {
         if (!frozen) onReview({ ...input, expected_version: order.version });

@@ -42,6 +42,7 @@ export function ReceivingClosureForm({
   if (summary?.closed) return null;
   return (
     <form
+      noValidate
       aria-label="Close receiving"
       className="space-y-3"
       onSubmit={(event) => {
@@ -338,6 +339,7 @@ function CorrectionForm({
   useLeaveGuard(form.formState.isDirty, "receipt correction draft", commands.frozen);
   return (
     <form
+      noValidate
       aria-label={`Correct receipt ${receipt.id}`}
       className="space-y-3"
       onSubmit={(event) => {
@@ -448,6 +450,7 @@ function ClearanceForm({
   const sameRecorder = receipt.actor_subject === scope.subject;
   return (
     <form
+      noValidate
       aria-label={`Review receipt ${receipt.id}`}
       className="space-y-3"
       onSubmit={(event) => {
@@ -509,6 +512,7 @@ function ReceiptReleaseForm({
   const sameRecorder = receipt.actor_subject === scope.subject;
   return (
     <form
+      noValidate
       aria-label={`Release receipt ${receipt.id}`}
       className="space-y-3"
       onSubmit={(event) => {

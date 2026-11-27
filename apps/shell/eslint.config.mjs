@@ -28,18 +28,8 @@ export default [
   // A read retry or refresh goes through RequestFailure, QueryState or
   // RefreshButton, so a refusal is never drawn as an outage (#1595).
   hmsReadRetries(["app/**/*.tsx", "components/**/*.tsx"]),
-  // Auth forms validate with zod only, never a native bubble (#1855). Other
-  // zones still carry native attributes, so it widens once those are gone.
-  hmsNoNativeValidation([
-    "app/login/**",
-    "app/signup/**",
-    "app/staff/**",
-    "app/recover-password/**",
-    "app/api/auth/**",
-    "components/password-recovery.tsx",
-    "components/account-discovery.tsx",
-    "components/mfa-code-form.tsx",
-  ]),
+  // Forms validate with zod only, never a native bubble (#1855, #1880).
+  hmsNoNativeValidation(["app/**", "components/**"]),
   // The chrome is rendered once, by the workspace layout (#1091). A page that
   // rendered its own HmsShell would nest a second rail and a second idle
   // tracker, so importing it anywhere else in the app is an error.

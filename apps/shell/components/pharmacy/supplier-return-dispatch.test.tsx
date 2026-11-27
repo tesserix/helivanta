@@ -190,3 +190,16 @@ it("conceals licence choices returned for another outlet", async () => {
   expect(screen.queryByText("TEST FOREIGN LICENCE")).not.toBeInTheDocument();
   expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
 });
+it.each([
+  ["Outward document reference", 101, "Shorten the outward reference to at most 100 characters."],
+  ["Recipient name", 201, "Shorten the recipient to at most 200 characters."],
+  ["Dispatch reason", 501, "Shorten the reason to at most 500 characters."],
+])("refuses an overlong %s inline without sending a dispatch", async (label, length, message) => {
+  const { user } = render();
+  await fill(user);
+  fireEvent.change(screen.getByLabelText(label), { target: { value: "x".repeat(length) } });
+  await user.click(screen.getByRole("button", { name: "Record physical dispatch" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent(message);
+  expect(screen.getByLabelText(label)).toHaveValue("x".repeat(length));
+  expect(commands.dispatch).not.toHaveBeenCalled();
+});

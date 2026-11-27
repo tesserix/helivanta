@@ -9,7 +9,7 @@ export const ManualIdentityRootAccountContract = z
     subject: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .regex(new RegExp("^[A-Za-z0-9_-]+$", "u"), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     expected_membership_epoch: z.number().int().min(1).max(9007199254740990),
@@ -69,7 +69,7 @@ export const ManualIdentitySourceImportContract = z
     display_name: z
       .string()
       .min(1)
-      .max(120)
+      .max(120, "Use at most 120 characters.")
       .regex(new RegExp("^[^\\p{Cc}]+$", "u"), "Use a valid identifier.")
       .refine((value) => !value.includes(String.fromCharCode(0)), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
@@ -83,7 +83,7 @@ export const ManualIdentitySourceImportContract = z
     reason: z
       .string()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .regex(new RegExp("^[^\\p{Cc}]+$", "u"), "Use a valid identifier.")
       .refine((value) => !value.includes(String.fromCharCode(0)), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
@@ -181,7 +181,7 @@ export const ManualIdentityCaseInputContract = z
     reason: z
       .string()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .regex(new RegExp("^[^\\p{Cc}]+$", "u"), "Use a valid identifier.")
       .refine((value) => !value.includes(String.fromCharCode(0)), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
@@ -222,7 +222,7 @@ export const ManualIdentityExaminationInputContract = z
     reason: z
       .string()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .regex(new RegExp("^[^\\p{Cc}]+$", "u"), "Use a valid identifier.")
       .refine((value) => !value.includes(String.fromCharCode(0)), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
@@ -308,7 +308,7 @@ export const ManualIdentityDecisionInputContract = z
     reason: z
       .string()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .regex(new RegExp("^[^\\p{Cc}]+$", "u"), "Use a valid identifier.")
       .refine((value) => !value.includes(String.fromCharCode(0)), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
@@ -338,7 +338,7 @@ export const ManualIdentityCaseContract = z
     subject: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .regex(new RegExp("^[A-Za-z0-9_-]+$", "u"), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     membership_epoch: z.number().int().min(1).max(9007199254740990),

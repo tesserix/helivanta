@@ -81,7 +81,7 @@ export const DispatchCommandInputContract = z
     evidence_reference: z
       .string()
       .min(1)
-      .max(120)
+      .max(120, "Use at most 120 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     receiving_request_id: identifier.optional(),
   })
@@ -94,13 +94,13 @@ export const ReceivingFacilityInputContract = z
     name: z
       .string()
       .min(1)
-      .max(150)
+      .max(150, "Use at most 150 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     enabled: z.boolean(),
     policy_reference: z
       .string()
       .min(1)
-      .max(120)
+      .max(120, "Use at most 120 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     expires_at: z.string().datetime({ offset: true }),
   })
@@ -115,7 +115,7 @@ export const ReceivingAccessInputContract = z
     policy_reference: z
       .string()
       .min(1)
-      .max(120)
+      .max(120, "Use at most 120 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     expires_at: z.string().datetime({ offset: true }),
   })
@@ -129,7 +129,7 @@ export const ReceivingLinkInputContract = z
     policy_reference: z
       .string()
       .min(1)
-      .max(120)
+      .max(120, "Use at most 120 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     valid_until: z.string().datetime({ offset: true }),
   })
@@ -143,7 +143,7 @@ export const ReceivingLinkCommandInputContract = z
     evidence_reference: z
       .string()
       .min(1)
-      .max(120)
+      .max(120, "Use at most 120 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
   .strict();
@@ -158,7 +158,7 @@ export const ReceivingRequestInputContract = z
     evidence_reference: z
       .string()
       .min(1)
-      .max(120)
+      .max(120, "Use at most 120 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
   .strict();
@@ -171,7 +171,7 @@ export const ReceivingCommandInputContract = z
     evidence_reference: z
       .string()
       .min(1)
-      .max(120)
+      .max(120, "Use at most 120 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     valid_until: z.string().datetime({ offset: true }).optional(),
   })

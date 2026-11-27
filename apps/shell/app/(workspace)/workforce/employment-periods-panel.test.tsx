@@ -360,3 +360,101 @@ it("retains an unsaved draft through a temporary source outage and requires a fr
   );
   expect(checks).toBe(3);
 });
+
+it("shows inline errors for overlong terms and sends nothing", async () => {
+  const writes: string[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (init?.method === "PUT") writes.push(String(init.body));
+      return Response.json(
+        new URL(url, "https://example.invalid").pathname.endsWith("/employment-source")
+          ? {
+              hospital_id: scope.hospitalId,
+              staff_id: scope.staffId,
+              staff_version: 1,
+              employment_epoch: 1,
+            }
+          : { data: [], page: { has_more: false, next_cursor: null } },
+      );
+    }),
+  );
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <StaffEmploymentPeriods
+        staffLabel="Synthetic Scoped HR"
+        scope={{ ...scope, hrIntake: true }}
+        onClose={() => {}}
+      />
+    </NavigationGuardProvider>,
+  );
+  await user.click(await screen.findByRole("button", { name: "Prepare employment terms" }));
+  const form = screen.getByRole("form", { name: "Employment terms draft" });
+  await user.click(within(form).getByLabelText("Duration"));
+  await user.click(screen.getByRole("option", { name: "Ongoing" }));
+  await user.type(within(form).getByLabelText("Effective start"), "2026-11-01T09:00");
+  for (const [label, length] of [
+    ["Contracting party", 201],
+    ["Appointment or contract reference", 301],
+    ["Reason", 501],
+  ] as const) {
+    await user.click(within(form).getByLabelText(label));
+    await user.paste("x".repeat(length));
+  }
+  await user.click(within(form).getByRole("button", { name: "Save draft" }));
+  await waitFor(() => expect(within(form).getAllByText(/characters/)).toHaveLength(3));
+  expect(writes).toHaveLength(0);
+});
+
+it("shows an inline error for an overlong withdrawal reason and sends nothing", async () => {
+  const writes: string[] = [];
+  const draft = {
+    id: "019a0000-0000-7000-8000-000000000001",
+    revision_id: "019a0000-0000-7000-8000-000000000002",
+    hospital_id: scope.hospitalId,
+    staff_id: scope.staffId,
+    version: 1,
+    status: "draft",
+    staff_version: 1,
+    employment_epoch: 1,
+    engagement_kind: "employee",
+    duration: "ongoing",
+    starts_at: "2026-11-01T00:00:00Z",
+    contracting_party: "",
+    sponsor_id: "",
+    reason: "Synthetic appointment",
+    evidence_reference: "SYN-WITHDRAW-UI",
+    proposed_by_subject: scope.subject,
+    actor_subject: scope.subject,
+    created_at: "2026-10-29T00:00:00Z",
+    updated_at: "2026-10-29T00:00:00Z",
+  };
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (init?.method === "POST") writes.push(String(init.body));
+      if (url.endsWith("employment-source"))
+        return Response.json({
+          hospital_id: scope.hospitalId,
+          staff_id: scope.staffId,
+          staff_version: 1,
+          employment_epoch: 1,
+        });
+      return Response.json({ data: [draft], page: { has_more: false, next_cursor: null } });
+    }),
+  );
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <StaffEmploymentPeriods staffLabel="Synthetic QA" scope={scope} onClose={() => {}} />
+    </NavigationGuardProvider>,
+  );
+  await user.click(await screen.findByRole("button", { name: "Withdraw draft" }));
+  const form = screen.getByRole("form", { name: "Withdraw employment draft" });
+  await user.click(within(form).getByLabelText("Withdrawal reason"));
+  await user.paste("x".repeat(501));
+  await user.click(within(form).getByRole("button", { name: "Confirm withdrawal" }));
+  expect(
+    await within(form).findByText("Enter a withdrawal reason of 1 to 500 characters."),
+  ).toBeInTheDocument();
+  expect(writes).toHaveLength(0);
+});

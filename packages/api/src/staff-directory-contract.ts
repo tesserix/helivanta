@@ -29,7 +29,7 @@ export const hrIntakeScopeContract = z
     name: z
       .string()
       .min(1)
-      .max(150)
+      .max(150, "Use at most 150 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     can_prepare_staff: z.boolean(),
     can_manage_staff_documents: z.boolean(),

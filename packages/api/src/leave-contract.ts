@@ -72,7 +72,7 @@ export const leaveHolidayInputContract = z
       .string()
       .trim()
       .min(1, "Enter a name.")
-      .max(80)
+      .max(80, "Use at most 80 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     category: z.enum(["regular", "government", "optional"]),
   })
@@ -101,18 +101,18 @@ export const leaveConfigInputContract = z
       .toUpperCase()
       .regex(/^[A-Z0-9_-]{1,40}$/, "Use letters, numbers, underscores or hyphens.")
       .min(1)
-      .max(40)
+      .max(40, "Use at most 40 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     name: z
       .string()
       .trim()
       .min(1, "Enter a name.")
-      .max(80)
+      .max(80, "Use at most 80 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     description: z
       .string()
       .trim()
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     active: z.boolean(),
     effective_on: z
@@ -171,18 +171,18 @@ export const leaveConfigContract = z
       .toUpperCase()
       .regex(/^[A-Z0-9_-]{1,40}$/, "Use letters, numbers, underscores or hyphens.")
       .min(1)
-      .max(40)
+      .max(40, "Use at most 40 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     name: z
       .string()
       .trim()
       .min(1, "Enter a name.")
-      .max(80)
+      .max(80, "Use at most 80 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     description: z
       .string()
       .trim()
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     active: z.boolean(),
     effective_on: z
@@ -194,7 +194,7 @@ export const leaveConfigContract = z
     reviewed_by_subject: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     version: z.number().int().min(1),
     created_at: z.string().datetime({ offset: true }),
@@ -234,7 +234,7 @@ export const leaveRoutingPolicyInputContract = z
       .string()
       .trim()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     reviewed: z.boolean(),
   })
@@ -404,7 +404,7 @@ export const leaveCorrectionInputContract = z
       .string()
       .trim()
       .min(10)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
   .strict();
@@ -457,7 +457,7 @@ export const leaveRequestInputContract = z
     reason: z
       .string()
       .trim()
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
   .strict();
@@ -470,7 +470,7 @@ export const leaveDecisionInputContract = z
     note: z
       .string()
       .trim()
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
   .strict();
@@ -482,7 +482,7 @@ export const leaveCancelInputContract = z
     note: z
       .string()
       .trim()
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
   .strict();
@@ -706,7 +706,7 @@ export const leaveReviewScopeContract = z
     name: z
       .string()
       .min(1)
-      .max(150)
+      .max(150, "Use at most 150 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     scope_kind: z.enum(["hospital", "department"]),
     department_ids: z.array(identifier).max(50),

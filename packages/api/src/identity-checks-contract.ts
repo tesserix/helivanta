@@ -13,24 +13,24 @@ export const IdentitySourceContract = z
     employee_code: z
       .string()
       .min(1)
-      .max(40)
+      .max(40, "Use at most 40 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     display_name: z
       .string()
       .min(1)
-      .max(150)
+      .max(150, "Use at most 150 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     given_name: z
       .string()
-      .max(100)
+      .max(100, "Use at most 100 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     family_name: z
       .string()
-      .max(100)
+      .max(100, "Use at most 100 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     date_of_birth: z
       .string()
-      .max(10)
+      .max(10, "Use at most 10 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     employment_status: z.enum(["active", "inactive"]),
     employment_epoch: z.number().int().min(1).max(9007199254740991),
@@ -38,7 +38,7 @@ export const IdentitySourceContract = z
     identity_hash: z
       .string()
       .min(64)
-      .max(64)
+      .max(64, "Use at most 64 characters.")
       .regex(new RegExp("^[a-f0-9]{64}$", "u"), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     manage_checks_allowed: z.boolean().optional(),
@@ -55,13 +55,13 @@ export const IdentityCaseDraftInputContract = z
       .string()
       .trim()
       .min(1)
-      .max(300)
+      .max(300, "Use at most 300 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     check_reference: z
       .string()
       .trim()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     observed_on: z
       .string()
@@ -72,7 +72,7 @@ export const IdentityCaseDraftInputContract = z
     identity_hash: z
       .string()
       .min(64)
-      .max(64)
+      .max(64, "Use at most 64 characters.")
       .regex(new RegExp("^[a-f0-9]{64}$", "u"), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     employment_epoch: z.number().int().min(1).max(9007199254740991),
@@ -93,13 +93,13 @@ export const IdentityCaseContract = z
       .string()
       .trim()
       .min(1)
-      .max(300)
+      .max(300, "Use at most 300 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     check_reference: z
       .string()
       .trim()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     observed_on: z
       .string()
@@ -110,19 +110,19 @@ export const IdentityCaseContract = z
     identity_hash: z
       .string()
       .min(64)
-      .max(64)
+      .max(64, "Use at most 64 characters.")
       .regex(new RegExp("^[a-f0-9]{64}$", "u"), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     employment_epoch: z.number().int().min(1).max(9007199254740991),
     proposed_by_subject: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     actor_subject: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     created_at: z.string().datetime({ offset: true }),
     updated_at: z.string().datetime({ offset: true }),

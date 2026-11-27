@@ -76,7 +76,6 @@ export function CurrencyAmountField({
         ref={inputRef}
         onBlur={onBlur}
         inputMode="decimal"
-        maxLength={20}
         value={value}
         disabled={disabled}
         onChange={(event) => change(event.target.value)}

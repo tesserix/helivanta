@@ -68,18 +68,18 @@ export const rosterConfigContract = z
       .toUpperCase()
       .regex(/^[A-Z0-9_-]{1,40}$/, "Use letters, numbers, underscores or hyphens.")
       .min(1)
-      .max(40)
+      .max(40, "Use at most 40 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     name: z
       .string()
       .trim()
       .min(1, "Enter a name.")
-      .max(80)
+      .max(80, "Use at most 80 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     description: z
       .string()
       .trim()
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     active: z.boolean(),
     effective_on: z
@@ -90,7 +90,7 @@ export const rosterConfigContract = z
     reviewed_by_subject: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     version: z.number().int().min(1),
     created_at: z.string().datetime({ offset: true }),
@@ -128,18 +128,18 @@ export const rosterConfigInputContract = z
       .toUpperCase()
       .regex(/^[A-Z0-9_-]{1,40}$/, "Use letters, numbers, underscores or hyphens.")
       .min(1)
-      .max(40)
+      .max(40, "Use at most 40 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     name: z
       .string()
       .trim()
       .min(1, "Enter a name.")
-      .max(80)
+      .max(80, "Use at most 80 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     description: z
       .string()
       .trim()
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     active: z.boolean(),
     effective_on: z
@@ -160,7 +160,7 @@ export const rosterSettingsContract = z
     timezone: z
       .string()
       .min(1)
-      .max(64)
+      .max(64, "Use at most 64 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     week_start: z.number().int().min(0).max(6),
     auto_population: z.enum(["disabled", "fixed_shift", "all_assigned"]),
@@ -172,7 +172,7 @@ export const rosterSettingsContract = z
     reviewed_by_subject: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     version: z.number().int().min(1),
     created_at: z.string().datetime({ offset: true }),
@@ -187,7 +187,7 @@ export const rosterSettingsInputContract = z
     timezone: z
       .string()
       .min(1)
-      .max(64)
+      .max(64, "Use at most 64 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     week_start: z.number().int().min(0).max(6),
     auto_population: z.enum(["disabled", "fixed_shift", "all_assigned"]),
@@ -227,7 +227,7 @@ export const staffRosterAssignmentContract = z
     reviewed_by_subject: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     version: z.number().int().min(1),
     created_at: z.string().datetime({ offset: true }),
@@ -260,7 +260,7 @@ export const rosterContract = z
       .string()
       .trim()
       .min(1, "Enter a name.")
-      .max(80)
+      .max(80, "Use at most 80 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     start_date: z
       .string()
@@ -277,7 +277,7 @@ export const rosterContract = z
     timezone: z
       .string()
       .min(1)
-      .max(64)
+      .max(64, "Use at most 64 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     week_start: z.number().int().min(0).max(6),
     auto_population: z.enum(["disabled", "fixed_shift", "all_assigned"]),
@@ -285,7 +285,7 @@ export const rosterContract = z
     reviewed_by_subject: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     version: z.number().int().min(1),
     created_at: z.string().datetime({ offset: true }),
@@ -300,7 +300,7 @@ export const rosterInputContract = z
       .string()
       .trim()
       .min(1, "Enter a name.")
-      .max(80)
+      .max(80, "Use at most 80 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     start_date: z
       .string()
@@ -373,7 +373,7 @@ export const rosterChangeInputContract = z
     reason: z
       .string()
       .trim()
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     reviewed: z.boolean(),
   })
@@ -388,7 +388,7 @@ export const rosterPopulateInputContract = z
     reason: z
       .string()
       .trim()
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     reviewed: z.boolean(),
   })
@@ -402,7 +402,7 @@ export const rosterStatusInputContract = z
     reason: z
       .string()
       .trim()
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     reviewed: z.boolean(),
     acknowledged_clashes: z.array(identifier).max(2000).optional(),
@@ -430,12 +430,12 @@ export const rosterRevisionContract = z
     credential_clashes: z.number().int().min(0),
     reason: z
       .string()
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     reviewed_by_subject: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     version: z.number().int().min(1),
     created_at: z.string().datetime({ offset: true }),

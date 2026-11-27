@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { renderWithProviders } from "@helivanta/api/testing";
 import { NavigationGuardProvider } from "@helivanta/ui";
 import { ApiError } from "@helivanta/api";
@@ -304,5 +304,28 @@ it("does not submit when its preparation recovery reference cannot be saved", as
   vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {});
   await user.click(screen.getByRole("button", { name: "Prepare supplier return" }));
   expect(await screen.findByText(/Recovery storage is unavailable/)).toBeVisible();
+  expect(commands.prepare).not.toHaveBeenCalled();
+});
+it("refuses an eleven-digit unit count inline without preparing a return", async () => {
+  const { user } = render();
+  await entry(user);
+  fireEvent.change(screen.getByLabelText("Return units"), { target: { value: "10000000000" } });
+  await user.type(screen.getByLabelText("Expected credit (INR)"), "0");
+  await user.click(screen.getByRole("button", { name: "Add return line" }));
+  expect(await screen.findByText(/whole positive return units/)).toBeVisible();
+  expect(screen.getByLabelText("Return units")).toHaveValue("10000000000");
+  expect(commands.prepare).not.toHaveBeenCalled();
+});
+it("refuses an overlong return reason inline without preparing a return", async () => {
+  const { user } = render();
+  await entry(user);
+  await user.type(screen.getByLabelText("Expected credit (INR)"), "15.00");
+  await user.click(screen.getByRole("button", { name: "Add return line" }));
+  fireEvent.change(screen.getByLabelText("Return reason"), { target: { value: "x".repeat(501) } });
+  await user.click(screen.getByRole("button", { name: "Prepare supplier return" }));
+  expect(
+    await screen.findByText("Shorten the return reason to at most 500 characters."),
+  ).toBeVisible();
+  expect(screen.getByLabelText("Return reason")).toHaveValue("x".repeat(501));
   expect(commands.prepare).not.toHaveBeenCalled();
 });

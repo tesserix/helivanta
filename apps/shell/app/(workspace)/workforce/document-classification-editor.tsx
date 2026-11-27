@@ -201,6 +201,7 @@ function ClassificationForm({
   return (
     <div className="space-y-4">
       <form
+        noValidate
         className="space-y-4"
         onSubmit={form.handleSubmit((input) => {
           const next = { ...input };

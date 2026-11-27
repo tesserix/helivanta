@@ -237,3 +237,17 @@ it("does not load another account's retained Staff recovery request", async () =
   expect(f.reads).toHaveLength(0);
   expect(sessionStorage.length).toBe(1);
 });
+
+it("shows an inline error for an overlong reset reason and sends nothing", async () => {
+  const f = setup();
+  const { user } = f.render();
+  await user.click(await screen.findByRole("button", { name: "Reset authenticator" }));
+  const reason = await screen.findByLabelText("Reason for authenticator reset");
+  await waitFor(() => expect(reason).toBeEnabled());
+  await user.click(reason);
+  await user.paste("x".repeat(501));
+  await user.click(screen.getByLabelText("I verified the Staff member and authorize this reset."));
+  await user.click(screen.getByRole("button", { name: "Confirm authenticator reset" }));
+  expect(await screen.findByText("Use up to 500 characters")).toBeInTheDocument();
+  expect(f.writes).toHaveLength(0);
+});

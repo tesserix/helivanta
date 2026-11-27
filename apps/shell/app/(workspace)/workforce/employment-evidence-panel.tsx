@@ -361,7 +361,7 @@ function EvidenceCommand({
           label="Reason"
           error={form.formState.errors.reason?.message}
         >
-          <Input id={`${fieldId}-reason`} maxLength={500} {...form.register("reason")} />
+          <Input id={`${fieldId}-reason`} {...form.register("reason")} />
         </Field>
       </fieldset>
       {action.kind === "attach" && (

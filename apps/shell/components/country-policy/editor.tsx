@@ -214,7 +214,8 @@ export function CountryPolicyEditor({
                   >
                     <Input
                       id={`source-${index}-url`}
-                      type="url"
+                      type="text"
+                      inputMode="url"
                       {...form.register(`sources.${index}.url`)}
                       placeholder="https://…"
                     />

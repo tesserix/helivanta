@@ -72,7 +72,10 @@ test("canonical clinical-note bounds reach both server and browser", async (t) =
     await readFile(path.join(dir, artifacts[0]), "utf8"),
     /verificationNoteMaxUTF16\s*=\s*1000/,
   );
-  assert.match(await readFile(path.join(dir, artifacts[1]), "utf8"), /\.max\(1000\)/);
+  assert.match(
+    await readFile(path.join(dir, artifacts[1]), "utf8"),
+    /\.max\(1000, "Use at most 1000 characters\."\)/,
+  );
 });
 
 test("an unspecified decision rule cannot silently produce permissive outputs", async (t) => {

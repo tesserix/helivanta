@@ -147,3 +147,14 @@ it("offers reviewer decisions without counter-only cancellation", async () => {
     screen.queryByRole("option", { name: "Submit for independent review" }),
   ).not.toBeInTheDocument();
 });
+
+it("shows an inline error and sends no decision for a reason over 500 characters", async () => {
+  const fetch = vi.fn();
+  vi.stubGlobal("fetch", fetch);
+  const { user } = panel();
+  await user.click(screen.getByRole("textbox", { name: "Decision reason" }));
+  await user.paste("r".repeat(501));
+  await user.click(screen.getByRole("button", { name: "Record decision" }));
+  expect(await screen.findByText("Use at most 500 characters.")).toBeInTheDocument();
+  expect(fetch).not.toHaveBeenCalled();
+});

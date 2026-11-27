@@ -364,12 +364,12 @@ export const ReleaseSnapshotContract = z
     subject: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     policy_version: z
       .string()
       .min(1)
-      .max(128)
+      .max(128, "Use at most 128 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     issued_at: z.string().datetime({ offset: true }),
     expires_at: z.string().datetime({ offset: true }),
@@ -383,7 +383,7 @@ export const PublicReleaseSnapshotContract = z
     policy_version: z
       .string()
       .min(1)
-      .max(128)
+      .max(128, "Use at most 128 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     issued_at: z.string().datetime({ offset: true }),
     expires_at: z.string().datetime({ offset: true }),

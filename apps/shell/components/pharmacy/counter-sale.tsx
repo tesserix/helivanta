@@ -155,7 +155,7 @@ function InvoiceProfileForm({ scope }: { scope: PharmacyScope }) {
             label="Invoice prefix"
             error={form.formState.errors.invoice_prefix?.message}
           >
-            <Input id="profile-prefix" maxLength={4} {...form.register("invoice_prefix")} />
+            <Input id="profile-prefix" {...form.register("invoice_prefix")} />
           </Field>
         </div>
         <Button type="submit" disabled={save.isPending}>
@@ -1000,7 +1000,7 @@ function TenderForm({
                 label="Payment reference"
                 error={form.formState.errors.reference?.message}
               >
-                <Input id="tender-reference" maxLength={64} {...form.register("reference")} />
+                <Input id="tender-reference" {...form.register("reference")} />
               </Field>
             )}
           </div>
@@ -1011,7 +1011,7 @@ function TenderForm({
             label="Reason for the discount"
             error={form.formState.errors.discount_reason?.message}
           >
-            <Input id="discount-reason" maxLength={200} {...form.register("discount_reason")} />
+            <Input id="discount-reason" {...form.register("discount_reason")} />
           </Field>
         )}
         <FormSelectField
@@ -1073,7 +1073,7 @@ function TenderForm({
               label="Buyer name (optional)"
               error={form.formState.errors.buyer_name?.message}
             >
-              <Input id="buyer-name" maxLength={200} {...form.register("buyer_name")} />
+              <Input id="buyer-name" {...form.register("buyer_name")} />
             </Field>
             <Field
               id="buyer-phone"
@@ -1284,7 +1284,7 @@ function DiscountCeilingForm({ scope }: { scope: PharmacyScope }) {
             <Input id="ceiling-percent" inputMode="decimal" {...form.register("percent")} />
           </Field>
           <Field id="ceiling-reason" label="Reason" error={form.formState.errors.reason?.message}>
-            <Input id="ceiling-reason" maxLength={200} {...form.register("reason")} />
+            <Input id="ceiling-reason" {...form.register("reason")} />
           </Field>
         </div>
         <Button type="submit" disabled={save.isPending}>

@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { screen, within } from "@testing-library/react";
+import { fireEvent, screen, within } from "@testing-library/react";
 import { renderWithProviders as renderBase } from "@helivanta/api/testing";
 import { NavigationGuardProvider } from "@helivanta/ui";
 import type { ReactElement } from "react";
@@ -452,4 +452,41 @@ it("opens current match review from human history with writes disabled", async (
   ).toBeInTheDocument();
   expect(review.queryByRole("button", { name: "Reverse full match" })).not.toBeInTheDocument();
   expect(fetcher.mock.calls.some(([url]) => url.includes("eligible-returns"))).toBe(false);
+});
+it("refuses overlong match and excess explanations inline without sending a write", async () => {
+  let writes = 0;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, options?: RequestInit) => {
+      if (options?.method === "PUT") writes++;
+      return new Response(
+        JSON.stringify({
+          data: url.includes("eligible-returns")
+            ? [{ ...returned, expected_credit_minor: 300 }]
+            : [],
+          page: { has_more: false, next_cursor: null },
+        }),
+      );
+    }),
+  );
+  const { user } = render(
+    <SupplierCreditMatching
+      scope={scope}
+      credit={{ ...credit, version: 1, matched_minor: 0 }}
+      canManage
+    />,
+  );
+  await enterMatch(user);
+  await user.click(screen.getByRole("button", { name: "Save return match" }));
+  await screen.findByText("Explain why the total attribution exceeds the expected return value.");
+  fireEvent.change(screen.getByLabelText("Matching reason"), {
+    target: { value: "x".repeat(501) },
+  });
+  fireEvent.change(screen.getByLabelText("Excess attribution explanation"), {
+    target: { value: "x".repeat(501) },
+  });
+  await user.click(screen.getByRole("button", { name: "Save return match" }));
+  expect(await screen.findAllByText("Use at most 500 characters.")).toHaveLength(2);
+  expect(screen.getByLabelText("Matching reason")).toHaveValue("x".repeat(501));
+  expect(writes).toBe(0);
 });

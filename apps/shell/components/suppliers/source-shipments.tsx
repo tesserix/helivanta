@@ -274,6 +274,7 @@ function ResponseForm({
   useLeaveGuard(form.formState.isDirty, "supplier receiving response draft", frozen);
   return (
     <form
+      noValidate
       aria-label={`Respond to ${shipment.handoff_reference}`}
       className="space-y-3"
       onSubmit={form.handleSubmit((value) => {

@@ -388,7 +388,6 @@ function MatchController({ scope, credit, canManage }: Props) {
                     <Input
                       id="supplier-credit-match-reason"
                       {...form.register("reason")}
-                      maxLength={500}
                       disabled={pending}
                     />
                   </Field>
@@ -402,7 +401,6 @@ function MatchController({ scope, credit, canManage }: Props) {
                       {...form.register("overage_reason", {
                         setValueAs: (value: string | null) => value?.trim() || null,
                       })}
-                      maxLength={500}
                       disabled={pending}
                     />
                   </Field>

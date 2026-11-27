@@ -399,7 +399,6 @@ function LevelForm({
       >
         <Input
           id="reorder-minimum"
-          maxLength={10}
           inputMode="numeric"
           {...form.register("minimum")}
           disabled={!enabled || busy || attempt !== null}

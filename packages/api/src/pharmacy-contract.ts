@@ -14,7 +14,12 @@ export const pharmacyPurchaseTaxLineInputSchema = z
     supply_nature: z.enum(["taxable", "nil_rated", "exempt", "outside_gst"]),
     rate_ppm: z.number().int().min(0).max(1000000),
     assessable_minor: z.number().int().min(0).max(1000000000000),
-    source_variance_reason: z.string().trim().min(1).max(500).nullable(),
+    source_variance_reason: z
+      .string()
+      .trim()
+      .min(1)
+      .max(500, "Use at most 500 characters.")
+      .nullable(),
     cgst_minor: z.number().int().min(0).max(1000000000000),
     cgst_recoverable_minor: z.number().int().min(0).max(1000000000000),
     sgst_minor: z.number().int().min(0).max(1000000000000),
@@ -29,10 +34,16 @@ export const pharmacyPurchaseTaxLineInputSchema = z
 export const pharmacyPurchaseTaxInputSchema = z
   .object({
     replaces: identifier.nullable(),
-    supplier_gstin: z.string().trim().toUpperCase().min(15).max(15).nullable(),
-    supplier_state: z.string().min(0).max(2),
-    place_of_supply: z.string().min(0).max(2),
-    reason: z.string().trim().min(1).max(500),
+    supplier_gstin: z
+      .string()
+      .trim()
+      .toUpperCase()
+      .min(15)
+      .max(15, "Use at most 15 characters.")
+      .nullable(),
+    supplier_state: z.string().min(0).max(2, "Use at most 2 characters."),
+    place_of_supply: z.string().min(0).max(2, "Use at most 2 characters."),
+    reason: z.string().trim().min(1).max(500, "Use at most 500 characters."),
     lines: z.array(pharmacyPurchaseTaxLineInputSchema).min(1).max(100),
   })
   .strict();
@@ -42,7 +53,7 @@ export const pharmacyPurchaseTaxReceiptSchema = pharmacyPurchaseTaxInputSchema
     id: identifier,
     outlet_id: identifier,
     payable_id: identifier,
-    recorded_by: z.string().min(1).max(200),
+    recorded_by: z.string().min(1).max(200, "Use at most 200 characters."),
     recorded_at: z
       .string()
       .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
@@ -57,7 +68,7 @@ export const pharmacyPurchaseTaxViewSchema = z
 
 export const pharmacyTallyLedgerMapEntryInputSchema = z
   .object({
-    head: z.string().min(1).max(109),
+    head: z.string().min(1).max(109, "Use at most 109 characters."),
     ledger_name: z
       .string()
       .min(1, "Enter the Tally ledger name.")
@@ -74,7 +85,7 @@ export const pharmacyTallyLedgerMapInputSchema = z
 
 export const pharmacyTallyLedgerMapEntrySchema = pharmacyTallyLedgerMapEntryInputSchema
   .extend({
-    label: z.string().min(1).max(120),
+    label: z.string().min(1).max(120, "Use at most 120 characters."),
   })
   .strict();
 
@@ -84,7 +95,7 @@ export const pharmacyTallyLedgerMapReceiptSchema = z
     outlet_id: identifier,
     replaces: identifier.nullable(),
     entries: z.array(pharmacyTallyLedgerMapEntrySchema).min(1).max(1000),
-    recorded_by: z.string().min(1).max(200),
+    recorded_by: z.string().min(1).max(200, "Use at most 200 characters."),
     recorded_at: z
       .string()
       .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
@@ -93,10 +104,10 @@ export const pharmacyTallyLedgerMapReceiptSchema = z
 
 export const pharmacyTallyExportHeadSchema = z
   .object({
-    head: z.string().min(1).max(109),
-    label: z.string().min(1).max(120),
-    ledger_name: z.string().min(1).max(100).nullable(),
-    supplier_name: z.string().min(1).max(200).nullable(),
+    head: z.string().min(1).max(109, "Use at most 109 characters."),
+    label: z.string().min(1).max(120, "Use at most 120 characters."),
+    ledger_name: z.string().min(1).max(100, "Use at most 100 characters.").nullable(),
+    supplier_name: z.string().min(1).max(200, "Use at most 200 characters.").nullable(),
   })
   .strict();
 
@@ -131,7 +142,7 @@ export const pharmacySupplierCreditAllocationInputSchema = z
       .string()
       .regex(new RegExp("^(?:19[7-9][0-9]|[2-9][0-9]{3})-"), "Use the required format.")
       .date("Use a full valid date."),
-    reason: z.string().trim().min(1).max(500),
+    reason: z.string().trim().min(1).max(500, "Use at most 500 characters."),
     amount_minor: z.number().int().min(1).max(1000000000000),
   })
   .strict();
@@ -146,10 +157,10 @@ export const pharmacySupplierCreditAllocationReceiptSchema =
       payable_version: z.number().int().min(1).max(1000000000000),
       available_minor: z.number().int().min(0).max(1000000000000),
       outstanding_minor: z.number().int().min(0).max(1000000000000),
-      payable_reference: z.string().min(1).max(100),
-      credit_document_reference: z.string().min(1).max(100),
-      payee_name: z.string().min(1).max(200),
-      recorded_by: z.string().min(1).max(200),
+      payable_reference: z.string().min(1).max(100, "Use at most 100 characters."),
+      credit_document_reference: z.string().min(1).max(100, "Use at most 100 characters."),
+      payee_name: z.string().min(1).max(200, "Use at most 200 characters."),
+      recorded_by: z.string().min(1).max(200, "Use at most 200 characters."),
       recorded_at: z
         .string()
         .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
@@ -173,7 +184,7 @@ export const pharmacySupplierCreditAllocationReversalInputSchema = z
       .string()
       .regex(new RegExp("^(?:19[7-9][0-9]|[2-9][0-9]{3})-"), "Use the required format.")
       .date("Use a full valid date."),
-    reason: z.string().trim().min(1).max(500),
+    reason: z.string().trim().min(1).max(500, "Use at most 500 characters."),
   })
   .strict();
 
@@ -187,10 +198,10 @@ export const pharmacySupplierCreditAllocationReversalReceiptSchema =
       payable_version: z.number().int().min(1).max(1000000000000),
       available_minor: z.number().int().min(0).max(1000000000000),
       outstanding_minor: z.number().int().min(0).max(1000000000000),
-      payable_reference: z.string().min(1).max(100),
-      credit_document_reference: z.string().min(1).max(100),
-      payee_name: z.string().min(1).max(200),
-      recorded_by: z.string().min(1).max(200),
+      payable_reference: z.string().min(1).max(100, "Use at most 100 characters."),
+      credit_document_reference: z.string().min(1).max(100, "Use at most 100 characters."),
+      payee_name: z.string().min(1).max(200, "Use at most 200 characters."),
+      recorded_by: z.string().min(1).max(200, "Use at most 200 characters."),
       recorded_at: z
         .string()
         .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
@@ -204,8 +215,8 @@ export const pharmacySupplierCreditPayableFieldsSchema = z
   .object({
     id: identifier,
     outlet_id: identifier,
-    document_reference: z.string().min(1).max(100),
-    payee_name: z.string().min(1).max(200),
+    document_reference: z.string().min(1).max(100, "Use at most 100 characters."),
+    payee_name: z.string().min(1).max(200, "Use at most 200 characters."),
     currency: z.enum(["INR"]),
     issued_on: z.string().date("Use a full valid date."),
     due_on: z.string().date("Use a full valid date."),
@@ -233,8 +244,8 @@ export const pharmacySupplierCreditReturnChoiceSchema = z
     id: identifier,
     outlet_id: identifier,
     number: z.number().int().min(1).max(1000000000000),
-    original_bill_reference: z.string().min(1).max(100),
-    payee_name: z.string().min(1).max(200),
+    original_bill_reference: z.string().min(1).max(100, "Use at most 100 characters."),
+    payee_name: z.string().min(1).max(200, "Use at most 200 characters."),
     currency: z.enum(["INR"]),
     expected_credit_minor: z.number().int().min(0).max(1000000000000),
     matched_minor: z.number().int().min(0).max(1000000000000),
@@ -247,8 +258,14 @@ export const pharmacySupplierCreditMatchInputSchema = z
     expected_version: z.number().int().min(1).max(999999999999),
     expected_return_matched_minor: z.number().int().min(0).max(1000000000000),
     amount_minor: z.number().int().min(1).max(1000000000000),
-    reason: z.string().trim().min(1).max(500),
-    overage_reason: z.string().trim().min(1).max(500).nullable().optional(),
+    reason: z.string().trim().min(1).max(500, "Use at most 500 characters."),
+    overage_reason: z
+      .string()
+      .trim()
+      .min(1)
+      .max(500, "Use at most 500 characters.")
+      .nullable()
+      .optional(),
   })
   .strict();
 
@@ -258,7 +275,7 @@ export const pharmacySupplierCreditMatchReceiptSchema = pharmacySupplierCreditMa
     outlet_id: identifier,
     credit_id: identifier,
     version: z.number().int().min(1).max(1000000000000),
-    recorded_by: z.string().min(1).max(200),
+    recorded_by: z.string().min(1).max(200, "Use at most 200 characters."),
     recorded_at: z
       .string()
       .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
@@ -278,7 +295,7 @@ export const pharmacySupplierCreditMatchReversalInputSchema = z
   .object({
     expected_version: z.number().int().min(1).max(999999999999),
     expected_return_matched_minor: z.number().int().min(0).max(1000000000000),
-    reason: z.string().trim().min(1).max(500),
+    reason: z.string().trim().min(1).max(500, "Use at most 500 characters."),
   })
   .strict();
 
@@ -289,7 +306,7 @@ export const pharmacySupplierCreditMatchReversalReceiptSchema =
       outlet_id: identifier,
       credit_id: identifier,
       version: z.number().int().min(1).max(1000000000000),
-      recorded_by: z.string().min(1).max(200),
+      recorded_by: z.string().min(1).max(200, "Use at most 200 characters."),
       recorded_at: z
         .string()
         .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
@@ -304,14 +321,19 @@ export const pharmacySupplierCreditMatchReversalReceiptSchema =
 export const pharmacySupplierCreditDocumentInputSchema = z
   .object({
     return_id: identifier,
-    document_reference: z.string().trim().toUpperCase().min(1).max(100),
+    document_reference: z
+      .string()
+      .trim()
+      .toUpperCase()
+      .min(1)
+      .max(100, "Use at most 100 characters."),
     issued_on: z
       .string()
       .regex(new RegExp("^(?:19[7-9][0-9]|[2-9][0-9]{3})-"), "Use the required format.")
       .date("Use a full valid date."),
     amount_minor: z.number().int().min(1).max(1000000000000),
     currency: z.enum(["INR"]),
-    reason: z.string().trim().min(1).max(500),
+    reason: z.string().trim().min(1).max(500, "Use at most 500 characters."),
     correction_of: identifier.nullable().optional(),
   })
   .strict();
@@ -321,10 +343,10 @@ export const pharmacySupplierCreditDocumentReceiptSchema = pharmacySupplierCredi
     id: identifier,
     outlet_id: identifier,
     return_number: z.number().int().min(1).max(1000000000000),
-    payee_reference: z.string().min(1).max(100),
-    payee_name: z.string().min(1).max(200),
-    original_bill_reference: z.string().min(1).max(100),
-    recorded_by: z.string().min(1).max(200),
+    payee_reference: z.string().min(1).max(100, "Use at most 100 characters."),
+    payee_name: z.string().min(1).max(200, "Use at most 200 characters."),
+    original_bill_reference: z.string().min(1).max(100, "Use at most 100 characters."),
+    recorded_by: z.string().min(1).max(200, "Use at most 200 characters."),
     recorded_at: z
       .string()
       .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
@@ -347,14 +369,14 @@ export const pharmacySupplierCreditContextSchema = pharmacySupplierCreditDocumen
     as_of: z
       .string()
       .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
-    timezone: z.string().min(1).max(100),
+    timezone: z.string().min(1).max(100, "Use at most 100 characters."),
   })
   .strict();
 
 export const pharmacySupplierCreditVoidInputSchema = z
   .object({
     expected_version: z.number().int().min(1).max(1000000000000),
-    reason: z.string().trim().min(1).max(500),
+    reason: z.string().trim().min(1).max(500, "Use at most 500 characters."),
   })
   .strict();
 
@@ -364,7 +386,7 @@ export const pharmacySupplierCreditVoidReceiptSchema = pharmacySupplierCreditVoi
     outlet_id: identifier,
     credit_id: identifier,
     version: z.number().int().min(1).max(1000000000000),
-    recorded_by: z.string().min(1).max(200),
+    recorded_by: z.string().min(1).max(200, "Use at most 200 characters."),
     recorded_at: z
       .string()
       .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
@@ -375,8 +397,8 @@ export const pharmacySupplierReturnOriginalBillSchema = z
   .object({
     id: identifier,
     outlet_id: identifier,
-    payee_name: z.string().min(1).max(200),
-    document_reference: z.string().min(1).max(100),
+    payee_name: z.string().min(1).max(200, "Use at most 200 characters."),
+    document_reference: z.string().min(1).max(100, "Use at most 100 characters."),
     issued_on: z.string().date("Use a full valid date."),
     currency: z.string().regex(new RegExp("^[A-Z]{3}$"), "Use the required format."),
   })
@@ -388,13 +410,13 @@ export const pharmacySupplierReturnPreparationSourceSchema = z
     batch_id: identifier,
     product_id: identifier,
     product_version: z.number().int().min(1),
-    product_name: z.string().min(1).max(200),
-    generic_name: z.string().min(1).max(200),
-    unit_code: z.string().min(1).max(40),
-    lot_number: z.string().min(1).max(100),
+    product_name: z.string().min(1).max(200, "Use at most 200 characters."),
+    generic_name: z.string().min(1).max(200, "Use at most 200 characters."),
+    unit_code: z.string().min(1).max(40, "Use at most 40 characters."),
+    lot_number: z.string().min(1).max(100, "Use at most 100 characters."),
     expires_on: z.string().regex(new RegExp("^\\d{4}-\\d{2}-\\d{2}$"), "Use the required format."),
     receipt_units: z.number().int().min(1).max(1000000000),
-    source_reference: z.string().min(1).max(100),
+    source_reference: z.string().min(1).max(100, "Use at most 100 characters."),
     source_created_at: z
       .string()
       .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
@@ -407,9 +429,9 @@ export const pharmacySupplierReturnPreparationSchema = z
   .object({
     outlet_id: identifier,
     payable_id: identifier,
-    payee_reference: z.string().min(1).max(100),
-    payee_name: z.string().min(1).max(200),
-    document_reference: z.string().min(1).max(100),
+    payee_reference: z.string().min(1).max(100, "Use at most 100 characters."),
+    payee_name: z.string().min(1).max(200, "Use at most 200 characters."),
+    document_reference: z.string().min(1).max(100, "Use at most 100 characters."),
     currency: z.string().regex(new RegExp("^[A-Z]{3}$"), "Use the required format."),
     stock_as_of: z
       .string()
@@ -422,13 +444,13 @@ export const pharmacySupplierReturnDispatchInputSchema = z
   .object({
     expected_version: z.number().int().min(0).max(0),
     licence_id: identifier,
-    document_reference: z.string().trim().min(1).max(100),
-    recipient_name: z.string().trim().min(1).max(200),
+    document_reference: z.string().trim().min(1).max(100, "Use at most 100 characters."),
+    recipient_name: z.string().trim().min(1).max(200, "Use at most 200 characters."),
     handed_over_at: z
       .string()
       .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
     physical_disposition: z.enum(["handed_to_supplier"]),
-    reason: z.string().trim().min(1).max(500),
+    reason: z.string().trim().min(1).max(500, "Use at most 500 characters."),
   })
   .strict();
 
@@ -455,7 +477,7 @@ export const pharmacySupplierReturnDispatchReceiptSchema = pharmacySupplierRetur
         "Choose a valid hospital reference.",
       ),
     lines: z.array(pharmacySupplierReturnDispatchLineSchema).min(1).max(100),
-    dispatched_by: z.string().min(1).max(200),
+    dispatched_by: z.string().min(1).max(200, "Use at most 200 characters."),
     recorded_at: z
       .string()
       .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
@@ -475,7 +497,7 @@ export const pharmacySupplierReturnDraftInputSchema = z
   .object({
     payable_id: identifier,
     lines: z.array(pharmacySupplierReturnDraftLineInputSchema).min(1).max(100),
-    reason: z.string().trim().min(1).max(500),
+    reason: z.string().trim().min(1).max(500, "Use at most 500 characters."),
   })
   .strict();
 
@@ -485,13 +507,13 @@ export const pharmacySupplierReturnLineSchema = pharmacySupplierReturnDraftLineI
     batch_id: identifier,
     product_id: identifier,
     product_version: z.number().int().min(1),
-    product_name: z.string().min(1).max(200),
-    generic_name: z.string().min(1).max(200),
-    unit_code: z.string().min(1).max(40),
-    lot_number: z.string().min(1).max(100),
+    product_name: z.string().min(1).max(200, "Use at most 200 characters."),
+    generic_name: z.string().min(1).max(200, "Use at most 200 characters."),
+    unit_code: z.string().min(1).max(40, "Use at most 40 characters."),
+    lot_number: z.string().min(1).max(100, "Use at most 100 characters."),
     expires_on: z.string().regex(new RegExp("^\\d{4}-\\d{2}-\\d{2}$"), "Use the required format."),
     receipt_units: z.number().int().min(1).max(1000000000),
-    source_reference: z.string().min(1).max(100),
+    source_reference: z.string().min(1).max(100, "Use at most 100 characters."),
     source_created_at: z
       .string()
       .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
@@ -504,14 +526,14 @@ export const pharmacySupplierReturnCreationReceiptSchema = z
     outlet_id: identifier,
     number: z.number().int().min(1).max(1000000000000),
     payable_id: identifier,
-    payee_reference: z.string().min(1).max(100),
-    payee_name: z.string().min(1).max(200),
-    document_reference: z.string().min(1).max(100),
+    payee_reference: z.string().min(1).max(100, "Use at most 100 characters."),
+    payee_name: z.string().min(1).max(200, "Use at most 200 characters."),
+    document_reference: z.string().min(1).max(100, "Use at most 100 characters."),
     currency: z.string().regex(new RegExp("^[A-Z]{3}$"), "Use the required format."),
     expected_credit_minor: z.number().int().min(0).max(1000000000000),
     lines: z.array(pharmacySupplierReturnLineSchema).min(1).max(100),
-    reason: z.string().min(1).max(500),
-    prepared_by: z.string().min(1).max(200),
+    reason: z.string().min(1).max(500, "Use at most 500 characters."),
+    prepared_by: z.string().min(1).max(200, "Use at most 200 characters."),
     prepared_at: z
       .string()
       .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
@@ -530,8 +552,8 @@ export const pharmacySupplierReturnSummarySchema = z
     id: identifier,
     outlet_id: identifier,
     number: z.number().int().min(1).max(1000000000000),
-    payee_name: z.string().min(1).max(200),
-    document_reference: z.string().min(1).max(100),
+    payee_name: z.string().min(1).max(200, "Use at most 200 characters."),
+    document_reference: z.string().min(1).max(100, "Use at most 100 characters."),
     currency: z.string().regex(new RegExp("^[A-Z]{3}$"), "Use the required format."),
     expected_credit_minor: z.number().int().min(0).max(1000000000000),
     prepared_at: z
@@ -546,7 +568,7 @@ export const pharmacySupplierReturnSummarySchema = z
 export const pharmacySupplierReturnCancelInputSchema = z
   .object({
     expected_version: z.number().int().min(0).max(9007199254740991),
-    reason: z.string().trim().min(1).max(500),
+    reason: z.string().trim().min(1).max(500, "Use at most 500 characters."),
   })
   .strict();
 
@@ -558,7 +580,7 @@ export const pharmacySupplierReturnCancellationReceiptSchema =
       return_id: identifier,
       version: z.number().int().min(1).max(1),
       state: z.enum(["cancelled"]),
-      cancelled_by: z.string().min(1).max(200),
+      cancelled_by: z.string().min(1).max(200, "Use at most 200 characters."),
       cancelled_at: z
         .string()
         .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
@@ -571,7 +593,7 @@ export const pharmacyStockHoldInputSchema = z
     from_location_id: identifier,
     quarantine_location_id: identifier,
     quantity_units: z.number().int().min(1).max(1000000000),
-    reason: z.string().trim().min(1).max(500),
+    reason: z.string().trim().min(1).max(500, "Use at most 500 characters."),
     physical_disposition: z.enum(["moved_to_quarantine"]),
   })
   .strict();
@@ -582,7 +604,7 @@ export const pharmacyStockHoldReceiptSchema = pharmacyStockHoldInputSchema
     outlet_id: identifier,
     out_movement_id: identifier,
     in_movement_id: identifier,
-    held_by: z.string().min(1).max(200),
+    held_by: z.string().min(1).max(200, "Use at most 200 characters."),
     held_at: z
       .string()
       .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
@@ -593,7 +615,7 @@ export const pharmacyStocktakeDecisionInputSchema = z
   .object({
     decision: z.enum(["submit", "approve", "reject", "cancel"]),
     expected_version: z.number().int().min(0).max(9007199254740990),
-    reason: z.string().trim().min(1).max(500),
+    reason: z.string().trim().min(1).max(500, "Use at most 500 characters."),
     extra_units_disposition: z
       .enum(["no_extra_units", "moved_to_quarantine"])
       .nullable()
@@ -609,7 +631,7 @@ export const pharmacyStocktakeDecisionReceiptSchema = pharmacyStocktakeDecisionI
     version: z.number().int().min(1).max(9007199254740991),
     state: z.enum(["submitted", "posted", "rejected", "cancelled"]),
     adjustment_count: z.number().int().min(0).max(500),
-    recorded_by: z.string().min(1).max(200),
+    recorded_by: z.string().min(1).max(200, "Use at most 200 characters."),
     recorded_at: z
       .string()
       .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
@@ -627,7 +649,7 @@ export const pharmacyStocktakeCountInputSchema = z
   .object({
     expected_version: z.number().int().min(0).max(9007199254740990),
     counts: z.array(pharmacyStocktakeCountEntrySchema).min(1).max(100),
-    reason: z.string().trim().min(1).max(500),
+    reason: z.string().trim().min(1).max(500, "Use at most 500 characters."),
   })
   .strict();
 
@@ -638,7 +660,7 @@ export const pharmacyStocktakeCountReceiptSchema = pharmacyStocktakeCountInputSc
     outlet_id: identifier,
     version: z.number().int().min(1).max(9007199254740991),
     state: z.enum(["counting"]),
-    recorded_by: z.string().min(1).max(200),
+    recorded_by: z.string().min(1).max(200, "Use at most 200 characters."),
     recorded_at: z
       .string()
       .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
@@ -650,7 +672,7 @@ export const pharmacyStocktakeStartInputSchema = z
     selection: z.enum(["all", "selected"]),
     product_ids: z.array(identifier).min(0).max(100),
     quarantine_location_id: identifier,
-    reason: z.string().trim().min(1).max(500),
+    reason: z.string().trim().min(1).max(500, "Use at most 500 characters."),
   })
   .strict();
 
@@ -662,8 +684,8 @@ export const pharmacyStocktakeSummarySchema = z
     selection: z.enum(["all", "selected"]),
     product_ids: z.array(identifier).min(0).max(100),
     quarantine_location_id: identifier,
-    reason: z.string().min(1).max(500),
-    started_by: z.string().min(1).max(200),
+    reason: z.string().min(1).max(500, "Use at most 500 characters."),
+    started_by: z.string().min(1).max(200, "Use at most 200 characters."),
     started_at: z
       .string()
       .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
@@ -689,15 +711,15 @@ export const pharmacyStocktakeLineSchema = z
     stocktake_id: identifier,
     product_id: identifier,
     product_version: z.number().int().min(1).max(9007199254740991),
-    sku: z.string().min(1).max(40),
-    brand_name: z.string().min(1).max(200),
-    unit_of_issue: z.string().min(1).max(40),
+    sku: z.string().min(1).max(40, "Use at most 40 characters."),
+    brand_name: z.string().min(1).max(200, "Use at most 200 characters."),
+    unit_of_issue: z.string().min(1).max(40, "Use at most 40 characters."),
     batch_id: identifier,
-    lot_number: z.string().min(1).max(100),
+    lot_number: z.string().min(1).max(100, "Use at most 100 characters."),
     expires_on: z.string().date("Use a full valid date."),
     location_id: identifier,
-    location_code: z.string().min(1).max(40),
-    location_name: z.string().min(1).max(200),
+    location_code: z.string().min(1).max(40, "Use at most 40 characters."),
+    location_name: z.string().min(1).max(200, "Use at most 200 characters."),
     stock_status: z.enum(["quarantine", "sellable"]),
     book_units: z.number().int().min(0).max(1000000000000),
     movement_count: z.number().int().min(0).max(9007199254740991),
@@ -705,8 +727,8 @@ export const pharmacyStocktakeLineSchema = z
     ndps_status: z.enum(["unknown", "no", "yes"]),
     schedule_declaration_id: identifier.nullable(),
     counted_units: z.number().int().min(0).max(1000000000000).nullable(),
-    counted_by: z.string().min(1).max(200).nullable(),
-    count_reason: z.string().min(1).max(500).nullable(),
+    counted_by: z.string().min(1).max(200, "Use at most 200 characters.").nullable(),
+    count_reason: z.string().min(1).max(500, "Use at most 500 characters.").nullable(),
     counted_at: z
       .string()
       .datetime({ offset: true, message: "Use a valid date and time with a timezone." })
@@ -741,7 +763,7 @@ export const pharmacyReorderLevelReceiptSchema = pharmacyReorderLevelInputSchema
     outlet_id: identifier,
     product_id: identifier,
     version: z.number().int().min(1).max(9007199254740991),
-    unit_of_issue: z.string().min(1).max(40),
+    unit_of_issue: z.string().min(1).max(40, "Use at most 40 characters."),
     recorded_at: z
       .string()
       .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
@@ -752,16 +774,16 @@ export const pharmacyLowStockProductSchema = z
   .object({
     id: identifier,
     outlet_id: identifier,
-    sku: z.string().min(1).max(40),
-    brand_name: z.string().min(1).max(200),
-    unit_of_issue: z.string().min(1).max(40),
+    sku: z.string().min(1).max(40, "Use at most 40 characters."),
+    brand_name: z.string().min(1).max(200, "Use at most 200 characters."),
+    unit_of_issue: z.string().min(1).max(40, "Use at most 40 characters."),
     minimum_units: z.number().int().min(0).max(1000000000),
     available_units: z.string().regex(new RegExp("^(0|[1-9][0-9]*)$"), "Use the required format."),
     observed_at: z
       .string()
       .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
     local_date: z.string().date("Use a full valid date."),
-    time_zone: z.string().min(1).max(64),
+    time_zone: z.string().min(1).max(64, "Use at most 64 characters."),
   })
   .strict();
 
@@ -769,9 +791,9 @@ export const pharmacyReorderProductSchema = z
   .object({
     id: identifier,
     outlet_id: identifier,
-    sku: z.string().min(1).max(40),
-    brand_name: z.string().min(1).max(200),
-    unit_of_issue: z.string().min(1).max(40),
+    sku: z.string().min(1).max(40, "Use at most 40 characters."),
+    brand_name: z.string().min(1).max(200, "Use at most 200 characters."),
+    unit_of_issue: z.string().min(1).max(40, "Use at most 40 characters."),
     version: z.number().int().min(1).max(9007199254740991),
     status: z.enum(["active", "discontinued", "withdrawn"]),
   })
@@ -785,27 +807,35 @@ export const pharmacyLowStockOverviewSchema = z
       .string()
       .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
     local_date: z.string().date("Use a full valid date."),
-    time_zone: z.string().min(1).max(64),
+    time_zone: z.string().min(1).max(64, "Use at most 64 characters."),
   })
   .strict();
 
 export const pharmacyLicenceFieldsSchema = z
   .object({
     licence_kind: z.enum(["retail", "wholesale"]),
-    form_label: z.string().trim().min(1).max(40),
-    licence_number: z.string().trim().min(1).max(100),
-    issuing_authority: z.string().trim().min(1).max(200),
-    valid_from: z.string().min(10).max(10).date("Use a full valid date."),
-    valid_until: z.string().min(10).max(10).date("Use a full valid date."),
-    pharmacist_name: z.string().trim().min(1).max(200),
-    pharmacist_registration: z.string().trim().min(1).max(100),
+    form_label: z.string().trim().min(1).max(40, "Use at most 40 characters."),
+    licence_number: z.string().trim().min(1).max(100, "Use at most 100 characters."),
+    issuing_authority: z.string().trim().min(1).max(200, "Use at most 200 characters."),
+    valid_from: z
+      .string()
+      .min(10)
+      .max(10, "Use at most 10 characters.")
+      .date("Use a full valid date."),
+    valid_until: z
+      .string()
+      .min(10)
+      .max(10, "Use at most 10 characters.")
+      .date("Use a full valid date."),
+    pharmacist_name: z.string().trim().min(1).max(200, "Use at most 200 characters."),
+    pharmacist_registration: z.string().trim().min(1).max(100, "Use at most 100 characters."),
   })
   .strict();
 
 export const pharmacyLicenceReviewFieldsSchema = z
   .object({
     decision: z.enum(["approved", "rejected"]),
-    reason: z.string().trim().min(1).max(500),
+    reason: z.string().trim().min(1).max(500, "Use at most 500 characters."),
   })
   .strict();
 
@@ -822,34 +852,38 @@ export const pharmacyLicenceRenewalNoticeSchema = z
       "current",
     ]),
     days_remaining: z.number().int().min(-3652058).max(3652058),
-    local_date: z.string().min(10).max(10).date("Use a full valid date."),
-    time_zone: z.string().min(1).max(100),
-    observed_at: z.string().min(20).max(35),
+    local_date: z
+      .string()
+      .min(10)
+      .max(10, "Use at most 10 characters.")
+      .date("Use a full valid date."),
+    time_zone: z.string().min(1).max(100, "Use at most 100 characters."),
+    observed_at: z.string().min(20).max(35, "Use at most 35 characters."),
   })
   .strict();
 
 export const pharmacyLicenceEvidenceFieldsSchema = z
   .object({
-    filename: z.string().min(1).max(180),
+    filename: z.string().min(1).max(180, "Use at most 180 characters."),
     content_type: z.enum(["image/png", "image/jpeg"]),
     size: z.number().int().min(1).max(10485760),
     sha256: z
       .string()
       .min(64)
-      .max(64)
+      .max(64, "Use at most 64 characters.")
       .regex(new RegExp("^[a-f0-9]{64}$"), "Use the required format."),
   })
   .strict();
 
 export const pharmacyIngredientSchema = z
   .object({
-    name: z.string().trim().min(1).max(200),
+    name: z.string().trim().min(1).max(200, "Use at most 200 characters."),
     strength: z
       .string()
       .min(1)
-      .max(24)
+      .max(24, "Use at most 24 characters.")
       .regex(new RegExp("^(0|[1-9][0-9]{0,11})(\\.[0-9]{1,6})?$"), "Use the required format."),
-    unit: z.string().trim().min(1).max(40),
+    unit: z.string().trim().min(1).max(40, "Use at most 40 characters."),
   })
   .strict();
 
@@ -860,17 +894,17 @@ export const pharmacyProductFieldsSchema = z
       .trim()
       .toUpperCase()
       .min(1)
-      .max(40)
+      .max(40, "Use at most 40 characters.")
       .regex(new RegExp("^[A-Z0-9][A-Z0-9._-]{0,39}$"), "Use the required format."),
-    brand_name: z.string().trim().min(1).max(200),
-    generic_name: z.string().trim().min(1).max(200),
-    dosage_form: z.string().trim().min(1).max(80),
-    route: z.string().trim().min(1).max(80),
-    manufacturer: z.string().trim().min(1).max(200),
-    marketing_company: z.string().trim().max(200),
+    brand_name: z.string().trim().min(1).max(200, "Use at most 200 characters."),
+    generic_name: z.string().trim().min(1).max(200, "Use at most 200 characters."),
+    dosage_form: z.string().trim().min(1).max(80, "Use at most 80 characters."),
+    route: z.string().trim().min(1).max(80, "Use at most 80 characters."),
+    manufacturer: z.string().trim().min(1).max(200, "Use at most 200 characters."),
+    marketing_company: z.string().trim().max(200, "Use at most 200 characters."),
     ingredients: z.array(pharmacyIngredientSchema).min(1).max(20),
     pack_size: z.number().int().min(1).max(1000000),
-    unit_of_issue: z.string().trim().min(1).max(40),
+    unit_of_issue: z.string().trim().min(1).max(40, "Use at most 40 characters."),
     currency: z.enum(["INR"]),
     mrp_minor: z.number().int().min(0).max(1000000000000),
     status: z.enum(["active", "discontinued", "withdrawn"]),
@@ -886,7 +920,7 @@ export const pharmacyProductInputSchema = pharmacyProductFieldsSchema
 export const pharmacyBatchInputSchema = z
   .object({
     product_id: identifier,
-    lot_number: z.string().trim().toUpperCase().min(1).max(100),
+    lot_number: z.string().trim().toUpperCase().min(1).max(100, "Use at most 100 characters."),
     expires_on: z.string().date("Use a full valid date."),
     manufactured_on: z.string().date("Use a full valid date.").nullable().optional(),
     mrp_minor: z.number().int().min(1).max(1000000000000),
@@ -905,8 +939,8 @@ export const pharmacyMovementInputSchema = z
       .min(-1000000000)
       .max(1000000000)
       .refine((value) => value !== 0, "Quantity cannot be zero."),
-    reason: z.string().trim().min(1).max(500),
-    source_reference: z.string().trim().min(1).max(100),
+    reason: z.string().trim().min(1).max(500, "Use at most 500 characters."),
+    source_reference: z.string().trim().min(1).max(100, "Use at most 100 characters."),
   })
   .strict();
 
@@ -924,7 +958,7 @@ export const pharmacyStockMovementReceiptSchema = pharmacyMovementInputSchema
     ]),
     id: identifier,
     outlet_id: identifier,
-    actor_subject: z.string().min(1).max(200),
+    actor_subject: z.string().min(1).max(200, "Use at most 200 characters."),
     created_at: z
       .string()
       .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
@@ -963,9 +997,9 @@ export const pharmacyLocationInputSchema = z
       .trim()
       .toUpperCase()
       .min(1)
-      .max(40)
+      .max(40, "Use at most 40 characters.")
       .regex(new RegExp("^[A-Z0-9][A-Z0-9._-]{0,39}$"), "Use the required format."),
-    name: z.string().trim().min(1).max(200),
+    name: z.string().trim().min(1).max(200, "Use at most 200 characters."),
     storage_address: pharmacyStorageAddressSchema.nullable().optional(),
     stock_status: z.enum(["quarantine", "sellable"]).nullable().optional(),
   })
@@ -978,9 +1012,9 @@ export const pharmacyOrganizationInputSchema = z
       .trim()
       .toUpperCase()
       .min(1)
-      .max(40)
+      .max(40, "Use at most 40 characters.")
       .regex(new RegExp("^[A-Z0-9][A-Z0-9._-]{0,39}$"), "Use the required format."),
-    name: z.string().trim().min(1).max(200),
+    name: z.string().trim().min(1).max(200, "Use at most 200 characters."),
     ownership_type: z.enum(["independent", "chain", "hospital_owned"]),
   })
   .strict();
@@ -992,11 +1026,11 @@ export const pharmacyOutletInputSchema = z
       .trim()
       .toUpperCase()
       .min(1)
-      .max(40)
+      .max(40, "Use at most 40 characters.")
       .regex(new RegExp("^[A-Z0-9][A-Z0-9._-]{0,39}$"), "Use the required format."),
-    name: z.string().trim().min(1).max(200),
+    name: z.string().trim().min(1).max(200, "Use at most 200 characters."),
     country_code: z.enum(["IN"]),
-    timezone: z.string().min(1).max(64),
+    timezone: z.string().min(1).max(64, "Use at most 64 characters."),
   })
   .strict();
 
@@ -1026,7 +1060,7 @@ export const pharmacyPayableLineInputSchema = z
       "professional",
       "other",
     ]),
-    description: z.string().trim().min(1).max(500),
+    description: z.string().trim().min(1).max(500, "Use at most 500 characters."),
     net_minor: z.number().int().min(0).max(1000000000000),
     tax_minor: z.number().int().min(0).max(1000000000000),
     recoverable_tax_minor: z.number().int().min(0).max(1000000000000),
@@ -1036,9 +1070,14 @@ export const pharmacyPayableLineInputSchema = z
 
 export const pharmacyPayableInputSchema = z
   .object({
-    payee_reference: z.string().trim().toUpperCase().min(1).max(100),
-    payee_name: z.string().trim().min(1).max(200),
-    document_reference: z.string().trim().toUpperCase().min(1).max(100),
+    payee_reference: z.string().trim().toUpperCase().min(1).max(100, "Use at most 100 characters."),
+    payee_name: z.string().trim().min(1).max(200, "Use at most 200 characters."),
+    document_reference: z
+      .string()
+      .trim()
+      .toUpperCase()
+      .min(1)
+      .max(100, "Use at most 100 characters."),
     issued_on: z.string().date("Use a full valid date."),
     due_on: z.string().date("Use a full valid date."),
     currency: z.enum(["INR"]),
@@ -1051,11 +1090,16 @@ export const pharmacySettlementInputSchema = z
     kind: z.enum(["payment", "credit", "payment_reversal"]),
     amount_minor: z.number().int().min(1).max(1000000000000),
     currency: z.enum(["INR"]),
-    paid_by: z.string().trim().min(1).max(200),
+    paid_by: z.string().trim().min(1).max(200, "Use at most 200 characters."),
     method: z.enum(["cash", "bank", "card", "upi", "other"]),
-    source_reference: z.string().trim().toUpperCase().min(1).max(100),
+    source_reference: z
+      .string()
+      .trim()
+      .toUpperCase()
+      .min(1)
+      .max(100, "Use at most 100 characters."),
     occurred_on: z.string().date("Use a full valid date."),
-    reason: z.string().trim().min(1).max(500),
+    reason: z.string().trim().min(1).max(500, "Use at most 500 characters."),
     reversal_of: identifier.nullable().optional(),
   })
   .strict();
@@ -1070,7 +1114,11 @@ export const pharmacySafetyIncidentFieldsSchema = z
       "packaging_damage",
       "suspected_recall",
     ]),
-    reason: z.string().trim().min(10, "Enter at least 10 characters.").max(500),
+    reason: z
+      .string()
+      .trim()
+      .min(10, "Enter at least 10 characters.")
+      .max(500, "Use at most 500 characters."),
     occurred_at: z
       .string()
       .min(1)
@@ -1087,7 +1135,7 @@ export const pharmacySafetyIncidentFieldsSchema = z
 
 export const pharmacyStockExpiryFieldsSchema = z
   .object({
-    expiry_time_zone: z.string().min(1).max(64),
+    expiry_time_zone: z.string().min(1).max(64, "Use at most 64 characters."),
     expiry_local_date: z.string().date("Use a full valid date."),
     days_to_expiry: z.number().int().min(-3652058).max(3652058),
     expiry_band: z.enum(["expired", "today", "days_30", "days_90", "days_180", "later"]),
@@ -1099,29 +1147,35 @@ export const pharmacyTaxRegistrationInputSchema = z
     jurisdiction_code: z
       .string()
       .min(2)
-      .max(2)
+      .max(2, "Use at most 2 characters.")
       .regex(new RegExp("^[0-9]{2}$"), "Use the required format."),
-    identifier: z.string().trim().toUpperCase().min(1).max(40),
+    identifier: z.string().trim().toUpperCase().min(1).max(40, "Use at most 40 characters."),
     effective_from: z.string().date("Use a full valid date."),
-    reason: z.string().trim().min(1).max(500).nullable().optional(),
+    reason: z.string().trim().min(1).max(500, "Use at most 500 characters.").nullable().optional(),
   })
   .strict();
 
 export const pharmacyTaxClassificationInputSchema = z
   .object({
-    classification_code: z.string().trim().min(1).max(20),
+    classification_code: z.string().trim().min(1).max(20, "Use at most 20 characters."),
     supply_nature: z.enum(["taxable", "nil_rated", "exempt"]),
     rate_percent: z
       .string()
       .min(1)
-      .max(6)
+      .max(6, "Use at most 6 characters.")
       .regex(
         new RegExp("^(100(\\.0{1,2})?|[0-9]{1,2}(\\.[0-9]{1,2})?)$"),
         "Use the required format.",
       ),
-    exemption_basis: z.string().trim().min(1).max(500).nullable().optional(),
+    exemption_basis: z
+      .string()
+      .trim()
+      .min(1)
+      .max(500, "Use at most 500 characters.")
+      .nullable()
+      .optional(),
     effective_from: z.string().date("Use a full valid date."),
-    reason: z.string().trim().min(1).max(500).nullable().optional(),
+    reason: z.string().trim().min(1).max(500, "Use at most 500 characters.").nullable().optional(),
   })
   .strict();
 
@@ -1129,10 +1183,16 @@ export const pharmacyPriceControlInputSchema = z
   .object({
     price_control: z.enum(["controlled", "not_controlled"]),
     ceiling_minor: z.number().int().min(1).max(1000000000000).nullable().optional(),
-    order_reference: z.string().trim().min(1).max(120).nullable().optional(),
+    order_reference: z
+      .string()
+      .trim()
+      .min(1)
+      .max(120, "Use at most 120 characters.")
+      .nullable()
+      .optional(),
     order_date: z.string().date("Use a full valid date.").nullable().optional(),
     effective_from: z.string().date("Use a full valid date."),
-    source: z.string().trim().min(1).max(300),
+    source: z.string().trim().min(1).max(300, "Use at most 300 characters."),
   })
   .strict();
 
@@ -1143,9 +1203,9 @@ export const pharmacyServiceChargeInputSchema = z
       .trim()
       .toUpperCase()
       .min(2)
-      .max(20)
+      .max(20, "Use at most 20 characters.")
       .regex(new RegExp("^[A-Z][A-Z0-9_]{1,19}$"), "Use the required format."),
-    name: z.string().trim().min(1).max(80),
+    name: z.string().trim().min(1).max(80, "Use at most 80 characters."),
     channel: z.enum(["counter", "ward_delivery"]),
     amount_minor: z.number().int().min(1).max(100000000),
     status: z.enum(["available", "withdrawn"]),
@@ -1154,14 +1214,20 @@ export const pharmacyServiceChargeInputSchema = z
       .string()
       .trim()
       .min(6)
-      .max(6)
+      .max(6, "Use at most 6 characters.")
       .regex(new RegExp("^99[0-9]{4}$"), "Use the required format.")
       .nullable()
       .optional(),
     supply_nature: z.enum(["taxable", "nil_rated", "exempt"]).nullable().optional(),
     rate_ppm: z.number().int().min(0).max(1000000).nullable().optional(),
-    exemption_basis: z.string().trim().min(1).max(500).nullable().optional(),
-    tax_basis: z.string().trim().min(5).max(500),
+    exemption_basis: z
+      .string()
+      .trim()
+      .min(1)
+      .max(500, "Use at most 500 characters.")
+      .nullable()
+      .optional(),
+    tax_basis: z.string().trim().min(5).max(500, "Use at most 500 characters."),
     effective_from: z.string().date("Use a full valid date."),
   })
   .strict();
@@ -1190,8 +1256,8 @@ export const pharmacyStockOverviewValuationFieldsSchema = z
 
 export const pharmacyUnusedPaymentRefundFieldsSchema = z
   .object({
-    reference: z.string().trim().min(1).max(64),
-    reason: z.string().trim().min(5).max(200),
+    reference: z.string().trim().min(1).max(64, "Use at most 64 characters."),
+    reason: z.string().trim().min(5).max(200, "Use at most 200 characters."),
   })
   .strict();
 

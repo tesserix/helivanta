@@ -19,21 +19,21 @@ export const PrescriptionVerificationDecisionInputContract = z
     reviewed_state_hash: z
       .string()
       .min(64)
-      .max(64)
+      .max(64, "Use at most 64 characters.")
       .regex(new RegExp("^[a-f0-9]{64}$", "u"), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     decision: z.enum(["approved", "approved_with_change", "query_raised", "rejected"]),
     reason_code: z
       .string()
       .min(1)
-      .max(80)
+      .max(80, "Use at most 80 characters.")
       .regex(new RegExp("^[a-z][a-z0-9_]*$", "u"), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters.")
       .nullable(),
     clinical_note: z
       .string()
       .min(1)
-      .max(2000)
+      .max(2000, "Use at most 2000 characters.")
       .refine((value) => !value.includes(String.fromCharCode(0)), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters.")
       .nullable(),
@@ -90,7 +90,7 @@ export const PrescriptionVerificationSecondCheckInputContract = z
     reviewed_state_hash: z
       .string()
       .min(64)
-      .max(64)
+      .max(64, "Use at most 64 characters.")
       .regex(new RegExp("^[a-f0-9]{64}$", "u"), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     primary_decision_id: identifier,
@@ -106,7 +106,7 @@ export const PrescriptionReviewLineContract = z
     prescribed_as: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes(String.fromCharCode(0)), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     product_id: identifier,
@@ -139,19 +139,19 @@ export const PrescriptionReviewRecordContract = z
     prescriber_name: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes(String.fromCharCode(0)), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     prescriber_registration: z
       .string()
       .min(1)
-      .max(40)
+      .max(40, "Use at most 40 characters.")
       .refine((value) => !value.includes(String.fromCharCode(0)), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     prescriber_council: z
       .string()
       .min(1)
-      .max(120)
+      .max(120, "Use at most 120 characters.")
       .refine((value) => !value.includes(String.fromCharCode(0)), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     prescribed_on: z
@@ -162,27 +162,27 @@ export const PrescriptionReviewRecordContract = z
     patient_name: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes(String.fromCharCode(0)), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     patient_address: z
       .string()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes(String.fromCharCode(0)), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters.")
       .nullable(),
     prescriber_address: z
       .string()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes(String.fromCharCode(0)), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters.")
       .nullable(),
     recorded_by: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes(String.fromCharCode(0)), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     created_at: z.string().datetime({ offset: true }),
@@ -219,7 +219,7 @@ export const PrescriptionReviewContextContract = z
     reader_subject: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .regex(new RegExp("^[A-Za-z0-9_-]+$", "u"), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     source_schema_version: z.number().int().min(1).max(1),
@@ -228,7 +228,7 @@ export const PrescriptionReviewContextContract = z
     source_state_hash: z
       .string()
       .min(64)
-      .max(64)
+      .max(64, "Use at most 64 characters.")
       .regex(new RegExp("^[a-f0-9]{64}$", "u"), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     clinical_authority: z.enum(["not_evaluated"]),
@@ -245,7 +245,7 @@ export const VerificationPolicyDraftInputContract = z
       .string()
       .trim()
       .min(1)
-      .max(120)
+      .max(120, "Use at most 120 characters.")
       .refine(
         (value) =>
           [...value].every((char) => {
@@ -262,7 +262,7 @@ export const VerificationPolicyDraftInputContract = z
       .string()
       .trim()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
   .strict();
@@ -278,7 +278,7 @@ export const VerificationPolicyDraftRevisionContract = z
     label: z
       .string()
       .min(1)
-      .max(120)
+      .max(120, "Use at most 120 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     second_check_required: z.boolean(),
     review_valid_for_seconds: z.number().int().min(1).max(9223372036),
@@ -286,12 +286,12 @@ export const VerificationPolicyDraftRevisionContract = z
     reason: z
       .string()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     prepared_by: z
       .string()
       .min(1)
-      .max(512)
+      .max(512, "Use at most 512 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     created_at: z.string().datetime({ offset: true }),
     state: z.enum(["draft"]),
@@ -317,7 +317,7 @@ export const PrescriptionFulfilmentReviewInputContract = z
     source_state_hash: z
       .string()
       .min(64)
-      .max(64)
+      .max(64, "Use at most 64 characters.")
       .regex(new RegExp("^[a-f0-9]{64}$", "u"), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     lines: z.array(PrescriptionFulfilmentReviewLineInputContract).min(1).max(20),
@@ -353,7 +353,7 @@ export const PrescriptionFulfilmentReviewContextContract = z
     fulfilment_state_hash: z
       .string()
       .min(64)
-      .max(64)
+      .max(64, "Use at most 64 characters.")
       .regex(new RegExp("^[a-f0-9]{64}$", "u"), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     state: z.enum(["proposed"]),

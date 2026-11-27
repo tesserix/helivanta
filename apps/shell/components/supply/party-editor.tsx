@@ -138,7 +138,7 @@ export function PartyEditor({
               label="Business registration number"
             />
             <TextField form={form} name="corporate_group" label="Corporate group" />
-            <TextField form={form} name="website" label="Website" type="url" />
+            <TextField form={form} name="website" label="Website" inputMode="url" />
             <TextField
               form={form}
               name="default_credit_days"
@@ -195,7 +195,7 @@ export function PartyEditor({
                     form={form}
                     name={`contacts.${index}.email`}
                     label="Email"
-                    type="email"
+                    inputMode="email"
                   />
                   <TextField
                     form={form}
@@ -383,11 +383,13 @@ function TextField({
   name,
   label,
   type = "text",
+  inputMode,
 }: {
   form: PartyForm;
   name: FieldPath<ReturnType<typeof supplyPartyFormSchema.parse>>;
   label: string;
-  type?: "text" | "number" | "email" | "tel" | "url";
+  type?: "text" | "number" | "tel";
+  inputMode?: "email" | "url";
 }) {
   const id = `party-${name.replaceAll(".", "-")}`;
   const error = form.getFieldState(name, form.formState).error?.message;
@@ -396,6 +398,7 @@ function TextField({
       <Input
         id={id}
         type={type}
+        inputMode={inputMode}
         aria-invalid={!!error}
         aria-describedby={error ? `${id}-error` : undefined}
         {...form.register(name, type === "number" ? { valueAsNumber: true } : {})}

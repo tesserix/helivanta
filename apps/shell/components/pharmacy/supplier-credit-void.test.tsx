@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { act, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderWithProviders as renderBase } from "@helivanta/api/testing";
 import { NavigationGuardProvider } from "@helivanta/ui";
@@ -184,5 +184,16 @@ it("prevents void submission when the recovery reference cannot be stored", asyn
   await user.type(screen.getByLabelText("Void reason"), receipt.reason);
   await user.click(screen.getByRole("button", { name: "Confirm credit void" }));
   expect(await screen.findByText(/No financial command has been submitted/)).toBeInTheDocument();
+  expect(fetcher).not.toHaveBeenCalled();
+});
+it("refuses an overlong void reason inline without sending a request", async () => {
+  const fetcher = vi.fn();
+  vi.stubGlobal("fetch", fetcher);
+  const { user } = render(<SupplierCreditVoid scope={scope} credit={credit} canManage />);
+  await user.click(await screen.findByRole("button", { name: "Void unused credit" }));
+  fireEvent.change(screen.getByLabelText("Void reason"), { target: { value: "x".repeat(501) } });
+  await user.click(screen.getByRole("button", { name: "Confirm credit void" }));
+  expect(await screen.findByText("Use at most 500 characters.")).toBeVisible();
+  expect(screen.getByLabelText("Void reason")).toHaveValue("x".repeat(501));
   expect(fetcher).not.toHaveBeenCalled();
 });

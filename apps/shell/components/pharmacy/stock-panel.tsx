@@ -395,11 +395,7 @@ function LocationForm({
                 label={`${label} code (optional)`}
                 error={form.formState.errors.storage_address?.[key]?.message}
               >
-                <Input
-                  id={`location-${key}`}
-                  maxLength={32}
-                  {...form.register(`storage_address.${key}`)}
-                />
+                <Input id={`location-${key}`} {...form.register(`storage_address.${key}`)} />
               </Field>
             ))}
           </div>

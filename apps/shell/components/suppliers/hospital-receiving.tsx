@@ -352,6 +352,7 @@ function DeliveryForm({
   if (closed) return <p>Receiving is closed. No new delivery may be recorded.</p>;
   return (
     <form
+      noValidate
       aria-label="Record inspected delivery"
       className="space-y-3"
       onSubmit={(event) => {

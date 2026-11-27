@@ -424,7 +424,6 @@ function CreditForm({
                 <Input
                   id="supplier-credit-reference"
                   {...form.register("document_reference")}
-                  maxLength={100}
                   disabled={pending}
                 />
               </Field>
@@ -467,7 +466,6 @@ function CreditForm({
                 <Input
                   id="supplier-credit-reason"
                   {...form.register("reason")}
-                  maxLength={500}
                   disabled={pending}
                 />
               </Field>

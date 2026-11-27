@@ -107,7 +107,7 @@ export const attendancePunchInputContract = z
       .string()
       .trim()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
   .strict();
@@ -119,7 +119,7 @@ export const attendanceVoidInputContract = z
       .string()
       .trim()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
   .strict();
@@ -303,7 +303,7 @@ export const attendanceCorrectionInputContract = z
     reason: z
       .string()
       .trim()
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
   .strict();
@@ -316,7 +316,7 @@ export const attendanceCorrectionDecisionInputContract = z
     note: z
       .string()
       .trim()
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
   .strict();
@@ -330,7 +330,7 @@ export const attendanceCorrectionCancelInputContract = z
     note: z
       .string()
       .trim()
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
   .strict();
@@ -404,7 +404,7 @@ export const attendancePeriodInputContract = z
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     note: z
       .string()
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
   .strict();
@@ -415,7 +415,7 @@ export const attendancePeriodTransitionInputContract = z
     expected_version: z.number().int().min(1),
     note: z
       .string()
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
   .strict();

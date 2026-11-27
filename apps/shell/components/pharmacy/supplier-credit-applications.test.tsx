@@ -531,3 +531,71 @@ it("keeps retained application history readable with no new-write authority", as
   expect(screen.queryByRole("button", { name: "Apply credit to bill" })).not.toBeInTheDocument();
   expect(fetcher.mock.calls.some(([url]) => String(url).includes("eligible-payables"))).toBe(false);
 });
+it("refuses an overlong application reason inline without sending a write", async () => {
+  let writes = 0;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, options?: RequestInit) => {
+      if (options?.method === "PUT") writes++;
+      return new Response(
+        JSON.stringify({
+          data: url.includes("eligible-payables") ? [bill] : [],
+          page: { has_more: false, next_cursor: null },
+        }),
+      );
+    }),
+  );
+  const { user } = render(<SupplierCreditApplications scope={scope} credit={credit} canManage />);
+  await enterApplication(user);
+  fireEvent.change(screen.getByLabelText("Application reason"), {
+    target: { value: "x".repeat(501) },
+  });
+  await user.click(screen.getByRole("button", { name: "Save bill application" }));
+  expect(await screen.findByText("Use at most 500 characters.")).toBeVisible();
+  expect(screen.getByLabelText("Application reason")).toHaveValue("x".repeat(501));
+  expect(writes).toBe(0);
+});
+it("refuses an overlong application reversal reason inline without sending a write", async () => {
+  let writes = 0;
+  const currentCredit = { ...credit, version: 2, allocated_minor: 500, available_minor: 250 };
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, options?: RequestInit) => {
+      if (options?.method === "PUT") writes++;
+      if (url.endsWith("/reversal")) return new Response("{}", { status: 404 });
+      if (url.endsWith("/context"))
+        return new Response(
+          JSON.stringify({
+            credit: currentCredit,
+            allocation,
+            payable: {
+              ...bill,
+              paid_minor: 680,
+              credit_minor: 500,
+              outstanding_minor: 0,
+              version: 3,
+            },
+          }),
+        );
+      return new Response(
+        JSON.stringify({ data: [allocation], page: { has_more: false, next_cursor: null } }),
+      );
+    }),
+  );
+  const { user } = render(
+    <SupplierCreditApplications scope={scope} credit={currentCredit} canManage />,
+  );
+  await user.click(
+    await screen.findByRole("button", { name: "Review application for TEST-FUTURE-BILL" }),
+  );
+  await screen.findByText(/Current bill outstanding: INR 0.00/);
+  fireEvent.change(screen.getByLabelText("Application reversal date"), {
+    target: { value: "2026-11-22" },
+  });
+  fireEvent.change(screen.getByLabelText("Application reversal reason"), {
+    target: { value: "x".repeat(501) },
+  });
+  await user.click(screen.getByRole("button", { name: "Reverse full bill application" }));
+  expect(await screen.findByText("Use at most 500 characters.")).toBeVisible();
+  expect(writes).toBe(0);
+});

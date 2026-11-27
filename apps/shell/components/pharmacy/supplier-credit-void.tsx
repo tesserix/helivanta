@@ -203,7 +203,6 @@ function VoidWorkspace({ scope, credit, canManage }: Props) {
               >
                 <Input
                   id="supplier-credit-void-reason"
-                  maxLength={500}
                   {...form.register("reason")}
                   disabled={command.busy}
                 />

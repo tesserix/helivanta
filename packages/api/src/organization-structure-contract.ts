@@ -10,7 +10,7 @@ export const OrganizationRegistrationInputContract = z
       .string()
       .trim()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
   .strict();
@@ -35,13 +35,13 @@ export const DepartmentCommandContract = z
       .toUpperCase()
       .regex(/^[A-Z0-9_-]{1,40}$/, "Use letters, numbers, underscores or hyphens.")
       .min(1)
-      .max(40)
+      .max(40, "Use at most 40 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     name: z
       .string()
       .trim()
       .min(1, "Enter a name.")
-      .max(120)
+      .max(120, "Use at most 120 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     kind: z.enum(["department", "sub_unit"]),
     parent_id: identifier.nullable().optional(),
@@ -50,7 +50,7 @@ export const DepartmentCommandContract = z
       .string()
       .trim()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
   .strict();
@@ -68,13 +68,13 @@ export const DepartmentOutputContract = z
       .toUpperCase()
       .regex(/^[A-Z0-9_-]{1,40}$/, "Use letters, numbers, underscores or hyphens.")
       .min(1)
-      .max(40)
+      .max(40, "Use at most 40 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     name: z
       .string()
       .trim()
       .min(1, "Enter a name.")
-      .max(120)
+      .max(120, "Use at most 120 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     kind: z.enum(["department", "sub_unit"]),
     parent_id: identifier.nullable().optional(),
@@ -106,7 +106,7 @@ export const DepartmentLinkInputContract = z
       .string()
       .trim()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
   .strict();

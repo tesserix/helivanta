@@ -323,6 +323,7 @@ function CancelReturn({
   if (verified) return <p role="status">Draft cancellation verified.</p>;
   return (
     <form
+      noValidate
       className="space-y-3 border-t pt-4"
       onSubmit={(event) => {
         event.preventDefault();
@@ -373,7 +374,6 @@ function CancelReturn({
                 <Input
                   id="supplier-return-cancel-reason"
                   value={reason}
-                  maxLength={500}
                   onChange={(event) => setReason(event.target.value)}
                   disabled={pending}
                 />
@@ -404,7 +404,6 @@ function CancelReturn({
             <Input
               id="supplier-return-cancel-reason"
               value={reason}
-              maxLength={500}
               onChange={(event) => setReason(event.target.value)}
               disabled={pending}
             />

@@ -174,3 +174,15 @@ it("refuses an expiry before the start without creating a command", async () => 
   expect(await screen.findByText(/Expiry must be after/)).toBeInTheDocument();
   expect(commands).toHaveLength(0);
 });
+
+it("shows an inline error for an overlong appointment reason without creating a command", async () => {
+  const { user, commands } = setup();
+  await prepare(user);
+  const reason = screen.getByLabelText("Appointment reason");
+  await user.clear(reason);
+  await user.click(reason);
+  await user.paste("x".repeat(501));
+  await user.click(screen.getByRole("button", { name: "Submit appointment" }));
+  expect(await screen.findByText("Use at most 500 characters.")).toBeInTheDocument();
+  expect(commands).toHaveLength(0);
+});

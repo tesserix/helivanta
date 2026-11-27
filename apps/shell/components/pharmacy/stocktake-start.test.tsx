@@ -240,3 +240,14 @@ it.each(["legacy", "operating", "hospital"] as const)(
     });
   },
 );
+
+it("shows an inline error and sends no start for a reason over 500 characters", async () => {
+  const fetch = vi.fn().mockResolvedValue(json(page([])));
+  vi.stubGlobal("fetch", fetch);
+  const { user } = panel();
+  await user.click(screen.getByRole("textbox", { name: "Start reason" }));
+  await user.paste("r".repeat(501));
+  await user.click(screen.getByRole("button", { name: "Freeze book and start count" }));
+  expect(await screen.findByText("Use at most 500 characters.")).toBeInTheDocument();
+  expect(fetch.mock.calls.some((call) => call[1]?.method === "PUT")).toBe(false);
+});

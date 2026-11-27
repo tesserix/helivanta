@@ -157,3 +157,19 @@ it("freezes an uncertain command, checks recovery and retries its exact original
   await waitFor(() => expect(saved).toHaveBeenCalledOnce());
   expect(fetch).toHaveBeenCalledTimes(3);
 });
+
+it("shows inline errors and sends no count for a reason over 500 characters or a count over 1,000,000,000,000", async () => {
+  const fetch = vi.fn();
+  vi.stubGlobal("fetch", fetch);
+  const { user } = panel();
+  await user.click(screen.getByRole("textbox", { name: "Physical count (tablet)" }));
+  await user.paste("1".repeat(14));
+  await user.click(screen.getByRole("textbox", { name: "Count reason" }));
+  await user.paste("r".repeat(501));
+  await user.click(screen.getByRole("button", { name: "Save physical count" }));
+  expect(
+    await screen.findByText("Enter a whole number from 0 to 1,000,000,000,000."),
+  ).toBeVisible();
+  expect(screen.getByText("Use at most 500 characters.")).toBeVisible();
+  expect(fetch).not.toHaveBeenCalled();
+});

@@ -254,12 +254,7 @@ export function StocktakeStart({
           label="Start reason"
           error={form.formState.errors.reason?.message}
         >
-          <Input
-            id="stocktake-start-reason"
-            maxLength={500}
-            {...form.register("reason")}
-            disabled={locked}
-          />
+          <Input id="stocktake-start-reason" {...form.register("reason")} disabled={locked} />
         </Field>
         {attempt && save.error && (
           <div role="alert" className="space-y-2 text-sm">

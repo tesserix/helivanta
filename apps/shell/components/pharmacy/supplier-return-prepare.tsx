@@ -341,7 +341,14 @@ function PrepareForm({ scope, canStart, onPrepared }: Props) {
             })),
           });
           if (!parsed.success) {
-            setFailure("Add at least one return line and provide a return reason.");
+            const reasonTooLong = parsed.error.issues.some(
+              (issue) => issue.code === "too_big" && issue.path[0] === "reason",
+            );
+            setFailure(
+              reasonTooLong
+                ? "Shorten the return reason to at most 500 characters."
+                : "Add at least one return line and provide a return reason.",
+            );
             return;
           }
           const id = command ?? newPharmacyId();
@@ -512,7 +519,6 @@ function PrepareForm({ scope, canStart, onPrepared }: Props) {
                                 value={units}
                                 onChange={(event) => setUnits(event.target.value)}
                                 disabled={pending}
-                                maxLength={10}
                               />
                             </Field>
                             <CurrencyAmountField
@@ -612,7 +618,6 @@ function PrepareForm({ scope, canStart, onPrepared }: Props) {
                           id="supplier-return-reason"
                           value={reason}
                           onChange={(event) => setReason(event.target.value)}
-                          maxLength={500}
                           disabled={pending}
                         />
                       </Field>

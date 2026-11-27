@@ -354,7 +354,6 @@ function EvidenceEditor({
           >
             <Input
               id="purchase-gstin"
-              maxLength={15}
               value={form.watch("supplier_gstin") ?? ""}
               onChange={(event) =>
                 form.setValue("supplier_gstin", event.target.value.trim().toUpperCase() || null, {
@@ -382,7 +381,7 @@ function EvidenceEditor({
             label="Source / correction reason"
             error={form.formState.errors.reason?.message}
           >
-            <Input id="purchase-reason" maxLength={500} {...form.register("reason")} />
+            <Input id="purchase-reason" {...form.register("reason")} />
           </Field>
         </div>
         {doc.lines.map((line, i) => (
@@ -433,7 +432,6 @@ function EvidenceEditor({
             >
               <Input
                 id={`purchase-variance-${i}`}
-                maxLength={500}
                 value={form.watch(`lines.${i}.source_variance_reason`) ?? ""}
                 onChange={(event) =>
                   form.setValue(`lines.${i}.source_variance_reason`, event.target.value || null, {

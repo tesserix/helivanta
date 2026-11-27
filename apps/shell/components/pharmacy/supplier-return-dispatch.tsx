@@ -28,6 +28,13 @@ type Props = {
   canStart: boolean;
   timeZone: string;
 };
+// The dispatch fields a person types, named as the form labels them.
+const dispatchFieldNames: Record<string, string> = {
+  document_reference: "outward reference",
+  recipient_name: "recipient",
+  reason: "reason",
+};
+
 export function supplierReturnDispatchStorageKey(scope: PharmacyActorScope, id: string) {
   return (
     "helivanta:supplier-return-dispatch:v1:" +
@@ -175,7 +182,14 @@ function DispatchForm({ scope, value, canStart, timeZone }: Props) {
           reason,
         });
         if (!parsed.success) {
-          setFailure("Complete the outward reference, recipient, handoff time and reason.");
+          const tooLong = parsed.error.issues.find(
+            (issue) => issue.code === "too_big" && String(issue.path[0]) in dispatchFieldNames,
+          );
+          setFailure(
+            tooLong?.code === "too_big"
+              ? `Shorten the ${dispatchFieldNames[String(tooLong.path[0])]} to at most ${tooLong.maximum} characters.`
+              : "Complete the outward reference, recipient, handoff time and reason.",
+          );
           return;
         }
         if (command !== null && !notFound) {
@@ -278,7 +292,6 @@ function DispatchForm({ scope, value, canStart, timeZone }: Props) {
                 value={reference}
                 onChange={(event) => setReference(event.target.value)}
                 disabled={pending}
-                maxLength={100}
               />
             </Field>
             <Field id="supplier-return-recipient" label="Recipient name">
@@ -287,7 +300,6 @@ function DispatchForm({ scope, value, canStart, timeZone }: Props) {
                 value={recipient}
                 onChange={(event) => setRecipient(event.target.value)}
                 disabled={pending}
-                maxLength={200}
               />
             </Field>
             <Field id="supplier-return-handoff" label="Handoff time (device time)">
@@ -310,7 +322,6 @@ function DispatchForm({ scope, value, canStart, timeZone }: Props) {
                 value={reason}
                 onChange={(event) => setReason(event.target.value)}
                 disabled={pending}
-                maxLength={500}
               />
             </Field>
             <label className="flex items-start gap-3 text-sm">

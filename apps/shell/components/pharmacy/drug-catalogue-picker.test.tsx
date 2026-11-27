@@ -83,3 +83,16 @@ it("reports an empty published catalogue without fabricating medicine choices", 
   expect(await screen.findByRole("status")).toHaveTextContent("No published medicines match");
   expect(screen.queryByRole("button", { name: "Add selected medicine" })).not.toBeInTheDocument();
 });
+
+it("shows an inline error and sends nothing for a search over 200 characters", async () => {
+  const fetcher = vi.fn(async () => new Response(JSON.stringify({ data: [] })));
+  vi.stubGlobal("fetch", fetcher);
+  renderWithProviders(<DrugCataloguePicker scope={scope} onSaved={vi.fn()} />);
+  const user = userEvent.setup();
+  const box = screen.getByLabelText("Medicine name, composition or barcode");
+  await user.click(box);
+  await user.paste("m".repeat(201));
+  expect(await screen.findByText("At most 200 characters")).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Search medicines" }));
+  expect(fetcher).not.toHaveBeenCalled();
+});

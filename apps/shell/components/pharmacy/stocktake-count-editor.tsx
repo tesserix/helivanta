@@ -35,6 +35,11 @@ const schema = pharmacyStocktakeCountInputSchema.extend({
             "Enter a whole physical count, including zero for an empty shelf.",
           )
           .transform(Number)
+          // The contract's own message is zod's default number text.
+          .refine(
+            (units) => units <= 1_000_000_000_000,
+            "Enter a whole number from 0 to 1,000,000,000,000.",
+          )
           .pipe(pharmacyStocktakeCountEntrySchema.shape.counted_units),
       }),
     )
@@ -151,7 +156,6 @@ export function StocktakeCountEditor({
         <Input
           id="stocktake-quantity"
           inputMode="numeric"
-          maxLength={13}
           {...form.register("counts.0.counted_units")}
           disabled={busy || attempt !== null || stale || saved}
         />
@@ -163,7 +167,6 @@ export function StocktakeCountEditor({
       >
         <Input
           id="stocktake-count-reason"
-          maxLength={500}
           {...form.register("reason")}
           disabled={busy || attempt !== null || stale || saved}
         />

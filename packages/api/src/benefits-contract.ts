@@ -19,19 +19,19 @@ export const benefitPlanInputContract = z
       .trim()
       .toUpperCase()
       .regex(/^[A-Z0-9_-]{1,40}$/, "Use letters, numbers, underscores or hyphens.")
-      .max(40)
+      .max(40, "Use at most 40 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     name: z
       .string()
       .trim()
       .min(1, "Enter a name.")
-      .max(80)
+      .max(80, "Use at most 80 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     kind: z.enum(["health", "life", "accident", "other"]),
     description: z
       .string()
       .trim()
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     covers_dependents: z.boolean(),
     covered_relationships: z.array(identifier).max(20),
@@ -110,7 +110,7 @@ export const dependentInputContract = z
       .string()
       .trim()
       .min(1, "Enter a name.")
-      .max(150)
+      .max(150, "Use at most 150 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     relationship_revision_id: identifier,
     birth_date: z
@@ -120,14 +120,14 @@ export const dependentInputContract = z
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     phone: z
       .string()
-      .max(16)
+      .max(16, "Use at most 16 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     status: z.enum(["active", "removed"]),
     reason: z
       .string()
       .trim()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
   .strict();
@@ -198,7 +198,7 @@ export const benefitProposalInputContract = z
       .string()
       .trim()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
   .strict();
@@ -211,7 +211,7 @@ export const benefitDecisionInputContract = z
     note: z
       .string()
       .trim()
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
   .strict();
@@ -222,7 +222,7 @@ export const benefitWithdrawInputContract = z
     note: z
       .string()
       .trim()
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
   .strict();
@@ -301,14 +301,14 @@ export const benefitEvidenceInputContract = z
     filename: z
       .string()
       .min(1)
-      .max(180)
+      .max(180, "Use at most 180 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     content_type: z.enum(["image/png", "image/jpeg"]),
     size: z.number().int().min(1).max(10485760),
     sha256: z
       .string()
       .min(64)
-      .max(64)
+      .max(64, "Use at most 64 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
   .strict();

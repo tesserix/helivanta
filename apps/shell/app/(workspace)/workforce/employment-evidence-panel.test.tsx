@@ -221,3 +221,31 @@ it("clears evidence filenames and notifies the workspace after a denied byte rel
   expect(screen.queryByRole("button", { name: "Download evidence" })).not.toBeInTheDocument();
   expect(changed).toHaveBeenCalled();
 });
+
+it("shows an inline error for an overlong evidence reason and sends nothing", async () => {
+  const writes: string[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (init?.method === "PUT") writes.push(url);
+      return Response.json({
+        data: url.endsWith("/documents") ? [file] : [],
+        page: { has_more: false },
+      });
+    }),
+  );
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <EmploymentEvidencePanel scope={scope} staffVersion={1} canAttach onClose={() => {}} />
+    </NavigationGuardProvider>,
+  );
+  await user.click(await screen.findByRole("button", { name: "Attach scanned employment file" }));
+  const form = screen.getByRole("form", { name: "Attach employment evidence" });
+  await user.click(within(form).getByLabelText("Scanned employment file"));
+  await user.click(await screen.findByRole("option", { name: "SYN-contract.png" }));
+  await user.click(within(form).getByLabelText("Reason"));
+  await user.paste("x".repeat(501));
+  await user.click(within(form).getByRole("button", { name: "Attach evidence" }));
+  expect(await within(form).findByText(/500 characters/)).toBeInTheDocument();
+  expect(writes).toHaveLength(0);
+});

@@ -327,7 +327,6 @@ function LedgerNames({
             <Input
               id={`${prefix}-${index}`}
               autoComplete="off"
-              maxLength={100}
               {...form.register(`names.${index}.ledger_name`)}
             />
           </Field>

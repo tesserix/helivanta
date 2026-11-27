@@ -232,3 +232,61 @@ it("records an outside-GST source without fabricating registration or a place of
   });
   expect(screen.getByText(/Not applicable/)).toBeVisible();
 });
+it("refuses overlong evidence fields inline and sends no write", async () => {
+  const fetcher = vi.fn(async () => Response.json({ evidence: null }));
+  vi.stubGlobal("fetch", fetcher);
+  renderWithProviders(
+    <NavigationGuardProvider>
+      <PurchaseTax scope={scope} doc={doc} writable />
+    </NavigationGuardProvider>,
+  );
+  await screen.findByText(/No purchase tax evidence recorded/);
+  const user = userEvent.setup();
+  fireEvent.change(screen.getByLabelText("Supplier GSTIN (if shown on the source document)"), {
+    target: { value: "X".repeat(16) },
+  });
+  fireEvent.change(screen.getByLabelText("Source / correction reason"), {
+    target: { value: "x".repeat(501) },
+  });
+  await user.click(screen.getByRole("button", { name: "Record purchase tax evidence" }));
+  expect(await screen.findByText("Use at most 15 characters.")).toBeVisible();
+  expect(screen.getByText("Use at most 500 characters.")).toBeVisible();
+  expect(screen.getByLabelText("Source / correction reason")).toHaveValue("x".repeat(501));
+  expect(puts(fetcher)).toBe(0);
+});
+it("refuses an overlong source difference explanation inline and sends no write", async () => {
+  const fetcher = vi.fn(async () => Response.json({ evidence: null }));
+  vi.stubGlobal("fetch", fetcher);
+  renderWithProviders(
+    <NavigationGuardProvider>
+      <PurchaseTax scope={scope} doc={doc} writable />
+    </NavigationGuardProvider>,
+  );
+  await screen.findByText(/No purchase tax evidence recorded/);
+  const user = userEvent.setup();
+  fireEvent.change(screen.getByLabelText("Supplier GSTIN (if shown on the source document)"), {
+    target: { value: "07ABCDE1234F1Z2" },
+  });
+  for (const label of ["Supplier state / territory", "Place of supply on invoice"]) {
+    await user.click(screen.getByRole("combobox", { name: label }));
+    await user.click(screen.getByRole("option", { name: "Delhi" }));
+  }
+  for (const [label, value] of Object.entries({
+    "Source / correction reason": "TEST source",
+    "Source calculation difference explanation (only if needed)": "x".repeat(501),
+    "GST rate (%)": "12",
+    "CGST (INR)": "6.00",
+    "SGST (INR)": "6.00",
+    "Recoverable CGST (INR)": "3.00",
+    "Recoverable SGST (INR)": "3.00",
+  }))
+    fireEvent.change(screen.getByLabelText(label, { exact: true }), { target: { value } });
+  await user.click(screen.getByRole("button", { name: "Record purchase tax evidence" }));
+  expect(await screen.findByText("Use at most 500 characters.")).toBeVisible();
+  expect(puts(fetcher)).toBe(0);
+});
+function puts(fetcher: { mock: { calls: unknown[][] } }) {
+  return fetcher.mock.calls.filter(
+    ([, init]) => (init as RequestInit | undefined)?.method === "PUT",
+  ).length;
+}

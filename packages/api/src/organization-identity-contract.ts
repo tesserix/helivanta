@@ -10,22 +10,22 @@ export const RevisionsContract = z
     organization: z
       .string()
       .min(1)
-      .max(20)
+      .max(20, "Use at most 20 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     metadata: z
       .string()
       .min(1)
-      .max(20)
+      .max(20, "Use at most 20 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     project: z
       .string()
       .min(1)
-      .max(20)
+      .max(20, "Use at most 20 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     grant: z
       .string()
       .min(1)
-      .max(20)
+      .max(20, "Use at most 20 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
   .strict();
@@ -38,22 +38,22 @@ export const ProofContract = z
     product_key: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     organization_id: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     project_id: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     grant_id: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     state: z.enum(["active", "inactive"]),
     verified_at: z.string().datetime({ offset: true }),

@@ -377,7 +377,7 @@ function ResetForm({
           label="Reason for authenticator reset"
           error={form.formState.errors.reason?.message}
         >
-          <Input id={`${id}-reason`} maxLength={500} {...form.register("reason")} />
+          <Input id={`${id}-reason`} {...form.register("reason")} />
         </Field>
         <label className="flex items-start gap-2 text-sm">
           <input

@@ -114,18 +114,23 @@ func (c *Client) SessionUserID(ctx context.Context, sessionID string) (string, e
 // session's user (POST /management/v1/users/{id}/auth_factors/_search, scoped
 // to the user's organisation; shape verified live against v4.19.5). Only u2f
 // entries in AUTH_FACTOR_STATE_READY count; other factor kinds and states are
-// ignored. A body without a result list is ErrUnavailable: fail closed.
+// ignored. protojson omits an empty repeated field, so a body without a
+// result list is no keys; a body that is not that shape is ErrUnavailable.
 func (c *Client) ReadySecurityKeyIDs(ctx context.Context, sessionID string) ([]string, error) {
 	subject, err := c.sessionSubject(ctx, sessionID)
 	if err != nil {
 		return nil, err
 	}
+	return c.readySecurityKeyIDs(ctx, subject)
+}
+
+func (c *Client) readySecurityKeyIDs(ctx context.Context, subject sessionSubject) ([]string, error) {
 	path := "/management/v1/users/" + url.PathEscape(subject.UserID) + "/auth_factors/_search"
 	if subject.OrgID == "" {
 		return nil, fmt.Errorf("POST %s: session has no organisation: %w", path, ErrUnavailable)
 	}
 	var wire struct {
-		Result *[]struct {
+		Result []struct {
 			State string `json:"state"`
 			U2F   *struct {
 				ID string `json:"id"`
@@ -135,11 +140,8 @@ func (c *Client) ReadySecurityKeyIDs(ctx context.Context, sessionID string) ([]s
 	if err := c.do(ctx, http.MethodPost, path, map[string]any{}, &wire, ErrUnavailable, withOrgID(subject.OrgID)); err != nil {
 		return nil, err
 	}
-	if wire.Result == nil {
-		return nil, fmt.Errorf("POST %s: response missing result: %w", path, ErrUnavailable)
-	}
 	ids := []string{}
-	for _, factor := range *wire.Result {
+	for _, factor := range wire.Result {
 		if factor.U2F != nil && factor.U2F.ID != "" && factor.State == "AUTH_FACTOR_STATE_READY" {
 			ids = append(ids, factor.U2F.ID)
 		}

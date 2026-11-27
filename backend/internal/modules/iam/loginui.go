@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -598,7 +597,7 @@ func (h *LoginUIHandlers) Password(c *gin.Context) {
 // one, so a chosen account gets exactly the steps a single match gets.
 // subject is stored on attempt rows for audit and correlation only.
 func (h *LoginUIHandlers) continueWithSession(c *gin.Context, authRequestID, subject string, session loginclient.Session) {
-	result, err := h.client.CompleteIfSufficient(c.Request.Context(), authRequestID, session)
+	result, err := h.client.CompleteIfSufficient(c.Request.Context(), authRequestID, session, nil)
 	if err != nil {
 		h.respondLoginClientError(c, err, "complete")
 		return
@@ -886,15 +885,16 @@ func (h *LoginUIHandlers) respondLoginClientError(c *gin.Context, err error, sta
 
 // factorRequest is the body POST /v1/auth/login/factor accepts (#867,
 // spec D8): the auth request this check resumes, which factor kind is
-// being submitted, and the code itself. Factor is required and checked
-// explicitly (not just bound) because "totp" is the only value this
-// handler — and loginclient.VerifyTOTP beneath it — knows how to check;
-// silently accepting anything else and forwarding it to VerifyTOTP would
-// misreport a client bug as a wrong code.
+// being submitted, and its proof — a code for "totp", the browser's
+// WebAuthn assertion (relayed verbatim, never parsed) for "security_key"
+// (#1898). Factor is checked explicitly (validate) because those are the
+// only values this handler knows how to check; silently forwarding anything
+// else would misreport a client bug as a wrong code.
 type factorRequest struct {
-	AuthRequestID string `json:"auth_request_id" binding:"required"`
-	Factor        string `json:"factor" binding:"required"`
-	Code          string `json:"code" binding:"required"`
+	AuthRequestID string          `json:"auth_request_id" binding:"required"`
+	Factor        string          `json:"factor" binding:"required"`
+	Code          string          `json:"code"`
+	Assertion     json.RawMessage `json:"assertion"`
 }
 
 // Factor backs POST /v1/auth/login/factor: the second half of the
@@ -951,13 +951,13 @@ func (h *LoginUIHandlers) Factor(c *gin.Context) {
 		respond.BadRequest(c, err)
 		return
 	}
-	if req.Factor != "totp" {
+	if err := req.validate(); err != nil {
 		// Not a credential refusal — the caller asked this handler to
-		// check a factor kind it does not implement. A 400, like any
-		// other malformed-request case, not the equalised failure: this
-		// reveals nothing about a login name or a code, only that the
-		// CALLER sent a value this endpoint does not support.
-		respond.BadRequest(c, fmt.Errorf("unsupported factor %q", req.Factor))
+		// check a factor kind it does not implement, or omitted its proof.
+		// A 400, like any other malformed-request case, not the equalised
+		// failure: this reveals nothing about a login name or a code, only
+		// that the CALLER sent a request this endpoint does not support.
+		respond.BadRequest(c, err)
 		return
 	}
 
@@ -982,6 +982,11 @@ func (h *LoginUIHandlers) Factor(c *gin.Context) {
 		requestid.Logger(c).WarnContext(c.Request.Context(), "login factor: no pending attempt",
 			"auth_request_id", req.AuthRequestID)
 		h.respondAttemptExpired(c, start)
+		return
+	}
+
+	if req.Factor == "security_key" {
+		h.checkSecurityKey(c, start, req.AuthRequestID, attempt, req.Assertion)
 		return
 	}
 
@@ -1022,8 +1027,15 @@ func (h *LoginUIHandlers) completeWithVerifiedCode(c *gin.Context, start time.Ti
 		h.respondLoginClientError(c, err, "verify_totp")
 		return
 	}
+	h.completeVerifiedFactor(c, authRequestID, verified)
+}
 
-	// The rotated token — see this function's doc comment's D3 section.
+// completeVerifiedFactor is the tail every second-factor check shares once
+// Zitadel has accepted it (a TOTP code, or a security-key assertion, #1898):
+// persist the rotated token, CompleteAfterFactor, and answer. verified is
+// the Session the check returned, never the stored one.
+func (h *LoginUIHandlers) completeVerifiedFactor(c *gin.Context, authRequestID string, verified loginclient.Session) {
+	// The rotated token — see completeWithVerifiedCode's D3 section.
 	// Persisted BEFORE CompleteAfterFactor is called, so a caller that
 	// crashes or times out between these two lines leaves the STORE
 	// holding the token that will actually work on a retried Factor
@@ -1051,7 +1063,7 @@ func (h *LoginUIHandlers) completeWithVerifiedCode(c *gin.Context, start time.Ti
 	// attacker who is still guessing codes can reach at all, and
 	// therefore not a timing oracle over the code itself the way an
 	// unfloored VerifyTOTP failure would be.
-	result, err := h.client.CompleteAfterFactor(c.Request.Context(), authRequestID, verified)
+	result, err := h.client.CompleteAfterFactor(c.Request.Context(), authRequestID, verified, h.keyRegistry())
 	if err != nil {
 		h.respondLoginClientError(c, err, "complete_after_factor")
 		return

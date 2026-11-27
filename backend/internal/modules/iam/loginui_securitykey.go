@@ -59,6 +59,16 @@ func (h *LoginUIHandlers) securityKeyContinuation(c *gin.Context, requestID stri
 // SetNativeWebClientID binds the native-key action to this deployment's OIDC client.
 func (h *LoginUIHandlers) SetNativeWebClientID(clientID string) { h.nativeWebClientID = clientID }
 
+// keyRegistry is what the sufficiency decision consults to treat an enrolled
+// U2F as collectible (loginclient.KeyRegistry). nil without a validated
+// relying party: no key is ever offered, so none can count (fail closed).
+func (h *LoginUIHandlers) keyRegistry() loginclient.KeyRegistry {
+	if h.webauthnRPID == "" {
+		return nil
+	}
+	return h.keys.Contains
+}
+
 // SetWebAuthnRPID binds the boot-validated relying-party ID
 // (config.ValidatedWebAuthnRPID). Left empty, no security key is offered.
 func (h *LoginUIHandlers) SetWebAuthnRPID(rpID string) { h.webauthnRPID = rpID }
@@ -103,6 +113,51 @@ func securityKeyName(raw string) (string, error) {
 		return "", errors.New("name must not contain control characters")
 	}
 	return name, nil
+}
+
+// validate checks what each factor requires: a code for totp, a non-null
+// assertion for security_key. Any other factor is a 400.
+func (r factorRequest) validate() error {
+	switch r.Factor {
+	case "totp":
+		if r.Code == "" {
+			return errors.New("code is required for totp")
+		}
+	case "security_key":
+		if len(r.Assertion) == 0 || string(r.Assertion) == "null" {
+			return errors.New("assertion is required for security_key")
+		}
+	default:
+		return fmt.Errorf("unsupported factor %q", r.Factor)
+	}
+	return nil
+}
+
+// checkSecurityKey is /factor's security-key branch (#1898): Zitadel checks
+// the browser's assertion against the session's WebAuthn challenge, and a
+// success finishes through exactly the TOTP tail (completeVerifiedFactor).
+// Only an attempt a key challenge was issued to may assert: one from /enroll
+// (SecurityKeyID is the just-registered key, Enrolling still true) or a
+// sign-in with a Helivanta-registered key. Any other attempt is
+// refused before any round trip, indistinguishably from a wrong code (spec
+// D4's rule for the TOTP pair). A refused or cancelled assertion spends one
+// of the five guesses, as a wrong code does.
+func (h *LoginUIHandlers) checkSecurityKey(c *gin.Context, start time.Time, authRequestID string, attempt loginAttempt, assertion json.RawMessage) {
+	if attempt.SecurityKeyID == "" || h.webauthnRPID == "" {
+		h.bumpFactorAttempt(c, authRequestID, errAttemptInOtherFlow, start)
+		return
+	}
+	verified, err := h.client.CheckSecurityKey(c.Request.Context(),
+		loginclient.Session{ID: attempt.SessionID, Token: attempt.SessionToken}, assertion)
+	if err != nil {
+		if loginclient.IsCredentialRefusal(err) {
+			h.bumpFactorAttempt(c, authRequestID, err, start)
+			return
+		}
+		h.respondLoginClientError(c, err, "check_security_key")
+		return
+	}
+	h.completeVerifiedFactor(c, authRequestID, verified)
 }
 
 type securityKeyChallengeResponse struct {

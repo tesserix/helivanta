@@ -166,7 +166,7 @@ func TestPasswordChangeRequiredIsDueAndNeverFinalized(t *testing.T) {
 	z.user = userJSON(`"passwordChangeRequired":true,"passwordChanged":"` + changedAt.Format(time.RFC3339) + `"`)
 	c := z.client(t, changedAt.Add(time.Hour))
 
-	res, err := c.CompleteIfSufficient(context.Background(), "V2_1", pcSession)
+	res, err := c.CompleteIfSufficient(context.Background(), "V2_1", pcSession, nil)
 	require.NoError(t, err)
 	require.Equal(t, OutcomePasswordChangeRequired, res.Outcome)
 	require.Equal(t, PasswordChangeRequired, res.PasswordChange.Reason)
@@ -181,7 +181,7 @@ func TestPasswordNotRequiredAndNotExpiredCompletes(t *testing.T) {
 	z := newPCZitadel()
 	c := z.client(t, changedAt.Add(time.Hour))
 
-	res, err := c.CompleteIfSufficient(context.Background(), "V2_1", pcSession)
+	res, err := c.CompleteIfSufficient(context.Background(), "V2_1", pcSession, nil)
 	require.NoError(t, err)
 	require.Equal(t, OutcomeComplete, res.Outcome)
 	require.True(t, z.wasFinalized())
@@ -199,7 +199,7 @@ func TestPasswordExpiryElapsedIsDue(t *testing.T) {
 			z.expiry = expiry
 			c := z.client(t, changedAt.AddDate(0, 0, 90).Add(time.Second))
 
-			res, err := c.CompleteIfSufficient(context.Background(), "V2_1", pcSession)
+			res, err := c.CompleteIfSufficient(context.Background(), "V2_1", pcSession, nil)
 			require.NoError(t, err)
 			require.Equal(t, OutcomePasswordChangeRequired, res.Outcome)
 			require.Equal(t, PasswordChangeExpired, res.PasswordChange.Reason)
@@ -220,7 +220,7 @@ func TestPasswordExpiryNotYetElapsedCompletes(t *testing.T) {
 			z.expiry = `{"settings":{"maxAgeDays":"90"}}`
 			c := z.client(t, now)
 
-			res, err := c.CompleteIfSufficient(context.Background(), "V2_1", pcSession)
+			res, err := c.CompleteIfSufficient(context.Background(), "V2_1", pcSession, nil)
 			require.NoError(t, err)
 			require.Equal(t, OutcomeComplete, res.Outcome)
 		})
@@ -231,7 +231,7 @@ func TestNoExpiryPolicyNeverExpires(t *testing.T) {
 	z := newPCZitadel()
 	c := z.client(t, changedAt.AddDate(30, 0, 0))
 
-	res, err := c.CompleteIfSufficient(context.Background(), "V2_1", pcSession)
+	res, err := c.CompleteIfSufficient(context.Background(), "V2_1", pcSession, nil)
 	require.NoError(t, err)
 	require.Equal(t, OutcomeComplete, res.Outcome)
 }
@@ -244,7 +244,7 @@ func TestNoPasswordChangedIsNotExpiredAndSkipsTheExpiryRead(t *testing.T) {
 	z.expiry = `{"settings":{"maxAgeDays":"1"}}`
 	c := z.client(t, changedAt.AddDate(5, 0, 0))
 
-	res, err := c.CompleteIfSufficient(context.Background(), "V2_1", pcSession)
+	res, err := c.CompleteIfSufficient(context.Background(), "V2_1", pcSession, nil)
 	require.NoError(t, err)
 	require.Equal(t, OutcomeComplete, res.Outcome)
 	require.False(t, z.requested(expirySettingsPath))
@@ -258,7 +258,7 @@ func TestPasswordSettingsReadsAreScopedToTheSessionsOrg(t *testing.T) {
 	z.expiry = `{"settings":{"maxAgeDays":"90"}}`
 	c := z.client(t, changedAt.AddDate(1, 0, 0))
 
-	res, err := c.CompleteIfSufficient(context.Background(), "V2_1", pcSession)
+	res, err := c.CompleteIfSufficient(context.Background(), "V2_1", pcSession, nil)
 	require.NoError(t, err)
 	require.Equal(t, OutcomePasswordChangeRequired, res.Outcome)
 	for _, path := range []string{expirySettingsPath, complexitySettingsPath} {
@@ -308,7 +308,7 @@ func TestPasswordGateFailsClosed(t *testing.T) {
 			mutate(z)
 			c := z.client(t, changedAt.Add(time.Hour))
 
-			res, err := c.CompleteIfSufficient(context.Background(), "V2_1", pcSession)
+			res, err := c.CompleteIfSufficient(context.Background(), "V2_1", pcSession, nil)
 			require.ErrorIs(t, err, ErrUnavailable)
 			require.Equal(t, Result{}, res)
 			require.False(t, z.wasFinalized(), "finalize was called on an unreadable password state")
@@ -324,7 +324,7 @@ func TestPasswordGateNeverRunsBeforeTheSecondFactor(t *testing.T) {
 	z.user = userJSON(`"passwordChangeRequired":true`)
 	c := z.client(t, changedAt)
 
-	res, err := c.CompleteIfSufficient(context.Background(), "V2_1", pcSession)
+	res, err := c.CompleteIfSufficient(context.Background(), "V2_1", pcSession, nil)
 	require.NoError(t, err)
 	require.Equal(t, OutcomeFactorRequired, res.Outcome,
 		"a password change was offered before TOTP: someone holding only the password could rotate it")
@@ -351,7 +351,7 @@ func TestFactorDecisionsOutrankADueChange(t *testing.T) {
 			z.user = userJSON(`"passwordChangeRequired":true`)
 			c := z.client(t, changedAt)
 
-			res, err := c.CompleteIfSufficient(context.Background(), "V2_1", pcSession)
+			res, err := c.CompleteIfSufficient(context.Background(), "V2_1", pcSession, nil)
 			require.NoError(t, err)
 			require.Equal(t, tc.outcome, res.Outcome)
 			require.Equal(t, tc.reason, res.Reason)
@@ -368,7 +368,7 @@ func TestCompleteAfterFactorAsksForADueChangeAfterAVerifiedTOTP(t *testing.T) {
 	z.user = userJSON(`"passwordChangeRequired":true`)
 	c := z.client(t, changedAt)
 
-	res, err := c.CompleteAfterFactor(context.Background(), "V2_1", pcSession)
+	res, err := c.CompleteAfterFactor(context.Background(), "V2_1", pcSession, nil)
 	require.NoError(t, err)
 	require.Equal(t, OutcomePasswordChangeRequired, res.Outcome)
 	require.Equal(t, PasswordChangeRequired, res.PasswordChange.Reason)
@@ -381,7 +381,7 @@ func TestCompleteAfterFactorWithoutAVerifiedTOTPNeverOffersAChange(t *testing.T)
 	z.user = userJSON(`"passwordChangeRequired":true`)
 	c := z.client(t, changedAt)
 
-	res, err := c.CompleteAfterFactor(context.Background(), "V2_1", pcSession)
+	res, err := c.CompleteAfterFactor(context.Background(), "V2_1", pcSession, nil)
 	require.NoError(t, err)
 	require.Equal(t, OutcomeRefused, res.Outcome)
 	require.Equal(t, RefusalFactorNotVerified, res.Reason)
@@ -515,7 +515,7 @@ func TestCompleteAfterPasswordChange(t *testing.T) {
 			tc.setup(z)
 			c := z.client(t, changedAt.Add(time.Hour))
 
-			res, err := c.CompleteAfterPasswordChange(context.Background(), "V2_1", pcSession)
+			res, err := c.CompleteAfterPasswordChange(context.Background(), "V2_1", pcSession, nil)
 			require.NoError(t, err)
 			require.Equal(t, tc.outcome, res.Outcome)
 			require.Equal(t, tc.reason, res.Reason)
@@ -532,7 +532,7 @@ func TestCompleteAfterPasswordChangeFailsClosedOnAnUnreadablePasswordState(t *te
 	z.userStatus = http.StatusServiceUnavailable
 	c := z.client(t, changedAt)
 
-	res, err := c.CompleteAfterPasswordChange(context.Background(), "V2_1", pcSession)
+	res, err := c.CompleteAfterPasswordChange(context.Background(), "V2_1", pcSession, nil)
 	require.ErrorIs(t, err, ErrUnavailable)
 	require.Equal(t, Result{}, res)
 	require.False(t, z.wasFinalized())

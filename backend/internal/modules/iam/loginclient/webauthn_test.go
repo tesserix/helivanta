@@ -136,7 +136,15 @@ func TestReadySecurityKeyIDsReturnsOnlyReadyKeys(t *testing.T) {
 	require.Equal(t, `{}`, gotBody)
 	require.Equal(t, "o1", gotOrg)
 
-	for _, malformed := range []string{`{}`, `{"result":null}`, `{"result":{"state":"x"}}`, `not json`} {
+	// protojson omits an empty repeated field: no keys at all is `{}`.
+	for _, empty := range []string{`{}`, `{"result":null}`, `{"result":[]}`} {
+		answer = empty
+		ids, err := New(srv.URL, "synthetic", srv.Client()).ReadySecurityKeyIDs(context.Background(), "s")
+		require.NoError(t, err, empty)
+		require.Equal(t, []string{}, ids, empty)
+	}
+
+	for _, malformed := range []string{`{"result":{"state":"x"}}`, `{"result":"x"}`, `not json`} {
 		answer = malformed
 		_, err := New(srv.URL, "synthetic", srv.Client()).ReadySecurityKeyIDs(context.Background(), "s")
 		require.ErrorIs(t, err, ErrUnavailable, malformed)

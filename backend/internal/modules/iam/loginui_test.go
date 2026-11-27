@@ -1368,6 +1368,13 @@ type zitadelEnrollmentFake struct {
 	keyReady      atomic.Bool
 	keyChallenges atomic.Int32
 	onChallenge   atomic.Pointer[func()]
+	// Assertion checks (#1898 Task 4): how many arrived, the session token
+	// the last one carried, whether the session now holds a verified key,
+	// and a switch that makes the check answer 503.
+	keyChecks     atomic.Int32
+	keyCheckToken atomic.Value
+	sessionKey    atomic.Bool
+	keyCheckDown  atomic.Bool
 }
 
 func newZitadelEnrollmentFake(t *testing.T) *zitadelEnrollmentFake {
@@ -1385,14 +1392,20 @@ func newZitadelEnrollmentFake(t *testing.T) *zitadelEnrollmentFake {
 		if f.sessionTOTP.Load() {
 			totp = `,"totp":{"verifiedAt":"2026-10-08T00:00:00Z"}`
 		}
+		if f.sessionKey.Load() {
+			totp += `,"webAuthN":{"verifiedAt":"2026-11-27T00:00:00Z"}`
+		}
 		_, _ = w.Write([]byte(`{"session":{"id":"sess-enrol","factors":{"user":{"id":"user-enrol","organizationId":"org-1"},"password":{"verifiedAt":"2026-10-08T00:00:00Z"}` + totp + `}}}`))
 	})
 	mux.HandleFunc("GET /v2/users/{id}/authentication_methods", func(w http.ResponseWriter, _ *http.Request) {
-		methods := `["AUTHENTICATION_METHOD_TYPE_PASSWORD"]`
+		methods := []string{"AUTHENTICATION_METHOD_TYPE_PASSWORD"}
 		if f.verified.Load() {
-			methods = `["AUTHENTICATION_METHOD_TYPE_PASSWORD","AUTHENTICATION_METHOD_TYPE_TOTP"]`
+			methods = append(methods, "AUTHENTICATION_METHOD_TYPE_TOTP")
 		}
-		_, _ = w.Write([]byte(`{"authMethodTypes":` + methods + `}`))
+		if f.keyReady.Load() {
+			methods = append(methods, "AUTHENTICATION_METHOD_TYPE_U2F")
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"authMethodTypes": methods})
 	})
 	mux.HandleFunc("POST /v2/users/{id}/totp", func(w http.ResponseWriter, r *http.Request) {
 		if r.PathValue("id") != "user-enrol" {
@@ -1446,10 +1459,14 @@ func newZitadelEnrollmentFake(t *testing.T) *zitadelEnrollmentFake {
 	})
 	mux.HandleFunc("PATCH /v2/sessions/{id}", func(w http.ResponseWriter, r *http.Request) {
 		var body struct {
-			Checks struct {
+			SessionToken string `json:"sessionToken"`
+			Checks       struct {
 				TOTP struct {
 					Code string `json:"code"`
 				} `json:"totp"`
+				WebAuthN *struct {
+					Assertion map[string]any `json:"credentialAssertionData"`
+				} `json:"webAuthN"`
 			} `json:"checks"`
 			Challenges struct {
 				WebAuthN struct {
@@ -1464,6 +1481,22 @@ func newZitadelEnrollmentFake(t *testing.T) *zitadelEnrollmentFake {
 				(*hook)()
 			}
 			_, _ = w.Write([]byte(`{"sessionToken":"` + securityKeyChallengeToken + `","challenges":{"webAuthN":{"publicKeyCredentialRequestOptions":` + securityKeyFakeRequest + `}}}`))
+			return
+		}
+		if body.Checks.WebAuthN != nil {
+			f.keyChecks.Add(1)
+			f.keyCheckToken.Store(body.SessionToken)
+			if f.keyCheckDown.Load() {
+				w.WriteHeader(http.StatusServiceUnavailable)
+				return
+			}
+			if !f.keyReady.Load() || body.Checks.WebAuthN.Assertion["id"] != "good-assertion" {
+				w.WriteHeader(http.StatusBadRequest)
+				_, _ = w.Write([]byte(`{"code":3,"message":"invalid assertion (COMMAND-webauthn-assert)","details":[{"id":"COMMAND-webauthn-assert"}]}`))
+				return
+			}
+			f.sessionKey.Store(true)
+			_, _ = w.Write([]byte(`{"sessionToken":"` + factorRotatedToken + `"}`))
 			return
 		}
 		f.sessionChecks.Add(1)

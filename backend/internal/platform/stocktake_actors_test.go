@@ -44,3 +44,31 @@ func TestStocktakeActorsRequiresOneWorkforceOwner(t *testing.T) {
 	_, procurement := any(guard).(authz.CurrentPurchaseOrderActorGuard)
 	require.False(t, procurement, "physical inventory must not borrow procurement source authority")
 }
+
+func TestWardIndentActorsRequiresOneWorkforceOwner(t *testing.T) {
+	db := &tenantdb.DB{}
+	owner := workforce.New()
+	for _, scenario := range []struct {
+		name     string
+		modules  []platform.Module
+		database *tenantdb.DB
+	}{
+		{"missing database", []platform.Module{owner}, nil},
+		{"missing owner", []platform.Module{organization.New()}, db},
+		{"duplicate owner", []platform.Module{owner, workforce.New()}, db},
+	} {
+		t.Run(scenario.name, func(t *testing.T) {
+			require.Nil(t, platform.WardIndentActors(scenario.modules, scenario.database))
+		})
+	}
+	guard := platform.WardIndentActors([]platform.Module{organization.New(), owner}, db)
+	require.NotNil(t, guard)
+	called := false
+	require.ErrorIs(t, guard.WithCurrentWardIndentActor(context.Background(), authz.StaffActorScope{}, func(context.Context, authz.StaffActorReference) error {
+		called = true
+		return nil
+	}), authz.ErrScopedAuthorizationUnavailable)
+	require.False(t, called)
+	_, stocktake := any(guard).(authz.CurrentStocktakeActorGuard)
+	require.False(t, stocktake, "ward indents must not borrow stocktake source authority")
+}

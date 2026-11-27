@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { apiFetch } from "./client";
 import { membershipRequestOptions } from "./membership-commands";
-import { HospitalStocktakeScopeChoiceContract } from "./staff-access-contract";
+import { HospitalWorkScopeChoiceContract } from "./staff-access-contract";
 import {
   HospitalStocktakeDepartmentChoiceContract,
   HospitalStocktakeOutletChoiceContract,
@@ -21,7 +21,7 @@ const continuation = z
   .object({ next_cursor: z.string().min(1).max(2048).nullable(), has_more: z.boolean() })
   .strict();
 const scopesPage = z.object({
-  data: z.array(HospitalStocktakeScopeChoiceContract).max(20),
+  data: z.array(HospitalWorkScopeChoiceContract).max(20),
   page: continuation,
 });
 const departmentsPage = z.object({

@@ -14,14 +14,20 @@ import (
 	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
-type hospitalStocktakeUse struct {
+// hospitalWorkUse is one held department-scoped purpose: the operation and actor proofs, current path and Staff actor.
+type hospitalWorkUse struct {
 	hospital, department uuid.UUID
 	path                 []string
 	actor                authz.StaffActorReference
 	operation, source    authz.ScopeGrant
-	binding, revision    uuid.UUID
-	bindingVersion       int64
+	read                 *authz.ScopeGrant
 	permission           authz.Permission
+}
+
+type hospitalStocktakeUse struct {
+	hospitalWorkUse
+	binding, revision uuid.UUID
+	bindingVersion    int64
 }
 
 type stocktakeWorkUse struct {
@@ -92,8 +98,32 @@ func (h *catalogueHandlers) stocktakeWork(ctx context.Context, p authn.Principal
 }
 
 func (h *catalogueHandlers) withHospitalStocktakeActor(ctx context.Context, p authn.Principal, hospital, department string, permission authz.Permission, action func(context.Context, *hospitalStocktakeUse) error) error {
+	if action == nil {
+		return authz.ErrScopedAuthorizationUnavailable
+	}
+	return h.withHospitalWorkActor(ctx, p, authz.StocktakeWork, hospital, department, permission, func(actorCtx context.Context, work hospitalWorkUse) error {
+		return action(actorCtx, &hospitalStocktakeUse{hospitalWorkUse: work})
+	})
+}
+
+// hospitalWorkActor is the purpose's own Workforce actor source; an unknown purpose or foreign permission has none.
+func (h *catalogueHandlers) hospitalWorkActor(purpose authz.HospitalWorkPurpose, permission authz.Permission) func(context.Context, authz.StaffActorScope, func(context.Context, authz.StaffActorReference) error) error {
+	switch purpose {
+	case authz.StocktakeWork:
+		if h.stocktakeActors != nil && (permission == PermStocktakeRead || permission == PermStocktakeCount || permission == PermStocktakeReview) {
+			return h.stocktakeActors.WithCurrentStocktakeActor
+		}
+	case authz.WardIndentWork:
+		if h.wardIndentActors != nil && (permission == PermIndentRead || permission == PermIndentRaise) {
+			return h.wardIndentActors.WithCurrentWardIndentActor
+		}
+	}
+	return nil
+}
+
+func (h *catalogueHandlers) withHospitalWorkActor(ctx context.Context, p authn.Principal, purpose authz.HospitalWorkPurpose, hospital, department string, permission authz.Permission, action func(context.Context, hospitalWorkUse) error) error {
 	guard, ok := h.stocktakeAuthority.(authz.CompoundScopedCommandGuard)
-	if !ok || h.db == nil || h.stocktakeActors == nil || h.stocktakeDepartments == nil || h.stocktakeReferences == nil || action == nil {
+	if !ok || h.db == nil || h.stocktakeDepartments == nil || h.stocktakeReferences == nil || action == nil {
 		return authz.ErrScopedAuthorizationUnavailable
 	}
 	hospitalID, err := uuid.Parse(hospital)
@@ -101,7 +131,8 @@ func (h *catalogueHandlers) withHospitalStocktakeActor(ctx context.Context, p au
 	if err != nil || hospitalID == uuid.Nil || hospitalID.String() != hospital || !deptOK {
 		return authz.ErrScopedCommandDenied
 	}
-	if permission != PermStocktakeRead && permission != PermStocktakeCount && permission != PermStocktakeReview {
+	withActor := h.hospitalWorkActor(purpose, permission)
+	if withActor == nil {
 		return authz.ErrScopedAuthorizationUnavailable
 	}
 	ctx, cancel := context.WithDeadline(tenantdb.WithActor(ctx, p.Subject), p.IdleDeadline)
@@ -117,8 +148,13 @@ func (h *catalogueHandlers) withHospitalStocktakeActor(ctx context.Context, p au
 	for i, id := range path {
 		pathStrings[i] = id.String()
 	}
-	checks := make([]authz.ScopeCheck, 0, 2)
-	for _, perm := range []authz.Permission{permission, authz.StocktakeActorUse} {
+	permissions := []authz.Permission{permission, purpose.ActorPermission()}
+	// A raise also holds read: it records hospital and department names, which only read discloses.
+	if purpose == authz.WardIndentWork && permission == PermIndentRaise {
+		permissions = append(permissions, purpose.ReadPermission())
+	}
+	checks := make([]authz.ScopeCheck, 0, len(permissions))
+	for _, perm := range permissions {
 		request := authz.ScopeRequest{TenantID: p.TenantID, Subject: p.Subject, HospitalID: hospital, DepartmentPath: pathStrings, Permission: perm}
 		grant, err := h.stocktakeAuthority.AuthorizeScope(ctx, request)
 		if err != nil {
@@ -141,12 +177,15 @@ func (h *catalogueHandlers) withHospitalStocktakeActor(ctx context.Context, p au
 				}
 				return h.stocktakeDepartments.WithinCurrentDepartment(current, p.TenantID, hospitalID, departmentID, assigned, func(locked context.Context) error { return within(locked, index+1) })
 			}
-			return h.stocktakeActors.WithCurrentStocktakeActor(current, authz.StaffActorScope{TenantID: p.TenantID, Subject: p.Subject, HospitalID: hospitalID, DepartmentPath: pathStrings}, func(actorCtx context.Context, actor authz.StaffActorReference) error {
+			return withActor(current, authz.StaffActorScope{TenantID: p.TenantID, Subject: p.Subject, HospitalID: hospitalID, DepartmentPath: pathStrings}, func(actorCtx context.Context, actor authz.StaffActorReference) error {
 				if actor.StaffID == uuid.Nil || actor.LinkID == uuid.Nil || actor.GenerationID == uuid.Nil || actor.LinkVersion < 2 || actor.EmploymentEpoch < 1 {
 					return authz.ErrScopedAuthorizationUnavailable
 				}
-
-				return action(actorCtx, &hospitalStocktakeUse{hospital: hospitalID, department: departmentID, path: pathStrings, actor: actor, operation: checks[0].Grant, source: checks[1].Grant, permission: permission})
+				use := hospitalWorkUse{hospital: hospitalID, department: departmentID, path: pathStrings, actor: actor, operation: checks[0].Grant, source: checks[1].Grant, permission: permission}
+				if len(checks) == 3 {
+					use.read = &checks[2].Grant
+				}
+				return action(actorCtx, use)
 			})
 		}
 		return within(current, 0)

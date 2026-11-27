@@ -184,6 +184,13 @@ export const releaseDefinitions = [
     eligible: true,
     review_after: "2027-02-16",
   },
+  {
+    key: "pharmacy_ward_indents",
+    owner: "pharmacy",
+    dependencies: ["pharmacy_counter"],
+    eligible: false,
+    review_after: "2027-02-16",
+  },
 ] as const;
 export const releasePages = [
   { path: "/billing", capability: "billing_workspace" },
@@ -270,6 +277,8 @@ export const releasePages = [
   { path: "/workforce/shared-shipments", capability: "supplier_collaboration" },
   { path: "/pharmacy/working-stocktakes", capability: "pharmacy_setup" },
   { path: "/pharmacy/low-stock", capability: "pharmacy_low_stock" },
+  { path: "/pharmacy/ward-indents", capability: "pharmacy_ward_indents" },
+  { path: "/pharmacy/ward-indent-requests", capability: "pharmacy_ward_indents" },
 ] as const;
 export const releasePanels = [
   { key: "staff.posting_drafts", capability: "department_teams" },
@@ -318,6 +327,7 @@ export const releasePanels = [
   { key: "staff.operating.pharmacy.stocktake_counter.v1", capability: "pharmacy_stocktake" },
   { key: "staff.operating.pharmacy.stocktake_reviewer.v1", capability: "pharmacy_stocktake" },
   { key: "staff.assignments.pharmacy_stocktake", capability: "pharmacy_stocktake" },
+  { key: "staff.assignments.pharmacy_ward_indent", capability: "pharmacy_ward_indents" },
   { key: "pharmacy.low_stock.overview", capability: "pharmacy_low_stock" },
 ] as const;
 const identifier = z
@@ -352,6 +362,7 @@ export const ReleaseCapabilityContract = z
       "unreleased",
       "pharmacy_stocktake",
       "pharmacy_low_stock",
+      "pharmacy_ward_indents",
     ]),
     available: z.boolean(),
   })
@@ -373,7 +384,7 @@ export const ReleaseSnapshotContract = z
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     issued_at: z.string().datetime({ offset: true }),
     expires_at: z.string().datetime({ offset: true }),
-    capabilities: z.array(ReleaseCapabilityContract).min(25).max(25),
+    capabilities: z.array(ReleaseCapabilityContract).min(26).max(26),
   })
   .strict();
 export type ReleaseSnapshot = z.infer<typeof ReleaseSnapshotContract>;

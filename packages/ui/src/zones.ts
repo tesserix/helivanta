@@ -230,6 +230,20 @@ export const ZONES: Zone[] = [
         permission: "pharmacy.medication.read",
       },
       {
+        section: "Dispensing",
+        label: "Ward indents",
+        href: "/pharmacy/ward-indents",
+        icon: ClipboardCheck,
+        permission: "pharmacy.indent.fulfil",
+      },
+      {
+        section: "Dispensing",
+        label: "Ward medicine requests",
+        href: "/pharmacy/ward-indent-requests",
+        icon: FileText,
+        permission: "pharmacy.indent.read",
+      },
+      {
         section: "Inventory",
         label: "Low stock",
         href: "/pharmacy/low-stock",

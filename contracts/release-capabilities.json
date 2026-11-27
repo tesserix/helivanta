@@ -189,6 +189,13 @@
       "dependencies": ["pharmacy_setup"],
       "eligible": true,
       "review_after": "2027-02-16"
+    },
+    {
+      "key": "pharmacy_ward_indents",
+      "owner": "pharmacy",
+      "dependencies": ["pharmacy_counter"],
+      "eligible": false,
+      "review_after": "2027-02-16"
     }
   ],
   "routes": [
@@ -6079,6 +6086,66 @@
     },
     {
       "method": "GET",
+      "path": "/v1/iam/me/hospital-ward-indent-scopes",
+      "capability": "pharmacy_ward_indents"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/iam/pharmacy-ward-indent-assignment-proposals",
+      "capability": "pharmacy_ward_indents"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/ward-indent-outlet-choices",
+      "capability": "pharmacy_ward_indents"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/ward-indent-products",
+      "capability": "pharmacy_ward_indents"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/ward-indent-occupant",
+      "capability": "pharmacy_ward_indents"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/ward-indents",
+      "capability": "pharmacy_ward_indents"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/ward-indents/:indent",
+      "capability": "pharmacy_ward_indents"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/ward-indents/:indent",
+      "capability": "pharmacy_ward_indents"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/ward-indents/:indent/cancellation",
+      "capability": "pharmacy_ward_indents"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/ward-indents",
+      "capability": "pharmacy_ward_indents"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/ward-indents/:id",
+      "capability": "pharmacy_ward_indents"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/ward-indents/:id/closure",
+      "capability": "pharmacy_ward_indents"
+    },
+    {
+      "method": "GET",
       "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/stocktake-outlet-choices",
       "capability": "baseline"
     },
@@ -6778,6 +6845,14 @@
     {
       "path": "/pharmacy/low-stock",
       "capability": "pharmacy_low_stock"
+    },
+    {
+      "path": "/pharmacy/ward-indents",
+      "capability": "pharmacy_ward_indents"
+    },
+    {
+      "path": "/pharmacy/ward-indent-requests",
+      "capability": "pharmacy_ward_indents"
     }
   ],
   "panels": [
@@ -6940,6 +7015,10 @@
     {
       "key": "staff.assignments.pharmacy_stocktake",
       "capability": "pharmacy_stocktake"
+    },
+    {
+      "key": "staff.assignments.pharmacy_ward_indent",
+      "capability": "pharmacy_ward_indents"
     },
     {
       "key": "pharmacy.low_stock.overview",

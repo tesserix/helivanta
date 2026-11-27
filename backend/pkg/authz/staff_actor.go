@@ -12,6 +12,9 @@ const StaffActorUse Permission = "workforce.staff_actor.use"
 // StocktakeActorUse permits consuming current hospital Staff for physical counts.
 const StocktakeActorUse Permission = "workforce.stocktake_actor.use"
 
+// WardIndentActorUse permits consuming current hospital Staff to raise or read ward indents.
+const WardIndentActorUse Permission = "workforce.ward_indent_actor.use"
+
 type StaffActorScope struct {
 	TenantID, Subject string
 	HospitalID        uuid.UUID

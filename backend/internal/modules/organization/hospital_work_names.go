@@ -10,8 +10,8 @@ import (
 	"slices"
 )
 
-func (g *departmentReferenceGuard) StocktakeDepartmentName(ctx context.Context, scope authz.StaffActorScope) (string, error) {
-	checks, err := authz.StocktakeReadScopeChecks(ctx, scope)
+func (g *departmentReferenceGuard) HospitalWorkDepartmentName(ctx context.Context, purpose authz.HospitalWorkPurpose, scope authz.StaffActorScope) (string, error) {
+	checks, err := purpose.ReadScopeChecks(ctx, scope)
 	if err != nil || g == nil || g.db == nil || tenantdb.ActorFrom(ctx) != scope.Subject || !g.db.GuardedCommandActive(ctx) {
 		return "", authz.ErrScopedAuthorizationUnavailable
 	}
@@ -39,7 +39,7 @@ func (g *departmentReferenceGuard) StocktakeDepartmentName(ctx context.Context, 
 			if err := tx.Table("organization_departments").Select("name").Where("tenant_id=? AND hospital_id=? AND id=? AND status='active'", scope.TenantID, scope.HospitalID, target).Take(&row).Error; err != nil {
 				return err
 			}
-			if err := tx.Exec(`INSERT INTO audit_events(tenant_id,actor_subject,action,resource_type,resource_id)VALUES(?,?,'organization.stocktake_department_name.read','organization_departments',?)`, scope.TenantID, scope.Subject, target).Error; err != nil {
+			if err := tx.Exec(`INSERT INTO audit_events(tenant_id,actor_subject,action,resource_type,resource_id)VALUES(?,?,?,'organization_departments',?)`, scope.TenantID, scope.Subject, "organization."+string(purpose)+"_department_name.read", target).Error; err != nil {
 				return err
 			}
 			name = row.Name

@@ -918,7 +918,7 @@
         "max": 20
       }
     ],
-    "HospitalStocktakeScopeChoice": [
+    "HospitalWorkScopeChoice": [
       {
         "name": "owner_tenant_id",
         "type": "uuid"
@@ -1525,6 +1525,39 @@
       ],
       "definitions_sha256": "c0a94967684ae2124c37a7436b70b4fdcca14f26d90232c44fbcfee464314ade",
       "sql_sha256": "ff9ba7e6ae67b6b9c613e8853833adc8df3b073967fa30d8f4299ee9cce74bf2"
+    },
+    {
+      "id": "0058_iam_pharmacy_ward_indent_templates",
+      "file": "assignment_pharmacy_ward_indent_templates_generated.sql",
+      "templates": [
+        {
+          "key": "pharmacy.department_ward_indent_reader.v1",
+          "name": "Hospital ward indent reader",
+          "description": "Read this hospital department's ward indents and their issued and returned balances at verified pharmacy outlets; cannot raise, cancel, issue, dispense or post financial entries.",
+          "family": "pharmacy_ward_indent",
+          "permissions": [
+            "pharmacy.indent.read",
+            "workforce.ward_indent_actor.use"
+          ],
+          "scope_kinds": ["department"],
+          "establishment_kinds": ["hospital"]
+        },
+        {
+          "key": "pharmacy.department_ward_indent_requester.v1",
+          "name": "Hospital ward indent requester",
+          "description": "Raise or cancel medicine indents for patients admitted to this hospital department at a verified pharmacy outlet; cannot issue, dispense, price, approve returns or post financial entries.",
+          "family": "pharmacy_ward_indent",
+          "permissions": [
+            "pharmacy.indent.read",
+            "pharmacy.indent.raise",
+            "workforce.ward_indent_actor.use"
+          ],
+          "scope_kinds": ["department"],
+          "establishment_kinds": ["hospital"]
+        }
+      ],
+      "definitions_sha256": "bef8b7fc1b913d7882276817df5f876511c8015e6783ef786e0145768a0f9a9d",
+      "sql_sha256": "3ee2335c4e4de459b6649d49c31e4fa4b86e040a40509d9d09b6cd0a4b91a978"
     }
   ],
   "template_catalogs": [
@@ -1754,6 +1787,15 @@
         "pharmacy.department_stocktake_reviewer.v1"
       ],
       "definitions_sha256": "c0a94967684ae2124c37a7436b70b4fdcca14f26d90232c44fbcfee464314ade"
+    },
+    {
+      "key": "department-pharmacy-ward-indents-v1",
+      "name": "Hospital department ward indents",
+      "template_keys": [
+        "pharmacy.department_ward_indent_reader.v1",
+        "pharmacy.department_ward_indent_requester.v1"
+      ],
+      "definitions_sha256": "bef8b7fc1b913d7882276817df5f876511c8015e6783ef786e0145768a0f9a9d"
     }
   ]
 }

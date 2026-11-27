@@ -13,7 +13,7 @@ import (
 )
 
 func (g *departmentReferenceGuard) StocktakeDepartments(ctx context.Context, scope authz.StaffActorScope, page pagination.Params) ([]authz.StocktakeDepartment, error) {
-	checks, err := authz.StocktakeReadScopeChecks(ctx, scope)
+	checks, err := authz.StocktakeWork.ReadScopeChecks(ctx, scope)
 	if err != nil || g == nil || g.db == nil || tenantdb.ActorFrom(ctx) != scope.Subject || !g.db.GuardedCommandActive(ctx) || page.Limit < 1 || page.Limit > 20 {
 		return nil, authz.ErrScopedAuthorizationUnavailable
 	}

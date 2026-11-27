@@ -444,6 +444,30 @@ export const staffAccessTemplates = [
     scope_kinds: ["department"],
     establishment_kinds: ["hospital"],
   },
+  {
+    key: "pharmacy.department_ward_indent_reader.v1",
+    name: "Hospital ward indent reader",
+    description:
+      "Read this hospital department's ward indents and their issued and returned balances at verified pharmacy outlets; cannot raise, cancel, issue, dispense or post financial entries.",
+    family: "pharmacy_ward_indent",
+    permissions: ["pharmacy.indent.read", "workforce.ward_indent_actor.use"],
+    scope_kinds: ["department"],
+    establishment_kinds: ["hospital"],
+  },
+  {
+    key: "pharmacy.department_ward_indent_requester.v1",
+    name: "Hospital ward indent requester",
+    description:
+      "Raise or cancel medicine indents for patients admitted to this hospital department at a verified pharmacy outlet; cannot issue, dispense, price, approve returns or post financial entries.",
+    family: "pharmacy_ward_indent",
+    permissions: [
+      "pharmacy.indent.read",
+      "pharmacy.indent.raise",
+      "workforce.ward_indent_actor.use",
+    ],
+    scope_kinds: ["department"],
+    establishment_kinds: ["hospital"],
+  },
 ] as const;
 export const staffAccessTemplateCatalogs = {
   "legacy-v1": [
@@ -595,5 +619,9 @@ export const staffAccessTemplateCatalogs = {
     "pharmacy.department_stocktake_reader.v1",
     "pharmacy.department_stocktake_counter.v1",
     "pharmacy.department_stocktake_reviewer.v1",
+  ],
+  "department-pharmacy-ward-indents-v1": [
+    "pharmacy.department_ward_indent_reader.v1",
+    "pharmacy.department_ward_indent_requester.v1",
   ],
 } as const;

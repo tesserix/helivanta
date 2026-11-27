@@ -21,3 +21,16 @@ func StocktakeActors(modules []Module, db *tenantdb.DB) authz.HospitalStocktakeA
 	}
 	return guard
 }
+
+type wardIndentActorProvider interface {
+	WardIndentActors(*tenantdb.DB) authz.CurrentWardIndentActorGuard
+}
+
+// WardIndentActors resolves Workforce's current ward indent identity boundary.
+func WardIndentActors(modules []Module, db *tenantdb.DB) authz.CurrentWardIndentActorGuard {
+	owner, ok := soleOwner(modules, db, "workforce").(wardIndentActorProvider)
+	if !ok {
+		return nil
+	}
+	return owner.WardIndentActors(db)
+}

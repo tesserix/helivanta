@@ -63,6 +63,7 @@ const assignmentLists: Record<StaffAssignmentFamily, string> = {
   purchase_order: "/iam/purchase-order-assignment-proposals",
   supplier_receiving: "/iam/supplier-receiving-assignment-proposals",
   pharmacy_stocktake: "/iam/pharmacy-stocktake-assignment-proposals",
+  pharmacy_ward_indent: "/iam/pharmacy-ward-indent-assignment-proposals",
   supplier_access: "/iam/supplier-access-assignment-proposals",
 };
 export const staffAssignmentsKey = (scope: StaffAssignmentScope) => [

@@ -53,6 +53,7 @@ Source: [backend/internal/modules/iam/module.go](../../../backend/internal/modul
 | GET | `/v1/iam/identity-assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/intake-assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/me/hospital-pharmacy-stocktake-scopes` | `public` | true | false |
+| GET | `/v1/iam/me/hospital-ward-indent-scopes` | `public` | true | false |
 | GET | `/v1/iam/me/permissions` | `no_tenant_membership` | false | false |
 | GET | `/v1/iam/me/pharmacy-stocktake-locations` | `public` | true | false |
 | GET | `/v1/iam/me/profile` | `no_tenant_membership` | false | false |
@@ -96,6 +97,7 @@ Source: [backend/internal/modules/iam/module.go](../../../backend/internal/modul
 | GET | `/v1/iam/partner-membership-assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/pharmacy-binding-assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/pharmacy-stocktake-assignment-proposals` | `public` | true | false |
+| GET | `/v1/iam/pharmacy-ward-indent-assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/posting-assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/purchase-order-assignment-proposals` | `public` | true | false |
 | GET | `/v1/iam/roles` | `iam.member.manage` | false | false |
@@ -594,6 +596,12 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | GET | `/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receiving/quarantine-locations` | `public` | true | false |
 | GET | `/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receiving/sellable-locations` | `public` | true | false |
 | GET | `/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/supplier-shipments/:shipment/receiving` | `public` | false | false |
+| GET | `/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/ward-indent-occupant` | `public` | false | false |
+| GET | `/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/ward-indent-products` | `public` | true | false |
+| PUT | `/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/ward-indents/:indent/cancellation` | `public` | false | false |
+| GET | `/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/ward-indents/:indent` | `public` | false | false |
+| PUT | `/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/ward-indents/:indent` | `public` | false | false |
+| GET | `/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/ward-indents` | `public` | true | false |
 | PUT | `/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes/:stocktake/cancellations/:command` | `public` | false | false |
 | GET | `/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes/:stocktake/counts/:command` | `public` | false | false |
 | PUT | `/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes/:stocktake/counts/:command` | `public` | false | false |
@@ -616,6 +624,7 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | GET | `/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/supplier-orders/:order/lines/:line/stock-choices` | `public` | true | false |
 | GET | `/v1/pharmacy/hospitals/:hospital/departments/:department/stocktake-department-choices` | `public` | true | false |
 | GET | `/v1/pharmacy/hospitals/:hospital/departments/:department/stocktake-outlet-choices` | `public` | true | false |
+| GET | `/v1/pharmacy/hospitals/:hospital/departments/:department/ward-indent-outlet-choices` | `public` | true | false |
 | GET | `/v1/pharmacy/hospitals/:hospital/staff-binding-outlet-choices` | `pharmacy.staff_binding.read` | true | false |
 | GET | `/v1/pharmacy/insights` | `pharmacy.dispense.read` | false | false |
 | GET | `/v1/pharmacy/medications` | `pharmacy.medication.read` | true | false |
@@ -855,6 +864,9 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/verification-policy-drafts/:policy/revisions/:revision` | `pharmacy.access.manage` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/verification-policy-drafts/:policy/revisions` | `pharmacy.access.manage` | true | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/verification-policy-drafts` | `pharmacy.access.manage` | true | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/ward-indents/:id/closure` | `pharmacy.indent.fulfil` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/ward-indents/:id` | `pharmacy.indent.fulfil` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/ward-indents` | `pharmacy.indent.fulfil` | true | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet` | `pharmacy.catalogue.read` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet` | `pharmacy.access.manage` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets` | `pharmacy.catalogue.read` | true | false |
@@ -865,6 +877,8 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 
 Published subjects:
 
+- `helivanta.in.pharmacy.ward_indent_raised.v1`
+- `helivanta.in.pharmacy.ward_indent_closed.v1`
 - `helivanta.in.pharmacy.supplier_credit_changed.v1`
 - `helivanta.in.pharmacy.supplier_receiving_recorded.v1`
 - `helivanta.in.pharmacy.supplier_dispatch_recorded.v1`
@@ -962,6 +976,7 @@ Migration table declarations:
 - `0074_pharmacy_purchase_tax_evidence`: `pharmacy_purchase_tax_evidence`, `pharmacy_purchase_tax_lines`, `pharmacy_tally_export_receipts`.
 - `0075_pharmacy_purchase_export_day`: concurrent index `pharmacy_purchase_export_day` on `pharmacy_payables (tenant_id, outlet_id, issued_on, created_at, id)`.
 - `0076_pharmacy_verification_policy_preparation`: `pharmacy_verification_policy_drafts`.
+- `0077_pharmacy_ward_indents`: `pharmacy_ward_indents`, `pharmacy_ward_indent_lines`, `pharmacy_ward_indent_issues`.
 
 ## payments
 

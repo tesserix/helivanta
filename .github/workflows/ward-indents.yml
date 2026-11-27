@@ -1,0 +1,47 @@
+name: Ward indent acceptance
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "backend/internal/modules/pharmacy/ward_indent*"
+      - "backend/internal/modules/pharmacy/stocktake_hospital*"
+      - "backend/internal/modules/pharmacy/module.go"
+      - "backend/internal/modules/iam/hospital_work*"
+      - "backend/internal/modules/iam/hospital_ward_indent*"
+      - "backend/internal/modules/workforce/ward_indent*"
+      - "backend/internal/modules/workforce/hospital_work*"
+      - "backend/internal/modules/organization/hospital_work*"
+      - "backend/internal/platform/stocktake_actors*"
+      - "backend/internal/release/**"
+      - "backend/internal/globalapi/ward_indent*"
+      - "backend/pkg/authz/hospital_work*"
+      - "contracts/pharmacy.json"
+      - "contracts/staff-access.json"
+      - "contracts/release-capabilities.json"
+      - ".github/workflows/ward-indents.yml"
+permissions:
+  contents: read
+jobs:
+  authority:
+    concurrency:
+      group: ward-indents-authority-${{ github.ref }}
+      cancel-in-progress: true
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      GOTOOLCHAIN: local
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5
+        with:
+          go-version-file: backend/go.mod
+          cache: false
+      - name: Indent tables, triggers and the seals they extend
+        run: go test -race -v -count=1 -timeout 30m ./internal/modules/pharmacy -run 'WardIndent|StocktakeHospitalAuthorityIntegrity|StocktakeHospitalSourceRecoveryMigration|ReorderReadMigration'
+      - name: Ward indent roles, purposes and actor sources
+        run: go test -race -count=1 -timeout 15m ./pkg/authz ./internal/platform ./internal/release ./internal/modules/iam ./internal/modules/workforce ./internal/modules/organization -run 'WardIndent|HospitalWork|Stocktake'
+      - name: Ward indent scope discovery through Global API
+        run: go test -race -v -count=1 -timeout 15m ./internal/globalapi -run '^TestPreEmploymentPersonReviewPreservesInactiveJoiner$|WardIndent'

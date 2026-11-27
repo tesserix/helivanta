@@ -49,6 +49,8 @@ export const ProposalInputContract = z
       "pharmacy.department_stocktake_reader.v1",
       "pharmacy.department_stocktake_counter.v1",
       "pharmacy.department_stocktake_reviewer.v1",
+      "pharmacy.department_ward_indent_reader.v1",
+      "pharmacy.department_ward_indent_requester.v1",
     ]),
     reason: z
       .string()
@@ -640,7 +642,7 @@ export const AccountPresentationsContract = z
   .strict();
 export type AccountPresentations = z.infer<typeof AccountPresentationsContract>;
 
-export const HospitalStocktakeScopeChoiceContract = z
+export const HospitalWorkScopeChoiceContract = z
   .object({
     owner_tenant_id: identifier,
     id: identifier,
@@ -675,4 +677,4 @@ export const HospitalStocktakeScopeChoiceContract = z
     expires_at: z.string().datetime({ offset: true }),
   })
   .strict();
-export type HospitalStocktakeScopeChoice = z.infer<typeof HospitalStocktakeScopeChoiceContract>;
+export type HospitalWorkScopeChoice = z.infer<typeof HospitalWorkScopeChoiceContract>;

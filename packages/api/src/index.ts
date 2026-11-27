@@ -296,7 +296,7 @@ export {
   hospitalStocktakeOutletsKey,
   type HospitalStocktakeOutletScope,
 } from "./hospital-stocktake-locations";
-export type { HospitalStocktakeScopeChoice } from "./staff-access-contract";
+export type { HospitalWorkScopeChoice } from "./staff-access-contract";
 export {
   pharmacyStocktakeCountInputSchema,
   pharmacyStocktakeCountEntrySchema,
@@ -318,3 +318,27 @@ export * from "./pharmacy-purchase-tax";
 export * from "./pharmacy-verification-policies";
 
 export * from "./pharmacy-fulfilment-review";
+export {
+  wardIndentSchema,
+  wardIndentLineSchema,
+  wardIndentsKey,
+  wardIndentIssueUrl,
+  wardIndentOutstanding,
+  fetchWardIndentOutlets,
+  fetchWardIndentScopes,
+  fetchWardIndentProducts,
+  fetchWardIndents,
+  fetchWardIndentOccupant,
+  putWardIndent,
+  cancelWardIndent,
+  fetchFulfilmentIndents,
+  fetchFulfilmentIndent,
+  closeWardIndent,
+  type WardIndent,
+  type WardIndentLine,
+  type WardIndentOutletChoice,
+  type WardIndentInput,
+  type WardIndentStatus,
+  type WardIndentDepartment,
+  type PharmacyOutletRoot,
+} from "./ward-indents";

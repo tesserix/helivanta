@@ -1221,3 +1221,97 @@ test("hospital pharmacy commercial reviewers cannot commit physical stock", () =
   assert.ok(!fulfiller.permissions.includes("supply.supplier_order.accept"));
   assert.ok(!acceptor.permissions.includes("pharmacy.hospital_fulfilment.use"));
 });
+
+test("ward indent templates stay department-only and cannot dispense, count stock or borrow another actor purpose", async (t) => {
+  for (const [name, key, change] of [
+    [
+      "dispensing",
+      "pharmacy.department_ward_indent_requester.v1",
+      (entry) => entry.permissions.push("pharmacy.indent.issue"),
+    ],
+    [
+      "stocktake count",
+      "pharmacy.department_ward_indent_requester.v1",
+      (entry) => entry.permissions.splice(1, 1, "pharmacy.stocktake.count"),
+    ],
+    [
+      "reader raising",
+      "pharmacy.department_ward_indent_reader.v1",
+      (entry) => entry.permissions.splice(1, 0, "pharmacy.indent.raise"),
+    ],
+    [
+      "stocktake actor",
+      "pharmacy.department_ward_indent_reader.v1",
+      (entry) => (entry.permissions = ["pharmacy.indent.read", "workforce.stocktake_actor.use"]),
+    ],
+    [
+      "without actual Staff",
+      "pharmacy.department_ward_indent_requester.v1",
+      (entry) => entry.permissions.pop(),
+    ],
+    [
+      "hospital-wide expansion",
+      "pharmacy.department_ward_indent_reader.v1",
+      (entry) => (entry.scope_kinds = ["hospital", "department"]),
+    ],
+    [
+      "independent pharmacy root",
+      "pharmacy.department_ward_indent_requester.v1",
+      (entry) => (entry.establishment_kinds = ["hospital", "pharmacy"]),
+    ],
+    [
+      "undeclared role",
+      "pharmacy.department_ward_indent_reader.v1",
+      (entry) => (entry.key = "pharmacy.department_ward_indent_approver.v1"),
+    ],
+  ])
+    await t.test(name, async (t) => {
+      const { dir, contract, contractPath } = await fixture(t);
+      const template = contract.template_migrations
+        .flatMap((entry) => entry.templates)
+        .find((entry) => entry.key === key);
+      assert.ok(template);
+      change(template);
+      await writeFile(contractPath, JSON.stringify(contract));
+      const result = generate(dir);
+      assert.notEqual(result.status, 0);
+      assert.match(
+        result.stderr,
+        /Ward indent templates|pharmacy root|department scope|Invalid declared staff/,
+      );
+    });
+});
+
+test("ward indent roles grant only the declared indent purpose", () => {
+  const definitions = catalog.template_migrations.flatMap((entry) => entry.templates);
+  const family = definitions.filter((entry) => entry.family === "pharmacy_ward_indent");
+  assert.deepEqual(
+    family.map((entry) => [
+      entry.key,
+      entry.permissions,
+      entry.scope_kinds,
+      entry.establishment_kinds,
+    ]),
+    [
+      [
+        "pharmacy.department_ward_indent_reader.v1",
+        ["pharmacy.indent.read", "workforce.ward_indent_actor.use"],
+        ["department"],
+        ["hospital"],
+      ],
+      [
+        "pharmacy.department_ward_indent_requester.v1",
+        ["pharmacy.indent.read", "pharmacy.indent.raise", "workforce.ward_indent_actor.use"],
+        ["department"],
+        ["hospital"],
+      ],
+    ],
+  );
+  const catalogEntry = catalog.template_catalogs.find(
+    (entry) => entry.key === "department-pharmacy-ward-indents-v1",
+  );
+  assert.deepEqual(
+    catalogEntry.template_keys,
+    family.map((entry) => entry.key),
+  );
+});

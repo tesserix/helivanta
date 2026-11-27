@@ -25,3 +25,9 @@ type HospitalStocktakeActorGuard interface {
 	CurrentStocktakeActorGuard
 	StocktakeActorHistoryGuard
 }
+
+// CurrentWardIndentActorGuard verifies hospital Staff for ward indent work.
+// Its source evidence grants no dispensing, stock or financial authority.
+type CurrentWardIndentActorGuard interface {
+	WithCurrentWardIndentActor(context.Context, StaffActorScope, func(context.Context, StaffActorReference) error) error
+}

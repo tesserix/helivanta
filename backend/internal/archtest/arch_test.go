@@ -655,6 +655,7 @@ var unpaginatedGETAllowlist = map[string]string{
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/invoice-profile":                         "the one invoice profile in force at an outlet",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales/availability":                      "one product's sellable units and nearest expiry",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales/:id":                               "one invoice: at most 200 batch lines and 5 tenders; the sales list is paginated",
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/ward-indents/:id":                        "one indent with at most 50 requested lines, not a collection",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/sales/:id/summary":                       "one sale's statement: its at most 200 lines and 5 charges, tenders by kind, and at most 100 credit notes listed (totals count every note; the credit-notes list is paginated)",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/opd-encounters":                          "a counter lookup bounded to one registered patient's 20 newest citable OPD visits at one hospital",
 	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products/:id/category":         "one product's category in force and its 50 newest category declarations",
@@ -828,6 +829,8 @@ var unpaginatedGETAllowlist = map[string]string{
 	"GET /pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes/:stocktake/counts/:command":    "one original Staff/account-bound receipt with at most 100 observations, not a collection",
 	"GET /pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes/:stocktake/decisions/:command": "one original Staff/account-bound decision receipt with scalar totals, not a collection",
 	"GET /pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes/:stocktake/register.csv":       "complete reviewed register export; refuses more than 10000 rows or 8 MiB before disclosure, with audited provenance; JSON lists and lines are cursor-paginated",
+	"GET /pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/ward-indent-occupant":                                          "one bed or room lookup that reads at most 2 stays and refuses an ambiguous room, not a collection",
+	"GET /pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/ward-indents/:indent":                                          "one indent with at most 50 requested lines, not a collection",
 }
 
 // TestEveryCollectionGETIsPaginated is the one hole platform.ListRoute's

@@ -376,6 +376,15 @@
         },
         {
           "method": "GET",
+          "path": "/v1/iam/me/hospital-ward-indent-scopes",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
           "path": "/v1/iam/me/permissions",
           "permission": "no_tenant_membership",
           "authentication_required": true,
@@ -755,6 +764,15 @@
         {
           "method": "GET",
           "path": "/v1/iam/pharmacy-stocktake-assignment-proposals",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/iam/pharmacy-ward-indent-assignment-proposals",
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
@@ -1532,6 +1550,11 @@
           "creates_tables": [
             "iam_security_keys"
           ]
+        },
+        {
+          "id": "0058_iam_pharmacy_ward_indent_templates",
+          "sql_sha256": "8b11ad3a83e9085c5e824d4abca9c11ce631583ff30cd3830ec1dabc21dd9f43",
+          "creates_tables": []
         }
       ]
     },
@@ -4310,6 +4333,60 @@
           "counted": false
         },
         {
+          "method": "GET",
+          "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/ward-indent-occupant",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/ward-indent-products",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/ward-indents/:indent/cancellation",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/ward-indents/:indent",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "PUT",
+          "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/ward-indents/:indent",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/outlets/:outlet/ward-indents",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
           "method": "PUT",
           "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/pharmacies/:pharmacy/outlets/:outlet/stocktakes/:stocktake/cancellations/:command",
           "permission": "public",
@@ -4501,6 +4578,15 @@
         {
           "method": "GET",
           "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/stocktake-outlet-choices",
+          "permission": "public",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/hospitals/:hospital/departments/:department/ward-indent-outlet-choices",
           "permission": "public",
           "authentication_required": true,
           "membership_required": true,
@@ -6673,6 +6759,33 @@
           "counted": false
         },
         {
+          "method": "PUT",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/ward-indents/:id/closure",
+          "permission": "pharmacy.indent.fulfil",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/ward-indents/:id",
+          "permission": "pharmacy.indent.fulfil",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
+          "method": "GET",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/ward-indents",
+          "permission": "pharmacy.indent.fulfil",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": true,
+          "counted": false
+        },
+        {
           "method": "GET",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet",
           "permission": "pharmacy.catalogue.read",
@@ -6747,6 +6860,14 @@
         },
         {
           "permission": "pharmacy.stocktake.review",
+          "roles": []
+        },
+        {
+          "permission": "pharmacy.indent.read",
+          "roles": []
+        },
+        {
+          "permission": "pharmacy.indent.raise",
           "roles": []
         },
         {
@@ -7000,6 +7121,12 @@
           ]
         },
         {
+          "permission": "pharmacy.indent.fulfil",
+          "roles": [
+            "pharmacist"
+          ]
+        },
+        {
           "permission": "pharmacy.sale.read",
           "roles": [
             "pharmacist",
@@ -7061,6 +7188,8 @@
         }
       ],
       "publishes": [
+        "helivanta.in.pharmacy.ward_indent_raised.v1",
+        "helivanta.in.pharmacy.ward_indent_closed.v1",
         "helivanta.in.pharmacy.supplier_credit_changed.v1",
         "helivanta.in.pharmacy.supplier_receiving_recorded.v1",
         "helivanta.in.pharmacy.supplier_dispatch_recorded.v1",
@@ -7848,6 +7977,15 @@
           "sql_sha256": "ad6cce7d23eb95bfd376f5d38f7cb12a5cc0d6b1f8f7628af2c1e729bc3ecc38",
           "creates_tables": [
             "pharmacy_verification_policy_drafts"
+          ]
+        },
+        {
+          "id": "0077_pharmacy_ward_indents",
+          "sql_sha256": "bd8b39d8f1eb7d519d6b3d778e164712c182cdfce08805805f39a5e0f23bffa7",
+          "creates_tables": [
+            "pharmacy_ward_indents",
+            "pharmacy_ward_indent_lines",
+            "pharmacy_ward_indent_issues"
           ]
         }
       ]
@@ -14827,6 +14965,10 @@
         },
         {
           "permission": "workforce.stocktake_actor.use",
+          "roles": []
+        },
+        {
+          "permission": "workforce.ward_indent_actor.use",
           "roles": []
         },
         {

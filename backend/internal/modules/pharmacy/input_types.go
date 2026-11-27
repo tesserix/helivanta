@@ -499,6 +499,16 @@ type StocktakeStartInput struct {
 	Reason               string      `json:"reason" binding:"required,min=1,max=500"`
 }
 
+type WardIndentLineInput struct {
+	ProductID      uuid.UUID `json:"product_id" binding:"required"`
+	RequestedUnits int64     `json:"requested_units" binding:"min=1,max=1000000"`
+}
+
+type WardIndentInput struct {
+	OccupancyID uuid.UUID             `json:"occupancy_id" binding:"required"`
+	Lines       []WardIndentLineInput `json:"lines" binding:"required,min=1,max=50,dive" gorm:"-"`
+}
+
 type StocktakeSummary struct {
 	ID                   uuid.UUID   `json:"id" binding:"required"`
 	OutletID             uuid.UUID   `json:"outlet_id" binding:"required"`

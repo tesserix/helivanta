@@ -273,6 +273,8 @@ describe("zone icons and sections", () => {
       ["Dispensing", "Prescriptions", "/pharmacy/prescriptions"],
       ["Dispensing", "Past dispenses", "/pharmacy/dispense"],
       ["Dispensing", "Medication list", "/pharmacy/medications"],
+      ["Dispensing", "Ward indents", "/pharmacy/ward-indents"],
+      ["Dispensing", "Ward medicine requests", "/pharmacy/ward-indent-requests"],
       ["Inventory", "Low stock", "/pharmacy/low-stock"],
       ["Inventory", "Stock across outlets", "/pharmacy/stock-overview"],
       ["Inventory", "Stock on hand", "/pharmacy/stock"],

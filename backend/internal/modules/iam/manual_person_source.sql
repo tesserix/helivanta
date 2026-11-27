@@ -1,12 +1,6 @@
 CREATE FUNCTION iam_manual_identity_uuid(value uuid) RETURNS boolean LANGUAGE sql IMMUTABLE AS $$
  SELECT substring(value::text,15,1)='7' AND substring(value::text,20,1) IN ('8','9','a','b')
 $$;
-CREATE FUNCTION iam_manual_identity_text(value text,maximum bigint) RETURNS boolean LANGUAGE sql IMMUTABLE AS $$
- SELECT char_length(value) BETWEEN 1 AND maximum AND octet_length(value)<=4*maximum
- AND btrim(value,E'\t\n\v\f\r \u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000\ufeff')<>''
- AND char_length(value)+(SELECT count(*) FROM regexp_split_to_table(value,'') c WHERE ascii(c)>65535)<=maximum
- AND NOT EXISTS(SELECT 1 FROM regexp_split_to_table(value,'') c WHERE ascii(c)<32 OR ascii(c) BETWEEN 127 AND 159)
-$$;
 CREATE TABLE iam_manual_identity_profiles (
  tenant_id uuid NOT NULL CHECK(tenant_id<>'00000000-0000-0000-0000-000000000000'),
  id uuid NOT NULL CHECK(iam_manual_identity_uuid(id)),

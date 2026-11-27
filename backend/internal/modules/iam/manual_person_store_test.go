@@ -102,6 +102,14 @@ func TestManualIdentityStoreImportIsAtomicOwnerOnlyAndReplayBound(t *testing.T) 
 			return err
 		}
 		require.True(t, support, "new identity tables must not invalidate existing IAM purpose guards")
+
+		for _, value := range []string{"v", "vv", " original evidence ", strings.Repeat("😀", 250), strings.Repeat("😀", 251), "\u0085", "\ufeff", "\u200b"} {
+			var accepted bool
+			if err := tx.Raw("SELECT iam_manual_identity_text(?,500)", value).Scan(&accepted).Error; err != nil {
+				return err
+			}
+			require.Equal(t, manualIdentityText(value, 500), accepted, "SQL and Go must agree on canonical text")
+		}
 		return nil
 	}))
 }

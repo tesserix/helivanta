@@ -7043,7 +7043,7 @@
       "registration_sha256": "75add165606d576b06409c478438632a79ebab02b3a85aa12fffa44a966ddc65",
       "authority_kind": "mixed",
       "resource_scope": "Verified tenant, current account preconditions and editor/reader outlet grant under the pharmacy parent; pharmacy.access.manage is required.",
-      "rationale": "Administrative preparation only: immutable revision intent and audited recovery/history. Current outlet scope is locked and rechecked in the transaction. Drafts always retain state draft and clinical authority not_evaluated; there is no approval, publication or effective clinical authority. The account precondition is a constraint, never an authority source. All four routes are compiled unreleased.",
+      "rationale": "Administrative preparation only: immutable revision intent and audited recovery/history. Current outlet scope is locked and rechecked in the transaction. Drafts always retain state draft and clinical authority not_evaluated; there is no approval, publication or effective clinical authority. The account precondition is a constraint, never an authority source. All four routes are compiled unreleased. The new ledger also denies both narrow operating-location and hospital-stocktake discovery purposes through restrictive policies. The unmerged migration validates existing authority seals before extending their metadata inventory.",
       "authority_sources": [
         {
           "path": "backend/internal/modules/pharmacy/verification_policy_draft.go",
@@ -7064,6 +7064,11 @@
           "path": "backend/internal/modules/pharmacy/principal.go",
           "sha256": "e39a875cd29f12b026f5e4660a50c276007e44dcfb03cb7ea3910f5cf1de0281",
           "symbol": "func pharmacyPrincipal("
+        },
+        {
+          "path": "backend/internal/modules/pharmacy/verification_policy_draft.sql",
+          "sha256": "93cebe429fb3e931c362db7ee0d22fa235db8f06145c86dec0444ec30c72593c",
+          "symbol": "CREATE POLICY tenant_isolation ON pharmacy_verification_policy_drafts"
         }
       ],
       "remaining": [
@@ -7076,7 +7081,7 @@
       "registration_sha256": "09de89cef9ed8d2a89f69cf602da83faf3629b78e7694f1f68bd2c7993cbecf8",
       "authority_kind": "mixed",
       "resource_scope": "Verified tenant, current account preconditions and editor/reader outlet grant under the pharmacy parent; pharmacy.access.manage is required.",
-      "rationale": "Administrative preparation only: immutable revision intent and audited recovery/history. Current outlet scope is locked and rechecked in the transaction. Drafts always retain state draft and clinical authority not_evaluated; there is no approval, publication or effective clinical authority. The account precondition is a constraint, never an authority source. All four routes are compiled unreleased.",
+      "rationale": "Administrative preparation only: immutable revision intent and audited recovery/history. Current outlet scope is locked and rechecked in the transaction. Drafts always retain state draft and clinical authority not_evaluated; there is no approval, publication or effective clinical authority. The account precondition is a constraint, never an authority source. All four routes are compiled unreleased. The new ledger also denies both narrow operating-location and hospital-stocktake discovery purposes through restrictive policies. The unmerged migration validates existing authority seals before extending their metadata inventory.",
       "authority_sources": [
         {
           "path": "backend/internal/modules/pharmacy/verification_policy_draft.go",
@@ -7097,6 +7102,11 @@
           "path": "backend/internal/modules/pharmacy/principal.go",
           "sha256": "e39a875cd29f12b026f5e4660a50c276007e44dcfb03cb7ea3910f5cf1de0281",
           "symbol": "func pharmacyPrincipal("
+        },
+        {
+          "path": "backend/internal/modules/pharmacy/verification_policy_draft.sql",
+          "sha256": "93cebe429fb3e931c362db7ee0d22fa235db8f06145c86dec0444ec30c72593c",
+          "symbol": "CREATE POLICY tenant_isolation ON pharmacy_verification_policy_drafts"
         }
       ],
       "remaining": [
@@ -7109,7 +7119,7 @@
       "registration_sha256": "a3d3416d950d1bb5d518f4b4ae6847de7aa43d617312781d0d836cea9e90870f",
       "authority_kind": "mixed",
       "resource_scope": "Verified tenant, current account preconditions and editor/reader outlet grant under the pharmacy parent; pharmacy.access.manage is required.",
-      "rationale": "Administrative preparation only: immutable revision intent and audited recovery/history. Current outlet scope is locked and rechecked in the transaction. Drafts always retain state draft and clinical authority not_evaluated; there is no approval, publication or effective clinical authority. The account precondition is a constraint, never an authority source. All four routes are compiled unreleased.",
+      "rationale": "Administrative preparation only: immutable revision intent and audited recovery/history. Current outlet scope is locked and rechecked in the transaction. Drafts always retain state draft and clinical authority not_evaluated; there is no approval, publication or effective clinical authority. The account precondition is a constraint, never an authority source. All four routes are compiled unreleased. The new ledger also denies both narrow operating-location and hospital-stocktake discovery purposes through restrictive policies. The unmerged migration validates existing authority seals before extending their metadata inventory.",
       "authority_sources": [
         {
           "path": "backend/internal/modules/pharmacy/verification_policy_draft.go",
@@ -7130,6 +7140,11 @@
           "path": "backend/internal/modules/pharmacy/principal.go",
           "sha256": "e39a875cd29f12b026f5e4660a50c276007e44dcfb03cb7ea3910f5cf1de0281",
           "symbol": "func pharmacyPrincipal("
+        },
+        {
+          "path": "backend/internal/modules/pharmacy/verification_policy_draft.sql",
+          "sha256": "93cebe429fb3e931c362db7ee0d22fa235db8f06145c86dec0444ec30c72593c",
+          "symbol": "CREATE POLICY tenant_isolation ON pharmacy_verification_policy_drafts"
         }
       ],
       "remaining": [
@@ -7142,7 +7157,7 @@
       "registration_sha256": "c4267074958b7aa7955bfecfbff081f93041eda97a94e09dffc2ce7bd5cbf0a2",
       "authority_kind": "mixed",
       "resource_scope": "Verified tenant, current account preconditions and editor/reader outlet grant under the pharmacy parent; pharmacy.access.manage is required.",
-      "rationale": "Administrative preparation only: immutable revision intent and audited recovery/history. Current outlet scope is locked and rechecked in the transaction. Drafts always retain state draft and clinical authority not_evaluated; there is no approval, publication or effective clinical authority. The account precondition is a constraint, never an authority source. All four routes are compiled unreleased.",
+      "rationale": "Administrative preparation only: immutable revision intent and audited recovery/history. Current outlet scope is locked and rechecked in the transaction. Drafts always retain state draft and clinical authority not_evaluated; there is no approval, publication or effective clinical authority. The account precondition is a constraint, never an authority source. All four routes are compiled unreleased. The new ledger also denies both narrow operating-location and hospital-stocktake discovery purposes through restrictive policies. The unmerged migration validates existing authority seals before extending their metadata inventory.",
       "authority_sources": [
         {
           "path": "backend/internal/modules/pharmacy/verification_policy_draft.go",
@@ -7163,6 +7178,11 @@
           "path": "backend/internal/modules/pharmacy/principal.go",
           "sha256": "e39a875cd29f12b026f5e4660a50c276007e44dcfb03cb7ea3910f5cf1de0281",
           "symbol": "func pharmacyPrincipal("
+        },
+        {
+          "path": "backend/internal/modules/pharmacy/verification_policy_draft.sql",
+          "sha256": "93cebe429fb3e931c362db7ee0d22fa235db8f06145c86dec0444ec30c72593c",
+          "symbol": "CREATE POLICY tenant_isolation ON pharmacy_verification_policy_drafts"
         }
       ],
       "remaining": [

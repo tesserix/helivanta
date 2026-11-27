@@ -1,7 +1,8 @@
 // Package contract owns practitioner event wire data.
 package contract
 
-const EvidenceScanRequested = "helivanta.in.practitioner.evidence_scan_requested.v1"
+const SubjectEvidenceScanRequested = "helivanta.in.practitioner.evidence_scan_requested.v1"
+const EvidenceScanRequested = SubjectEvidenceScanRequested
 
 // EvidenceScanRequestedData requires exactly one credential ID; bytes stay private.
 type EvidenceScanRequestedData struct {
@@ -13,7 +14,8 @@ type EvidenceScanRequestedData struct {
 	ScanAttempt     int64  `json:"scan_attempt"`
 }
 
-const EvidenceChanged = "helivanta.in.practitioner.evidence_changed.v1"
+const SubjectEvidenceChanged = "helivanta.in.practitioner.evidence_changed.v1"
+const EvidenceChanged = SubjectEvidenceChanged
 
 // EvidenceScanInput pins one object and exactly one registration or qualification ID.
 type EvidenceScanInput struct {

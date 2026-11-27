@@ -1,14 +1,67 @@
 "use client";
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { apiFetch, POLL_INTERVAL_MS } from "./client";
-import type { PharmacyScope } from "./pharmacy";
+import { pharmacyKey, type PharmacyScope } from "./pharmacy";
+import {
+  onTenantTransition,
+  tenantTransitionPending,
+  useTenantTransition,
+} from "./tenant-transition";
 import {
   prescriptionImageReceipt,
   prescriptionImageSchema,
   prescriptionImagesKey,
   prescriptionImagesRoot,
+  readPrescriptionReviewContext,
 } from "./pharmacy-prescriptions";
+
+export function usePrescriptionReviewContext(
+  scope: PharmacyScope & { subject: string },
+  prescriptionId: string,
+) {
+  const switching = useTenantTransition();
+  const [invalidated, setInvalidated] = useState(false);
+  const client = useQueryClient();
+  const { tenantId, subject, pharmacyId, outletId } = scope;
+  const query = useQuery({
+    queryKey: pharmacyKey(scope, "review-context", subject, prescriptionId),
+    queryFn: ({ signal }) => readPrescriptionReviewContext(scope, prescriptionId, signal),
+    enabled: !switching && !invalidated,
+    retry: false,
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnWindowFocus: "always",
+  });
+  useEffect(
+    () =>
+      onTenantTransition(() => {
+        if (!tenantTransitionPending()) return;
+        setInvalidated(true);
+        client.removeQueries({
+          queryKey: pharmacyKey(
+            { tenantId, pharmacyId, outletId },
+            "review-context",
+            subject,
+            prescriptionId,
+          ),
+          exact: true,
+        });
+      }),
+    [client, tenantId, subject, pharmacyId, outletId, prescriptionId],
+  );
+  const contextChanged = switching || invalidated;
+  return {
+    data: contextChanged || query.isFetching || query.isError ? undefined : query.data,
+    contextChanged,
+    isPending: query.isPending,
+    isFetching: query.isFetching,
+    isError: query.isError,
+    error: query.error,
+    refetch: query.refetch,
+  };
+}
 
 const pageSchema = z.object({
   data: z.array(prescriptionImageSchema),

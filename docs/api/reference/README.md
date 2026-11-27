@@ -316,6 +316,112 @@ Migration table declarations:
 
 - `0001_drugmaster`: `drugmaster_releases`, `drugmaster_molecules`, `drugmaster_formulations`, `drugmaster_formulation_versions`, `drugmaster_formulation_ingredients`, `drugmaster_products`, `drugmaster_product_versions`.
 
+## practitioner
+
+Source: [backend/internal/modules/practitioner/module.go](../../../backend/internal/modules/practitioner/module.go). Payloads: `backend/internal/modules/practitioner/contract/`, owning handlers, and [schema index](../schemas.md).
+
+| Method | Path | Permission | Cursor pagination | Page total |
+| --- | --- | --- | --- | --- |
+| GET | `/v1/practitioners/:practitioner/qualifications/:qualification/revisions/:revision/evidence/:file/content` | `practitioner.evidence.read` | false | false |
+| PUT | `/v1/practitioners/:practitioner/qualifications/:qualification/revisions/:revision/evidence/:file/content` | `practitioner.evidence.manage` | false | false |
+| PUT | `/v1/practitioners/:practitioner/qualifications/:qualification/revisions/:revision/evidence/:file/revocations/:revocation` | `practitioner.evidence.manage` | false | false |
+| PUT | `/v1/practitioners/:practitioner/qualifications/:qualification/revisions/:revision/evidence/:file/scan-retries/:retry` | `practitioner.evidence.manage` | false | false |
+| GET | `/v1/practitioners/:practitioner/qualifications/:qualification/revisions/:revision/evidence/:file` | `practitioner.evidence.read` | false | false |
+| PUT | `/v1/practitioners/:practitioner/qualifications/:qualification/revisions/:revision/evidence/:file` | `practitioner.evidence.manage` | false | false |
+| GET | `/v1/practitioners/:practitioner/qualifications/:qualification/revisions/:revision/evidence` | `practitioner.evidence.read` | true | false |
+| GET | `/v1/practitioners/:practitioner/qualifications/:qualification/revisions/:revision/reviews/:review` | `practitioner.record.read` | false | false |
+| PUT | `/v1/practitioners/:practitioner/qualifications/:qualification/revisions/:revision/reviews/:review` | `practitioner.qualification.review` | false | false |
+| GET | `/v1/practitioners/:practitioner/qualifications/:qualification/revisions/:revision/reviews` | `practitioner.record.read` | true | false |
+| GET | `/v1/practitioners/:practitioner/qualifications/:qualification/revisions/:revision` | `practitioner.record.read` | false | false |
+| PUT | `/v1/practitioners/:practitioner/qualifications/:qualification/revisions/:revision` | `practitioner.record.manage` | false | false |
+| GET | `/v1/practitioners/:practitioner/qualifications/:qualification/revisions` | `practitioner.record.read` | true | false |
+| GET | `/v1/practitioners/:practitioner/qualifications/:qualification` | `practitioner.record.read` | false | false |
+| PUT | `/v1/practitioners/:practitioner/qualifications/:qualification` | `practitioner.record.manage` | false | false |
+| GET | `/v1/practitioners/:practitioner/qualifications` | `practitioner.record.read` | true | false |
+| GET | `/v1/practitioners/:practitioner/registrations/:registration/revisions/:revision/evidence/:file/content` | `practitioner.evidence.read` | false | false |
+| PUT | `/v1/practitioners/:practitioner/registrations/:registration/revisions/:revision/evidence/:file/content` | `practitioner.evidence.manage` | false | false |
+| PUT | `/v1/practitioners/:practitioner/registrations/:registration/revisions/:revision/evidence/:file/revocations/:revocation` | `practitioner.evidence.manage` | false | false |
+| PUT | `/v1/practitioners/:practitioner/registrations/:registration/revisions/:revision/evidence/:file/scan-retries/:retry` | `practitioner.evidence.manage` | false | false |
+| GET | `/v1/practitioners/:practitioner/registrations/:registration/revisions/:revision/evidence/:file` | `practitioner.evidence.read` | false | false |
+| PUT | `/v1/practitioners/:practitioner/registrations/:registration/revisions/:revision/evidence/:file` | `practitioner.evidence.manage` | false | false |
+| GET | `/v1/practitioners/:practitioner/registrations/:registration/revisions/:revision/evidence` | `practitioner.evidence.read` | true | false |
+| GET | `/v1/practitioners/:practitioner/registrations/:registration/revisions/:revision/reviews/:review` | `practitioner.record.read` | false | false |
+| PUT | `/v1/practitioners/:practitioner/registrations/:registration/revisions/:revision/reviews/:review` | `practitioner.registration.review` | false | false |
+| GET | `/v1/practitioners/:practitioner/registrations/:registration/revisions/:revision/reviews` | `practitioner.record.read` | true | false |
+| GET | `/v1/practitioners/:practitioner/registrations/:registration/revisions/:revision/verifications/:verification` | `practitioner.record.read` | false | false |
+| PUT | `/v1/practitioners/:practitioner/registrations/:registration/revisions/:revision/verifications/:verification` | `practitioner.registration.verify` | false | false |
+| GET | `/v1/practitioners/:practitioner/registrations/:registration/revisions/:revision` | `practitioner.record.read` | false | false |
+| PUT | `/v1/practitioners/:practitioner/registrations/:registration/revisions/:revision` | `practitioner.record.manage` | false | false |
+| GET | `/v1/practitioners/:practitioner/registrations/:registration/revisions` | `practitioner.record.read` | true | false |
+| GET | `/v1/practitioners/:practitioner/registrations/:registration/source-reconciliations/:reconciliation/withdrawals/:withdrawal` | `practitioner.record.read` | false | false |
+| PUT | `/v1/practitioners/:practitioner/registrations/:registration/source-reconciliations/:reconciliation/withdrawals/:withdrawal` | `practitioner.registration.verification_revoke` | false | false |
+| GET | `/v1/practitioners/:practitioner/registrations/:registration/source-reconciliations/:reconciliation/withdrawals` | `practitioner.record.read` | true | false |
+| GET | `/v1/practitioners/:practitioner/registrations/:registration/source-reconciliations/:reconciliation` | `practitioner.record.read` | false | false |
+| PUT | `/v1/practitioners/:practitioner/registrations/:registration/source-reconciliations/:reconciliation` | `practitioner.registration.verify` | false | false |
+| GET | `/v1/practitioners/:practitioner/registrations/:registration/source-reconciliations` | `practitioner.record.read` | true | false |
+| GET | `/v1/practitioners/:practitioner/registrations/:registration/verification-revocations/:revocation` | `practitioner.record.read` | false | false |
+| PUT | `/v1/practitioners/:practitioner/registrations/:registration/verification-revocations/:revocation` | `practitioner.registration.verification_revoke` | false | false |
+| GET | `/v1/practitioners/:practitioner/registrations/:registration/verification` | `practitioner.record.read` | false | false |
+| GET | `/v1/practitioners/:practitioner/registrations/:registration/verifications` | `practitioner.record.read` | true | false |
+| GET | `/v1/practitioners/:practitioner/registrations/:registration` | `practitioner.record.read` | false | false |
+| PUT | `/v1/practitioners/:practitioner/registrations/:registration` | `practitioner.record.manage` | false | false |
+| GET | `/v1/practitioners/:practitioner/registrations` | `practitioner.record.read` | true | false |
+| GET | `/v1/practitioners/:practitioner` | `practitioner.record.read` | false | false |
+| PUT | `/v1/practitioners/:practitioner` | `practitioner.record.manage` | false | false |
+| GET | `/v1/practitioners/my/steward-appointment` | `public` | false | false |
+| POST | `/v1/practitioners/my/steward-appointments/:appointment/accept` | `public` | false | false |
+| GET | `/v1/practitioners/my/steward-appointments/:appointment/history` | `public` | true | false |
+| POST | `/v1/practitioners/my/steward-appointments/:appointment/withdraw` | `public` | false | false |
+| GET | `/v1/practitioners/my/steward-appointments/:appointment` | `public` | false | false |
+| GET | `/v1/practitioners/my/steward-appointments` | `public` | true | false |
+| GET | `/v1/practitioners/registration-policies/:policy/revisions/:revision` | `practitioner.registration_policy.read` | false | false |
+| PUT | `/v1/practitioners/registration-policies/:policy/revisions/:revision` | `practitioner.registration_policy.manage` | false | false |
+| GET | `/v1/practitioners/registration-policies/:policy/revisions` | `practitioner.registration_policy.read` | true | false |
+| GET | `/v1/practitioners/registration-policies/:policy` | `practitioner.registration_policy.read` | false | false |
+| PUT | `/v1/practitioners/registration-policies/:policy` | `practitioner.registration_policy.manage` | false | false |
+| GET | `/v1/practitioners/registration-policies` | `practitioner.registration_policy.read` | true | false |
+| GET | `/v1/practitioners/specialties/:specialty/retirements/:retirement` | `practitioner.record.read` | false | false |
+| PUT | `/v1/practitioners/specialties/:specialty/retirements/:retirement` | `practitioner.specialty.manage` | false | false |
+| GET | `/v1/practitioners/specialties/:specialty` | `practitioner.record.read` | false | false |
+| PUT | `/v1/practitioners/specialties/:specialty` | `practitioner.specialty.manage` | false | false |
+| GET | `/v1/practitioners/specialties` | `practitioner.record.read` | true | false |
+| GET | `/v1/practitioners/steward-appointments/:appointment/history` | `practitioner.steward.manage` | true | false |
+| POST | `/v1/practitioners/steward-appointments/:appointment/revoke` | `practitioner.steward.manage` | false | false |
+| GET | `/v1/practitioners/steward-appointments/:appointment` | `practitioner.steward.manage` | false | false |
+| PUT | `/v1/practitioners/steward-appointments/:appointment` | `practitioner.steward.manage` | false | false |
+| GET | `/v1/practitioners/steward-appointments` | `practitioner.steward.manage` | true | false |
+
+Published subjects:
+
+- `helivanta.in.practitioner.evidence_scan_requested.v1`
+- `helivanta.in.practitioner.evidence_changed.v1`
+- `helivanta.in.practitioner.registration_review_recorded.v1`
+- `helivanta.in.practitioner.qualification_review_recorded.v1`
+- `helivanta.in.practitioner.registration_policy_changed.v1`
+- `helivanta.in.practitioner.registration_verification_changed.v1`
+- `helivanta.in.practitioner.registration_source_reconciled.v1`
+- `helivanta.in.practitioner.registration_reconciliation_withdrawn.v1`
+
+Subscriptions:
+
+- `practitioner-evidence-scan` ← `helivanta.in.practitioner.evidence_scan_requested.v1`; after-commit hook: true.
+
+Migration table declarations:
+
+- `0001_practitioner`: `practitioner_records`.
+- `0002_practitioner`: `practitioner_registrations`, `practitioner_registration_revisions`.
+- `0003_practitioner`: `practitioner_steward_appointments`, `practitioner_steward_events`.
+- `0004_practitioner`: `practitioner_registration_evidence`.
+- `0007_practitioner`: `practitioner_evidence_revocations`.
+- `0008_practitioner`: `practitioner_evidence_retries`.
+- `0009_practitioner`: `practitioner_registration_reviews`.
+- `0010_practitioner`: `practitioner_specialties`, `practitioner_qualifications`, `practitioner_qualification_revisions`.
+- `0011_practitioner`: `practitioner_specialty_retirements`.
+- `0013_practitioner`: `practitioner_registration_policies`, `practitioner_registration_policy_revisions`.
+- `0014_practitioner`: `practitioner_registration_verifications`, `practitioner_registration_identifiers`.
+- `0015_practitioner`: `practitioner_registration_reconciliations`.
+- `0016_practitioner`: `practitioner_reconciliation_withdrawals`.
+
 ## medicore
 
 Source: [backend/internal/modules/medicore/module.go](../../../backend/internal/modules/medicore/module.go). Payloads: `backend/internal/modules/medicore/contract/`, owning handlers, and [schema index](../schemas.md).
@@ -668,11 +774,13 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/licences` | `pharmacy.catalogue.read` | true | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/opd-encounters` | `pharmacy.sale.create` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/overview` | `pharmacy.catalogue.read` | false | false |
+| POST | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id/fulfilment-review-context` | `pharmacy.prescription.read` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id/images/:file/content` | `pharmacy.prescription.record` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id/images/:file/download` | `pharmacy.prescription.read` | false | false |
 | POST | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id/images/:file/retry/:attempt` | `pharmacy.prescription.record` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id/images/:file` | `pharmacy.prescription.record` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id/images` | `pharmacy.prescription.read` | true | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id/review-context` | `pharmacy.prescription.read` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id` | `pharmacy.prescription.read` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id` | `pharmacy.prescription.record` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/open-lines` | `pharmacy.prescription.read` | false | false |
@@ -751,6 +859,10 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/trading-scopes/:id` | `pharmacy.trading_scope.read` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/trading-scopes/:id` | `pharmacy.trading_scope.prepare` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/trading-scopes` | `pharmacy.trading_scope.read` | true | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/verification-policy-drafts/:policy/revisions/:revision` | `pharmacy.access.manage` | false | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/verification-policy-drafts/:policy/revisions/:revision` | `pharmacy.access.manage` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/verification-policy-drafts/:policy/revisions` | `pharmacy.access.manage` | true | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/verification-policy-drafts` | `pharmacy.access.manage` | true | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet` | `pharmacy.catalogue.read` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet` | `pharmacy.access.manage` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets` | `pharmacy.catalogue.read` | true | false |
@@ -859,7 +971,8 @@ Migration table declarations:
 - `0070_pharmacy_stocktake_source_recovery`: `pharmacy_stocktake_source_invalidations`.
 - `0074_pharmacy_purchase_tax_evidence`: `pharmacy_purchase_tax_evidence`, `pharmacy_purchase_tax_lines`, `pharmacy_tally_export_receipts`.
 - `0075_pharmacy_purchase_export_day`: concurrent index `pharmacy_purchase_export_day` on `pharmacy_payables (tenant_id, outlet_id, issued_on, created_at, id)`.
-- `0076_pharmacy_ward_indents`: `pharmacy_ward_indents`, `pharmacy_ward_indent_lines`, `pharmacy_ward_indent_issues`.
+- `0076_pharmacy_verification_policy_preparation`: `pharmacy_verification_policy_drafts`.
+- `0077_pharmacy_ward_indents`: `pharmacy_ward_indents`, `pharmacy_ward_indent_lines`, `pharmacy_ward_indent_issues`.
 
 ## payments
 

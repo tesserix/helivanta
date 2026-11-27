@@ -73,10 +73,17 @@ it("serves the brand files before login without opening similarly named routes",
     "/icon-192.png",
     "/icon-512.png",
     "/maskable-icon-512.png",
+    "/email/helivanta-lockup.png",
   ]) {
     expect(middleware(new NextRequest(`https://helivanta.app${path}`)).status, path).toBe(200);
   }
-  for (const path of ["/manifest.webmanifest/x", "/icon-512.png.bak", "/apple-icon.png/private"]) {
+  for (const path of [
+    "/manifest.webmanifest/x",
+    "/icon-512.png.bak",
+    "/apple-icon.png/private",
+    "/email/helivanta-lockup.png.bak",
+    "/email/",
+  ]) {
     expect(middleware(new NextRequest(`https://helivanta.app${path}`)).status, path).toBe(307);
   }
 });

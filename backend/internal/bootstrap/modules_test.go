@@ -8,6 +8,7 @@ import (
 
 	"github.com/tesserix/helivanta/internal/modules/iam"
 	"github.com/tesserix/helivanta/internal/modules/iam/loginclient"
+	"github.com/tesserix/helivanta/internal/modules/practitioner"
 	"github.com/tesserix/onboarding-service/api/customercontract"
 )
 
@@ -64,6 +65,30 @@ func TestNewRegistryRegistersEveryModule(t *testing.T) {
 	reg, err := NewRegistry(nil, nil)
 	require.NoError(t, err)
 	require.Len(t, reg.All(), len(Modules(nil, nil)))
+}
+
+func TestNewRegistryIncludesProfessionalRegistrationOwner(t *testing.T) {
+	reg, err := NewRegistry(nil, nil)
+	require.NoError(t, err)
+	var owner *practitioner.Module
+	for _, mod := range reg.All() {
+		if candidate, ok := mod.(*practitioner.Module); ok {
+			owner = candidate
+		}
+	}
+	require.NotNil(t, owner, "professional source must be registered in API and migration runtimes")
+	var migrations []string
+	for _, migration := range owner.Migrations() {
+		migrations = append(migrations, migration.ID)
+	}
+	require.Contains(t, migrations, "0014_practitioner")
+	require.Contains(t, migrations, "0016_practitioner")
+	var permissions []string
+	for _, grant := range owner.Permissions() {
+		permissions = append(permissions, string(grant.Permission))
+	}
+	require.Contains(t, permissions, string(practitioner.PermRegistrationVerify))
+	require.Contains(t, permissions, string(practitioner.PermRegistrationVerificationRevoke))
 }
 
 // TestNewRegistryGivesIAMTheExactCheckerPassedIn is the wiring guard for

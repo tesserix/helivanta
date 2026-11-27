@@ -54,3 +54,13 @@ Privacy casework is now owned by the `privacy` module: authenticated tenant-loca
 intake, officer appointment/acceptance/revocation and versioned case responses.
 See [contract](privacy.md). Owner-executed rights fulfilment, policy-approved SLA
 escalation and public/proxy/cross-tenant intake remain separate gaps.
+
+### Professional source runtime delivery
+
+The `practitioner` owner is included in the deployed runtime registry, with
+Global API platform routing and the private-evidence worker binary in the signed
+artifact. Its sixteen migrations are recorded, while all 68 professional HTTP
+routes remain compiled unreleased. Dedicated processing activation and live
+evidence acceptance are pending. Registration source attestation does not grant
+clinical authority. See [runtime integration and observed delivery](practitioner-runtime.md)
+and the [full pharmacist verification scope](../design/pharmacist-verification.md).

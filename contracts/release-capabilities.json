@@ -2715,6 +2715,11 @@
       "capability": "pharmacy_prescriptions"
     },
     {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id/review-context",
+      "capability": "unreleased"
+    },
+    {
       "method": "PUT",
       "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id",
       "capability": "pharmacy_prescriptions"
@@ -6158,6 +6163,371 @@
       "method": "PUT",
       "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/payables/:id/purchase-tax/:evidence",
       "capability": "pharmacy_payables"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/practitioners/:practitioner/qualifications/:qualification/revisions/:revision/evidence/:file/content",
+      "capability": "unreleased"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/practitioners/:practitioner/qualifications/:qualification/revisions/:revision/evidence/:file/content",
+      "capability": "unreleased"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/practitioners/:practitioner/qualifications/:qualification/revisions/:revision/evidence/:file/revocations/:revocation",
+      "capability": "unreleased"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/practitioners/:practitioner/qualifications/:qualification/revisions/:revision/evidence/:file/scan-retries/:retry",
+      "capability": "unreleased"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/practitioners/:practitioner/qualifications/:qualification/revisions/:revision/evidence/:file",
+      "capability": "unreleased"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/practitioners/:practitioner/qualifications/:qualification/revisions/:revision/evidence/:file",
+      "capability": "unreleased"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/practitioners/:practitioner/qualifications/:qualification/revisions/:revision/evidence",
+      "capability": "unreleased"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/practitioners/:practitioner/qualifications/:qualification/revisions/:revision/reviews/:review",
+      "capability": "unreleased"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/practitioners/:practitioner/qualifications/:qualification/revisions/:revision/reviews/:review",
+      "capability": "unreleased"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/practitioners/:practitioner/qualifications/:qualification/revisions/:revision/reviews",
+      "capability": "unreleased"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/practitioners/:practitioner/qualifications/:qualification/revisions/:revision",
+      "capability": "unreleased"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/practitioners/:practitioner/qualifications/:qualification/revisions/:revision",
+      "capability": "unreleased"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/practitioners/:practitioner/qualifications/:qualification/revisions",
+      "capability": "unreleased"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/practitioners/:practitioner/qualifications/:qualification",
+      "capability": "unreleased"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/practitioners/:practitioner/qualifications/:qualification",
+      "capability": "unreleased"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/practitioners/:practitioner/qualifications",
+      "capability": "unreleased"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/practitioners/:practitioner/registrations/:registration/revisions/:revision/evidence/:file/content",
+      "capability": "unreleased"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/practitioners/:practitioner/registrations/:registration/revisions/:revision/evidence/:file/content",
+      "capability": "unreleased"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/practitioners/:practitioner/registrations/:registration/revisions/:revision/evidence/:file/revocations/:revocation",
+      "capability": "unreleased"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/practitioners/:practitioner/registrations/:registration/revisions/:revision/evidence/:file/scan-retries/:retry",
+      "capability": "unreleased"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/practitioners/:practitioner/registrations/:registration/revisions/:revision/evidence/:file",
+      "capability": "unreleased"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/practitioners/:practitioner/registrations/:registration/revisions/:revision/evidence/:file",
+      "capability": "unreleased"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/practitioners/:practitioner/registrations/:registration/revisions/:revision/evidence",
+      "capability": "unreleased"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/practitioners/:practitioner/registrations/:registration/revisions/:revision/reviews/:review",
+      "capability": "unreleased"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/practitioners/:practitioner/registrations/:registration/revisions/:revision/reviews/:review",
+      "capability": "unreleased"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/practitioners/:practitioner/registrations/:registration/revisions/:revision/reviews",
+      "capability": "unreleased"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/practitioners/:practitioner/registrations/:registration/revisions/:revision/verifications/:verification",
+      "capability": "unreleased"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/practitioners/:practitioner/registrations/:registration/revisions/:revision/verifications/:verification",
+      "capability": "unreleased"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/practitioners/:practitioner/registrations/:registration/revisions/:revision",
+      "capability": "unreleased"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/practitioners/:practitioner/registrations/:registration/revisions/:revision",
+      "capability": "unreleased"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/practitioners/:practitioner/registrations/:registration/revisions",
+      "capability": "unreleased"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/practitioners/:practitioner/registrations/:registration/source-reconciliations/:reconciliation/withdrawals/:withdrawal",
+      "capability": "unreleased"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/practitioners/:practitioner/registrations/:registration/source-reconciliations/:reconciliation/withdrawals/:withdrawal",
+      "capability": "unreleased"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/practitioners/:practitioner/registrations/:registration/source-reconciliations/:reconciliation/withdrawals",
+      "capability": "unreleased"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/practitioners/:practitioner/registrations/:registration/source-reconciliations/:reconciliation",
+      "capability": "unreleased"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/practitioners/:practitioner/registrations/:registration/source-reconciliations/:reconciliation",
+      "capability": "unreleased"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/practitioners/:practitioner/registrations/:registration/source-reconciliations",
+      "capability": "unreleased"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/practitioners/:practitioner/registrations/:registration/verification-revocations/:revocation",
+      "capability": "unreleased"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/practitioners/:practitioner/registrations/:registration/verification-revocations/:revocation",
+      "capability": "unreleased"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/practitioners/:practitioner/registrations/:registration/verification",
+      "capability": "unreleased"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/practitioners/:practitioner/registrations/:registration/verifications",
+      "capability": "unreleased"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/practitioners/:practitioner/registrations/:registration",
+      "capability": "unreleased"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/practitioners/:practitioner/registrations/:registration",
+      "capability": "unreleased"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/practitioners/:practitioner/registrations",
+      "capability": "unreleased"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/practitioners/:practitioner",
+      "capability": "unreleased"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/practitioners/:practitioner",
+      "capability": "unreleased"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/practitioners/my/steward-appointment",
+      "capability": "unreleased"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/practitioners/my/steward-appointments/:appointment/accept",
+      "capability": "unreleased"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/practitioners/my/steward-appointments/:appointment/history",
+      "capability": "unreleased"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/practitioners/my/steward-appointments/:appointment/withdraw",
+      "capability": "unreleased"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/practitioners/my/steward-appointments/:appointment",
+      "capability": "unreleased"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/practitioners/my/steward-appointments",
+      "capability": "unreleased"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/practitioners/registration-policies/:policy/revisions/:revision",
+      "capability": "unreleased"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/practitioners/registration-policies/:policy/revisions/:revision",
+      "capability": "unreleased"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/practitioners/registration-policies/:policy/revisions",
+      "capability": "unreleased"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/practitioners/registration-policies/:policy",
+      "capability": "unreleased"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/practitioners/registration-policies/:policy",
+      "capability": "unreleased"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/practitioners/registration-policies",
+      "capability": "unreleased"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/practitioners/specialties/:specialty/retirements/:retirement",
+      "capability": "unreleased"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/practitioners/specialties/:specialty/retirements/:retirement",
+      "capability": "unreleased"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/practitioners/specialties/:specialty",
+      "capability": "unreleased"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/practitioners/specialties/:specialty",
+      "capability": "unreleased"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/practitioners/specialties",
+      "capability": "unreleased"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/practitioners/steward-appointments/:appointment/history",
+      "capability": "unreleased"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/practitioners/steward-appointments/:appointment/revoke",
+      "capability": "unreleased"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/practitioners/steward-appointments/:appointment",
+      "capability": "unreleased"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/practitioners/steward-appointments/:appointment",
+      "capability": "unreleased"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/practitioners/steward-appointments",
+      "capability": "unreleased"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/verification-policy-drafts/:policy/revisions/:revision",
+      "capability": "unreleased"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/verification-policy-drafts/:policy/revisions/:revision",
+      "capability": "unreleased"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/verification-policy-drafts/:policy/revisions",
+      "capability": "unreleased"
+    },
+    {
+      "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/verification-policy-drafts",
+      "capability": "unreleased"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id/fulfilment-review-context",
+      "capability": "unreleased"
     }
   ],
   "pages": [

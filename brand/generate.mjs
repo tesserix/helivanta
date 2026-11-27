@@ -15,9 +15,13 @@ const check = process.argv.includes("--check");
 const root = fileURLToPath(new URL("..", import.meta.url));
 // sharp comes with Next (the shell's image optimiser), so the brand needs no
 // dependency of its own: resolve it from where the shell resolves next.
-const next = createRequire(join(root, "apps/shell/package.json")).resolve("next");
+const next = createRequire(join(root, "apps/shell/package.json")).resolve(
+  "next",
+);
 const sharp = createRequire(next)("sharp");
-const outlines = JSON.parse(readFileSync(new URL("./outlines.json", import.meta.url)));
+const outlines = JSON.parse(
+  readFileSync(new URL("./outlines.json", import.meta.url)),
+);
 
 // Tokens from the slice-1 spec (docs/superpowers/specs/2026-11-24-app-look-tokens-design.md).
 const INK = "#0b1324";
@@ -67,9 +71,15 @@ const faviconSvg = (size) =>
         16,
         16,
         `<rect width="16" height="16" rx="3" fill="${WHITE}"/>` +
-          mark16Svg(INK, ACCENT).replace(/^.*?<\/title>/, "").replace("</svg>", ""),
+          mark16Svg(INK, ACCENT)
+            .replace(/^.*?<\/title>/, "")
+            .replace("</svg>", ""),
       )
-    : svg(64, 64, `<rect width="64" height="64" rx="12" fill="${WHITE}"/>${markBody(INK, ACCENT)}`);
+    : svg(
+        64,
+        64,
+        `<rect width="64" height="64" rx="12" fill="${WHITE}"/>${markBody(INK, ACCENT)}`,
+      );
 
 // App icon: ink tile, white mark, pulse in the on-ink accent. Rounded for the
 // "any" icon; the maskable one is full bleed with the mark inside the 80% safe zone.
@@ -115,7 +125,11 @@ const lockupSvg = (c1, c2, wordFill, extraKey, extraFill, bg) => {
   const w = l.width + pad * 2;
   const h = l.height + pad * 2;
   const back = bg ? `<rect width="${w}" height="${h}" fill="${bg}"/>` : "";
-  return svg(w, h, `${back}<g transform="translate(${pad} ${pad})">${l.body}</g>`);
+  return svg(
+    w,
+    h,
+    `${back}<g transform="translate(${pad} ${pad})">${l.body}</g>`,
+  );
 };
 
 // Social image, 1200x630: canvas, lockup, tagline, domain. Left aligned on an 80px margin.
@@ -162,13 +176,17 @@ function ico(pngs) {
 
 const png = (svgText, size, opts = {}) =>
   sharp(Buffer.from(svgText), { density: 384 })
-    .resize(size.w ?? size, size.h ?? size, { fit: "contain", background: opts.bg ?? { r: 0, g: 0, b: 0, alpha: 0 } })
+    .resize(size.w ?? size, size.h ?? size, {
+      fit: "contain",
+      background: opts.bg ?? { r: 0, g: 0, b: 0, alpha: 0 },
+    })
     .png({ compressionLevel: 9 })
     .toBuffer();
 
 // Every output, keyed by repo-relative path, so write and check share one list.
 const out = new Map();
-const put = (path, data) => out.set(path, typeof data === "string" ? Buffer.from(data) : data);
+const put = (path, data) =>
+  out.set(path, typeof data === "string" ? Buffer.from(data) : data);
 
 // 1. SVG sources
 const sources = {
@@ -178,7 +196,11 @@ const sources = {
   "favicon-16.svg": faviconSvg(16),
   "mark-mono-ink.svg": markSvg(INK, INK),
   "mark-mono-white.svg": markSvg(WHITE, WHITE),
-  "mark-on-ink.svg": svg(64, 64, `<rect width="64" height="64" fill="${INK}"/>${markBody(WHITE, ACCENT_ON_INK)}`),
+  "mark-on-ink.svg": svg(
+    64,
+    64,
+    `<rect width="64" height="64" fill="${INK}"/>${markBody(WHITE, ACCENT_ON_INK)}`,
+  ),
   "app-icon.svg": tile(ACCENT_ON_INK),
   "maskable-icon.svg": tile(ACCENT_ON_INK, { rx: 0, scale: 0.6 }),
   "wordmark.svg": (() => {
@@ -195,12 +217,16 @@ for (const [name, hue] of Object.entries(PRODUCTS)) {
   sources[`app-icon-${name}.svg`] = tile(hue);
   sources[`lockup-${name}.svg`] = lockupSvg(INK, hue, INK, name, hue);
 }
-for (const [name, body] of Object.entries(sources)) put(`brand/svg/${name}`, body);
+for (const [name, body] of Object.entries(sources))
+  put(`brand/svg/${name}`, body);
 
 // 2. Rasters
 const favPngs = [];
 for (const s of [16, 32, 48]) {
-  const buf = await png(s === 16 ? sources["favicon-16.svg"] : sources["favicon.svg"], s);
+  const buf = await png(
+    s === 16 ? sources["favicon-16.svg"] : sources["favicon.svg"],
+    s,
+  );
   favPngs.push({ size: s, buf });
   put(`brand/png/favicon-${s}.png`, buf);
 }
@@ -218,12 +244,31 @@ for (const [name, buf] of Object.entries(icons)) put(`brand/png/${name}`, buf);
 put("brand/png/opengraph-image.png", og);
 put(
   "brand/png/lockup@2x.png",
-  await png(sources["lockup.svg"], { w: 1200, h: Math.round((1200 * 96) / (lockup(INK, ACCENT, INK).width + 32)) }),
+  await png(sources["lockup.svg"], {
+    w: 1200,
+    h: Math.round((1200 * 96) / (lockup(INK, ACCENT, INK).width + 32)),
+  }),
 );
+// The email header's lockup (#1857): 480px wide, three times its 160px place
+// in the mail, so it stays sharp on dense screens at a few kilobytes.
+const emailLockup = await png(sources["lockup.svg"], {
+  w: 480,
+  h: Math.round((480 * 96) / (lockup(INK, ACCENT, INK).width + 32)),
+});
+put("brand/png/email-lockup.png", emailLockup);
 for (const name of Object.keys(PRODUCTS)) {
-  put(`brand/png/icon-${name}-512.png`, await png(sources[`app-icon-${name}.svg`], 512));
-  put(`brand/png/favicon-${name}-32.png`, await png(sources[`mark-${name}.svg`], 32));
-  put(`brand/png/favicon-${name}-16.png`, await png(mark16Svg(INK, PRODUCTS[name]), 16));
+  put(
+    `brand/png/icon-${name}-512.png`,
+    await png(sources[`app-icon-${name}.svg`], 512),
+  );
+  put(
+    `brand/png/favicon-${name}-32.png`,
+    await png(sources[`mark-${name}.svg`], 32),
+  );
+  put(
+    `brand/png/favicon-${name}-16.png`,
+    await png(mark16Svg(INK, PRODUCTS[name]), 16),
+  );
 }
 
 // 3. What the app ships: Next's metadata file conventions (apps/shell/app/),
@@ -232,7 +277,10 @@ put("apps/shell/app/icon.svg", sources["favicon.svg"]);
 put("apps/shell/app/favicon.ico", favicon);
 put("apps/shell/app/apple-icon.png", apple);
 put("apps/shell/app/opengraph-image.png", og);
-for (const [name, buf] of Object.entries(icons)) put(`apps/shell/public/${name}`, buf);
+for (const [name, buf] of Object.entries(icons))
+  put(`apps/shell/public/${name}`, buf);
+// Mail clients fetch it without a session, from a path that never moves (#1857).
+put("apps/shell/public/email/helivanta-lockup.png", emailLockup);
 put(
   "apps/shell/app/manifest.webmanifest",
   JSON.stringify(
@@ -248,7 +296,12 @@ put(
       icons: [
         { src: "/icon-192.png", sizes: "192x192", type: "image/png" },
         { src: "/icon-512.png", sizes: "512x512", type: "image/png" },
-        { src: "/maskable-icon-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+        {
+          src: "/maskable-icon-512.png",
+          sizes: "512x512",
+          type: "image/png",
+          purpose: "maskable",
+        },
       ],
     },
     null,
@@ -286,22 +339,29 @@ export function HelivantaMark({
 // Rasters compare as decoded pixels: the committed files come from macOS and
 // CI runs Linux, where libvips or zlib may pack the same pixels differently.
 const pixels = async (buf) => {
-  const { data, info } = await sharp(buf).raw().toBuffer({ resolveWithObject: true });
+  const { data, info } = await sharp(buf)
+    .raw()
+    .toBuffer({ resolveWithObject: true });
   return `${info.width}x${info.height}x${info.channels}:${data.toString("base64")}`;
 };
 const icoPngs = (buf) => {
   const n = buf.readUInt16LE(4);
   return Array.from({ length: n }, (_, i) => {
     const e = 6 + 16 * i;
-    return buf.subarray(buf.readUInt32LE(e + 12), buf.readUInt32LE(e + 12) + buf.readUInt32LE(e + 8));
+    return buf.subarray(
+      buf.readUInt32LE(e + 12),
+      buf.readUInt32LE(e + 12) + buf.readUInt32LE(e + 8),
+    );
   });
 };
 async function same(path, want, have) {
-  if (path.endsWith(".png")) return (await pixels(want)) === (await pixels(have));
+  if (path.endsWith(".png"))
+    return (await pixels(want)) === (await pixels(have));
   if (path.endsWith(".ico")) {
     const [a, b] = [icoPngs(want), icoPngs(have)];
     if (a.length !== b.length) return false;
-    for (let i = 0; i < a.length; i++) if ((await pixels(a[i])) !== (await pixels(b[i]))) return false;
+    for (let i = 0; i < a.length; i++)
+      if ((await pixels(a[i])) !== (await pixels(b[i]))) return false;
     return true;
   }
   return want.equals(have);
@@ -311,11 +371,14 @@ if (check) {
   const stale = [];
   for (const [path, want] of out) {
     const file = join(root, path);
-    if (!existsSync(file) || !(await same(path, want, readFileSync(file)))) stale.push(path);
+    if (!existsSync(file) || !(await same(path, want, readFileSync(file))))
+      stale.push(path);
   }
   for (const path of stale) console.error(`stale: ${path}`);
   if (stale.length) {
-    console.error("Run brand/generate.mjs (see brand/README.md) and commit the result.");
+    console.error(
+      "Run brand/generate.mjs (see brand/README.md) and commit the result.",
+    );
     process.exit(1);
   }
   console.log("brand assets up to date:", out.size, "files");

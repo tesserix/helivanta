@@ -1,0 +1,36 @@
+name: Pharmacist verification acceptance
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "backend/internal/modules/pharmacy/verification*"
+      - "backend/internal/modules/pharmacy/stock_command_scope.go"
+      - "backend/internal/modules/pharmacy/catalogue.go"
+      - "backend/internal/modules/pharmacy/module.go"
+      - "contracts/pharmacy-verification.json"
+      - "scripts/generate-pharmacy-verification.mjs"
+      - ".github/workflows/pharmacist-verification.yml"
+permissions:
+  contents: read
+concurrency:
+  group: pharmacist-verification-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  policy-drafts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      GOTOOLCHAIN: local
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Isolate the focused build cache
+        run: printf 'GOCACHE=%s/helivanta-verification-go-cache\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5
+        with:
+          go-version-file: backend/go.mod
+          cache: false
+      - name: Verify draft persistence, scope, replay, audit and canonical SQL bounds
+        run: go test -race -v -count=1 -failfast -timeout 20m ./internal/modules/pharmacy -run '^Test(VerificationPolicy|VerificationDecisionIntent|VerificationFulfilment|PrescriptionReview)'

@@ -36,6 +36,7 @@ test("every brand file loads without a session", async ({ request }) => {
     ["/icon-192.png", /image\/png/],
     ["/icon-512.png", /image\/png/],
     ["/maskable-icon-512.png", /image\/png/],
+    ["/email/helivanta-lockup.png", /image\/png/],
   ] as const) {
     const response = await request.get(path, { maxRedirects: 0 });
     expect(response.status(), path).toBe(200);

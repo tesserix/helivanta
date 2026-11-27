@@ -94,7 +94,7 @@ the counter.
 
 ### D5 Tables and row security
 
-Migration `0076_pharmacy_ward_indents` adds `pharmacy_ward_indents`, `pharmacy_ward_indent_lines`
+Migration `0077_pharmacy_ward_indents` adds `pharmacy_ward_indents`, `pharmacy_ward_indent_lines`
 and `pharmacy_ward_indent_issues` (indent, issue id, sale id, line quantities), each with forced
 RLS and the `operating_choice_purpose`/`operating_choice_delete` policies every pharmacy table
 carries. The migration verifies the operating-choice and stocktake seals first and re-pins them

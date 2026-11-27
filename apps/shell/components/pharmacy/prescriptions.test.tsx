@@ -109,6 +109,16 @@ async function fillPrescription(user: ReturnType<typeof renderWithProviders>["us
 }
 
 describe("Prescriptions", () => {
+  it("does not expose clinical review or read candidate context without its release gate", async () => {
+    const fetcher = fixture();
+    renderWithProviders(<Prescriptions scope={scope} canRecord={false} />);
+    await screen.findByText("TEST Ravi Kumar");
+    expect(
+      screen.queryByRole("button", { name: /review recorded details/i }),
+    ).not.toBeInTheDocument();
+    expect(fetcher.mock.calls.some(([url]) => url.endsWith("/review-context"))).toBe(false);
+  });
+
   it("records what was prescribed, without an empty patient address, and opens its pages", async () => {
     const fetcher = fixture();
     const { user } = renderWithProviders(<Prescriptions scope={scope} canRecord />);

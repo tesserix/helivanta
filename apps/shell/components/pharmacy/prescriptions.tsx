@@ -36,18 +36,37 @@ import {
   useFieldArray,
   useZodForm,
 } from "@helivanta/ui";
+import { PrescriptionReviewContext } from "./prescription-review-context";
 
 /**
  * Prescription evidence (#1386 B-2a): the pharmacist records what the
  * prescriber wrote and attaches the scanned pages. A page opens only after the
  * server has scanned and released it. Sales cite prescriptions in B-2b.
  */
-export function Prescriptions({ scope, canRecord }: { scope: PharmacyScope; canRecord: boolean }) {
+type PrescriptionProps = {
+  scope: PharmacyScope;
+  canRecord: boolean;
+  reviewSubject?: string;
+};
+
+export function Prescriptions(props: PrescriptionProps) {
+  const { scope, reviewSubject } = props;
+  return (
+    <PrescriptionRecords
+      key={`${scope.tenantId}:${scope.pharmacyId}:${scope.outletId}:${reviewSubject ?? ""}`}
+      {...props}
+    />
+  );
+}
+
+function PrescriptionRecords({ scope, canRecord, reviewSubject }: PrescriptionProps) {
   const list = useApiPagedQuery<PharmacyPrescription>(
     pharmacyKey(scope, "prescriptions"),
     `${pharmacyRoot(scope)}/prescriptions?limit=50`,
   );
   const [open, setOpen] = useState<PharmacyPrescription | null>(null);
+  const [review, setReview] = useState<string | null>(null);
+  const reviewTrigger = useRef<HTMLButtonElement | null>(null);
   return (
     <div className="space-y-6">
       {canRecord ? (
@@ -64,6 +83,18 @@ export function Prescriptions({ scope, canRecord }: { scope: PharmacyScope; canR
           prescription={open}
           canRecord={canRecord}
           onClose={() => setOpen(null)}
+        />
+      )}
+
+      {review && reviewSubject && (
+        <PrescriptionReviewContext
+          key={`${scope.tenantId}:${reviewSubject}:${scope.pharmacyId}:${scope.outletId}:${review}`}
+          scope={{ ...scope, subject: reviewSubject }}
+          prescriptionId={review}
+          onClose={() => {
+            setReview(null);
+            reviewTrigger.current?.focus();
+          }}
         />
       )}
       <Panel>
@@ -88,9 +119,23 @@ export function Prescriptions({ scope, canRecord }: { scope: PharmacyScope; canR
                     {rx.prescriber_name} · {rx.prescriber_registration} · {rx.prescribed_on}
                   </p>
                 </div>
-                <Button variant="outline" onClick={() => setOpen(rx)}>
-                  Open pages for {rx.patient_name}
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  {reviewSubject && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={(event) => {
+                        reviewTrigger.current = event.currentTarget;
+                        setReview(rx.id);
+                      }}
+                    >
+                      Review recorded details for {rx.patient_name}
+                    </Button>
+                  )}
+                  <Button variant="outline" onClick={() => setOpen(rx)}>
+                    Open pages for {rx.patient_name}
+                  </Button>
+                </div>
               </li>
             ))}
           </ul>

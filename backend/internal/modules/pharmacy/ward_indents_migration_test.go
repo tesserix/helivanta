@@ -12,7 +12,7 @@ import (
 	"gorm.io/gorm"
 )
 
-const wardIndentMigration = "0076_pharmacy_ward_indents"
+const wardIndentMigration = "0077_pharmacy_ward_indents"
 
 var wardIndentTables = []string{"pharmacy_ward_indents", "pharmacy_ward_indent_lines", "pharmacy_ward_indent_issues"}
 

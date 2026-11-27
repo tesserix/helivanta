@@ -1,5 +1,16 @@
 # Schema sources, ownership and data dictionary
 
+The draft pharmacist-verification command contract is
+[`contracts/pharmacy-verification.json`](../../contracts/pharmacy-verification.json).
+Run `node scripts/generate-pharmacy-verification.mjs` (or `--check`) to generate
+Go models/rules and browser Zod models. Decision inputs remain draft: no decision
+API, clinical role, evidence authority or dispensing gate is registered. The same
+source now owns recorded-prescription response models and the explicitly
+unreleased [review-source context](domains/pharmacy.md#recorded-prescription-review-source-169-unreleased-candidate).
+That context grants no clinical authority and does not supply a final reviewed-state hash.
+See the [scope and delivery record](../design/pharmacist-verification.md#slice-1--draft-command-intent-contract)
+for its authority boundaries and outstanding release gates.
+
 [Contract index](README.md) · keep one authoritative definition per concern
 
 The current-person review candidate uses
@@ -228,3 +239,10 @@ add metadata to the v1 machine fact-check reference. Edit the canonical inputs a
 `node scripts/generate-supplier-access.mjs` and `--check`; never hand-edit the Go
 or TypeScript output. This development projection remains subject to ADR-0076's
 current-authority, owner/RLS, UI and release acceptance gates.
+
+Pharmacist-verification inputs, review context and administrative policy draft
+contracts are canonical in `contracts/pharmacy-verification.json`. Run
+`node scripts/generate-pharmacy-verification.mjs` and `--check`; outputs include
+Go, Zod and the generated SQL policy-input predicate. The maximum draft interval
+is a representation bound, not a clinical policy. See the
+[unreleased preparation contract](pharmacy-verification-policies.md).

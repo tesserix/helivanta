@@ -1,6 +1,70 @@
 # PharmaConnect integration specification
 
+Pharmacist clinical verification (#169) remains unfinished. The
+[scope and delivery record](../../design/pharmacist-verification.md) maps the
+active counter-sale integration, owners and acceptance gates. Its first slice
+defines draft decision/second-check input models and validation only; it adds no
+registered API, clinical authority, review queue or operating gate. Existing HR
+credential review and prescription capture must not be presented as completed
+clinical verification.
+
+### Recorded prescription review source (#169, unreleased candidate)
+
+`GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id/review-context`
+requires `pharmacy.prescription.read`, the existing pharmacist role check and a
+current grant for the exact outlet. It is classified as `unreleased`; this change
+does not enable the API or add a review UI. The Global API remains its public
+entry point. Current tenant/subject preconditions are checked, and the response
+names its verified tenant, pharmacy and reader so the SDK can reject a switched
+account or wrong resource response. A successful read is audited before disclosure
+and carries `Cache-Control: no-store`; missing audit evidence prevents disclosure.
+
+The response reuses the canonical recorded-prescription and remaining-line
+balances, with `source_kind: recorded_prescription`,
+`source_authenticity: not_evaluated` and `clinical_authority: not_evaluated`.
+Allergy, medication, age, weight and clinical-flag projections are explicitly
+`unavailable`. A missing integration is never a negative finding.
+
+`source_state_hash` is a versioned SHA-256 of the owning tenant/pharmacy and the
+exact recorded source and balance snapshot. Line order and timezone presentation
+are canonicalized without changing the original record. It is **not** the
+`reviewed_state_hash` required by a future verification decision: proposed supply,
+current professional authority, signed clinical source, policy and clinical
+context still need their own authoritative integration and atomic rechecks.
+This read creates no verification, stock movement, charge or clinical permission.
+Malformed or inconsistent retained source facts fail closed with
+`503 review_context_unavailable`; ordinary unauthorized or invisible resources
+retain the existing 403/404 behavior.
+
 [Contract index](../README.md) · descriptive current slices plus outstanding contracts
+
+### Proposed prescription fulfilment (#169, unreleased candidate)
+
+`POST /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id/fulfilment-review-context`
+is an audited no-store projection with the same `pharmacy.prescription.read`
+permission and current outlet scope. It accepts `source_state_hash` and distinct
+`lines` of `line_number` and positive integral `quantity_units`. Unknown fields,
+including product/clinical authority assertions, are rejected. The server derives
+products from the prescription owner and serializes the balance read against the
+same parent row locked by active sale constraints.
+
+A changed source returns `409 review_source_changed`; an unknown, exhausted or
+overfilled selection returns `409 fulfilment_not_available`. Invalid input is 400,
+missing permission 403, invisible parent 404 and unavailable/audit failure 503.
+The response contains `source`, normalized `lines`, `fulfilment_state_hash`,
+`state: proposed`, `stock_reservation: not_reserved` and
+`clinical_authority: not_evaluated`. Its hash binds exact owner/source/quantities,
+not the reader, so separate authorized reviewers can inspect the same proposal.
+It is not the clinical `reviewed_state_hash`, an approval or a stock-availability
+promise. No sale, tender, stock movement or clinical privilege is created.
+
+Canonical Go/Zod models remain in `contracts/pharmacy-verification.json`.
+The account-bound SDK validates every source/selection coordinate. The existing
+unreleased review panel requires explicit quantities and clears results on edits,
+source refresh or account transitions. See the
+[component specification](../../superpowers/specs/2026-11-27-prescription-fulfilment-review.md).
+Qualified verified-person authority, policy approval, decisions, second check,
+prescriber resolution and enforcement at actual dispensing remain unfinished.
 
 ## What the domain covers
 

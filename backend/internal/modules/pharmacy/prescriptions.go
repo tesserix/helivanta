@@ -45,30 +45,9 @@ type prescriptionLineInput struct {
 }
 
 // prescriptionLine is what was prescribed and what is left of it.
-type prescriptionLine struct {
-	LineNumber           int       `gorm:"column:line_number" json:"line_number"`
-	PrescribedAs         string    `gorm:"column:prescribed_as" json:"prescribed_as"`
-	ProductID            uuid.UUID `gorm:"column:product_id" json:"product_id"`
-	QuantityUnits        int64     `gorm:"column:quantity_units" json:"quantity_units"`
-	DispensingsAllowed   int       `gorm:"column:dispensings_allowed" json:"dispensings_allowed"`
-	UnitsRemaining       int64     `gorm:"column:units_remaining" json:"units_remaining"`
-	DispensingsRemaining int       `gorm:"column:dispensings_remaining" json:"dispensings_remaining"`
-}
+type prescriptionLine = PrescriptionReviewLine
 
-type prescription struct {
-	ID                     uuid.UUID          `gorm:"column:id" json:"id"`
-	OutletID               uuid.UUID          `gorm:"column:outlet_id" json:"outlet_id"`
-	PrescriberName         string             `gorm:"column:prescriber_name" json:"prescriber_name"`
-	PrescriberRegistration string             `gorm:"column:prescriber_registration" json:"prescriber_registration"`
-	PrescriberCouncil      string             `gorm:"column:prescriber_council" json:"prescriber_council"`
-	PrescribedOn           string             `gorm:"column:prescribed_on" json:"prescribed_on"`
-	PatientName            string             `gorm:"column:patient_name" json:"patient_name"`
-	PatientAddress         *string            `gorm:"column:patient_address" json:"patient_address"`
-	PrescriberAddress      *string            `gorm:"column:prescriber_address" json:"prescriber_address"`
-	RecordedBy             string             `gorm:"column:recorded_by" json:"recorded_by"`
-	CreatedAt              time.Time          `gorm:"column:created_at" json:"created_at"`
-	Lines                  []prescriptionLine `gorm:"-" json:"lines"`
-}
+type prescription = PrescriptionReviewRecord
 
 func (prescription) TableName() string                 { return "pharmacy_prescriptions" }
 func (r prescription) PageKey() (time.Time, uuid.UUID) { return r.CreatedAt, r.ID }
@@ -82,6 +61,8 @@ func prescriptionRoutes(s *platform.Router, h *catalogueHandlers) {
 	s.PUT("/prescriptions/:id", PermPrescriptionRecord, h.putPrescription)
 	s.GET("/prescriptions/open-lines", PermPrescriptionRead, h.getOpenPrescriptionLines)
 	s.GET("/prescriptions/:id", PermPrescriptionRead, h.getPrescription)
+	s.GET("/prescriptions/:id/review-context", PermPrescriptionRead, h.getPrescriptionReviewContext)
+	s.POST("/prescriptions/:id/fulfilment-review-context", PermPrescriptionRead, h.postPrescriptionFulfilmentReview)
 	platform.ListRoute(s, "/prescriptions", PermPrescriptionRead, h.listPrescriptions)
 }
 

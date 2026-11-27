@@ -138,7 +138,7 @@ func (r factorRequest) validate() error {
 // success finishes through exactly the TOTP tail (completeVerifiedFactor).
 // Only an attempt a key challenge was issued to may assert: one from /enroll
 // (SecurityKeyID is the just-registered key, Enrolling still true) or a
-// sign-in with a Helivanta-registered key. Any other attempt is
+// sign-in with a Helivanta-registered key (securityKeySignIn). Any other attempt is
 // refused before any round trip, indistinguishably from a wrong code (spec
 // D4's rule for the TOTP pair). A refused or cancelled assertion spends one
 // of the five guesses, as a wrong code does.
@@ -160,11 +160,21 @@ func (h *LoginUIHandlers) checkSecurityKey(c *gin.Context, start time.Time, auth
 	h.completeVerifiedFactor(c, authRequestID, verified)
 }
 
-type securityKeyChallengeResponse struct {
-	SecurityKey struct {
-		RequestOptions json.RawMessage `json:"request_options"`
-	} `json:"security_key"`
+// securityKeyRequestWire relays Zitadel's WebAuthn request options verbatim.
+type securityKeyRequestWire struct {
+	RequestOptions json.RawMessage `json:"request_options"`
 }
+
+type securityKeyChallengeResponse struct {
+	SecurityKey securityKeyRequestWire `json:"security_key"`
+}
+
+// securityKeySignIn is the SecurityKeyID a sign-in attempt carries when the
+// password step challenged the user's Helivanta-registered keys (#1898). It
+// is not a Zitadel u2fId (those are numeric): it marks that a challenge was
+// issued, so checkSecurityKey admits the assertion; which key answers is
+// Zitadel's to verify. /enroll refuses it (Enrolling is false).
+const securityKeySignIn = "registered"
 
 // enrollSecurityKey confirms the key the password step registered (#1898):
 // Zitadel verifies the browser's attestation, the key is recorded in the

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -448,8 +449,12 @@ type passwordSuccessResponse struct {
 // this type's own doc note in the spec: "the page must treat
 // factor_required as neither"), so it must not be structurally
 // confusable with its success sibling above.
+//
+// SecurityKey carries the WebAuthn request options when "security_key" is
+// among Factors (#1898): a Helivanta-registered key is asserted on this page.
 type factorRequiredResponse struct {
-	Factors []string `json:"factor_required"`
+	Factors     []string                `json:"factor_required"`
+	SecurityKey *securityKeyRequestWire `json:"security_key,omitempty"`
 }
 
 // enrollmentRequiredResponse is OutcomeEnrollmentRequired's shape (#948,
@@ -597,7 +602,7 @@ func (h *LoginUIHandlers) Password(c *gin.Context) {
 // one, so a chosen account gets exactly the steps a single match gets.
 // subject is stored on attempt rows for audit and correlation only.
 func (h *LoginUIHandlers) continueWithSession(c *gin.Context, authRequestID, subject string, session loginclient.Session) {
-	result, err := h.client.CompleteIfSufficient(c.Request.Context(), authRequestID, session, nil)
+	result, err := h.client.CompleteIfSufficient(c.Request.Context(), authRequestID, session, h.keyRegistry())
 	if err != nil {
 		h.respondLoginClientError(c, err, "complete")
 		return
@@ -621,21 +626,34 @@ func (h *LoginUIHandlers) continueWithSession(c *gin.Context, authRequestID, sub
 		// was FOR, the only per-caller identity this handler has —
 		// stored for audit/correlation only, never returned to the
 		// browser and never itself a credential.
-		err := h.store.Put(c.Request.Context(), loginAttempt{
+		attempt := loginAttempt{
 			AuthRequestID: authRequestID,
 			SessionID:     session.ID,
 			SessionToken:  session.Token,
 			Subject:       subject,
 			ExpiresAt:     time.Now().Add(loginAttemptTTL),
 			Stage:         stageFactor,
-		})
-		if err != nil {
+		}
+		body := factorRequiredResponse{Factors: nonNilFactors(result.Factors)}
+		if slices.Contains(result.Factors, "security_key") {
+			// A Helivanta-registered key (#1898): challenge it before the row
+			// write, and store the rotated token, as Enroll does.
+			challenged, options, err := h.client.ChallengeSecurityKey(c.Request.Context(), session, h.webauthnRPID)
+			if err != nil {
+				h.respondLoginClientError(c, err, "challenge_security_key")
+				return
+			}
+			attempt.SessionToken = challenged.Token
+			attempt.SecurityKeyID = securityKeySignIn
+			body.SecurityKey = &securityKeyRequestWire{RequestOptions: options}
+		}
+		if err := h.store.Put(c.Request.Context(), attempt); err != nil {
 			respond.InternalErr(c, err, "sign-in could not be completed")
 			return
 		}
 		requestid.Logger(c).InfoContext(c.Request.Context(), "login password succeeded, factor required",
 			"auth_request_id", authRequestID, "outcome", "factor_required")
-		respond.OK(c, factorRequiredResponse{Factors: nonNilFactors(result.Factors)})
+		respond.OK(c, body)
 
 	case loginclient.OutcomeEnrollmentRequired:
 		// forceMfa, nothing enrolled (#948, spec D2): register a TOTP on

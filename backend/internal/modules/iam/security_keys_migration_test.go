@@ -9,6 +9,7 @@ import (
 	"github.com/tesserix/helivanta/internal/modules/iam" //nolint:depguard // External test exercises its own append-only migration.
 	"github.com/tesserix/helivanta/internal/platform"
 	"github.com/tesserix/helivanta/internal/testutil"
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
 // 0050_iam_operating_governance's guard loop ran over the tables that existed
@@ -43,9 +44,10 @@ func TestSecurityKeyRegistryIsGuarded(t *testing.T) {
 	}), "without that authority the sign-in path still writes")
 
 	// The re-pinned fingerprint counts the new trigger: removing it is detected.
-	require.NoError(t, db.WithAdmin(ctx, func(tx *gorm.DB) error {
-		return tx.Exec(`DROP TRIGGER iam_operating_native_global_mutation_guard ON iam_security_keys`).Error
-	}))
+	// DDL through Migrate (the schema owner's pool): WithAdmin is archtest-banned.
+	require.NoError(t, db.Migrate(ctx, []tenantdb.Migration{{
+		ID: "test_drop_security_key_guard", SQL: `DROP TRIGGER iam_operating_native_global_mutation_guard ON iam_security_keys`,
+	}}))
 	require.NoError(t, db.WithSystem(ctx, func(tx *gorm.DB) error { return tx.Raw(integrity).Scan(&intact).Error }))
 	require.False(t, intact.Operating, "operating governance integrity must notice the guard's removal")
 }

@@ -14,6 +14,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
+
+	"github.com/tesserix/helivanta/pkg/tenantdb"
 )
 
 const (
@@ -47,6 +49,19 @@ func doEnrollKey(t *testing.T, r *gin.Engine, authRequestID, credential string) 
 	req.Header.Set("Content-Type", "application/json")
 	r.ServeHTTP(w, req)
 	return w
+}
+
+// refuseSecurityKeyInserts makes registry writes fail while reads work. DDL
+// goes through Migrate (the schema owner's pool): WithAdmin is archtest-banned.
+func refuseSecurityKeyInserts(t *testing.T, h *LoginUIHandlers) {
+	t.Helper()
+	require.NoError(t, h.keys.db.Migrate(context.Background(), []tenantdb.Migration{{
+		ID: "test_refuse_security_key_inserts",
+		SQL: `CREATE FUNCTION test_refuse_security_key() RETURNS trigger LANGUAGE plpgsql AS $$
+			BEGIN RAISE EXCEPTION 'registry unavailable'; END $$;
+			CREATE TRIGGER test_refuse_security_key BEFORE INSERT ON iam_security_keys
+			FOR EACH ROW EXECUTE FUNCTION test_refuse_security_key();`,
+	}}))
 }
 
 func countSecurityKeys(t *testing.T, h *LoginUIHandlers) int64 {
@@ -156,13 +171,7 @@ func TestEnrollSecurityKeyTwiceRegistersOnce(t *testing.T) {
 func TestEnrollSecurityKeyRegistryFailureIs503(t *testing.T) {
 	h, r, fake, _ := startSecurityKeyEnrolment(t)
 	// Reads work, inserts fail: the failure lands after Zitadel verified the key.
-	require.NoError(t, h.keys.db.WithAdmin(context.Background(), func(tx *gorm.DB) error {
-		return tx.Exec(`
-			CREATE FUNCTION test_refuse_security_key() RETURNS trigger LANGUAGE plpgsql AS $$
-			BEGIN RAISE EXCEPTION 'registry unavailable'; END $$;
-			CREATE TRIGGER test_refuse_security_key BEFORE INSERT ON iam_security_keys
-			FOR EACH ROW EXECUTE FUNCTION test_refuse_security_key();`).Error
-	}))
+	refuseSecurityKeyInserts(t, h)
 
 	w := doEnrollKey(t, r, loginUITestAuthRequestID, goodKeyCredential)
 	require.Equal(t, http.StatusServiceUnavailable, w.Code, w.Body.String())
@@ -231,18 +240,13 @@ func TestSecurityKeyNameIsNormalised(t *testing.T) {
 // would refuse, spending a guess and stranding the key unrecorded).
 func TestEnrollSecurityKeyRetryAfterRegistryFailureRecordsWithoutReverifying(t *testing.T) {
 	h, r, fake, _ := startSecurityKeyEnrolment(t)
-	exec := func(sql string) {
-		t.Helper()
-		require.NoError(t, h.keys.db.WithAdmin(context.Background(), func(tx *gorm.DB) error { return tx.Exec(sql).Error }))
-	}
-	exec(`CREATE FUNCTION test_refuse_security_key() RETURNS trigger LANGUAGE plpgsql AS $$
-		BEGIN RAISE EXCEPTION 'registry unavailable'; END $$;
-		CREATE TRIGGER test_refuse_security_key BEFORE INSERT ON iam_security_keys
-		FOR EACH ROW EXECUTE FUNCTION test_refuse_security_key();`)
+	refuseSecurityKeyInserts(t, h)
 	first := doEnrollKey(t, r, loginUITestAuthRequestID, goodKeyCredential)
 	require.Equal(t, http.StatusServiceUnavailable, first.Code, first.Body.String())
 	require.True(t, fake.keyReady.Load(), "precondition: Zitadel verified the key")
-	exec(`DROP TRIGGER test_refuse_security_key ON iam_security_keys`)
+	require.NoError(t, h.keys.db.Migrate(context.Background(), []tenantdb.Migration{{
+		ID: "test_allow_security_key_inserts", SQL: `DROP TRIGGER test_refuse_security_key ON iam_security_keys`,
+	}}))
 
 	second := doEnrollKey(t, r, loginUITestAuthRequestID, goodKeyCredential)
 	require.Equal(t, http.StatusOK, second.Code, second.Body.String())

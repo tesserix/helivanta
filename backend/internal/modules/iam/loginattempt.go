@@ -64,7 +64,8 @@ type loginAttempt struct {
 	Enrolling bool
 	Stage     attemptStage
 	// SecurityKeyID is the Zitadel u2fId the password step registered for
-	// this enrolling attempt (#1898); empty when no key was offered.
+	// this enrolling attempt (#1898), or securityKeySignIn when the password
+	// step challenged registered keys; empty when no key was offered.
 	SecurityKeyID string
 }
 

@@ -1,6 +1,7 @@
 package contract
 
-const ReviewRecorded = "helivanta.in.practitioner.registration_review_recorded.v1"
+const SubjectReviewRecorded = "helivanta.in.practitioner.registration_review_recorded.v1"
+const ReviewRecorded = SubjectReviewRecorded
 
 // ReviewRecordedData has exactly one credential ID; source findings remain private.
 type ReviewRecordedData struct {
@@ -11,4 +12,5 @@ type ReviewRecordedData struct {
 	ReviewID        string `json:"review_id"`
 }
 
-const QualificationReviewRecorded = "helivanta.in.practitioner.qualification_review_recorded.v1"
+const SubjectQualificationReviewRecorded = "helivanta.in.practitioner.qualification_review_recorded.v1"
+const QualificationReviewRecorded = SubjectQualificationReviewRecorded

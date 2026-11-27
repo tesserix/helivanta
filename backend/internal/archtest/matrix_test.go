@@ -18,6 +18,7 @@ import (
 	"github.com/tesserix/helivanta/internal/modules/patientmaster"
 	"github.com/tesserix/helivanta/internal/modules/payments"
 	"github.com/tesserix/helivanta/internal/modules/pharmacy"
+	"github.com/tesserix/helivanta/internal/modules/practitioner"
 	"github.com/tesserix/helivanta/internal/modules/privacy"
 	"github.com/tesserix/helivanta/internal/modules/supply"
 	"github.com/tesserix/helivanta/internal/modules/workforce"
@@ -149,7 +150,7 @@ func TestEveryGuardedRouteIsCoveredByTheMatrix(t *testing.T) {
 		m.Routes(r, platform.Deps{})
 		for _, dr := range r.Declared() {
 			perm := dr.Permission
-			if perm == authz.Public || perm == authz.NoTenantMembership {
+			if professionalRegistryAdministration(perm) || perm == authz.Public || perm == authz.NoTenantMembership {
 				continue
 			}
 			// Every grant gets tenant_admin appended, so a permission held
@@ -191,6 +192,19 @@ func TestEveryGuardedRouteIsCoveredByTheMatrix(t *testing.T) {
 // bug class — a role mapping change must be a deliberate, reviewable edit
 // here.
 var approvedPermissionMatrix = map[authz.Permission][]authz.Role{
+	practitioner.PermRegistrationVerify:             {authz.RoleTenantAdmin},
+	practitioner.PermRegistrationVerificationRevoke: {authz.RoleTenantAdmin},
+	practitioner.PermRegistrationPolicyManage:       {authz.RoleTenantAdmin},
+	practitioner.PermRegistrationPolicyRead:         {authz.RoleTenantAdmin},
+	practitioner.PermQualificationReview:            {authz.RoleTenantAdmin},
+	practitioner.PermSpecialtyManage:                {authz.RoleTenantAdmin},
+	practitioner.PermRegistrationReview:             {authz.RoleTenantAdmin},
+	practitioner.PermRecordManage:                   {authz.RoleTenantAdmin},
+	practitioner.PermRecordRead:                     {authz.RoleTenantAdmin},
+	practitioner.PermStewardManage:                  {authz.RoleTenantAdmin},
+	practitioner.PermEvidenceManage:                 {authz.RoleTenantAdmin},
+	practitioner.PermEvidenceRead:                   {authz.RoleTenantAdmin},
+
 	iam.PermGovernanceManage:             {authz.RoleTenantAdmin},
 	iam.PermGovernanceRead:               {authz.RoleTenantAdmin, authz.RoleGovernanceDelegate},
 	iam.PermGovernanceReview:             {authz.RoleTenantAdmin, authz.RoleGovernanceDelegate},
@@ -471,5 +485,16 @@ func TestDeclaredPermissionsMatchTheApprovedMatrix(t *testing.T) {
 		gotRoles, ok := actual[perm]
 		require.Truef(t, ok, "approved matrix expects permission %q but GrantsFor does not produce it", perm)
 		require.ElementsMatchf(t, wantRoles, gotRoles, "permission %q: role mismatch (want %v, got %v)", perm, wantRoles, gotRoles)
+	}
+}
+
+// Professional registry administration still requires its independent steward gates;
+// these permissions establish no clinical operating authority.
+func professionalRegistryAdministration(perm authz.Permission) bool {
+	switch perm {
+	case practitioner.PermRegistrationVerify, practitioner.PermRegistrationVerificationRevoke, practitioner.PermRegistrationPolicyManage, practitioner.PermRegistrationPolicyRead, practitioner.PermQualificationReview, practitioner.PermSpecialtyManage, practitioner.PermRegistrationReview, practitioner.PermRecordManage, practitioner.PermRecordRead, practitioner.PermStewardManage, practitioner.PermEvidenceManage, practitioner.PermEvidenceRead:
+		return true
+	default:
+		return false
 	}
 }

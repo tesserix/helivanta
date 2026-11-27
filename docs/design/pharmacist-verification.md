@@ -52,7 +52,7 @@ Paths below refer to the reviewed main revision, not the older user's root check
 - `backend/internal/modules/pharmacy/prescription_sale.sql:102`: sale-line source/stock/licence/schedule and prescribed quantity/repeat guards. These are not a verification-decision guard.
 - `backend/internal/modules/pharmacy/module.go:229`: sale permission; `:311` pharmacist role mapping. A role mapping does not itself establish valid professional registration.
 - `backend/internal/modules/practitioner/registration_verification.go:320`: current registration attestation projection; clinical authority is explicitly separate.
-- `backend/internal/bootstrap/modules.go`: Pharmacy is registered; practitioner module is not in this bootstrap list. Source presence or closed #474 is not proof of runtime availability.
+- `backend/internal/bootstrap/modules.go`: The runtime integration candidate adds the practitioner owner alongside Pharmacy; all professional-source routes remain compiled unreleased. Source presence or closed #474 is not proof of runtime availability.
 - `docs/superpowers/plans/2026-11-12-pharmacy-credential-reviews.md:17`: credential approval grants no PharmaConnect role or authority.
 - `apps/shell/components/pharmacy/prescriptions.tsx`: manual prescription capture and private pages, not clinical verification.
 - `apps/shell/components/pharmacy/counter-sale.tsx`: prescription-line selection and counter sale; no reviewed clinical verification journey established.

@@ -3167,6 +3167,238 @@
       "type": "object"
     }
   },
+  "helivanta.in.practitioner.evidence_changed.v1": {
+    "source": "backend/internal/modules/practitioner/contract/evidence.go:32",
+    "go_type": "EvidenceChangedData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "file_id": {
+          "type": "string"
+        },
+        "practitioner_id": {
+          "type": "string"
+        },
+        "qualification_id": {
+          "type": "string"
+        },
+        "registration_id": {
+          "type": "string"
+        },
+        "revision_id": {
+          "type": "string"
+        },
+        "scan_attempt": {
+          "type": "integer"
+        },
+        "status": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "practitioner_id",
+        "revision_id",
+        "file_id",
+        "scan_attempt",
+        "status"
+      ],
+      "type": "object"
+    }
+  },
+  "helivanta.in.practitioner.evidence_scan_requested.v1": {
+    "source": "backend/internal/modules/practitioner/contract/evidence.go:8",
+    "go_type": "EvidenceScanRequestedData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "file_id": {
+          "type": "string"
+        },
+        "practitioner_id": {
+          "type": "string"
+        },
+        "qualification_id": {
+          "type": "string"
+        },
+        "registration_id": {
+          "type": "string"
+        },
+        "revision_id": {
+          "type": "string"
+        },
+        "scan_attempt": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "practitioner_id",
+        "revision_id",
+        "file_id",
+        "scan_attempt"
+      ],
+      "type": "object"
+    }
+  },
+  "helivanta.in.practitioner.qualification_review_recorded.v1": {
+    "source": "backend/internal/modules/practitioner/contract/review.go:7",
+    "go_type": "ReviewRecordedData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "practitioner_id": {
+          "type": "string"
+        },
+        "qualification_id": {
+          "type": "string"
+        },
+        "registration_id": {
+          "type": "string"
+        },
+        "review_id": {
+          "type": "string"
+        },
+        "revision_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "practitioner_id",
+        "revision_id",
+        "review_id"
+      ],
+      "type": "object"
+    }
+  },
+  "helivanta.in.practitioner.registration_policy_changed.v1": {
+    "source": "backend/internal/modules/practitioner/contract/verification.go:7",
+    "go_type": "RegistrationPolicyChangedData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "policy_id": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "policy_id",
+        "version"
+      ],
+      "type": "object"
+    }
+  },
+  "helivanta.in.practitioner.registration_reconciliation_withdrawn.v1": {
+    "source": "backend/internal/modules/practitioner/contract/verification.go:37",
+    "go_type": "RegistrationReconciliationWithdrawnData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "practitioner_id": {
+          "type": "string"
+        },
+        "reconciliation_id": {
+          "type": "string"
+        },
+        "registration_id": {
+          "type": "string"
+        },
+        "withdrawal_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "practitioner_id",
+        "registration_id",
+        "reconciliation_id",
+        "withdrawal_id"
+      ],
+      "type": "object"
+    }
+  },
+  "helivanta.in.practitioner.registration_review_recorded.v1": {
+    "source": "backend/internal/modules/practitioner/contract/review.go:7",
+    "go_type": "ReviewRecordedData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "practitioner_id": {
+          "type": "string"
+        },
+        "qualification_id": {
+          "type": "string"
+        },
+        "registration_id": {
+          "type": "string"
+        },
+        "review_id": {
+          "type": "string"
+        },
+        "revision_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "practitioner_id",
+        "revision_id",
+        "review_id"
+      ],
+      "type": "object"
+    }
+  },
+  "helivanta.in.practitioner.registration_source_reconciled.v1": {
+    "source": "backend/internal/modules/practitioner/contract/verification.go:27",
+    "go_type": "RegistrationSourceReconciledData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "practitioner_id": {
+          "type": "string"
+        },
+        "reconciliation_id": {
+          "type": "string"
+        },
+        "registration_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "practitioner_id",
+        "registration_id",
+        "reconciliation_id"
+      ],
+      "type": "object"
+    }
+  },
+  "helivanta.in.practitioner.registration_verification_changed.v1": {
+    "source": "backend/internal/modules/practitioner/contract/verification.go:16",
+    "go_type": "RegistrationVerificationChangedData",
+    "schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "practitioner_id": {
+          "type": "string"
+        },
+        "registration_id": {
+          "type": "string"
+        },
+        "verification_id": {
+          "type": "string"
+        },
+        "version": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "practitioner_id",
+        "registration_id",
+        "verification_id",
+        "version"
+      ],
+      "type": "object"
+    }
+  },
   "helivanta.in.privacy.deadline_changed.v1": {
     "source": "backend/internal/modules/privacy/contract/events.go:13",
     "go_type": "DeadlineChangedData",

@@ -24,6 +24,7 @@ import (
 	"github.com/tesserix/helivanta/internal/modules/patientmaster"
 	"github.com/tesserix/helivanta/internal/modules/payments"
 	"github.com/tesserix/helivanta/internal/modules/pharmacy"
+	"github.com/tesserix/helivanta/internal/modules/practitioner"
 	"github.com/tesserix/helivanta/internal/modules/privacy"
 	"github.com/tesserix/helivanta/internal/modules/reference"
 	"github.com/tesserix/helivanta/internal/modules/supply"
@@ -55,6 +56,7 @@ func Modules(revocationChecker *iam.RevocationChecker, userState iam.IdentityPro
 		reference.New(),
 		emergency.New(),
 		drugmaster.New(),
+		practitioner.New(),
 		medicore.New(), mediconnect.New(), privacy.New(),
 		pharmacy.New(), payments.New(), billing.New(),
 		supply.New(),

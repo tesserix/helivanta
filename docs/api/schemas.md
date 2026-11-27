@@ -1,5 +1,12 @@
 # Schema sources, ownership and data dictionary
 
+The unreleased IAM manual-person identity contracts are owned by
+[`contracts/manual-person-identity.json`](../../contracts/manual-person-identity.json).
+Generate with `node scripts/generate-manual-person-identity.mjs`; append `--check`
+to verify the Go/Zod outputs. These models and internal transition checks do not
+establish a source import service, persisted assurance or clinical authority.
+See [the implementation boundary](manual-person-identity.md).
+
 The draft pharmacist-verification command contract is
 [`contracts/pharmacy-verification.json`](../../contracts/pharmacy-verification.json).
 Run `node scripts/generate-pharmacy-verification.mjs` (or `--check`) to generate

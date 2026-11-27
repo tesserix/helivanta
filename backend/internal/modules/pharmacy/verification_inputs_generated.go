@@ -67,6 +67,38 @@ type PrescriptionReviewContext struct {
 	Record              PrescriptionReviewRecord               `json:"record"`
 }
 
+type VerificationPolicyDraftInput struct {
+	ExpectedVersion            *int64 `json:"expected_version"`
+	Label                      string `json:"label"`
+	SecondCheckRequired        *bool  `json:"second_check_required"`
+	ReviewValidForSeconds      int64  `json:"review_valid_for_seconds"`
+	QueryResponseTargetSeconds int64  `json:"query_response_target_seconds"`
+	Reason                     string `json:"reason"`
+}
+
+type VerificationPolicyDraftRevision struct {
+	ID                         uuid.UUID `json:"id"`
+	PolicyID                   uuid.UUID `json:"policy_id"`
+	OutletID                   uuid.UUID `json:"outlet_id"`
+	ExpectedVersion            int64     `json:"expected_version"`
+	Version                    int64     `json:"version"`
+	Label                      string    `json:"label"`
+	SecondCheckRequired        bool      `json:"second_check_required"`
+	ReviewValidForSeconds      int64     `json:"review_valid_for_seconds"`
+	QueryResponseTargetSeconds int64     `json:"query_response_target_seconds"`
+	Reason                     string    `json:"reason"`
+	PreparedBy                 string    `json:"prepared_by"`
+	CreatedAt                  time.Time `json:"created_at"`
+	State                      string    `json:"state"`
+	ClinicalAuthority          string    `json:"clinical_authority"`
+}
+
+const verificationPolicyMaxVersion = 9007199254740990
+const verificationPolicyLabelMax = 120
+const verificationPolicyReasonMax = 500
+const verificationPolicyReviewDurationMax = 9223372036
+const verificationPolicyResponseDurationMax = 9223372036
+const verificationPolicyLabelPattern = "^[^\\x00-\\x1f\\x7f]+$"
 const verificationMaxVersion = 9007199254740991
 const verificationNoteMaxUTF16 = 2000
 const verificationReasonMax = 80

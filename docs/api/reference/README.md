@@ -849,6 +849,10 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/trading-scopes/:id` | `pharmacy.trading_scope.read` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/trading-scopes/:id` | `pharmacy.trading_scope.prepare` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/trading-scopes` | `pharmacy.trading_scope.read` | true | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/verification-policy-drafts/:policy/revisions/:revision` | `pharmacy.access.manage` | false | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/verification-policy-drafts/:policy/revisions/:revision` | `pharmacy.access.manage` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/verification-policy-drafts/:policy/revisions` | `pharmacy.access.manage` | true | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/verification-policy-drafts` | `pharmacy.access.manage` | true | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet` | `pharmacy.catalogue.read` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet` | `pharmacy.access.manage` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets` | `pharmacy.catalogue.read` | true | false |
@@ -955,6 +959,7 @@ Migration table declarations:
 - `0070_pharmacy_stocktake_source_recovery`: `pharmacy_stocktake_source_invalidations`.
 - `0074_pharmacy_purchase_tax_evidence`: `pharmacy_purchase_tax_evidence`, `pharmacy_purchase_tax_lines`, `pharmacy_tally_export_receipts`.
 - `0075_pharmacy_purchase_export_day`: concurrent index `pharmacy_purchase_export_day` on `pharmacy_payables (tenant_id, outlet_id, issued_on, created_at, id)`.
+- `0076_pharmacy_verification_policy_preparation`: `pharmacy_verification_policy_drafts`.
 
 ## payments
 

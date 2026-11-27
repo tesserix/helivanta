@@ -10,6 +10,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const artifacts = [
   "backend/internal/modules/pharmacy/verification_inputs_generated.go",
   "packages/api/src/pharmacy-verification-contract.ts",
+  "backend/internal/modules/pharmacy/verification_policy_contract_generated.sql",
 ];
 
 async function fixture(t) {
@@ -87,5 +88,29 @@ test("an unspecified decision rule cannot silently produce permissive outputs", 
   assert.deepEqual(
     await Promise.all(artifacts.map((file) => readFile(path.join(dir, file), "utf8"))),
     before,
+  );
+});
+
+test("policy interval constraints remain independent across Go, Zod and SQL", async (t) => {
+  const dir = await fixture(t);
+  const sourceFile = path.join(dir, "contracts/pharmacy-verification.json");
+  const source = JSON.parse(await readFile(sourceFile, "utf8"));
+  source.models.VerificationPolicyDraftInput.find(
+    (field) => field.name === "query_response_target_seconds",
+  ).max = 1000;
+  await writeFile(sourceFile, JSON.stringify(source));
+  const result = generate(dir);
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(
+    await readFile(path.join(dir, artifacts[0]), "utf8"),
+    /verificationPolicyResponseDurationMax\s*=\s*1000/,
+  );
+  assert.match(
+    await readFile(path.join(dir, artifacts[1]), "utf8"),
+    /query_response_target_seconds: z\.number\(\)\.int\(\)\.min\(1\)\.max\(1000\)/,
+  );
+  assert.match(
+    await readFile(path.join(dir, artifacts[2]), "utf8"),
+    /response_seconds BETWEEN 1 AND 1000/,
   );
 });

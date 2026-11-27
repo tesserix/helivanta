@@ -258,6 +258,121 @@
         "name": "record",
         "type": "PrescriptionReviewRecord"
       }
+    ],
+    "VerificationPolicyDraftInput": [
+      {
+        "name": "expected_version",
+        "type": "int64",
+        "min": 0,
+        "max": 9007199254740990,
+        "pointer": true
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "min": 1,
+        "max": 120,
+        "format": "text",
+        "pattern": "^[^\\x00-\\x1f\\x7f]+$"
+      },
+      {
+        "name": "second_check_required",
+        "type": "bool",
+        "pointer": true
+      },
+      {
+        "name": "review_valid_for_seconds",
+        "type": "int64",
+        "min": 1,
+        "max": 9223372036
+      },
+      {
+        "name": "query_response_target_seconds",
+        "type": "int64",
+        "min": 1,
+        "max": 9223372036
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "max": 500,
+        "format": "text"
+      }
+    ],
+    "VerificationPolicyDraftRevision": [
+      {
+        "name": "id",
+        "type": "uuid"
+      },
+      {
+        "name": "policy_id",
+        "type": "uuid"
+      },
+      {
+        "name": "outlet_id",
+        "type": "uuid"
+      },
+      {
+        "name": "expected_version",
+        "type": "int64",
+        "min": 0,
+        "max": 9007199254740990
+      },
+      {
+        "name": "version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740991
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "min": 1,
+        "max": 120
+      },
+      {
+        "name": "second_check_required",
+        "type": "bool"
+      },
+      {
+        "name": "review_valid_for_seconds",
+        "type": "int64",
+        "min": 1,
+        "max": 9223372036
+      },
+      {
+        "name": "query_response_target_seconds",
+        "type": "int64",
+        "min": 1,
+        "max": 9223372036
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "min": 1,
+        "max": 500
+      },
+      {
+        "name": "prepared_by",
+        "type": "string",
+        "min": 1,
+        "max": 512
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      },
+      {
+        "name": "state",
+        "type": "string",
+        "enum": ["draft"]
+      },
+      {
+        "name": "clinical_authority",
+        "type": "string",
+        "enum": ["not_evaluated"]
+      }
     ]
   },
   "precondition_fields": [

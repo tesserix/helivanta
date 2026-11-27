@@ -314,3 +314,5 @@ export * from "./pharmacy-stock-holds";
 export * from "./supplier-shipment-sources";
 
 export * from "./pharmacy-purchase-tax";
+
+export * from "./pharmacy-verification-policies";

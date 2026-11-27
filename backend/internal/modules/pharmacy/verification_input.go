@@ -24,14 +24,8 @@ func validVerificationDecisionInput(in PrescriptionVerificationDecisionInput) bo
 		return false
 	}
 	if in.ClinicalNote != nil {
-		if !utf8.ValidString(*in.ClinicalNote) || strings.ContainsRune(*in.ClinicalNote, 0) {
-			return false
-		}
-		length := 0
-		for _, r := range *in.ClinicalNote {
-			length += utf16.RuneLen(r)
-		}
-		if length == 0 || length > verificationNoteMaxUTF16 {
+		length, valid := verificationTextLength(*in.ClinicalNote)
+		if !valid || length == 0 || length > verificationNoteMaxUTF16 {
 			return false
 		}
 	}
@@ -47,4 +41,15 @@ func validVerificationSecondCheckInput(in PrescriptionVerificationSecondCheckInp
 
 func validVerificationPrecondition(version int64, hash string) bool {
 	return version >= 1 && version <= verificationMaxVersion && verificationHash.MatchString(hash)
+}
+
+func verificationTextLength(value string) (int, bool) {
+	if !utf8.ValidString(value) || strings.ContainsRune(value, 0) {
+		return 0, false
+	}
+	length := 0
+	for _, r := range value {
+		length += utf16.RuneLen(r)
+	}
+	return length, true
 }

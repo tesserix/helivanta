@@ -237,3 +237,60 @@ export const PrescriptionReviewContextContract = z
   })
   .strict();
 export type PrescriptionReviewContext = z.infer<typeof PrescriptionReviewContextContract>;
+
+export const VerificationPolicyDraftInputContract = z
+  .object({
+    expected_version: z.number().int().min(0).max(9007199254740990),
+    label: z
+      .string()
+      .trim()
+      .min(1)
+      .max(120)
+      .regex(new RegExp("^[^\\x00-\\x1f\\x7f]+$", "u"), "Use a valid identifier.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    second_check_required: z.boolean(),
+    review_valid_for_seconds: z.number().int().min(1).max(9223372036),
+    query_response_target_seconds: z.number().int().min(1).max(9223372036),
+    reason: z
+      .string()
+      .trim()
+      .min(1)
+      .max(500)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+  })
+  .strict();
+export type VerificationPolicyDraftInput = z.infer<typeof VerificationPolicyDraftInputContract>;
+
+export const VerificationPolicyDraftRevisionContract = z
+  .object({
+    id: identifier,
+    policy_id: identifier,
+    outlet_id: identifier,
+    expected_version: z.number().int().min(0).max(9007199254740990),
+    version: z.number().int().min(1).max(9007199254740991),
+    label: z
+      .string()
+      .min(1)
+      .max(120)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    second_check_required: z.boolean(),
+    review_valid_for_seconds: z.number().int().min(1).max(9223372036),
+    query_response_target_seconds: z.number().int().min(1).max(9223372036),
+    reason: z
+      .string()
+      .min(1)
+      .max(500)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    prepared_by: z
+      .string()
+      .min(1)
+      .max(512)
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    created_at: z.string().datetime({ offset: true }),
+    state: z.enum(["draft"]),
+    clinical_authority: z.enum(["not_evaluated"]),
+  })
+  .strict();
+export type VerificationPolicyDraftRevision = z.infer<
+  typeof VerificationPolicyDraftRevisionContract
+>;

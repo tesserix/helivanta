@@ -99,6 +99,7 @@ func catalogueRoutes(g *platform.Router, deps platform.Deps) {
 	platform.GuardedCountedListRoute[catalogueProduct](s, h.db, "/catalogue/products/counted", PermCatalogueRead, tenantdb.Keyset{Column: "created_at"}, countedProducts)
 	platform.ListRoute(s, "/catalogue/products/:id/revisions", PermCatalogueRead, h.listRevisions)
 	reorderRoutes(s, h)
+	verificationPolicyDraftRoutes(s, h)
 	taxClassificationRoutes(s, h)
 	licenceRoutes(s, h)
 	scheduleRoutes(s, h)

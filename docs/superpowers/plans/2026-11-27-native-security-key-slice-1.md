@@ -16,7 +16,7 @@
 - No request field, header or query can choose the RP ID.
 - Zitadel verifies attestations and assertions. Helivanta never parses or verifies WebAuthn signatures (anti-goal).
 - No Zitadel `/ui/` URL in any response this slice adds.
-- Every login handler keeps its existing floor timing, rate-limit bucket and equalised refusals. A wrong or cancelled key spends one factor attempt (spec D2).
+- Every login handler keeps its existing floor timing, rate-limit bucket and equalised refusals. A failed key assertion that reaches the server spends one factor attempt; a cancelled ceremony posts nothing and spends none; a repeated `/enroll` issues a fresh challenge without re-verifying (spec D2).
 - New user-facing strings need product-owner approval before merge (see Task 5).
 - No new `Permissions-Policy` entry and no new CSP origin (spec D6).
 - Migration ID `0057_iam_security_keys`, append-only.
@@ -174,7 +174,7 @@
 - Key prompt: "Insert or touch your security key."
 - Name field label: "Key name" (default "Security key")
 - No WebAuthn: "This browser can't use security keys. Use the authenticator app instead."
-- Cancelled or failed: "The security key wasn't registered. Try again, or use the authenticator app."
+- Cancelled or failed: "The security key wasn't registered. Try again, or use the authenticator app." (a failed `create` or `/enroll`; once `/enroll` has recorded the key, a failed confirmation shows "The security key wasn't accepted. Try again.")
 
 - [ ] **Step 1: Write failing tests:**
   - `webauthn.test.ts`: the converters round-trip on S1's recorded option shapes, and a non-base64url string throws.

@@ -138,9 +138,12 @@ refusal. Local development uses the dev shell host the same way.
 - **Both enrolled:** the key is the default, with "Use your authenticator app
   instead" as a link. Mixed methods that are refused today (U2F with OTP email or
   SMS) stay refused.
-- **Bounds:** a failed or cancelled assertion counts as one factor attempt under
-  the existing per-attempt limit. The challenge belongs to the `login_attempt` row
-  and is never re-issued for that attempt.
+- **Bounds:** a failed assertion that reaches the server counts as one factor
+  attempt under the existing per-attempt limit. A cancelled ceremony posts
+  nothing (the server cannot see a cancel), so it spends no attempt and the
+  challenge stays valid for a retry. The challenge belongs to the
+  `login_attempt` row; a repeated `/enroll` issues a fresh one without
+  re-verifying the key.
 - **Errors:** Zitadel being unreachable is a 503 ("temporarily unavailable"),
   never a refusal. A browser without WebAuthn shows "This browser can't use
   security keys. Use another browser, or your authenticator app if you have one."

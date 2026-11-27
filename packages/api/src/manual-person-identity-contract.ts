@@ -136,6 +136,36 @@ export const ManualIdentitySourceImportContract = z
         path: ["display_name"],
         message: "Use a valid identity record.",
       });
+    if (
+      !new RegExp(
+        "^[0-9]{4}-[0-9]{2}-[0-9]{2}T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](\\.[0-9]{1,6}0*)?(Z|[+-]([01][0-9]|2[0-3]):[0-5][0-9])$",
+      ).test(value.observed_at)
+    )
+      ctx.addIssue({
+        code: "custom",
+        path: ["observed_at"],
+        message: "Use a valid identity record.",
+      });
+    if (
+      !new RegExp(
+        "^[0-9]{4}-[0-9]{2}-[0-9]{2}T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](\\.[0-9]{1,6}0*)?(Z|[+-]([01][0-9]|2[0-3]):[0-5][0-9])$",
+      ).test(value.valid_from)
+    )
+      ctx.addIssue({
+        code: "custom",
+        path: ["valid_from"],
+        message: "Use a valid identity record.",
+      });
+    if (
+      !new RegExp(
+        "^[0-9]{4}-[0-9]{2}-[0-9]{2}T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](\\.[0-9]{1,6}0*)?(Z|[+-]([01][0-9]|2[0-3]):[0-5][0-9])$",
+      ).test(value.valid_until)
+    )
+      ctx.addIssue({
+        code: "custom",
+        path: ["valid_until"],
+        message: "Use a valid identity record.",
+      });
     if (value.reason.trim().length === 0)
       ctx.addIssue({ code: "custom", path: ["reason"], message: "Use a valid identity record." });
   });
@@ -239,6 +269,26 @@ export const ManualIdentityExaminationInputContract = z
         path: ["finding_reference"],
         message: "Use a valid identity record.",
       });
+    if (
+      !new RegExp(
+        "^[0-9]{4}-[0-9]{2}-[0-9]{2}T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](\\.[0-9]{1,6}0*)?(Z|[+-]([01][0-9]|2[0-3]):[0-5][0-9])$",
+      ).test(value.observed_at)
+    )
+      ctx.addIssue({
+        code: "custom",
+        path: ["observed_at"],
+        message: "Use a valid identity record.",
+      });
+    if (
+      !new RegExp(
+        "^[0-9]{4}-[0-9]{2}-[0-9]{2}T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](\\.[0-9]{1,6}0*)?(Z|[+-]([01][0-9]|2[0-3]):[0-5][0-9])$",
+      ).test(value.valid_until)
+    )
+      ctx.addIssue({
+        code: "custom",
+        path: ["valid_until"],
+        message: "Use a valid identity record.",
+      });
     if (value.reason.trim().length === 0)
       ctx.addIssue({ code: "custom", path: ["reason"], message: "Use a valid identity record." });
   });
@@ -323,6 +373,16 @@ export const ManualIdentityCaseContract = z
         path: ["latest_examination_id"],
         message: "Use a valid identity record.",
       });
+    if (
+      !new RegExp(
+        "^[0-9]{4}-[0-9]{2}-[0-9]{2}T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](\\.[0-9]{1,6}0*)?(Z|[+-]([01][0-9]|2[0-3]):[0-5][0-9])$",
+      ).test(value.created_at)
+    )
+      ctx.addIssue({
+        code: "custom",
+        path: ["created_at"],
+        message: "Use a valid identity record.",
+      });
   });
 export type ManualIdentityCase = z.infer<typeof ManualIdentityCaseContract>;
 
@@ -363,5 +423,48 @@ export const ManualIdentityCommandReceiptContract = z
         path: ["person_id"],
         message: "Use a valid identity record.",
       });
+    if (
+      !new RegExp(
+        "^[0-9]{4}-[0-9]{2}-[0-9]{2}T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](\\.[0-9]{1,6}0*)?(Z|[+-]([01][0-9]|2[0-3]):[0-5][0-9])$",
+      ).test(value.created_at)
+    )
+      ctx.addIssue({
+        code: "custom",
+        path: ["created_at"],
+        message: "Use a valid identity record.",
+      });
   });
 export type ManualIdentityCommandReceipt = z.infer<typeof ManualIdentityCommandReceiptContract>;
+
+export const ManualIdentityImportReceiptContract = z
+  .object({
+    source_profile_id: identifier,
+    people: z.number().int().min(2).max(10),
+    accounts: z.number().int().min(2).max(100),
+    imported_at: z.string().datetime({ offset: true }),
+    clinical_authority: z.enum(["not_evaluated"]),
+  })
+  .strict()
+  .superRefine((value, ctx) => {
+    if (
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+        value.source_profile_id,
+      )
+    )
+      ctx.addIssue({
+        code: "custom",
+        path: ["source_profile_id"],
+        message: "Use a valid identity record.",
+      });
+    if (
+      !new RegExp(
+        "^[0-9]{4}-[0-9]{2}-[0-9]{2}T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](\\.[0-9]{1,6}0*)?(Z|[+-]([01][0-9]|2[0-3]):[0-5][0-9])$",
+      ).test(value.imported_at)
+    )
+      ctx.addIssue({
+        code: "custom",
+        path: ["imported_at"],
+        message: "Use a valid identity record.",
+      });
+  });
+export type ManualIdentityImportReceipt = z.infer<typeof ManualIdentityImportReceiptContract>;

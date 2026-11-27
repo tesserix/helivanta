@@ -331,6 +331,34 @@
         "type": "string",
         "enum": ["not_evaluated"]
       }
+    ],
+    "ManualIdentityImportReceipt": [
+      {
+        "name": "source_profile_id",
+        "type": "uuid",
+        "uuid_version": 7
+      },
+      {
+        "name": "people",
+        "type": "int",
+        "min": 2,
+        "max": 10
+      },
+      {
+        "name": "accounts",
+        "type": "int",
+        "min": 2,
+        "max": 100
+      },
+      {
+        "name": "imported_at",
+        "type": "time"
+      },
+      {
+        "name": "clinical_authority",
+        "type": "string",
+        "enum": ["not_evaluated"]
+      }
     ]
   },
   "version": 1,

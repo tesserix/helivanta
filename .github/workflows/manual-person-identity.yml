@@ -1,0 +1,35 @@
+name: Manual person identity acceptance
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "backend/internal/modules/iam/manual_person*"
+      - "backend/internal/modules/iam/module.go"
+      - "backend/cmd/manual-person-source/**"
+      - "contracts/manual-person-identity.json"
+      - "scripts/generate-manual-person-identity.mjs"
+      - ".github/workflows/manual-person-identity.yml"
+permissions:
+  contents: read
+concurrency:
+  group: manual-person-identity-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  source-import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      GOTOOLCHAIN: local
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Isolate focused build cache
+        run: printf 'GOCACHE=%s/helivanta-manual-identity-go-cache\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5
+        with:
+          go-version-file: backend/go.mod
+          cache: false
+      - name: Verify source import, owner isolation, replay, audit and commit expiry
+        run: go test -race -v -count=1 -failfast -timeout 20m ./internal/modules/iam ./cmd/manual-person-source -run '^TestManual(Identity|PersonSource)'

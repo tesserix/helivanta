@@ -71,7 +71,7 @@ BEGIN
  FOREACH relation IN ARRAY ARRAY['iam_manual_identity_profiles','iam_manual_identity_people','iam_manual_identity_bindings','iam_manual_identity_source_heads','iam_manual_identity_imports'] LOOP
   EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY',relation);
   EXECUTE format('ALTER TABLE %I FORCE ROW LEVEL SECURITY',relation);
-  EXECUTE format('CREATE POLICY manual_identity_operator ON %I USING(iam_manual_identity_bootstrap(tenant_id)) WITH CHECK(iam_manual_identity_bootstrap(tenant_id))',relation);
+  EXECUTE format('CREATE POLICY manual_identity_operator ON %I USING(hms_tenant_visible(tenant_id) AND iam_manual_identity_bootstrap(tenant_id)) WITH CHECK(tenant_id=NULLIF(current_setting(''app.tenant_id'',true),'''')::uuid AND iam_manual_identity_bootstrap(tenant_id))',relation);
   EXECUTE format('CREATE POLICY assignment_target_purpose ON %I AS RESTRICTIVE FOR ALL USING(NULLIF(current_setting(''app.iam_staff_selection'',true),'''') IS NULL) WITH CHECK(NULLIF(current_setting(''app.iam_staff_selection'',true),'''') IS NULL)',relation);
   EXECUTE format('CREATE POLICY assignment_target_delete ON %I AS RESTRICTIVE FOR DELETE USING(false)',relation);
   EXECUTE format('CREATE POLICY operating_native_read ON %I AS RESTRICTIVE FOR SELECT USING(iam_operating_native_allows(%L,false))',relation,relation);

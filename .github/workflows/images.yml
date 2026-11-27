@@ -176,7 +176,7 @@ jobs:
 
       - name: Upload Trivy results to GitHub Security tab
         if: always() && env.PUBLISH == 'true'
-        uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        uses: github/codeql-action/upload-sarif@1bd86f2fdb4b86187fa4059f16f31a3202acc9ea # v4.39.4
         with:
           sarif_file: trivy-results.sarif
         continue-on-error: true
@@ -184,7 +184,7 @@ jobs:
       # --- SBOM (main only) ---
       - name: Generate SBOM with Syft
         if: env.PUBLISH == 'true'
-        uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
+        uses: anchore/sbom-action@dfcb83b97731532d72be422cbc51ee64adb6fd56 # v0.24.4
         with:
           image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build_push.outputs.digest }}
           format: spdx-json
@@ -391,7 +391,7 @@ jobs:
 
       - name: Upload Trivy results to GitHub Security tab
         if: always() && env.PUBLISH == 'true'
-        uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        uses: github/codeql-action/upload-sarif@1bd86f2fdb4b86187fa4059f16f31a3202acc9ea # v4.39.4
         with:
           sarif_file: trivy-results.sarif
           # Explicit, because two jobs now upload SARIF for the same commit.
@@ -405,7 +405,7 @@ jobs:
       # --- SBOM (main only) ---
       - name: Generate SBOM with Syft
         if: env.PUBLISH == 'true'
-        uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
+        uses: anchore/sbom-action@dfcb83b97731532d72be422cbc51ee64adb6fd56 # v0.24.4
         with:
           image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build_push.outputs.digest }}
           format: spdx-json

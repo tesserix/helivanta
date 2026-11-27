@@ -1,5 +1,10 @@
 # Helivanta contract sources
 
+`manual-person-identity.json` owns unreleased IAM manual-evidence identity models.
+Generate/check with `node scripts/generate-manual-person-identity.mjs` (optionally
+`--check`). [Current scope](../docs/api/manual-person-identity.md) distinguishes
+the validation and transition code from the still-unimplemented live workflow.
+
 Start with the [API/specification index](../docs/api/README.md) and [schema source dictionary](../docs/api/schemas.md).
 
 Existing top-level JSON files are custom input dialects for the corresponding `scripts/generate-*.mjs` generators. They generate selected backend Go models/validation and frontend Zod contracts. They are not directly consumable OpenAPI or JSON Schema. Edit the canonical input and regenerate; do not hand-edit generated models or copy them into consumers.

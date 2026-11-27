@@ -3,10 +3,11 @@ package iam
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
-	"fmt"
 	"log/slog"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -153,9 +154,13 @@ const loginAttemptTTL = 5 * time.Minute
 type LoginUIHandlers struct {
 	client            *loginclient.Client
 	nativeWebClientID string
-	store             *loginAttemptStore
-	limiter           ratelimit.Limiter
-	limit             ratelimit.Rule
+	// webauthnRPID is the boot-validated relying-party ID (SetWebAuthnRPID).
+	// Empty means no security key is offered: TOTP only, fail closed.
+	webauthnRPID string
+	store        *loginAttemptStore
+	keys         *securityKeys
+	limiter      ratelimit.Limiter
+	limit        ratelimit.Rule
 	// factorLimit is POST /v1/auth/login/factor's OWN budget — see
 	// factorRateBucket's doc comment on why a six-digit guessing
 	// endpoint cannot share limit (Password/AuthRequest's
@@ -192,6 +197,7 @@ func NewLoginUIHandlers(client *loginclient.Client, db *tenantdb.DB, limiter rat
 	return &LoginUIHandlers{
 		client:      client,
 		store:       newLoginAttemptStore(db),
+		keys:        &securityKeys{db: db},
 		limiter:     limiter,
 		limit:       limit,
 		factorLimit: factorLimit,
@@ -443,8 +449,12 @@ type passwordSuccessResponse struct {
 // this type's own doc note in the spec: "the page must treat
 // factor_required as neither"), so it must not be structurally
 // confusable with its success sibling above.
+//
+// SecurityKey carries the WebAuthn request options when "security_key" is
+// among Factors (#1898): a Helivanta-registered key is asserted on this page.
 type factorRequiredResponse struct {
-	Factors []string `json:"factor_required"`
+	Factors     []string                `json:"factor_required"`
+	SecurityKey *securityKeyRequestWire `json:"security_key,omitempty"`
 }
 
 // enrollmentRequiredResponse is OutcomeEnrollmentRequired's shape (#948,
@@ -455,8 +465,15 @@ type factorRequiredResponse struct {
 // wire exactly once, here; there is no route that re-issues it for an
 // existing attempt (spec D2 — a new secret needs a new password check).
 type enrollmentRequiredResponse struct {
-	Factors []string           `json:"enrollment_required"`
-	TOTP    totpEnrollmentWire `json:"totp"`
+	Factors     []string                   `json:"enrollment_required"`
+	TOTP        totpEnrollmentWire         `json:"totp"`
+	SecurityKey *securityKeyEnrollmentWire `json:"security_key,omitempty"`
+}
+
+// securityKeyEnrollmentWire relays Zitadel's WebAuthn creation options
+// verbatim (#1898); Helivanta never parses them.
+type securityKeyEnrollmentWire struct {
+	CreationOptions json.RawMessage `json:"creation_options"`
 }
 
 type totpEnrollmentWire struct {
@@ -585,7 +602,7 @@ func (h *LoginUIHandlers) Password(c *gin.Context) {
 // one, so a chosen account gets exactly the steps a single match gets.
 // subject is stored on attempt rows for audit and correlation only.
 func (h *LoginUIHandlers) continueWithSession(c *gin.Context, authRequestID, subject string, session loginclient.Session) {
-	result, err := h.client.CompleteIfSufficient(c.Request.Context(), authRequestID, session)
+	result, err := h.client.CompleteIfSufficient(c.Request.Context(), authRequestID, session, h.keyRegistry())
 	if err != nil {
 		h.respondLoginClientError(c, err, "complete")
 		return
@@ -609,21 +626,34 @@ func (h *LoginUIHandlers) continueWithSession(c *gin.Context, authRequestID, sub
 		// was FOR, the only per-caller identity this handler has —
 		// stored for audit/correlation only, never returned to the
 		// browser and never itself a credential.
-		err := h.store.Put(c.Request.Context(), loginAttempt{
+		attempt := loginAttempt{
 			AuthRequestID: authRequestID,
 			SessionID:     session.ID,
 			SessionToken:  session.Token,
 			Subject:       subject,
 			ExpiresAt:     time.Now().Add(loginAttemptTTL),
 			Stage:         stageFactor,
-		})
-		if err != nil {
+		}
+		body := factorRequiredResponse{Factors: nonNilFactors(result.Factors)}
+		if slices.Contains(result.Factors, "security_key") {
+			// A Helivanta-registered key (#1898): challenge it before the row
+			// write, and store the rotated token, as Enroll does.
+			challenged, options, err := h.client.ChallengeSecurityKey(c.Request.Context(), session, h.webauthnRPID)
+			if err != nil {
+				h.respondLoginClientError(c, err, "challenge_security_key")
+				return
+			}
+			attempt.SessionToken = challenged.Token
+			attempt.SecurityKeyID = securityKeySignIn
+			body.SecurityKey = &securityKeyRequestWire{RequestOptions: options}
+		}
+		if err := h.store.Put(c.Request.Context(), attempt); err != nil {
 			respond.InternalErr(c, err, "sign-in could not be completed")
 			return
 		}
 		requestid.Logger(c).InfoContext(c.Request.Context(), "login password succeeded, factor required",
 			"auth_request_id", authRequestID, "outcome", "factor_required")
-		respond.OK(c, factorRequiredResponse{Factors: nonNilFactors(result.Factors)})
+		respond.OK(c, body)
 
 	case loginclient.OutcomeEnrollmentRequired:
 		// forceMfa, nothing enrolled (#948, spec D2): register a TOTP on
@@ -648,6 +678,21 @@ func (h *LoginUIHandlers) continueWithSession(c *gin.Context, authRequestID, sub
 			h.respondLoginClientError(c, err, "register_totp")
 			return
 		}
+		// A security key is registered beside the TOTP (#1898) only when this
+		// deployment has a validated relying party, and for the same ordering
+		// reason: register before the row write, so a failure leaves no row.
+		factors := nonNilFactors(result.Factors)
+		var key loginclient.SecurityKeyRegistration
+		var keyWire *securityKeyEnrollmentWire
+		if h.webauthnRPID != "" {
+			key, err = h.client.RegisterSecurityKey(c.Request.Context(), session.ID, h.webauthnRPID)
+			if err != nil {
+				h.respondLoginClientError(c, err, "register_security_key")
+				return
+			}
+			factors = append(factors, "security_key")
+			keyWire = &securityKeyEnrollmentWire{CreationOptions: key.CreationOptions}
+		}
 		err = h.store.Put(c.Request.Context(), loginAttempt{
 			AuthRequestID: authRequestID,
 			SessionID:     session.ID,
@@ -656,6 +701,7 @@ func (h *LoginUIHandlers) continueWithSession(c *gin.Context, authRequestID, sub
 			ExpiresAt:     time.Now().Add(loginAttemptTTL),
 			Enrolling:     true,
 			Stage:         stageFactor,
+			SecurityKeyID: key.ID,
 		})
 		if err != nil {
 			respond.InternalErr(c, err, "sign-in could not be completed")
@@ -667,8 +713,9 @@ func (h *LoginUIHandlers) continueWithSession(c *gin.Context, authRequestID, sub
 		requestid.Logger(c).InfoContext(c.Request.Context(), "login password succeeded, enrollment required",
 			"auth_request_id", authRequestID, "outcome", "enrollment_required")
 		respond.OK(c, enrollmentRequiredResponse{
-			Factors: nonNilFactors(result.Factors),
-			TOTP:    totpEnrollmentWire{URI: enrollment.URI, Secret: enrollment.Secret},
+			Factors:     factors,
+			TOTP:        totpEnrollmentWire{URI: enrollment.URI, Secret: enrollment.Secret},
+			SecurityKey: keyWire,
 		})
 
 	case loginclient.OutcomePasswordChangeRequired:
@@ -856,15 +903,16 @@ func (h *LoginUIHandlers) respondLoginClientError(c *gin.Context, err error, sta
 
 // factorRequest is the body POST /v1/auth/login/factor accepts (#867,
 // spec D8): the auth request this check resumes, which factor kind is
-// being submitted, and the code itself. Factor is required and checked
-// explicitly (not just bound) because "totp" is the only value this
-// handler — and loginclient.VerifyTOTP beneath it — knows how to check;
-// silently accepting anything else and forwarding it to VerifyTOTP would
-// misreport a client bug as a wrong code.
+// being submitted, and its proof — a code for "totp", the browser's
+// WebAuthn assertion (relayed verbatim, never parsed) for "security_key"
+// (#1898). Factor is checked explicitly (validate) because those are the
+// only values this handler knows how to check; silently forwarding anything
+// else would misreport a client bug as a wrong code.
 type factorRequest struct {
-	AuthRequestID string `json:"auth_request_id" binding:"required"`
-	Factor        string `json:"factor" binding:"required"`
-	Code          string `json:"code" binding:"required"`
+	AuthRequestID string          `json:"auth_request_id" binding:"required"`
+	Factor        string          `json:"factor" binding:"required"`
+	Code          string          `json:"code"`
+	Assertion     json.RawMessage `json:"assertion"`
 }
 
 // Factor backs POST /v1/auth/login/factor: the second half of the
@@ -921,13 +969,13 @@ func (h *LoginUIHandlers) Factor(c *gin.Context) {
 		respond.BadRequest(c, err)
 		return
 	}
-	if req.Factor != "totp" {
+	if err := req.validate(); err != nil {
 		// Not a credential refusal — the caller asked this handler to
-		// check a factor kind it does not implement. A 400, like any
-		// other malformed-request case, not the equalised failure: this
-		// reveals nothing about a login name or a code, only that the
-		// CALLER sent a value this endpoint does not support.
-		respond.BadRequest(c, fmt.Errorf("unsupported factor %q", req.Factor))
+		// check a factor kind it does not implement, or omitted its proof.
+		// A 400, like any other malformed-request case, not the equalised
+		// failure: this reveals nothing about a login name or a code, only
+		// that the CALLER sent a request this endpoint does not support.
+		respond.BadRequest(c, err)
 		return
 	}
 
@@ -952,6 +1000,11 @@ func (h *LoginUIHandlers) Factor(c *gin.Context) {
 		requestid.Logger(c).WarnContext(c.Request.Context(), "login factor: no pending attempt",
 			"auth_request_id", req.AuthRequestID)
 		h.respondAttemptExpired(c, start)
+		return
+	}
+
+	if req.Factor == "security_key" {
+		h.checkSecurityKey(c, start, req.AuthRequestID, attempt, req.Assertion)
 		return
 	}
 
@@ -992,8 +1045,15 @@ func (h *LoginUIHandlers) completeWithVerifiedCode(c *gin.Context, start time.Ti
 		h.respondLoginClientError(c, err, "verify_totp")
 		return
 	}
+	h.completeVerifiedFactor(c, authRequestID, verified)
+}
 
-	// The rotated token — see this function's doc comment's D3 section.
+// completeVerifiedFactor is the tail every second-factor check shares once
+// Zitadel has accepted it (a TOTP code, or a security-key assertion, #1898):
+// persist the rotated token, CompleteAfterFactor, and answer. verified is
+// the Session the check returned, never the stored one.
+func (h *LoginUIHandlers) completeVerifiedFactor(c *gin.Context, authRequestID string, verified loginclient.Session) {
+	// The rotated token — see completeWithVerifiedCode's D3 section.
 	// Persisted BEFORE CompleteAfterFactor is called, so a caller that
 	// crashes or times out between these two lines leaves the STORE
 	// holding the token that will actually work on a retried Factor
@@ -1021,7 +1081,7 @@ func (h *LoginUIHandlers) completeWithVerifiedCode(c *gin.Context, start time.Ti
 	// attacker who is still guessing codes can reach at all, and
 	// therefore not a timing oracle over the code itself the way an
 	// unfloored VerifyTOTP failure would be.
-	result, err := h.client.CompleteAfterFactor(c.Request.Context(), authRequestID, verified)
+	result, err := h.client.CompleteAfterFactor(c.Request.Context(), authRequestID, verified, h.keyRegistry())
 	if err != nil {
 		h.respondLoginClientError(c, err, "complete_after_factor")
 		return
@@ -1034,8 +1094,9 @@ func (h *LoginUIHandlers) completeWithVerifiedCode(c *gin.Context, start time.Ti
 			"auth_request_id", authRequestID, "outcome", "complete")
 		respond.OK(c, passwordSuccessResponse{CallbackURL: result.CallbackURL})
 	case loginclient.OutcomePasswordChangeRequired:
-		// The TOTP — an enrolled one, or one just enrolled (#948) — is
-		// proven and the password must change (#856). The same row carries
+		// The second factor (TOTP or a Helivanta-registered key) — an
+		// enrolled one, or one just enrolled (#948, #1898) — is proven and
+		// the password must change (#856). The same row carries
 		// on, advanced to stagePasswordChange so neither Factor nor Enroll
 		// can resume it and PasswordChange can.
 		if err := h.store.AdvanceToPasswordChange(c.Request.Context(), authRequestID); err != nil {
@@ -1058,13 +1119,17 @@ func (h *LoginUIHandlers) completeWithVerifiedCode(c *gin.Context, start time.Ti
 }
 
 // enrollRequest is the body POST /v1/auth/login/enroll accepts (#948, spec
-// D3): the auth request whose enrolment this confirms, which factor kind
-// is being confirmed ("totp" is the only one this handler knows how to
-// enrol), and the first code from the authenticator the user just set up.
+// D3): the auth request whose enrolment this confirms and which factor kind
+// is being confirmed. "totp" carries the authenticator's first code;
+// "security_key" (#1898) carries the browser's attestation credential and an
+// optional key name. What each factor requires is checked per factor
+// (validate), not at bind time.
 type enrollRequest struct {
-	AuthRequestID string `json:"auth_request_id" binding:"required"`
-	Factor        string `json:"factor" binding:"required"`
-	Code          string `json:"code" binding:"required"`
+	AuthRequestID string          `json:"auth_request_id" binding:"required"`
+	Factor        string          `json:"factor" binding:"required"`
+	Code          string          `json:"code"`
+	Credential    json.RawMessage `json:"credential"`
+	Name          string          `json:"name"`
 }
 
 // Enroll backs POST /v1/auth/login/enroll: the second half of the
@@ -1096,8 +1161,9 @@ func (h *LoginUIHandlers) Enroll(c *gin.Context) {
 		respond.BadRequest(c, err)
 		return
 	}
-	if req.Factor != "totp" {
-		respond.BadRequest(c, fmt.Errorf("unsupported factor %q", req.Factor))
+	keyName, err := req.validate()
+	if err != nil {
+		respond.BadRequest(c, err)
 		return
 	}
 
@@ -1113,6 +1179,10 @@ func (h *LoginUIHandlers) Enroll(c *gin.Context) {
 		h.respondAttemptExpired(c, start)
 		return
 	}
+	if req.Factor == "security_key" {
+		h.enrollSecurityKey(c, start, req.AuthRequestID, attempt, req.Credential, keyName)
+		return
+	}
 	if !attempt.Enrolling {
 		// Spec D4: this attempt awaits a code for an ALREADY-enrolled
 		// factor (Factor's job). Refused here, before any Zitadel call,
@@ -1120,6 +1190,24 @@ func (h *LoginUIHandlers) Enroll(c *gin.Context) {
 		// guard for the reasoning.
 		h.bumpFactorAttempt(c, req.AuthRequestID, errAttemptInOtherFlow, start)
 		return
+	}
+	if attempt.SecurityKeyID != "" && attempt.SecurityKeyID != securityKeySignIn && h.webauthnRPID != "" {
+		// #1898: a key /enroll verified before its registry write failed is
+		// READY in Zitadel but unrecorded, which CompleteAfterFactor refuses
+		// as an uncollectible factor even after a correct code, and every
+		// later sign-in with it. Record it first, without the browser's
+		// credential: this attempt's own password-checked session registered
+		// that id, and READY means Zitadel verified it. An unreadable
+		// Zitadel is 503 before the code is checked, so no guess is spent;
+		// a key never verified is not READY and the TOTP enrolment goes on.
+		subject, err := h.client.SessionUserID(c.Request.Context(), attempt.SessionID)
+		if err != nil {
+			h.respondLoginClientError(c, err, "security_key_subject")
+			return
+		}
+		if _, ok := h.recordVerifiedSecurityKey(c, subject, attempt); !ok {
+			return
+		}
 	}
 
 	if err := h.client.VerifyTOTPEnrollment(c.Request.Context(), attempt.SessionID, req.Code); err != nil {

@@ -13,7 +13,7 @@ Thirty Workforce reviews pin `module.go`. Its only change declares
 `workforce.stocktake_actor.use` is declared. Ten reviews pin `staff_actor_guard.go`,
 whose closed purpose allowlist in `withCurrentEmployeeActor` now admits that purpose;
 every reviewed caller still passes its own fixed purpose, so none gains authority. Ten
-IAM reviews pin `module.go`, which only appends `0057_iam_pharmacy_ward_indent_templates`;
+IAM reviews pin `module.go`, which only appends `0058_iam_pharmacy_ward_indent_templates`;
 its seal checks refuse any change to earlier templates or guards. Classifications and
 remaining obligations are unchanged. The new purpose is consumed only by the ward
 indent actor guard and is not reviewed Staff employment authority or live acceptance.

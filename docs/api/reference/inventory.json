@@ -1545,7 +1545,14 @@
           "creates_tables": []
         },
         {
-          "id": "0057_iam_pharmacy_ward_indent_templates",
+          "id": "0057_iam_security_keys",
+          "sql_sha256": "65cb4e0ed795186c604be7a94379878760f9d2201e4fb9d696bdea65f7e9c33a",
+          "creates_tables": [
+            "iam_security_keys"
+          ]
+        },
+        {
+          "id": "0058_iam_pharmacy_ward_indent_templates",
           "sql_sha256": "8b11ad3a83e9085c5e824d4abca9c11ce631583ff30cd3830ec1dabc21dd9f43",
           "creates_tables": []
         }

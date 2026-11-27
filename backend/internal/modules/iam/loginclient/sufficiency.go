@@ -37,7 +37,8 @@ const (
 	// OutcomeFactorRequired means the session is password-only, the user
 	// has enrolled TOTP and nothing ELSE Helivanta cannot collect, and
 	// Helivanta should prompt for a TOTP code natively. Factors names which
-	// factor(s) to collect (today, always exactly ["totp"]).
+	// factor(s) to collect: "security_key" (a Helivanta-registered key,
+	// #1898) and/or "totp", in that order.
 	OutcomeFactorRequired
 	// OutcomeEnrollmentRequired means the session is password-only, the
 	// user's org or retained account recovery requires MFA, and the user has NOTHING enrolled — not TOTP,
@@ -178,6 +179,20 @@ func refused(reason RefusalReason) Result {
 // functions — a fourth, check-free constructor fails the build.
 type sufficient struct{}
 
+// KeyRegistry reports whether every key id in keyIDs was registered to the
+// Zitadel user userID during Helivanta's own sign-in (#1898; the iam module's
+// securityKeys.Contains). It is a parameter of the three Complete* functions,
+// rather than a fact the caller computes first, so that the registry is read
+// only when the user actually has U2F enrolled, and so that the decision
+// "this U2F is collectible" is made in exactly one place
+// (classifyEnrolledMethods) on every path that can finalize. A nil
+// KeyRegistry means no key can be collected (no validated relying party):
+// U2F stays uncollectible, the pre-#1898 behaviour. Fail closed.
+type KeyRegistry func(ctx context.Context, userID string, keyIDs []string) (bool, error)
+
+// securityKeyMethodType is Zitadel's enrolled-method name for a security key.
+const securityKeyMethodType = "AUTHENTICATION_METHOD_TYPE_U2F"
+
 // classifyEnrolledMethods reads sessionID's subject (sessionSubject,
 // client.go) and its enrolled authentication methods
 // (enrolledMethodTypes, client.go), and classifies the latter into two
@@ -208,15 +223,23 @@ type sufficient struct{}
 // is sufficient", not "no factor found", so callers must return an
 // ErrUnavailable error (never complete, never refuse as if unsupported) rather
 // than risk a bypass on an unreadable answer.
-func (c *Client) classifyEnrolledMethods(ctx context.Context, sessionID string) (subject sessionSubject, methodTypes []string, totpEnrolled, uncollectible bool, err error) {
+//
+// collectible lists the enrolled second factors Helivanta can collect, in the
+// order the login form offers them: "security_key" (#1898) only when every
+// READY u2f key of the user is in keys (a legacy key registered elsewhere
+// keeps U2F uncollectible, so the ADR-0069 continuation still applies), then
+// "totp". An empty collectible means no second factor is enrolled that this
+// session could prove.
+func (c *Client) classifyEnrolledMethods(ctx context.Context, sessionID string, keys KeyRegistry) (subject sessionSubject, methodTypes, collectible []string, uncollectible bool, err error) {
 	subject, err = c.sessionSubject(ctx, sessionID)
 	if err != nil {
-		return sessionSubject{}, nil, false, false, err
+		return sessionSubject{}, nil, nil, false, err
 	}
 	methodTypes, err = c.enrolledMethodTypes(ctx, subject.UserID)
 	if err != nil {
-		return sessionSubject{}, nil, false, false, err
+		return sessionSubject{}, nil, nil, false, err
 	}
+	totpEnrolled, keyEnrolled := false, false
 	for _, methodType := range methodTypes {
 		switch methodType {
 		case passwordOnlyMethodType:
@@ -234,11 +257,48 @@ func (c *Client) classifyEnrolledMethods(ctx context.Context, sessionID string) 
 			// is not.
 		case totpMethodType:
 			totpEnrolled = true
+		case securityKeyMethodType:
+			keyEnrolled = true
 		default:
 			uncollectible = true
 		}
 	}
-	return subject, methodTypes, totpEnrolled, uncollectible, nil
+	if keyEnrolled && !uncollectible {
+		registered, err := c.keysRegistered(ctx, subject, keys)
+		if err != nil {
+			return sessionSubject{}, nil, nil, false, err
+		}
+		if registered {
+			collectible = append(collectible, "security_key")
+		} else {
+			uncollectible = true
+		}
+	}
+	if totpEnrolled {
+		collectible = append(collectible, "totp")
+	}
+	return subject, methodTypes, collectible, uncollectible, nil
+}
+
+// keysRegistered reports whether the user's READY keys are all
+// Helivanta-registered. No registry, or no READY key, is false: there is
+// nothing Helivanta could challenge. An unreadable answer is an error.
+func (c *Client) keysRegistered(ctx context.Context, subject sessionSubject, keys KeyRegistry) (bool, error) {
+	if keys == nil {
+		return false, nil
+	}
+	ids, err := c.readySecurityKeyIDs(ctx, subject)
+	if err != nil {
+		return false, err
+	}
+	if len(ids) == 0 {
+		return false, nil
+	}
+	ok, err := keys(ctx, subject.UserID, ids)
+	if err != nil {
+		return false, fmt.Errorf("security key registry: %w: %w", ErrUnavailable, err)
+	}
+	return ok, nil
 }
 
 // CompleteIfSufficient is the ONLY way to finalize an OIDC auth request
@@ -319,7 +379,7 @@ func (c *Client) classifyEnrolledMethods(ctx context.Context, sessionID string) 
 // as every other unreadable-policy case. See design spec
 // docs/superpowers/specs/2026-08-20-login-policy-org-scope-design.md for
 // the full history and the live-verified facts this rests on.
-func (c *Client) CompleteIfSufficient(ctx context.Context, authRequestID string, s Session) (Result, error) {
+func (c *Client) CompleteIfSufficient(ctx context.Context, authRequestID string, s Session, keys KeyRegistry) (Result, error) {
 	// The org may not force MFA, but an individual user can still have
 	// VOLUNTARILY enrolled a second factor (spike "Per-user enrolled
 	// factors" §, #854 Task 8) — and if the org DOES force MFA, this same
@@ -328,7 +388,7 @@ func (c *Client) CompleteIfSufficient(ctx context.Context, authRequestID string,
 	// prompt for at all. Either way this has to run before the policy
 	// check, not after (see this function's "classification runs BEFORE
 	// the policy check" doc section above).
-	subject, methodTypes, totpEnrolled, uncollectible, err := c.classifyEnrolledMethods(ctx, s.ID)
+	subject, methodTypes, collectible, uncollectible, err := c.classifyEnrolledMethods(ctx, s.ID, keys)
 	if err != nil {
 		// Fails closed as a RETRYABLE error, not a refusal (#947 spec D1):
 		// "we could not tell" must never tell a clinician their account is
@@ -346,14 +406,15 @@ func (c *Client) CompleteIfSufficient(ctx context.Context, authRequestID string,
 		return Result{}, err
 	}
 
-	if totpEnrolled {
+	if len(collectible) > 0 {
 		// Ask for the factor natively — the
 		// headline case this whole spec exists for, and the one Finding 1
 		// found was unreachable when forceMfa was also true. Nothing is
 		// finalized here — the login completes only once
-		// CompleteAfterFactor confirms VerifyTOTP actually succeeded
-		// against this session, independent of what ForceMFA says.
-		return Result{Outcome: OutcomeFactorRequired, Factors: []string{"totp"}}, nil
+		// CompleteAfterFactor confirms the second factor (TOTP or a
+		// Helivanta-registered key) was actually proven on this session,
+		// independent of what ForceMFA says.
+		return Result{Outcome: OutcomeFactorRequired, Factors: collectible}, nil
 	}
 
 	// Nothing beyond a password is enrolled. Whether that is sufficient
@@ -410,13 +471,13 @@ func (c *Client) CompleteIfSufficient(ctx context.Context, authRequestID string,
 }
 
 // CompleteAfterFactor is the second half of the OutcomeFactorRequired
-// flow: after CompleteIfSufficient asks for a TOTP code and the caller
-// checks one against the session (VerifyTOTP, Task 2), this function
-// decides whether that check actually succeeded and, only then, finalizes
-// the login.
+// flow: after CompleteIfSufficient asks for the second factor (TOTP or a
+// Helivanta-registered key) and the caller checks it against the session
+// (VerifyTOTP or CheckSecurityKey), this function decides whether that check
+// actually succeeded and, only then, finalizes the login.
 //
 // It re-evaluates BOTH questions CompleteIfSufficient did, not just the
-// TOTP-verified one, so it can never finalize a case CompleteIfSufficient
+// second-factor one, so it can never finalize a case CompleteIfSufficient
 // itself would have handed off:
 //
 //  1. Enrolled methods, again (#867 fix round 1, Finding 2). A session can
@@ -436,8 +497,8 @@ func (c *Client) CompleteIfSufficient(ctx context.Context, authRequestID string,
 //     factor (a caller bug, a stale Session value from before a rotated
 //     token, or a race with a second request could all make that belief
 //     wrong). Instead it re-reads the session's ACTUAL verified factors
-//     (SessionFactors, Task 2) and finalizes only if that read reports
-//     TOTP true.
+//     (SessionFactors, Task 2) and finalizes only if that read proves the
+//     second factor (TOTP or a Helivanta-registered key).
 //
 // This is what keeps finalize reachable solely through a sufficiency
 // decision even on this second path: finalize requires a `sufficient`
@@ -451,11 +512,11 @@ func (c *Client) CompleteIfSufficient(ctx context.Context, authRequestID string,
 // answer from either check means "cannot prove this session is
 // sufficient", not "it is not", so it hands off rather than risking a
 // bypass on an unreadable answer.
-func (c *Client) CompleteAfterFactor(ctx context.Context, authRequestID string, s Session) (Result, error) {
+func (c *Client) CompleteAfterFactor(ctx context.Context, authRequestID string, s Session, keys KeyRegistry) (Result, error) {
 	// The subject (user and org id) is what passwordGate below reads the
 	// password state and the org's expiry policy for (#856). This function
 	// reads no LOGIN policy — see its doc comment.
-	subject, methodTypes, totpEnrolled, uncollectible, err := c.classifyEnrolledMethods(ctx, s.ID)
+	subject, methodTypes, collectible, uncollectible, err := c.classifyEnrolledMethods(ctx, s.ID, keys)
 	if err != nil {
 		return Result{}, unreadable("enrolled factors", err)
 	}
@@ -469,11 +530,14 @@ func (c *Client) CompleteAfterFactor(ctx context.Context, authRequestID string, 
 		return Result{}, err
 	}
 
-	if !totpEnrolled {
+	if len(collectible) == 0 {
 		// The enrolment this call sees no longer matches what
-		// CompleteIfSufficient saw (TOTP was removed, or this path was
-		// reached without ever going through CompleteIfSufficient at
-		// all). There is nothing here to natively verify against.
+		// CompleteIfSufficient saw (the TOTP or registered key was removed,
+		// or this path was reached without ever going through
+		// CompleteIfSufficient at all). There is nothing here to natively
+		// verify against. Keyed on any collectible factor, not TOTP alone:
+		// a key-only user must reach the SessionFactors check below, never
+		// finalize on the password (#1898).
 		return refused(RefusalFactorNotVerified), nil
 	}
 
@@ -481,12 +545,12 @@ func (c *Client) CompleteAfterFactor(ctx context.Context, authRequestID string, 
 	if err != nil {
 		return Result{}, unreadable("session factors", err)
 	}
-	if !factors.TOTP {
+	if !factors.SecondFactorProven() {
 		return refused(RefusalFactorNotVerified), nil
 	}
 
-	// The TOTP is proven; only now may a due password change be asked for
-	// (#856 spec D2).
+	// The second factor (TOTP or a Helivanta-registered key) is proven;
+	// only now may a due password change be asked for (#856 spec D2).
 	change, due, err := c.passwordGate(ctx, subject)
 	if err != nil {
 		return Result{}, err
@@ -513,9 +577,9 @@ func (c *Client) CompleteAfterFactor(ctx context.Context, authRequestID string, 
 // it re-runs every check the first decision made:
 //
 //  1. Enrolled methods: an uncollectible factor refuses.
-//  2. The second factor: when TOTP is enrolled, the session must carry a
-//     VERIFIED TOTP (SessionFactors), exactly as CompleteAfterFactor
-//     requires; otherwise neither native org policy nor retained recovery may
+//  2. The second factor: when TOTP or a registered key is enrolled, the
+//     session must carry a VERIFIED second factor (SessionFactors), exactly
+//     as CompleteAfterFactor requires; otherwise neither native org policy nor retained recovery may
 //     require MFA (an unproven requirement is RefusalFactorNotVerified).
 //  3. The password gate: after a change Zitadel accepted it must say "not
 //     due". If it still says due, that is RefusalPasswordChangeUnconfirmed —
@@ -524,8 +588,8 @@ func (c *Client) CompleteAfterFactor(ctx context.Context, authRequestID string, 
 // It is the third and last producer of the `sufficient` witness finalize
 // requires; every check above runs before it, and every unreadable answer is
 // an ErrUnavailable error (fail closed), as on the other two paths.
-func (c *Client) CompleteAfterPasswordChange(ctx context.Context, authRequestID string, s Session) (Result, error) {
-	subject, methodTypes, totpEnrolled, uncollectible, err := c.classifyEnrolledMethods(ctx, s.ID)
+func (c *Client) CompleteAfterPasswordChange(ctx context.Context, authRequestID string, s Session, keys KeyRegistry) (Result, error) {
+	subject, methodTypes, collectible, uncollectible, err := c.classifyEnrolledMethods(ctx, s.ID, keys)
 	if err != nil {
 		return Result{}, unreadable("enrolled factors", err)
 	}
@@ -537,12 +601,15 @@ func (c *Client) CompleteAfterPasswordChange(ctx context.Context, authRequestID 
 		return Result{}, err
 	}
 
-	if totpEnrolled {
+	// Any collectible second factor (TOTP or a registered key, #1898) must
+	// be proven on the session; keyed on TOTP alone, a key-only user without
+	// ForceMFA would finalize on the password.
+	if len(collectible) > 0 {
 		factors, err := c.SessionFactors(ctx, s.ID)
 		if err != nil {
 			return Result{}, unreadable("session factors", err)
 		}
-		if !factors.TOTP {
+		if !factors.SecondFactorProven() {
 			return refused(RefusalFactorNotVerified), nil
 		}
 	} else {

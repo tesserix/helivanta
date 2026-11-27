@@ -6,7 +6,7 @@ until both are deployed.
 
 ## Fixed points
 
-- Migrations: Pharmacy `0077_pharmacy_ward_indents`, IAM `0057_iam_pharmacy_ward_indent_templates`.
+- Migrations: Pharmacy `0077_pharmacy_ward_indents`, IAM `0058_iam_pharmacy_ward_indent_templates`.
 - Capability: new `pharmacy_ward_indents` (owner Pharmacy, depends on `pharmacy_counter`),
   compiled ineligible. Every new route, both pages and the
   `staff.assignments.pharmacy_ward_indent` panel map to it.

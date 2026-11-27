@@ -1,0 +1,339 @@
+{
+  "status": "unreleased_identity_only_manual_source",
+  "models": {
+    "ManualIdentityRootAccount": [
+      {
+        "name": "subject",
+        "type": "string",
+        "min": 1,
+        "max": 200,
+        "pattern": "^[A-Za-z0-9_-]+$"
+      },
+      {
+        "name": "expected_membership_epoch",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990
+      }
+    ],
+    "ManualIdentityRootPerson": [
+      {
+        "name": "person_id",
+        "type": "uuid",
+        "uuid_version": 7
+      },
+      {
+        "name": "source_person_reference",
+        "type": "uuid",
+        "uuid_version": 7
+      },
+      {
+        "name": "finding_reference",
+        "type": "uuid",
+        "uuid_version": 7
+      },
+      {
+        "name": "accounts",
+        "type": "[]ManualIdentityRootAccount",
+        "min": 1,
+        "max": 10
+      }
+    ],
+    "ManualIdentitySourceImport": [
+      {
+        "name": "tenant_id",
+        "type": "uuid"
+      },
+      {
+        "name": "source_profile_id",
+        "type": "uuid",
+        "uuid_version": 7
+      },
+      {
+        "name": "policy_reference",
+        "type": "uuid",
+        "uuid_version": 7
+      },
+      {
+        "name": "review_reference",
+        "type": "uuid",
+        "uuid_version": 7
+      },
+      {
+        "name": "witness_reference",
+        "type": "uuid",
+        "uuid_version": 7
+      },
+      {
+        "name": "display_name",
+        "type": "string",
+        "format": "manual_identity_text",
+        "min": 1,
+        "max": 120,
+        "no_nul": true,
+        "pattern": "^[^\\p{Cc}]+$"
+      },
+      {
+        "name": "observed_at",
+        "type": "time"
+      },
+      {
+        "name": "valid_from",
+        "type": "time"
+      },
+      {
+        "name": "valid_until",
+        "type": "time"
+      },
+      {
+        "name": "independent_root_review_confirmed",
+        "type": "bool",
+        "required_true": "Confirm the recorded manual finding."
+      },
+      {
+        "name": "roots",
+        "type": "[]ManualIdentityRootPerson",
+        "min": 2,
+        "max": 10
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "format": "manual_identity_text",
+        "min": 1,
+        "max": 500,
+        "no_nul": true,
+        "pattern": "^[^\\p{Cc}]+$"
+      }
+    ],
+    "ManualIdentityCaseInput": [
+      {
+        "name": "source_profile_id",
+        "type": "uuid",
+        "uuid_version": 7
+      },
+      {
+        "name": "expected_profile_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990,
+        "pointer": true
+      },
+      {
+        "name": "consent_acknowledged",
+        "type": "bool",
+        "required_true": "Confirm the recorded manual finding."
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "format": "manual_identity_text",
+        "min": 1,
+        "max": 500,
+        "no_nul": true,
+        "pattern": "^[^\\p{Cc}]+$"
+      }
+    ],
+    "ManualIdentityExaminationInput": [
+      {
+        "name": "expected_case_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990,
+        "pointer": true
+      },
+      {
+        "name": "person_id",
+        "type": "uuid",
+        "uuid_version": 7
+      },
+      {
+        "name": "expected_person_version",
+        "type": "int64",
+        "min": 0,
+        "max": 9007199254740990,
+        "pointer": true
+      },
+      {
+        "name": "source_person_reference",
+        "type": "uuid",
+        "uuid_version": 7
+      },
+      {
+        "name": "source_reference",
+        "type": "uuid",
+        "uuid_version": 7
+      },
+      {
+        "name": "finding_reference",
+        "type": "uuid",
+        "uuid_version": 7
+      },
+      {
+        "name": "observed_at",
+        "type": "time"
+      },
+      {
+        "name": "valid_until",
+        "type": "time"
+      },
+      {
+        "name": "original_evidence_examined",
+        "type": "bool",
+        "required_true": "Confirm the recorded manual finding."
+      },
+      {
+        "name": "known_associations_checked",
+        "type": "bool",
+        "required_true": "Confirm the recorded manual finding."
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "format": "manual_identity_text",
+        "min": 1,
+        "max": 500,
+        "no_nul": true,
+        "pattern": "^[^\\p{Cc}]+$"
+      }
+    ],
+    "ManualIdentityDecisionInput": [
+      {
+        "name": "expected_case_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990,
+        "pointer": true
+      },
+      {
+        "name": "examination_id",
+        "type": "uuid",
+        "uuid_version": 7
+      },
+      {
+        "name": "decision",
+        "type": "string",
+        "enum": ["approve", "reject"]
+      },
+      {
+        "name": "evidence_examined",
+        "type": "bool",
+        "required_true": "Confirm the recorded manual finding."
+      },
+      {
+        "name": "independent_person_confirmed",
+        "type": "bool",
+        "required_true": "Confirm the recorded manual finding."
+      },
+      {
+        "name": "reason",
+        "type": "string",
+        "format": "manual_identity_text",
+        "min": 1,
+        "max": 500,
+        "no_nul": true,
+        "pattern": "^[^\\p{Cc}]+$"
+      }
+    ],
+    "ManualIdentityCase": [
+      {
+        "name": "id",
+        "type": "uuid",
+        "uuid_version": 7
+      },
+      {
+        "name": "source_profile_id",
+        "type": "uuid",
+        "uuid_version": 7
+      },
+      {
+        "name": "profile_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990
+      },
+      {
+        "name": "subject",
+        "type": "string",
+        "min": 1,
+        "max": 200,
+        "pattern": "^[A-Za-z0-9_-]+$"
+      },
+      {
+        "name": "membership_epoch",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990
+      },
+      {
+        "name": "version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990
+      },
+      {
+        "name": "state",
+        "type": "string",
+        "enum": ["awaiting_evidence", "awaiting_review", "approved", "rejected"]
+      },
+      {
+        "name": "latest_examination_id",
+        "type": "uuid",
+        "pointer": true,
+        "nullable": true,
+        "uuid_version": 7
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      },
+      {
+        "name": "clinical_authority",
+        "type": "string",
+        "enum": ["not_evaluated"]
+      }
+    ],
+    "ManualIdentityCommandReceipt": [
+      {
+        "name": "command_id",
+        "type": "uuid",
+        "uuid_version": 7
+      },
+      {
+        "name": "case_id",
+        "type": "uuid",
+        "uuid_version": 7
+      },
+      {
+        "name": "result_version",
+        "type": "int64",
+        "min": 1,
+        "max": 9007199254740990
+      },
+      {
+        "name": "state",
+        "type": "string",
+        "enum": ["awaiting_evidence", "awaiting_review", "approved", "rejected"]
+      },
+      {
+        "name": "person_id",
+        "type": "uuid",
+        "pointer": true,
+        "nullable": true,
+        "uuid_version": 7
+      },
+      {
+        "name": "created_at",
+        "type": "time"
+      },
+      {
+        "name": "clinical_authority",
+        "type": "string",
+        "enum": ["not_evaluated"]
+      }
+    ]
+  },
+  "version": 1,
+  "blank_text_characters": "\t\n\u000b\f\r \u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000\ufeff",
+  "resource_uuid_version": 7
+}

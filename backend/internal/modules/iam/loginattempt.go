@@ -63,6 +63,10 @@ type loginAttempt struct {
 	// row. Set by Put; AdvanceToPasswordChange clears it.
 	Enrolling bool
 	Stage     attemptStage
+	// SecurityKeyID is the Zitadel u2fId the password step registered for
+	// this enrolling attempt (#1898), or securityKeySignIn when the password
+	// step challenged registered keys; empty when no key was offered.
+	SecurityKeyID string
 }
 
 // loginAttemptRow is the GORM-mapped row for login_attempt. It is kept
@@ -77,11 +81,45 @@ type loginAttemptRow struct {
 	ExpiresAt      time.Time    `gorm:"column:expires_at"`
 	Enrolling      bool         `gorm:"column:enrolling"`
 	Stage          attemptStage `gorm:"column:stage"`
+	// NULL, not '', when no key was offered (0057_iam_security_keys).
+	SecurityKeyID *string `gorm:"column:security_key_id"`
 }
 
 func (loginAttemptRow) TableName() string { return "login_attempt" }
 
-func (r loginAttemptRow) toDomain() loginAttempt { return loginAttempt(r) }
+func (r loginAttemptRow) toDomain() loginAttempt {
+	a := loginAttempt{
+		AuthRequestID:  r.AuthRequestID,
+		SessionID:      r.SessionID,
+		SessionToken:   r.SessionToken,
+		Subject:        r.Subject,
+		FactorAttempts: r.FactorAttempts,
+		ExpiresAt:      r.ExpiresAt,
+		Enrolling:      r.Enrolling,
+		Stage:          r.Stage,
+	}
+	if r.SecurityKeyID != nil {
+		a.SecurityKeyID = *r.SecurityKeyID
+	}
+	return a
+}
+
+func loginAttemptRowFrom(a loginAttempt) loginAttemptRow {
+	r := loginAttemptRow{
+		AuthRequestID:  a.AuthRequestID,
+		SessionID:      a.SessionID,
+		SessionToken:   a.SessionToken,
+		Subject:        a.Subject,
+		FactorAttempts: a.FactorAttempts,
+		ExpiresAt:      a.ExpiresAt,
+		Enrolling:      a.Enrolling,
+		Stage:          a.Stage,
+	}
+	if a.SecurityKeyID != "" {
+		r.SecurityKeyID = &a.SecurityKeyID
+	}
+	return r
+}
 
 // loginAttemptStore is the Postgres-backed store for login_attempt. It is
 // not tenant-scoped (see the 0004_iam migration comment in module.go), so
@@ -106,7 +144,7 @@ func newLoginAttemptStore(db *tenantdb.DB) *loginAttemptStore {
 // retried-login case into an opaque primary-key-violation error at the
 // handler (Task 3).
 func (s *loginAttemptStore) Put(ctx context.Context, a loginAttempt) error {
-	row := loginAttemptRow(a)
+	row := loginAttemptRowFrom(a)
 	return s.db.WithSystem(ctx, func(tx *gorm.DB) error {
 		return tx.Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "auth_request_id"}},
@@ -195,7 +233,7 @@ func (s *loginAttemptStore) BumpAndGet(ctx context.Context, authRequestID string
 			SET factor_attempts = factor_attempts + 1
 			WHERE auth_request_id = ? AND expires_at > now() AND stage = ?
 			RETURNING auth_request_id, zitadel_session_id, zitadel_session_token,
-			          subject, factor_attempts, expires_at, enrolling, stage`,
+			          subject, factor_attempts, expires_at, enrolling, stage, security_key_id`,
 			authRequestID, stageFactor).Scan(&row).Error
 		if err != nil {
 			return err

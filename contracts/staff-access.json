@@ -1527,7 +1527,7 @@
       "sql_sha256": "ff9ba7e6ae67b6b9c613e8853833adc8df3b073967fa30d8f4299ee9cce74bf2"
     },
     {
-      "id": "0057_iam_pharmacy_ward_indent_templates",
+      "id": "0058_iam_pharmacy_ward_indent_templates",
       "file": "assignment_pharmacy_ward_indent_templates_generated.sql",
       "templates": [
         {

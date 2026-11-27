@@ -1834,6 +1834,379 @@ describe("LoginPage", () => {
   });
 });
 
+// #1898: a security key is registered and asserted on Helivanta's own page.
+// The browser ceremony is stubbed at navigator.credentials; everything the
+// page sends is read back off the fetch stub.
+describe("native security key (#1898)", () => {
+  const KEY_PROMPT = "Insert or touch your security key.";
+  const NO_WEBAUTHN = "This browser can't use security keys. Use the authenticator app instead.";
+  const NOT_REGISTERED =
+    "The security key wasn't registered. Try again, or use the authenticator app.";
+  const NOT_ACCEPTED = "The security key wasn't accepted. Try again.";
+  const CALLBACK = "https://hms.example/api/auth/callback?code=key&state=xyz";
+  const creationOptions = {
+    publicKey: {
+      challenge: "q83vEjRWeJA",
+      rp: { id: "helivanta.localhost", name: "ZITADEL" },
+      user: { id: "MzQ1Ng", name: "a@x.test", displayName: "a Seed" },
+      pubKeyCredParams: [{ type: "public-key", alg: -7 }],
+      excludeCredentials: [{ type: "public-key", id: "AAEC" }],
+      attestation: "none",
+    },
+  };
+  const requestOptions = {
+    publicKey: {
+      challenge: "3q2-7w",
+      rpId: "helivanta.localhost",
+      allowCredentials: [{ type: "public-key", id: "AAEC" }],
+    },
+  };
+  const enrollmentRequired = {
+    enrollment_required: ["totp", "security_key"],
+    totp: { uri: "otpauth://totp/ZITADEL:a?secret=JBSWY3DPEHPK3PXP", secret: "JBSWY3DPEHPK3PXP" },
+    security_key: { creation_options: creationOptions },
+  };
+  const bytes = (...values: number[]) => new Uint8Array(values).buffer;
+  const created = {
+    id: "AAEC",
+    rawId: bytes(0, 1, 2),
+    type: "public-key",
+    response: { attestationObject: bytes(1, 2, 3), clientDataJSON: bytes(4, 5) },
+  };
+  const asserted = {
+    id: "AAEC",
+    rawId: bytes(0, 1, 2),
+    type: "public-key",
+    response: {
+      authenticatorData: bytes(1),
+      clientDataJSON: bytes(2),
+      signature: bytes(3),
+      userHandle: null,
+    },
+  };
+  const b64 = (buffer: ArrayBuffer) =>
+    btoa(String.fromCharCode(...new Uint8Array(buffer)))
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/, "");
+
+  let credentials: { create: ReturnType<typeof vi.fn>; get: ReturnType<typeof vi.fn> };
+  let assignSpy: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    window.sessionStorage.clear();
+    window.localStorage.clear();
+    window.history.pushState({}, "", `/login?authRequest=${AUTH_REQUEST_ID}`);
+    credentials = { create: vi.fn().mockResolvedValue(created), get: vi.fn() };
+    credentials.get.mockResolvedValue(asserted);
+    vi.stubGlobal("PublicKeyCredential", function PublicKeyCredential() {});
+    Object.defineProperty(navigator, "credentials", { value: credentials, configurable: true });
+    assignSpy = vi.fn();
+    vi.stubGlobal("location", { ...window.location, assign: assignSpy });
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    Reflect.deleteProperty(navigator, "credentials");
+  });
+
+  async function signIn(password: unknown, routes: Parameters<typeof stubAuthFlow>[0] = {}) {
+    const fetchMock = stubAuthFlow({ password: () => jsonResponse(200, password), ...routes });
+    const { user } = renderWithProviders(<LoginPage />);
+    await user.type(await screen.findByLabelText("Email or username"), "a@x.test");
+    await user.type(screen.getByLabelText("Password"), "synthetic-password");
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
+    return { user, fetchMock };
+  }
+  function bodiesTo(fetchMock: ReturnType<typeof stubAuthFlow>, path: string) {
+    return fetchMock.mock.calls
+      .filter(([url]) => String(url).includes(path))
+      .map((call) => JSON.parse(String((call as unknown as [string, RequestInit])[1].body)));
+  }
+  const challenged = () => jsonResponse(200, { security_key: { request_options: requestOptions } });
+
+  it("offers both methods and focuses the choice's heading, not a code input", async () => {
+    await signIn(enrollmentRequired);
+    const heading = await screen.findByRole("heading", {
+      level: 2,
+      name: "Set up two-step verification",
+    });
+    await waitFor(() => expect(heading).toHaveFocus());
+    expect(screen.getByRole("button", { name: "Authenticator app" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Security key" })).toBeEnabled();
+    expect(screen.getByLabelText("Key name")).toHaveValue("Security key");
+    expect(screen.queryByRole("group", { name: "Confirmation code" })).not.toBeInTheDocument();
+    expect(screen.getByRole("form", { name: "Security key" })).toHaveAttribute("novalidate");
+  });
+
+  it("registers the key with the server's options, then confirms it and signs in", async () => {
+    const { user, fetchMock } = await signIn(enrollmentRequired, {
+      enroll: challenged,
+      factor: () => jsonResponse(200, { callback_url: CALLBACK }),
+    });
+    const name = await screen.findByLabelText("Key name");
+    await user.clear(name);
+    await user.type(name, "  Desk key  ");
+    await user.click(screen.getByRole("button", { name: "Security key" }));
+
+    await waitFor(() => expect(assignSpy).toHaveBeenCalledWith(CALLBACK));
+    // create gets exactly the server's options, with only the binary fields decoded.
+    expect(credentials.create).toHaveBeenCalledTimes(1);
+    const pk = credentials.create.mock.calls[0]![0].publicKey;
+    expect({
+      publicKey: {
+        ...pk,
+        challenge: b64(pk.challenge),
+        user: { ...pk.user, id: b64(pk.user.id) },
+        excludeCredentials: pk.excludeCredentials.map((c: { id: ArrayBuffer }) => ({
+          ...c,
+          id: b64(c.id),
+        })),
+      },
+    }).toEqual(creationOptions);
+    expect(bodiesTo(fetchMock, "/auth/login/enroll")).toEqual([
+      {
+        auth_request_id: AUTH_REQUEST_ID,
+        factor: "security_key",
+        credential: {
+          id: "AAEC",
+          rawId: "AAEC",
+          type: "public-key",
+          response: { attestationObject: "AQID", clientDataJSON: "BAU" },
+        },
+        name: "Desk key",
+      },
+    ]);
+    const getPk = credentials.get.mock.calls[0]![0].publicKey;
+    expect(b64(getPk.challenge)).toBe("3q2-7w");
+    expect(b64(getPk.allowCredentials[0].id)).toBe("AAEC");
+    expect(getPk.rpId).toBe("helivanta.localhost");
+    expect(bodiesTo(fetchMock, "/auth/login/factor")).toEqual([
+      {
+        auth_request_id: AUTH_REQUEST_ID,
+        factor: "security_key",
+        assertion: {
+          id: "AAEC",
+          rawId: "AAEC",
+          type: "public-key",
+          response: {
+            authenticatorData: "AQ",
+            clientDataJSON: "Ag",
+            signature: "Aw",
+            userHandle: null,
+          },
+        },
+      },
+    ]);
+  });
+
+  it("shows the key prompt while the browser waits for the key", async () => {
+    credentials.create.mockReturnValue(new Promise(() => {}));
+    const { user } = await signIn(enrollmentRequired);
+    await user.click(await screen.findByRole("button", { name: "Security key" }));
+    expect(await screen.findByText(KEY_PROMPT)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Start again" })).toBeDisabled();
+  });
+
+  it("refuses a blank or over-long key name inline, without touching the key", async () => {
+    const { user, fetchMock } = await signIn(enrollmentRequired);
+    const name = await screen.findByLabelText("Key name");
+    await user.clear(name);
+    await user.type(name, "   ");
+    await user.click(screen.getByRole("button", { name: "Security key" }));
+    expect(await screen.findByText("Enter a name for the key.")).toBeInTheDocument();
+    expect(name).toHaveAttribute("aria-invalid", "true");
+    await user.clear(name);
+    await user.type(name, "k".repeat(65));
+    await user.click(screen.getByRole("button", { name: "Security key" }));
+    expect(await screen.findByText("Use 64 characters or fewer.")).toBeInTheDocument();
+    expect(credentials.create).not.toHaveBeenCalled();
+    expect(bodiesTo(fetchMock, "/auth/login/enroll")).toEqual([]);
+  });
+
+  it("disables the key option and says why when the browser has no WebAuthn", async () => {
+    vi.stubGlobal("PublicKeyCredential", undefined);
+    const { user } = await signIn(enrollmentRequired);
+    expect(await screen.findByText(NO_WEBAUTHN)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Security key" })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: "Authenticator app" }));
+    expect(screen.getByLabelText("Authenticator setup key")).toHaveTextContent("JBSWY3DPEHPK3PXP");
+    expect(await firstMfaDigit("Confirmation code")).toHaveFocus();
+  });
+
+  it("stays on the choice with the failure copy when create is rejected", async () => {
+    credentials.create.mockRejectedValue(new DOMException("cancelled", "NotAllowedError"));
+    const { user, fetchMock } = await signIn(enrollmentRequired);
+    await user.click(await screen.findByRole("button", { name: "Security key" }));
+    expect(await screen.findByText(NOT_REGISTERED)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Security key" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Authenticator app" })).toBeEnabled();
+    expect(bodiesTo(fetchMock, "/auth/login/enroll")).toEqual([]);
+    expect(assignSpy).not.toHaveBeenCalled();
+  });
+
+  it("stays on the step when get is rejected, posts nothing more, and retries only the confirmation", async () => {
+    credentials.get.mockRejectedValueOnce(new DOMException("cancelled", "NotAllowedError"));
+    const { user, fetchMock } = await signIn(enrollmentRequired, {
+      enroll: challenged,
+      factor: () => jsonResponse(200, { callback_url: CALLBACK }),
+    });
+    await user.click(await screen.findByRole("button", { name: "Security key" }));
+    // The key is registered by now, so saying it wasn't would be untrue.
+    expect(await screen.findByText(NOT_ACCEPTED)).toBeInTheDocument();
+    expect(screen.queryByText(NOT_REGISTERED)).not.toBeInTheDocument();
+    expect(bodiesTo(fetchMock, "/auth/login/enroll")).toHaveLength(1);
+    expect(bodiesTo(fetchMock, "/auth/login/factor")).toEqual([]);
+    expect(assignSpy).not.toHaveBeenCalled();
+
+    // The key is already registered: a retry asks only for the confirmation.
+    await user.click(screen.getByRole("button", { name: "Security key" }));
+    await waitFor(() => expect(assignSpy).toHaveBeenCalledWith(CALLBACK));
+    expect(credentials.create).toHaveBeenCalledTimes(1);
+    expect(credentials.get).toHaveBeenCalledTimes(2);
+    expect(bodiesTo(fetchMock, "/auth/login/enroll")).toHaveLength(1);
+    expect(bodiesTo(fetchMock, "/auth/login/factor")).toHaveLength(1);
+  });
+
+  it("shows the API's refusal when the registration is refused", async () => {
+    const refused = await signIn(enrollmentRequired, {
+      enroll: () =>
+        jsonResponse(401, {
+          error: "invalid_credentials",
+          message: "email or password is incorrect",
+        }),
+    });
+    await refused.user.click(await screen.findByRole("button", { name: "Security key" }));
+    expect(await screen.findByText("email or password is incorrect")).toBeInTheDocument();
+    expect(credentials.get).not.toHaveBeenCalled();
+  });
+
+  it("ends on the start-again landing when the attempt expired at registration", async () => {
+    const { user } = await signIn(enrollmentRequired, {
+      enroll: () =>
+        jsonResponse(400, {
+          error: "auth_request_invalid",
+          message: "this sign-in attempt has expired; start again",
+        }),
+    });
+    await user.click(await screen.findByRole("button", { name: "Security key" }));
+    expect(
+      await screen.findByText("this sign-in attempt has expired; start again"),
+    ).toBeInTheDocument();
+    expect(screen.queryByLabelText("Key name")).not.toBeInTheDocument();
+  });
+
+  it("treats a key offer without its options as a failed sign-in", async () => {
+    await signIn({ ...enrollmentRequired, security_key: undefined });
+    expect(await screen.findByText(/Sign-in failed/i)).toBeInTheDocument();
+    expect(credentials.create).not.toHaveBeenCalled();
+  });
+
+  describe("factor step", () => {
+    it("asks for the key straight away and signs in with its assertion", async () => {
+      const { fetchMock } = await signIn(
+        { factor_required: ["security_key"], security_key: { request_options: requestOptions } },
+        { factor: () => jsonResponse(200, { callback_url: CALLBACK }) },
+      );
+      await waitFor(() => expect(assignSpy).toHaveBeenCalledWith(CALLBACK));
+      expect(credentials.get).toHaveBeenCalledTimes(1);
+      expect(b64(credentials.get.mock.calls[0]![0].publicKey.challenge)).toBe("3q2-7w");
+      expect(bodiesTo(fetchMock, "/auth/login/factor")).toEqual([
+        expect.objectContaining({ factor: "security_key", assertion: expect.any(Object) }),
+      ]);
+      expect(credentials.create).not.toHaveBeenCalled();
+    });
+
+    it("focuses its heading and offers no authenticator app when only a key is enrolled", async () => {
+      credentials.get.mockReturnValue(new Promise(() => {}));
+      await signIn({
+        factor_required: ["security_key"],
+        security_key: { request_options: requestOptions },
+      });
+      expect(await screen.findByText(KEY_PROMPT)).toBeInTheDocument();
+      await waitFor(() => expect(screen.getByRole("heading", { level: 1 })).toHaveFocus());
+      expect(
+        screen.queryByRole("button", { name: "Use your authenticator app instead" }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("offers the authenticator app when TOTP is enrolled too", async () => {
+      credentials.get.mockRejectedValue(new DOMException("cancelled", "NotAllowedError"));
+      const { user, fetchMock } = await signIn(
+        {
+          factor_required: ["security_key", "totp"],
+          security_key: { request_options: requestOptions },
+        },
+        { factor: () => jsonResponse(200, { callback_url: CALLBACK }) },
+      );
+      await user.click(
+        await screen.findByRole("button", { name: "Use your authenticator app instead" }),
+      );
+      await user.type(await firstMfaDigit(), "123456");
+      await waitFor(() => expect(assignSpy).toHaveBeenCalledWith(CALLBACK));
+      expect(bodiesTo(fetchMock, "/auth/login/factor")).toEqual([
+        { auth_request_id: AUTH_REQUEST_ID, factor: "totp", code: "123456" },
+      ]);
+    });
+
+    it("stays on the step after a rejected get and posts nothing", async () => {
+      credentials.get.mockRejectedValue(new DOMException("cancelled", "NotAllowedError"));
+      const { fetchMock } = await signIn({
+        factor_required: ["security_key"],
+        security_key: { request_options: requestOptions },
+      });
+      expect(await screen.findByRole("button", { name: "Try again" })).toBeEnabled();
+      expect(bodiesTo(fetchMock, "/auth/login/factor")).toEqual([]);
+      expect(assignSpy).not.toHaveBeenCalled();
+    });
+
+    it("treats a key factor without request options as a failed sign-in", async () => {
+      await signIn({ factor_required: ["security_key"] });
+      expect(await screen.findByText(/Sign-in failed/i)).toBeInTheDocument();
+      expect(credentials.get).not.toHaveBeenCalled();
+    });
+
+    const NO_WEBAUTHN_SIGN_IN =
+      "This browser can't use security keys. Use another browser, or your authenticator app if you have one.";
+
+    it("without WebAuthn, says so, never asks for the key and posts nothing", async () => {
+      vi.stubGlobal("PublicKeyCredential", undefined);
+      const { fetchMock } = await signIn({
+        factor_required: ["security_key"],
+        security_key: { request_options: requestOptions },
+      });
+      expect(await screen.findByText(NO_WEBAUTHN_SIGN_IN)).toBeInTheDocument();
+      expect(screen.queryByText(KEY_PROMPT)).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Use your authenticator app instead" }),
+      ).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Try again" })).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Start again" })).toBeEnabled();
+      expect(credentials.get).not.toHaveBeenCalled();
+      expect(bodiesTo(fetchMock, "/auth/login/factor")).toEqual([]);
+      expect(assignSpy).not.toHaveBeenCalled();
+    });
+
+    it("without WebAuthn, offers the authenticator app when TOTP is enrolled too", async () => {
+      vi.stubGlobal("PublicKeyCredential", undefined);
+      const { user, fetchMock } = await signIn(
+        {
+          factor_required: ["security_key", "totp"],
+          security_key: { request_options: requestOptions },
+        },
+        { factor: () => jsonResponse(200, { callback_url: CALLBACK }) },
+      );
+      expect(await screen.findByText(NO_WEBAUTHN_SIGN_IN)).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "Use your authenticator app instead" }));
+      await user.type(await firstMfaDigit(), "123456");
+      await waitFor(() => expect(assignSpy).toHaveBeenCalledWith(CALLBACK));
+      expect(credentials.get).not.toHaveBeenCalled();
+      expect(bodiesTo(fetchMock, "/auth/login/factor")).toEqual([
+        { auth_request_id: AUTH_REQUEST_ID, factor: "totp", code: "123456" },
+      ]);
+    });
+  });
+});
+
 // #1854: every step after the password has a way back, and focus follows the step.
 describe("sign-in steps (#1854)", () => {
   const START_AGAIN = "Start a new sign-in attempt to use another account.";

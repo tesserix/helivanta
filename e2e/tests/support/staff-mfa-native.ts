@@ -6,6 +6,7 @@ import { specAdmin, specPharmacist, type Credentials } from "./login";
 import { uuidv7 } from "./pharmacy";
 import { generateTOTP } from "./totp";
 import { ZITADEL_ORIGIN } from "./hosts";
+import { chooseAuthenticatorApp } from "./enrol-step";
 import nativeStaffTenants from "../../../scripts/lib/native-staff-fixture-tenants.json" with { type: "json" };
 
 const permissions = "/api/v1/iam/me/permissions";
@@ -342,9 +343,7 @@ export async function exerciseNativeStaffMFARecovery(
     await targetPage.waitForTimeout(1100);
     await targetContext.clearCookies();
     await signInNativeStaff(targetPage, target, tenant);
-    await expect(
-      targetPage.getByRole("heading", { name: "Set up two-step verification", exact: true }),
-    ).toBeVisible();
+    await chooseAuthenticatorApp(targetPage);
     const replacement = (
       await targetPage.getByLabel("Authenticator setup key", { exact: true }).textContent()
     )?.trim();

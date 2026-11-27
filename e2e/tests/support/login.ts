@@ -12,6 +12,9 @@ export type Credentials = { email: string; password: string };
 // seed-dev.mjs's own comment records that finding.
 const PASSWORD = "HmsDev123!";
 
+// The seeded password, for spec files that sign in with an account of their own.
+export const SEEDED_PASSWORD = PASSWORD;
+
 // NO SPEC FILE MAY SHARE A LOGIN ACCOUNT WITH ANOTHER SPEC FILE.
 //
 // Since #781, signing out writes a revocation watermark that is per

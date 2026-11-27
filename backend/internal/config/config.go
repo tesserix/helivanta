@@ -72,6 +72,10 @@ type Config struct {
 	ZitadelIssuerURL string
 	ZitadelClientID  string
 
+	// WebAuthnRPID is the WebAuthn relying-party ID (WEBAUTHN_RP_ID); see
+	// ValidatedWebAuthnRPID. Deliberately no default.
+	WebAuthnRPID string
+
 	// ZitadelLoginClientToken is the raw value of
 	// ZITADEL_LOGIN_CLIENT_TOKEN — an instance-level Zitadel Personal
 	// Access Token for a machine user holding the IAM_LOGIN_CLIENT role
@@ -283,6 +287,7 @@ func Load() Config {
 		OpenFGAStore:                         getenv("OPENFGA_STORE", "helivanta"),
 
 		ZitadelIssuerURL: getenv("ZITADEL_ISSUER_URL", "http://auth.tesserix.localhost:20080"),
+		WebAuthnRPID:     os.Getenv("WEBAUTHN_RP_ID"),
 		ZitadelClientID:  getenv("ZITADEL_CLIENT_ID", ""),
 
 		// os.Getenv, not getenv(): mirrors SessionSigningKey immediately

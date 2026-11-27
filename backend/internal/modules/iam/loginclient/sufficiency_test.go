@@ -131,7 +131,7 @@ const forceMFAPolicy = `{"policy":{"passwordCheckLifetime":"864000s","forceMfa":
 // the whole point of this spec. Previously this handed off.
 func TestCompleteIfSufficient_TOTPEnrolledAsksForTheFactor(t *testing.T) {
 	c := clientWithEnrolledMethods(t, nonForceMFAPolicy, []string{"AUTHENTICATION_METHOD_TYPE_TOTP", "AUTHENTICATION_METHOD_TYPE_PASSWORD"})
-	res, err := c.CompleteIfSufficient(context.Background(), "V2_1", Session{ID: "s", Token: "t"})
+	res, err := c.CompleteIfSufficient(context.Background(), "V2_1", Session{ID: "s", Token: "t"}, nil)
 	require.NoError(t, err)
 	require.Equal(t, OutcomeFactorRequired, res.Outcome)
 	require.Equal(t, []string{"totp"}, res.Factors)
@@ -148,7 +148,7 @@ func TestCompleteIfSufficient_TOTPEnrolledAsksForTheFactor(t *testing.T) {
 // most orgs that bother enrolling TOTP in the first place.
 func TestCompleteIfSufficient_ForceMFAWithTOTPEnrolledStillAsksForTheFactor(t *testing.T) {
 	c := clientWithEnrolledMethods(t, forceMFAPolicy, []string{"AUTHENTICATION_METHOD_TYPE_TOTP", "AUTHENTICATION_METHOD_TYPE_PASSWORD"})
-	res, err := c.CompleteIfSufficient(context.Background(), "V2_1", Session{ID: "s", Token: "t"})
+	res, err := c.CompleteIfSufficient(context.Background(), "V2_1", Session{ID: "s", Token: "t"}, nil)
 	require.NoError(t, err)
 	require.Equal(t, OutcomeFactorRequired, res.Outcome, "TOTP-only enrollment must ask for the factor even when the org forces MFA")
 	require.Equal(t, []string{"totp"}, res.Factors)
@@ -164,7 +164,7 @@ func TestCompleteIfSufficient_ForceMFAWithTOTPEnrolledStillAsksForTheFactor(t *t
 // the user never configured, and enrolment-required must never finalize.
 func TestCompleteIfSufficient_ForceMFAWithNoEnrolledFactorAsksForEnrolment(t *testing.T) {
 	c, finalized := clientWithEnrolledMethodsAndFinalizeTracking(t, forceMFAPolicy, []string{"AUTHENTICATION_METHOD_TYPE_PASSWORD"})
-	res, err := c.CompleteIfSufficient(context.Background(), "V2_1", Session{ID: "s", Token: "t"})
+	res, err := c.CompleteIfSufficient(context.Background(), "V2_1", Session{ID: "s", Token: "t"}, nil)
 	require.NoError(t, err)
 	require.Equal(t, OutcomeEnrollmentRequired, res.Outcome, "forceMfa with nothing enrolled must ask for enrolment: %v/%v", res.Outcome, res.Reason)
 	require.Equal(t, []string{"totp"}, res.Factors)
@@ -178,7 +178,7 @@ func TestCompleteIfSufficient_ForceMFAWithNoEnrolledFactorAsksForEnrolment(t *te
 func TestCompleteIfSufficient_ForceMFAWithUnsupportedFactorIsStillRefusedNotEnrolled(t *testing.T) {
 	methods := []string{"AUTHENTICATION_METHOD_TYPE_PASSWORD", "AUTHENTICATION_METHOD_TYPE_OTP_EMAIL"}
 	c, finalized := clientWithEnrolledMethodsAndFinalizeTracking(t, forceMFAPolicy, methods)
-	res, err := c.CompleteIfSufficient(context.Background(), "V2_1", Session{ID: "s", Token: "t"})
+	res, err := c.CompleteIfSufficient(context.Background(), "V2_1", Session{ID: "s", Token: "t"}, nil)
 	require.NoError(t, err)
 	require.Equal(t, OutcomeRefused, res.Outcome)
 	require.Equal(t, RefusalFactorUnsupported, res.Reason)
@@ -190,7 +190,7 @@ func TestCompleteIfSufficient_ForceMFAWithUnsupportedFactorIsStillRefusedNotEnro
 func TestCompleteIfSufficient_OtpEmailIsRefusedAsUnsupported(t *testing.T) {
 	methods := []string{"AUTHENTICATION_METHOD_TYPE_OTP_EMAIL", "AUTHENTICATION_METHOD_TYPE_PASSWORD"}
 	c, finalized := clientWithEnrolledMethodsAndFinalizeTracking(t, nonForceMFAPolicy, methods)
-	res, err := c.CompleteIfSufficient(context.Background(), "V2_1", Session{ID: "s", Token: "t"})
+	res, err := c.CompleteIfSufficient(context.Background(), "V2_1", Session{ID: "s", Token: "t"}, nil)
 	require.NoError(t, err)
 	require.Equal(t, OutcomeRefused, res.Outcome)
 	require.Equal(t, RefusalFactorUnsupported, res.Reason)
@@ -238,7 +238,7 @@ func TestCompleteAfterFactor_FinalizesOnlyWhenSessionFactorsReportTOTP(t *testin
 	t.Cleanup(srv.Close)
 	c := New(srv.URL, "pat", srv.Client())
 
-	got, err := c.CompleteAfterFactor(context.Background(), "V2_1", Session{ID: "1", Token: "t"})
+	got, err := c.CompleteAfterFactor(context.Background(), "V2_1", Session{ID: "1", Token: "t"}, nil)
 	require.NoError(t, err)
 	require.Equal(t, OutcomeComplete, got.Outcome)
 	require.NotEmpty(t, got.CallbackURL)
@@ -269,7 +269,7 @@ func TestCompleteAfterFactor_RefusesWhenTOTPNotVerified(t *testing.T) {
 	t.Cleanup(srv.Close)
 	c := New(srv.URL, "pat", srv.Client())
 
-	got, err := c.CompleteAfterFactor(context.Background(), "V2_1", Session{ID: "1", Token: "t"})
+	got, err := c.CompleteAfterFactor(context.Background(), "V2_1", Session{ID: "1", Token: "t"}, nil)
 	require.NoError(t, err)
 	require.Equal(t, OutcomeRefused, got.Outcome)
 	require.Equal(t, RefusalFactorNotVerified, got.Reason)
@@ -310,7 +310,7 @@ func TestCompleteAfterFactor_UnavailableWhenSessionFactorsUnreadable(t *testing.
 	t.Cleanup(srv.Close)
 	c := New(srv.URL, "pat", srv.Client())
 
-	got, err := c.CompleteAfterFactor(context.Background(), "V2_1", Session{ID: "1", Token: "t"})
+	got, err := c.CompleteAfterFactor(context.Background(), "V2_1", Session{ID: "1", Token: "t"}, nil)
 	require.ErrorIs(t, err, ErrUnavailable, "an unreadable answer is a retryable error, never a refusal (#947 spec D1)")
 	require.NotEqual(t, OutcomeComplete, got.Outcome)
 	require.False(t, finalized.Load(), "finalize was called while session factors were unreadable: fails open")
@@ -353,7 +353,7 @@ func TestCompleteAfterFactor_OtpEmailAlsoEnrolledIsRefused(t *testing.T) {
 	t.Cleanup(srv.Close)
 	c := New(srv.URL, "pat", srv.Client())
 
-	got, err := c.CompleteAfterFactor(context.Background(), "V2_1", Session{ID: "1", Token: "t"})
+	got, err := c.CompleteAfterFactor(context.Background(), "V2_1", Session{ID: "1", Token: "t"}, nil)
 	require.NoError(t, err)
 	require.Equal(t, OutcomeRefused, got.Outcome)
 	require.Equal(t, RefusalFactorUnsupported, got.Reason)
@@ -395,7 +395,7 @@ func TestCompleteAfterFactor_UnavailableWhenEnrolledMethodsUnreadable(t *testing
 	t.Cleanup(srv.Close)
 	c := New(srv.URL, "pat", srv.Client())
 
-	got, err := c.CompleteAfterFactor(context.Background(), "V2_1", Session{ID: "1", Token: "t"})
+	got, err := c.CompleteAfterFactor(context.Background(), "V2_1", Session{ID: "1", Token: "t"}, nil)
 	require.ErrorIs(t, err, ErrUnavailable)
 	require.NotEqual(t, OutcomeComplete, got.Outcome)
 	require.False(t, finalized.Load(), "finalize was called while the enrolled-methods check was unreadable: fails open")
@@ -431,7 +431,7 @@ func TestCompleteAfterFactor_RefusesWhenTOTPNoLongerEnrolled(t *testing.T) {
 	t.Cleanup(srv.Close)
 	c := New(srv.URL, "pat", srv.Client())
 
-	got, err := c.CompleteAfterFactor(context.Background(), "V2_1", Session{ID: "1", Token: "t"})
+	got, err := c.CompleteAfterFactor(context.Background(), "V2_1", Session{ID: "1", Token: "t"}, nil)
 	require.NoError(t, err)
 	require.Equal(t, OutcomeRefused, got.Outcome)
 	require.Equal(t, RefusalFactorNotVerified, got.Reason)
@@ -452,7 +452,7 @@ func TestCompleteIfSufficientDoesNotFinalizeWhenForceMFA(t *testing.T) {
 	// this is.
 	c := countingZitadel(t, `{"policy":{"passwordCheckLifetime":"864000s","forceMfa":true}}`, &finalized)
 
-	got, err := c.CompleteIfSufficient(context.Background(), "V2_1", Session{ID: "1", Token: "t"})
+	got, err := c.CompleteIfSufficient(context.Background(), "V2_1", Session{ID: "1", Token: "t"}, nil)
 	if err != nil {
 		t.Fatalf("CompleteIfSufficient() error = %v", err)
 	}
@@ -475,7 +475,7 @@ func TestCompleteIfSufficientFinalizesWhenNoMFARequired(t *testing.T) {
 	// no explicit forceMfa at all.
 	c := countingZitadel(t, `{"policy":{"passwordCheckLifetime":"864000s"}}`, &finalized)
 
-	got, err := c.CompleteIfSufficient(context.Background(), "V2_1", Session{ID: "1", Token: "t"})
+	got, err := c.CompleteIfSufficient(context.Background(), "V2_1", Session{ID: "1", Token: "t"}, nil)
 	if err != nil {
 		t.Fatalf("CompleteIfSufficient() error = %v", err)
 	}
@@ -509,7 +509,7 @@ func TestCompleteIfSufficientUnavailableWhenPolicyShapeIsUnrecognised(t *testing
 			var finalized atomic.Bool
 			c := countingZitadel(t, body, &finalized)
 
-			got, err := c.CompleteIfSufficient(context.Background(), "V2_1", Session{ID: "1", Token: "t"})
+			got, err := c.CompleteIfSufficient(context.Background(), "V2_1", Session{ID: "1", Token: "t"}, nil)
 			if !errors.Is(err, ErrUnavailable) {
 				t.Fatalf("CompleteIfSufficient() error = %v, want ErrUnavailable (#947: unreadable is retryable, never a refusal)", err)
 			}
@@ -552,7 +552,7 @@ func TestCompleteIfSufficientUnavailableWhenPolicyUnreadable(t *testing.T) {
 	t.Cleanup(srv.Close)
 	c := New(srv.URL, "pat", srv.Client())
 
-	got, err := c.CompleteIfSufficient(context.Background(), "V2_1", Session{ID: "1", Token: "t"})
+	got, err := c.CompleteIfSufficient(context.Background(), "V2_1", Session{ID: "1", Token: "t"}, nil)
 	if !errors.Is(err, ErrUnavailable) {
 		t.Fatalf("CompleteIfSufficient() error = %v, want ErrUnavailable when the policy cannot be read", err)
 	}
@@ -590,7 +590,7 @@ func TestCompleteIfSufficientRefusesWhenUserHasEnrolledFactor(t *testing.T) {
 		`["AUTHENTICATION_METHOD_TYPE_PASSWORD","AUTHENTICATION_METHOD_TYPE_TOTP","AUTHENTICATION_METHOD_TYPE_OTP_EMAIL"]`,
 		&finalized)
 
-	got, err := c.CompleteIfSufficient(context.Background(), "V2_1", Session{ID: "1", Token: "t"})
+	got, err := c.CompleteIfSufficient(context.Background(), "V2_1", Session{ID: "1", Token: "t"}, nil)
 	if err != nil {
 		t.Fatalf("CompleteIfSufficient() error = %v", err)
 	}
@@ -626,7 +626,7 @@ func TestCompleteIfSufficientUnavailableWhenEnrolledFactorCheckUnreadable(t *tes
 	t.Cleanup(srv.Close)
 	c := New(srv.URL, "pat", srv.Client())
 
-	got, err := c.CompleteIfSufficient(context.Background(), "V2_1", Session{ID: "1", Token: "t"})
+	got, err := c.CompleteIfSufficient(context.Background(), "V2_1", Session{ID: "1", Token: "t"}, nil)
 	if !errors.Is(err, ErrUnavailable) {
 		t.Fatalf("CompleteIfSufficient() error = %v, want ErrUnavailable when the enrolled-factor check cannot be read", err)
 	}
@@ -681,7 +681,7 @@ func TestCompleteIfSufficientUnavailableWhenSessionHasNoOrgID(t *testing.T) {
 	t.Cleanup(srv.Close)
 	c := New(srv.URL, "pat", srv.Client())
 
-	got, err := c.CompleteIfSufficient(context.Background(), "V2_1", Session{ID: "1", Token: "t"})
+	got, err := c.CompleteIfSufficient(context.Background(), "V2_1", Session{ID: "1", Token: "t"}, nil)
 	if !errors.Is(err, ErrUnavailable) {
 		t.Fatalf("CompleteIfSufficient() error = %v, want ErrUnavailable when the session carries no organizationId", err)
 	}
@@ -730,7 +730,7 @@ func TestCompleteIfSufficientScopesThePolicyReadToTheSessionsOrg(t *testing.T) {
 	t.Cleanup(srv.Close)
 	c := New(srv.URL, "pat", srv.Client())
 
-	got, err := c.CompleteIfSufficient(context.Background(), "V2_1", Session{ID: "1", Token: "t"})
+	got, err := c.CompleteIfSufficient(context.Background(), "V2_1", Session{ID: "1", Token: "t"}, nil)
 	if err != nil {
 		t.Fatalf("CompleteIfSufficient() error = %v", err)
 	}
@@ -750,7 +750,7 @@ func TestCompleteIfSufficientScopesThePolicyReadToTheSessionsOrg(t *testing.T) {
 func TestCompleteIfSufficient_IdpLinkCompletesLikePasswordOnly(t *testing.T) {
 	methods := []string{"AUTHENTICATION_METHOD_TYPE_PASSWORD", "AUTHENTICATION_METHOD_TYPE_IDP"}
 	c, finalized := clientWithEnrolledMethodsAndFinalizeTracking(t, nonForceMFAPolicy, methods)
-	res, err := c.CompleteIfSufficient(context.Background(), "V2_1", Session{ID: "s", Token: "t"})
+	res, err := c.CompleteIfSufficient(context.Background(), "V2_1", Session{ID: "s", Token: "t"}, nil)
 	require.NoError(t, err)
 	require.Equal(t, OutcomeComplete, res.Outcome, "a password + linked-IdP account was not completed: %v/%v", res.Outcome, res.Reason)
 	require.NotEmpty(t, res.CallbackURL)
@@ -763,7 +763,7 @@ func TestCompleteIfSufficient_IdpLinkCompletesLikePasswordOnly(t *testing.T) {
 func TestCompleteIfSufficient_IdpLinkWithTOTPAsksForTheFactor(t *testing.T) {
 	methods := []string{"AUTHENTICATION_METHOD_TYPE_PASSWORD", "AUTHENTICATION_METHOD_TYPE_IDP", "AUTHENTICATION_METHOD_TYPE_TOTP"}
 	c, finalized := clientWithEnrolledMethodsAndFinalizeTracking(t, nonForceMFAPolicy, methods)
-	res, err := c.CompleteIfSufficient(context.Background(), "V2_1", Session{ID: "s", Token: "t"})
+	res, err := c.CompleteIfSufficient(context.Background(), "V2_1", Session{ID: "s", Token: "t"}, nil)
 	require.NoError(t, err)
 	require.Equal(t, OutcomeFactorRequired, res.Outcome, "password + IdP + TOTP did not ask for the factor: %v/%v", res.Outcome, res.Reason)
 	require.Equal(t, []string{"totp"}, res.Factors)
@@ -775,7 +775,7 @@ func TestCompleteIfSufficient_IdpLinkWithTOTPAsksForTheFactor(t *testing.T) {
 func TestCompleteIfSufficient_IdpLinkDoesNotExcuseAnUnsupportedFactor(t *testing.T) {
 	methods := []string{"AUTHENTICATION_METHOD_TYPE_PASSWORD", "AUTHENTICATION_METHOD_TYPE_IDP", "AUTHENTICATION_METHOD_TYPE_OTP_EMAIL"}
 	c, finalized := clientWithEnrolledMethodsAndFinalizeTracking(t, nonForceMFAPolicy, methods)
-	res, err := c.CompleteIfSufficient(context.Background(), "V2_1", Session{ID: "s", Token: "t"})
+	res, err := c.CompleteIfSufficient(context.Background(), "V2_1", Session{ID: "s", Token: "t"}, nil)
 	require.NoError(t, err)
 	require.Equal(t, OutcomeRefused, res.Outcome)
 	require.Equal(t, RefusalFactorUnsupported, res.Reason)
@@ -813,7 +813,7 @@ func afterFactorZitadel(t *testing.T, authMethodTypesJSON string) (*Client, *ato
 // D1): the IdP link must not turn a correct code into a refusal.
 func TestCompleteAfterFactor_IdpLinkWithVerifiedTOTPCompletes(t *testing.T) {
 	c, finalized := afterFactorZitadel(t, `["AUTHENTICATION_METHOD_TYPE_PASSWORD","AUTHENTICATION_METHOD_TYPE_IDP","AUTHENTICATION_METHOD_TYPE_TOTP"]`)
-	got, err := c.CompleteAfterFactor(context.Background(), "V2_1", Session{ID: "1", Token: "t"})
+	got, err := c.CompleteAfterFactor(context.Background(), "V2_1", Session{ID: "1", Token: "t"}, nil)
 	require.NoError(t, err)
 	require.Equal(t, OutcomeComplete, got.Outcome, "password + IdP + verified TOTP was not completed: %v/%v", got.Outcome, got.Reason)
 	require.NotEmpty(t, got.CallbackURL)
@@ -825,7 +825,7 @@ func TestCompleteAfterFactor_IdpLinkWithVerifiedTOTPCompletes(t *testing.T) {
 // never finalizes (#950, spec D1).
 func TestCompleteAfterFactor_IdpLinkDoesNotExcuseAnUnsupportedFactor(t *testing.T) {
 	c, finalized := afterFactorZitadel(t, `["AUTHENTICATION_METHOD_TYPE_PASSWORD","AUTHENTICATION_METHOD_TYPE_IDP","AUTHENTICATION_METHOD_TYPE_TOTP","AUTHENTICATION_METHOD_TYPE_OTP_EMAIL"]`)
-	got, err := c.CompleteAfterFactor(context.Background(), "V2_1", Session{ID: "1", Token: "t"})
+	got, err := c.CompleteAfterFactor(context.Background(), "V2_1", Session{ID: "1", Token: "t"}, nil)
 	require.NoError(t, err)
 	require.Equal(t, OutcomeRefused, got.Outcome)
 	require.Equal(t, RefusalFactorUnsupported, got.Reason)

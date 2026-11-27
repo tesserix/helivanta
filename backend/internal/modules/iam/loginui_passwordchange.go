@@ -166,7 +166,7 @@ func (h *LoginUIHandlers) PasswordChange(c *gin.Context) {
 	var result loginclient.Result
 	if err == nil {
 		session = proved
-		result, err = h.client.CompleteAfterPasswordChange(c.Request.Context(), req.AuthRequestID, session)
+		result, err = h.client.CompleteAfterPasswordChange(c.Request.Context(), req.AuthRequestID, session, h.keyRegistry())
 	}
 	if err != nil {
 		h.deleteAttempt(c, req.AuthRequestID)

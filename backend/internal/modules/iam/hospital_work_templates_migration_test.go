@@ -31,7 +31,7 @@ func (m iamBeforeMigration) Migrations() []tenantdb.Migration {
 func TestHospitalWorkTemplateMigrationsPreserveAuthority(t *testing.T) {
 	for _, work := range []struct{ id, role string }{
 		{"0056_iam_pharmacy_stocktake_templates", "pharmacy.department_stocktake_counter.v1"},
-		{"0057_iam_pharmacy_ward_indent_templates", "pharmacy.department_ward_indent_requester.v1"},
+		{"0058_iam_pharmacy_ward_indent_templates", "pharmacy.department_ward_indent_requester.v1"},
 	} {
 		t.Run(work.id, func(t *testing.T) { assertHospitalWorkTemplateMigration(t, work.id, work.role) })
 	}

@@ -1,5 +1,7 @@
 # Explicit native security-key continuation
 
+**To be superseded (#1898):** [native security keys](../superpowers/specs/2026-11-27-native-security-key-design.md) replace this continuation once its slice 3 ships. Until then this decision stays in force.
+
 Accepted implementation decision, 2026-11-11. Partially supersedes the blanket
 no-hosted-login rule in the original login-client specification: this exception
 is an explicit security-key action after an accepted password, never an automatic

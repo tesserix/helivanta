@@ -81,9 +81,14 @@ export interface AuthRequestInfo {
 export type PasswordCheckResult =
   | { outcome: "complete"; callbackUrl: string }
   | { outcome: "accountChoice"; choices: AccountChoice[] }
-  | { outcome: "factorRequired"; factors: string[] }
+  | { outcome: "factorRequired"; factors: string[]; securityKey?: { requestOptions: unknown } }
   | { outcome: "securityKeyRequired"; url: string }
-  | { outcome: "enrollmentRequired"; factors: string[]; totp: TotpEnrollment }
+  | {
+      outcome: "enrollmentRequired";
+      factors: string[];
+      totp: TotpEnrollment;
+      securityKey?: { creationOptions: unknown };
+    }
   | PasswordChangeRequired
   | SignInBlocked;
 
@@ -192,6 +197,11 @@ interface PasswordCheckResponse {
   factor_required?: string[];
   enrollment_required?: string[];
   totp?: TotpEnrollment;
+  // #1898: Zitadel's WebAuthn options, relayed verbatim (opaque here;
+  // lib/webauthn.ts converts them for navigator.credentials). Creation
+  // options come with `enrollment_required`, request options with
+  // `factor_required` and with /enroll's security-key answer.
+  security_key?: { creation_options?: unknown; request_options?: unknown };
   password_change_required?: { reason: string; policy: PasswordPolicyInfo };
 }
 
@@ -232,21 +242,16 @@ function asPasswordChangeRequired(
 //
 // `factorRequired` (#867, spec D1/D8) means the credential was CORRECT
 // and the org's policy requires a second factor Helivanta can now collect
-// natively (TOTP only, today — `factors` always answers `["totp"]`, per
-// `nonNilFactors`' own doc comment on the Go side). This is the SAME
+// natively: `["totp"]`, or (#1898) `["security_key"]` or
+// `["security_key","totp"]` with the key's WebAuthn request options in
+// `securityKey`. This is the SAME
 // "neither success nor failure" trap `blocked` documents above: rendering
 // it as a failed sign-in would send a clinician to reset a password that
 // was correct. The caller must transition to a factor-collection step
-// (checkFactor below), never show an error.
+// (checkFactor or checkSecurityKey below), never show an error.
 //
-// `factors` itself is NOT read by page.tsx today (review finding, fix
-// round 1): `CredentialForm` hardcodes `factor: "totp"` when it calls
-// `checkFactor`, per this task's own brief ("today it is always
-// `["totp"]`, so render the single step directly and do not build a
-// selector for one option"). The array survives the wire so a caller CAN
-// read it once a second native factor exists — see `@tesserix/web`'s
-// `AuthMfaSelector` for the component that would then consume it — but
-// nothing reads it yet, and this comment must not claim otherwise.
+// page.tsx reads `factors` only to offer the authenticator app beside a key;
+// a factor list without "security_key" is the TOTP step.
 export async function checkPassword(params: PasswordCheckParams): Promise<PasswordCheckResult> {
   return toPasswordCheckResult(
     params.authRequestId,
@@ -351,7 +356,12 @@ async function toPasswordCheckResult(
     return { outcome: "complete", callbackUrl: body.callback_url };
   }
   if (body.factor_required) {
-    return { outcome: "factorRequired", factors: body.factor_required };
+    const requestOptions = keyOffer(body.factor_required, body.security_key?.request_options);
+    return {
+      outcome: "factorRequired",
+      factors: body.factor_required,
+      ...(requestOptions ? { securityKey: { requestOptions } } : {}),
+    };
   }
   if (body.enrollment_required) {
     // enrollment_required without a secret is a server contract violation,
@@ -360,7 +370,13 @@ async function toPasswordCheckResult(
     if (!body.totp?.uri || !body.totp?.secret) {
       throw new Error("Sign-in could not be completed: the server sent an unexpected response.");
     }
-    return { outcome: "enrollmentRequired", factors: body.enrollment_required, totp: body.totp };
+    const creationOptions = keyOffer(body.enrollment_required, body.security_key?.creation_options);
+    return {
+      outcome: "enrollmentRequired",
+      factors: body.enrollment_required,
+      totp: body.totp,
+      ...(creationOptions ? { securityKey: { creationOptions } } : {}),
+    };
   }
   if (body.password_change_required) {
     return asPasswordChangeRequired(body.password_change_required);
@@ -369,6 +385,19 @@ async function toPasswordCheckResult(
   // not a user error — there is no credential-shaped explanation for it,
   // so it must not be folded into the shared refusal message above.
   throw new Error("Sign-in could not be completed: the server sent an unexpected response.");
+}
+
+// keyOffer pairs a listed "security_key" with its WebAuthn options (#1898).
+// The two come together or not at all: a listed key without options could
+// not run the ceremony, and options for an unlisted key were not offered, so
+// either mismatch is a contract violation and fails closed.
+function keyOffer(factors: string[], options: unknown): unknown {
+  const listed = factors.includes("security_key");
+  const present = options !== undefined && options !== null;
+  if (listed !== present) {
+    throw new Error("Sign-in could not be completed: the server sent an unexpected response.");
+  }
+  return present ? options : undefined;
 }
 
 interface FactorCheckParams {
@@ -430,15 +459,32 @@ export type FactorCheckResult =
 // caller's generic error surface handles it rather than this function
 // mis-filing an outage as a wrong code.
 export async function checkFactor(params: FactorCheckParams): Promise<FactorCheckResult> {
-  let body: PasswordCheckResponse;
+  return toFactorCheckResult(
+    await postFactorStep("/auth/login/factor", {
+      auth_request_id: params.authRequestId,
+      factor: params.factor,
+      code: params.code,
+    }),
+  );
+}
+
+type FactorStepRefusal = Exclude<
+  FactorCheckResult,
+  { outcome: "complete" } | { outcome: "passwordChangeRequired" }
+>;
+
+// postFactorStep posts to /factor or /enroll and classifies the refusals
+// both answer identically (see checkFactor's comments above): an expired
+// attempt, a refused factor and a post-factor block. Anything else is
+// rethrown for the caller's generic error surface.
+async function postFactorStep(
+  path: string,
+  payload: object,
+): Promise<PasswordCheckResponse | FactorStepRefusal> {
   try {
-    body = await apiFetch<PasswordCheckResponse>("/auth/login/factor", {
+    return await apiFetch<PasswordCheckResponse>(path, {
       method: "POST",
-      body: JSON.stringify({
-        auth_request_id: params.authRequestId,
-        factor: params.factor,
-        code: params.code,
-      }),
+      body: JSON.stringify(payload),
     });
   } catch (err) {
     if (err instanceof ApiError && err.code === "auth_request_invalid") {
@@ -451,16 +497,65 @@ export async function checkFactor(params: FactorCheckParams): Promise<FactorChec
     if (blocked) return blocked;
     throw err;
   }
+}
 
-  if (body.callback_url) {
-    return { outcome: "complete", callbackUrl: body.callback_url };
+function toFactorCheckResult(answer: PasswordCheckResponse | FactorStepRefusal): FactorCheckResult {
+  if ("outcome" in answer) return answer;
+  if (answer.callback_url) {
+    return { outcome: "complete", callbackUrl: answer.callback_url };
   }
-  if (body.password_change_required) {
-    return asPasswordChangeRequired(body.password_change_required);
+  // A proven factor can still leave a password to change (#856): the gate
+  // runs after every factor, never before it.
+  if (answer.password_change_required) {
+    return asPasswordChangeRequired(answer.password_change_required);
   }
   // Same contract-violation treatment as checkPassword's fallback: not a
-  // shape this endpoint's documented outcomes can produce.
+  // shape these endpoints' documented outcomes can produce.
   throw new Error("Sign-in could not be completed: the server sent an unexpected response.");
+}
+
+// checkSecurityKey is checkFactor for a security key (#1898): the browser's
+// assertion, relayed verbatim to Zitadel by POST /v1/auth/login/factor. Its
+// outcomes are checkFactor's; a refused assertion spends a guess like a
+// wrong code.
+export async function checkSecurityKey(params: {
+  authRequestId: string;
+  assertion: unknown;
+}): Promise<FactorCheckResult> {
+  return toFactorCheckResult(
+    await postFactorStep("/auth/login/factor", {
+      auth_request_id: params.authRequestId,
+      factor: "security_key",
+      assertion: params.assertion,
+    }),
+  );
+}
+
+// enrollSecurityKey confirms the key the password step registered (#1898):
+// POST /v1/auth/login/enroll with the browser's credential and the key's
+// name. A success never completes the sign-in: it answers `challenged` with
+// the request options the page asserts next through checkSecurityKey.
+// Refusals are verifyEnrollment's.
+export type SecurityKeyEnrollResult =
+  { outcome: "challenged"; requestOptions: unknown } | FactorStepRefusal;
+
+export async function enrollSecurityKey(params: {
+  authRequestId: string;
+  credential: unknown;
+  name: string;
+}): Promise<SecurityKeyEnrollResult> {
+  const answer = await postFactorStep("/auth/login/enroll", {
+    auth_request_id: params.authRequestId,
+    factor: "security_key",
+    credential: params.credential,
+    name: params.name,
+  });
+  if ("outcome" in answer) return answer;
+  const requestOptions = answer.security_key?.request_options;
+  if (requestOptions === undefined || requestOptions === null || answer.callback_url) {
+    throw new Error("Sign-in could not be completed: the server sent an unexpected response.");
+  }
+  return { outcome: "challenged", requestOptions };
 }
 
 // verifyEnrollment confirms the TOTP the password step registered (#948,
@@ -469,36 +564,13 @@ export async function checkFactor(params: FactorCheckParams): Promise<FactorChec
 // an expired attempt and a post-code refusal in the same shapes — so the
 // enrolment step renders them with the same code the factor step uses.
 export async function verifyEnrollment(params: FactorCheckParams): Promise<FactorCheckResult> {
-  let body: PasswordCheckResponse;
-  try {
-    body = await apiFetch<PasswordCheckResponse>("/auth/login/enroll", {
-      method: "POST",
-      body: JSON.stringify({
-        auth_request_id: params.authRequestId,
-        factor: params.factor,
-        code: params.code,
-      }),
-    });
-  } catch (err) {
-    if (err instanceof ApiError && err.code === "auth_request_invalid") {
-      return { outcome: "expired", message: err.message };
-    }
-    if (err instanceof ApiError && err.code === "invalid_credentials") {
-      return { outcome: "refused", message: err.message };
-    }
-    const blocked = asSignInBlocked(err);
-    if (blocked) return blocked;
-    throw err;
-  }
-  if (body.callback_url) {
-    return { outcome: "complete", callbackUrl: body.callback_url };
-  }
-  // An enrolment the API confirmed can still leave a password to change
-  // (#856): the gate runs after the new factor exactly as after any other.
-  if (body.password_change_required) {
-    return asPasswordChangeRequired(body.password_change_required);
-  }
-  throw new Error("Sign-in could not be completed: the server sent an unexpected response.");
+  return toFactorCheckResult(
+    await postFactorStep("/auth/login/enroll", {
+      auth_request_id: params.authRequestId,
+      factor: params.factor,
+      code: params.code,
+    }),
+  );
 }
 
 interface PasswordChangeParams {

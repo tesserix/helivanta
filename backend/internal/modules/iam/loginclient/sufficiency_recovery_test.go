@@ -45,7 +45,7 @@ func managedRecoveryClient(t *testing.T, requirement *customercontract.StaffMFAR
 
 func TestRecoveryRequiresNewFactorDespitePermissiveNativePolicy(t *testing.T) {
 	client, finalized := managedRecoveryClient(t, &customercontract.StaffMFARecoveryRequirement{State: "enrollment_required", GenerationID: "019f39c2-1738-7998-b5de-6d4214f614e0"}, `["AUTHENTICATION_METHOD_TYPE_PASSWORD"]`)
-	result, err := client.CompleteIfSufficient(t.Context(), "V2_test", Session{ID: "s1", Token: "private-session-token"})
+	result, err := client.CompleteIfSufficient(t.Context(), "V2_test", Session{ID: "s1", Token: "private-session-token"}, nil)
 	require.NoError(t, err)
 	require.Equal(t, OutcomeEnrollmentRequired, result.Outcome)
 	require.Equal(t, []string{"totp"}, result.Factors)
@@ -62,11 +62,11 @@ func TestRecoveryFenceBlocksEveryNativeCompletionEntry(t *testing.T) {
 			var err error
 			switch entry {
 			case "password":
-				result, err = client.CompleteIfSufficient(t.Context(), "V2_test", session)
+				result, err = client.CompleteIfSufficient(t.Context(), "V2_test", session, nil)
 			case "factor":
-				result, err = client.CompleteAfterFactor(t.Context(), "V2_test", session)
+				result, err = client.CompleteAfterFactor(t.Context(), "V2_test", session, nil)
 			case "password_change":
-				result, err = client.CompleteAfterPasswordChange(t.Context(), "V2_test", session)
+				result, err = client.CompleteAfterPasswordChange(t.Context(), "V2_test", session, nil)
 			}
 			require.ErrorIs(t, err, ErrBadCredentials)
 			require.Empty(t, result.CallbackURL)
@@ -85,11 +85,11 @@ func TestManagedNativeCompletionFailsClosedWithoutOwnerEvidence(t *testing.T) {
 			var err error
 			switch entry {
 			case "password":
-				result, err = client.CompleteIfSufficient(t.Context(), "V2_test", session)
+				result, err = client.CompleteIfSufficient(t.Context(), "V2_test", session, nil)
 			case "factor":
-				result, err = client.CompleteAfterFactor(t.Context(), "V2_test", session)
+				result, err = client.CompleteAfterFactor(t.Context(), "V2_test", session, nil)
 			case "password_change":
-				result, err = client.CompleteAfterPasswordChange(t.Context(), "V2_test", session)
+				result, err = client.CompleteAfterPasswordChange(t.Context(), "V2_test", session, nil)
 			}
 			require.ErrorIs(t, err, ErrUnavailable)
 			require.Empty(t, result.CallbackURL)
@@ -100,7 +100,7 @@ func TestManagedNativeCompletionFailsClosedWithoutOwnerEvidence(t *testing.T) {
 
 func TestRecoveredPasswordChangeCannotFinalizeAfterFactorRemoval(t *testing.T) {
 	client, finalized := managedRecoveryClient(t, &customercontract.StaffMFARecoveryRequirement{State: "completed", GenerationID: "019f39c2-1738-7998-b5de-6d4214f614e0"}, `["AUTHENTICATION_METHOD_TYPE_PASSWORD"]`)
-	result, err := client.CompleteAfterPasswordChange(t.Context(), "V2_test", Session{ID: "s1", Token: "private-session-token"})
+	result, err := client.CompleteAfterPasswordChange(t.Context(), "V2_test", Session{ID: "s1", Token: "private-session-token"}, nil)
 	require.NoError(t, err)
 	require.Equal(t, OutcomeRefused, result.Outcome)
 	require.Equal(t, RefusalFactorNotVerified, result.Reason)
@@ -117,22 +117,22 @@ func TestManagedRecoveryAllowsOrdinaryAndVerifiedFactorProgression(t *testing.T)
 			}
 			client, finalized := managedRecoveryClient(t, requirement, `["AUTHENTICATION_METHOD_TYPE_PASSWORD","AUTHENTICATION_METHOD_TYPE_TOTP"]`)
 			session := Session{ID: "s1", Token: "private-session-token"}
-			result, err := client.CompleteIfSufficient(t.Context(), "V2_test", session)
+			result, err := client.CompleteIfSufficient(t.Context(), "V2_test", session, nil)
 			require.NoError(t, err)
 			require.Equal(t, OutcomeFactorRequired, result.Outcome)
 			require.Zero(t, finalized.Load())
-			result, err = client.CompleteAfterFactor(t.Context(), "V2_test", session)
+			result, err = client.CompleteAfterFactor(t.Context(), "V2_test", session, nil)
 			require.NoError(t, err)
 			require.Equal(t, OutcomeComplete, result.Outcome)
 			require.EqualValues(t, 1, finalized.Load())
-			result, err = client.CompleteAfterPasswordChange(t.Context(), "V2_test", session)
+			result, err = client.CompleteAfterPasswordChange(t.Context(), "V2_test", session, nil)
 			require.NoError(t, err)
 			require.Equal(t, OutcomeComplete, result.Outcome)
 			require.EqualValues(t, 2, finalized.Load())
 		})
 	}
 	client, finalized := managedRecoveryClient(t, &customercontract.StaffMFARecoveryRequirement{State: "none"}, `["AUTHENTICATION_METHOD_TYPE_PASSWORD"]`)
-	result, err := client.CompleteIfSufficient(t.Context(), "V2_test", Session{ID: "s1", Token: "private-session-token"})
+	result, err := client.CompleteIfSufficient(t.Context(), "V2_test", Session{ID: "s1", Token: "private-session-token"}, nil)
 	require.NoError(t, err)
 	require.Equal(t, OutcomeComplete, result.Outcome)
 	require.EqualValues(t, 1, finalized.Load())

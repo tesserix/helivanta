@@ -1170,6 +1170,7 @@ function errorMessage(error: Error | null): string | undefined {
 
 // The key name Zitadel stores (#1898): the API trims it and allows 64
 // characters, so the form refuses the same before the key is touched.
+// Both messages are pending product-owner approval (not on the approved list).
 const keyNameSchema = z.object({
   name: z
     .string()
@@ -1343,6 +1344,8 @@ function SecurityKeyStep({
           </p>
         </div>
         <AuthError message={error} />
+        {/* "Try again" and "Use your authenticator app instead" are pending
+            product-owner approval (not on the approved list). */}
         {supported && error && !assert.isPending ? (
           <Button
             className="w-full"

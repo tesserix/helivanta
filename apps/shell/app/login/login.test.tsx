@@ -2161,6 +2161,46 @@ describe("native security key (#1898)", () => {
       expect(await screen.findByText(/Sign-in failed/i)).toBeInTheDocument();
       expect(credentials.get).not.toHaveBeenCalled();
     });
+
+    const NO_WEBAUTHN_SIGN_IN =
+      "This browser can't use security keys. Use another browser, or your authenticator app if you have one.";
+
+    it("without WebAuthn, says so, never asks for the key and posts nothing", async () => {
+      vi.stubGlobal("PublicKeyCredential", undefined);
+      const { fetchMock } = await signIn({
+        factor_required: ["security_key"],
+        security_key: { request_options: requestOptions },
+      });
+      expect(await screen.findByText(NO_WEBAUTHN_SIGN_IN)).toBeInTheDocument();
+      expect(screen.queryByText(KEY_PROMPT)).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Use your authenticator app instead" }),
+      ).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Try again" })).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Start again" })).toBeEnabled();
+      expect(credentials.get).not.toHaveBeenCalled();
+      expect(bodiesTo(fetchMock, "/auth/login/factor")).toEqual([]);
+      expect(assignSpy).not.toHaveBeenCalled();
+    });
+
+    it("without WebAuthn, offers the authenticator app when TOTP is enrolled too", async () => {
+      vi.stubGlobal("PublicKeyCredential", undefined);
+      const { user, fetchMock } = await signIn(
+        {
+          factor_required: ["security_key", "totp"],
+          security_key: { request_options: requestOptions },
+        },
+        { factor: () => jsonResponse(200, { callback_url: CALLBACK }) },
+      );
+      expect(await screen.findByText(NO_WEBAUTHN_SIGN_IN)).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "Use your authenticator app instead" }));
+      await user.type(await firstMfaDigit(), "123456");
+      await waitFor(() => expect(assignSpy).toHaveBeenCalledWith(CALLBACK));
+      expect(credentials.get).not.toHaveBeenCalled();
+      expect(bodiesTo(fetchMock, "/auth/login/factor")).toEqual([
+        { auth_request_id: AUTH_REQUEST_ID, factor: "totp", code: "123456" },
+      ]);
+    });
   });
 });
 

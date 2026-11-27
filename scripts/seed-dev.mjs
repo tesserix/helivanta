@@ -518,6 +518,11 @@ async function main() {
         await ensureTOTPEnrolled(pat, userId, email);
       }
       if (email === SECURITY_KEY_EMAIL) {
+        // This forces two-step verification on the whole second-hospital org
+        // of the local dev stack: any user later homed there must enrol a
+        // factor to sign in. The key user is homed there because no other
+        // seeded account is (they only hold memberships), so nothing else
+        // is affected today.
         await ensureForcedMFA(pat, `helivanta-${homeTenant}`);
         await clearSecondFactors(pat, userId, `helivanta-${homeTenant}`, email);
       }

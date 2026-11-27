@@ -55,11 +55,12 @@ intake, officer appointment/acceptance/revocation and versioned case responses.
 See [contract](privacy.md). Owner-executed rights fulfilment, policy-approved SLA
 escalation and public/proxy/cross-tenant intake remain separate gaps.
 
-### Professional source runtime candidate
+### Professional source runtime delivery
 
-The `practitioner` owner is now included in the candidate runtime registry, with
-Global API platform routing and a separate private-evidence worker. Its 68 routes
-remain compiled unreleased, and its sixteen existing migrations require approval
-before runtime delivery. Registration source attestation does not grant clinical
-authority. See [runtime integration and gates](practitioner-runtime.md) and the
-[full pharmacist verification scope](../design/pharmacist-verification.md).
+The `practitioner` owner is included in the deployed runtime registry, with
+Global API platform routing and the private-evidence worker binary in the signed
+artifact. Its sixteen migrations are recorded, while all 68 professional HTTP
+routes remain compiled unreleased. Dedicated processing activation and live
+evidence acceptance are pending. Registration source attestation does not grant
+clinical authority. See [runtime integration and observed delivery](practitioner-runtime.md)
+and the [full pharmacist verification scope](../design/pharmacist-verification.md).

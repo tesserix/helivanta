@@ -239,3 +239,10 @@ add metadata to the v1 machine fact-check reference. Edit the canonical inputs a
 `node scripts/generate-supplier-access.mjs` and `--check`; never hand-edit the Go
 or TypeScript output. This development projection remains subject to ADR-0076's
 current-authority, owner/RLS, UI and release acceptance gates.
+
+Pharmacist-verification inputs, review context and administrative policy draft
+contracts are canonical in `contracts/pharmacy-verification.json`. Run
+`node scripts/generate-pharmacy-verification.mjs` and `--check`; outputs include
+Go, Zod and the generated SQL policy-input predicate. The maximum draft interval
+is a representation bound, not a clinical policy. See the
+[unreleased preparation contract](pharmacy-verification-policies.md).

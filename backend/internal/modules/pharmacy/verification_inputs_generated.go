@@ -67,6 +67,66 @@ type PrescriptionReviewContext struct {
 	Record              PrescriptionReviewRecord               `json:"record"`
 }
 
+type VerificationPolicyDraftInput struct {
+	ExpectedVersion            *int64 `json:"expected_version"`
+	Label                      string `json:"label"`
+	SecondCheckRequired        *bool  `json:"second_check_required"`
+	ReviewValidForSeconds      int64  `json:"review_valid_for_seconds"`
+	QueryResponseTargetSeconds int64  `json:"query_response_target_seconds"`
+	Reason                     string `json:"reason"`
+}
+
+type VerificationPolicyDraftRevision struct {
+	ID                         uuid.UUID `json:"id"`
+	PolicyID                   uuid.UUID `json:"policy_id"`
+	OutletID                   uuid.UUID `json:"outlet_id"`
+	ExpectedVersion            int64     `json:"expected_version"`
+	Version                    int64     `json:"version"`
+	Label                      string    `json:"label"`
+	SecondCheckRequired        bool      `json:"second_check_required"`
+	ReviewValidForSeconds      int64     `json:"review_valid_for_seconds"`
+	QueryResponseTargetSeconds int64     `json:"query_response_target_seconds"`
+	Reason                     string    `json:"reason"`
+	PreparedBy                 string    `json:"prepared_by"`
+	CreatedAt                  time.Time `json:"created_at"`
+	State                      string    `json:"state"`
+	ClinicalAuthority          string    `json:"clinical_authority"`
+}
+
+type PrescriptionFulfilmentReviewLineInput struct {
+	LineNumber    int   `json:"line_number"`
+	QuantityUnits int64 `json:"quantity_units"`
+}
+
+type PrescriptionFulfilmentReviewInput struct {
+	SourceStateHash string                                  `json:"source_state_hash"`
+	Lines           []PrescriptionFulfilmentReviewLineInput `json:"lines"`
+}
+
+type PrescriptionFulfilmentReviewLine struct {
+	LineNumber    int       `json:"line_number"`
+	ProductID     uuid.UUID `json:"product_id"`
+	QuantityUnits int64     `json:"quantity_units"`
+}
+
+type PrescriptionFulfilmentReviewContext struct {
+	Source              PrescriptionReviewContext          `json:"source"`
+	Lines               []PrescriptionFulfilmentReviewLine `json:"lines"`
+	FulfilmentStateHash string                             `json:"fulfilment_state_hash"`
+	State               string                             `json:"state"`
+	StockReservation    string                             `json:"stock_reservation"`
+	ClinicalAuthority   string                             `json:"clinical_authority"`
+}
+
+const verificationFulfilmentMaxLines = 20
+const verificationFulfilmentMaxQuantity = 100000
+
+const verificationPolicyMaxVersion = 9007199254740990
+const verificationPolicyLabelMax = 120
+const verificationPolicyReasonMax = 500
+const verificationPolicyReviewDurationMax = 9223372036
+const verificationPolicyResponseDurationMax = 9223372036
+const verificationPolicyLabelNoASCIIControls = true
 const verificationMaxVersion = 9007199254740991
 const verificationNoteMaxUTF16 = 2000
 const verificationReasonMax = 80

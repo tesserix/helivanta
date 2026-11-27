@@ -38,6 +38,34 @@ retain the existing 403/404 behavior.
 
 [Contract index](../README.md) · descriptive current slices plus outstanding contracts
 
+### Proposed prescription fulfilment (#169, unreleased candidate)
+
+`POST /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id/fulfilment-review-context`
+is an audited no-store projection with the same `pharmacy.prescription.read`
+permission and current outlet scope. It accepts `source_state_hash` and distinct
+`lines` of `line_number` and positive integral `quantity_units`. Unknown fields,
+including product/clinical authority assertions, are rejected. The server derives
+products from the prescription owner and serializes the balance read against the
+same parent row locked by active sale constraints.
+
+A changed source returns `409 review_source_changed`; an unknown, exhausted or
+overfilled selection returns `409 fulfilment_not_available`. Invalid input is 400,
+missing permission 403, invisible parent 404 and unavailable/audit failure 503.
+The response contains `source`, normalized `lines`, `fulfilment_state_hash`,
+`state: proposed`, `stock_reservation: not_reserved` and
+`clinical_authority: not_evaluated`. Its hash binds exact owner/source/quantities,
+not the reader, so separate authorized reviewers can inspect the same proposal.
+It is not the clinical `reviewed_state_hash`, an approval or a stock-availability
+promise. No sale, tender, stock movement or clinical privilege is created.
+
+Canonical Go/Zod models remain in `contracts/pharmacy-verification.json`.
+The account-bound SDK validates every source/selection coordinate. The existing
+unreleased review panel requires explicit quantities and clears results on edits,
+source refresh or account transitions. See the
+[component specification](../../superpowers/specs/2026-11-27-prescription-fulfilment-review.md).
+Qualified verified-person authority, policy approval, decisions, second check,
+prescriber resolution and enforcement at actual dispensing remain unfinished.
+
 ## What the domain covers
 
 The `pharmacy` module is pharmacy management, not a hospital add-on. It runs a

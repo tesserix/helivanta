@@ -94,8 +94,12 @@ export async function generateContract(moduleName) {
       if (field.upper) schema += ".toUpperCase()";
       if (field.min !== undefined)
         schema += `.min(${field.min}${field.min_message ? `,${JSON.stringify(field.min_message)}` : ""})`;
+      // A form shows this inline (#1880); zod's default text is not product copy.
+      const maxMessage =
+        field.max_message ??
+        (base === "string" && !array ? `Use at most ${field.max} characters.` : undefined);
       if (field.max !== undefined)
-        schema += `.max(${field.max}${field.max_message ? `,${JSON.stringify(field.max_message)}` : ""})`;
+        schema += `.max(${field.max}${maxMessage ? `,${JSON.stringify(maxMessage)}` : ""})`;
       if (field.pattern)
         schema += `.regex(new RegExp(${JSON.stringify(field.pattern)}),"Use the required format.")`;
       if (field.format === "optional_email")

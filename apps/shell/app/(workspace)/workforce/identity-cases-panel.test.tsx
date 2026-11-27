@@ -225,3 +225,19 @@ it("shows refused draft history as a refusal, with no retry", async () => {
     within(history).queryByRole("button", { name: /retry draft history|try again/i }),
   ).toBeNull();
 });
+
+it("shows inline errors for overlong references and sends nothing", async () => {
+  const writes = setup();
+  const { user } = renderWithProviders(
+    <StaffIdentitySourcePanel hospitalId={hospital} staffId={staff} onClose={() => {}} />,
+  );
+  await user.click(await screen.findByRole("button", { name: "Prepare review draft" }));
+  const form = screen.getByRole("form", { name: "Prepare review draft" });
+  await user.click(within(form).getByLabelText("Policy reference"));
+  await user.paste("x".repeat(301));
+  await user.click(within(form).getByLabelText("Check reference"));
+  await user.paste("x".repeat(501));
+  await user.click(within(form).getByRole("button", { name: "Save draft" }));
+  await waitFor(() => expect(within(form).getAllByText(/characters/)).toHaveLength(2));
+  expect(writes).toHaveLength(0);
+});

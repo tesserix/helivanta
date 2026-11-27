@@ -6,17 +6,17 @@ export const SourceContract = z
     key: z
       .string()
       .min(1)
-      .max(64)
+      .max(64, "Use at most 64 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     title: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     url: z
       .string()
       .min(1)
-      .max(2048)
+      .max(2048, "Use at most 2048 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     reviewed_at: z.string().datetime({ offset: true }),
   })
@@ -42,7 +42,7 @@ export const RequirementContract = z
     reason: z
       .string()
       .min(1)
-      .max(4000)
+      .max(4000, "Use at most 4000 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     source_keys: z.array(z.string()).max(30),
   })
@@ -54,19 +54,19 @@ export const SubmissionContract = z
     id: z
       .string()
       .min(36)
-      .max(36)
+      .max(36, "Use at most 36 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     scope_id: z
       .string()
       .min(36)
-      .max(36)
+      .max(36, "Use at most 36 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     expected_revision: z.number().int().min(0).max(9007199254740990),
     country: z.enum(["IN"]),
     jurisdiction: z
       .string()
       .min(1)
-      .max(100)
+      .max(100, "Use at most 100 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     category: z.enum(["otc", "prescription", "controlled", "cold_chain"]),
     operation: z.enum(["listing", "order", "dispatch", "dispense"]),
@@ -84,13 +84,13 @@ export const AccessChangeContract = z
     id: z
       .string()
       .min(36)
-      .max(36)
+      .max(36, "Use at most 36 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     expected_revision: z.number().int().min(1).max(9007199254740990),
     subject: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     role: z.enum(["reader", "editor", "reviewer", ""]),
     revoke: z.boolean(),
@@ -103,18 +103,18 @@ export const ReviewContract = z
     id: z
       .string()
       .min(36)
-      .max(36)
+      .max(36, "Use at most 36 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     version_id: z
       .string()
-      .max(36)
+      .max(36, "Use at most 36 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     expected_revision: z.number().int().min(1).max(9007199254740990),
     action: z.enum(["approved", "rejected", "suspended"]),
     reason: z
       .string()
       .min(1)
-      .max(4000)
+      .max(4000, "Use at most 4000 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
   .strict();

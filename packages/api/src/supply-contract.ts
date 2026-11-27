@@ -11,12 +11,12 @@ const identifier = z
 export const supplyContactSchema = z
   .object({
     id: identifier,
-    name: z.string().trim().min(1).max(200),
+    name: z.string().trim().min(1).max(200, "Use at most 200 characters."),
     role: z.enum(["general", "purchasing", "finance", "pharmacist", "signatory", "emergency"]),
     email: z
       .string()
       .trim()
-      .max(254)
+      .max(254, "Use at most 254 characters.")
       .refine(
         (value) => value === "" || z.string().email().safeParse(value).success,
         "Use a valid email address.",
@@ -24,23 +24,23 @@ export const supplyContactSchema = z
     phone: z
       .string()
       .trim()
-      .max(16)
+      .max(16, "Use at most 16 characters.")
       .regex(new RegExp("^(?:|\\+[1-9][0-9]{7,14})$"), "Use the required format."),
     alternate_phone: z
       .string()
       .trim()
-      .max(16)
+      .max(16, "Use at most 16 characters.")
       .regex(new RegExp("^(?:|\\+[1-9][0-9]{7,14})$"), "Use the required format."),
   })
   .strict();
 
 export const supplyPostalAddressSchema = z
   .object({
-    line1: z.string().trim().min(1).max(200),
-    line2: z.string().trim().max(200),
-    city: z.string().trim().min(1).max(100),
-    region: z.string().trim().min(1).max(100),
-    postal_code: z.string().trim().min(1).max(20),
+    line1: z.string().trim().min(1).max(200, "Use at most 200 characters."),
+    line2: z.string().trim().max(200, "Use at most 200 characters."),
+    city: z.string().trim().min(1).max(100, "Use at most 100 characters."),
+    region: z.string().trim().min(1).max(100, "Use at most 100 characters."),
+    postal_code: z.string().trim().min(1).max(20, "Use at most 20 characters."),
     country_code: z.enum(["IN"]),
   })
   .strict();
@@ -56,8 +56,8 @@ export const supplyTaxRegistrationSchema = z
   .object({
     id: identifier,
     kind: z.enum(["gstin", "pan", "other"]),
-    number: z.string().trim().toUpperCase().min(1).max(100),
-    jurisdiction: z.string().trim().min(1).max(100),
+    number: z.string().trim().toUpperCase().min(1).max(100, "Use at most 100 characters."),
+    jurisdiction: z.string().trim().min(1).max(100, "Use at most 100 characters."),
   })
   .strict();
 
@@ -68,11 +68,11 @@ export const supplyPartyFieldsSchema = z
       .trim()
       .toUpperCase()
       .min(1)
-      .max(40)
+      .max(40, "Use at most 40 characters.")
       .regex(new RegExp("^[A-Z0-9][A-Z0-9._-]{0,39}$"), "Use the required format."),
     record_kind: z.enum(["owned_organisation", "counterparty"]),
-    legal_name: z.string().trim().min(1).max(200),
-    trading_name: z.string().trim().max(200),
+    legal_name: z.string().trim().min(1).max(200, "Use at most 200 characters."),
+    trading_name: z.string().trim().max(200, "Use at most 200 characters."),
     business_kind: z.enum([
       "pharmacy",
       "distributor",
@@ -82,13 +82,18 @@ export const supplyPartyFieldsSchema = z
       "other",
     ]),
     country_code: z.enum(["IN"]),
-    jurisdiction: z.string().trim().min(1).max(100),
-    registration_number: z.string().trim().toUpperCase().min(1).max(100),
-    corporate_group: z.string().trim().max(200),
+    jurisdiction: z.string().trim().min(1).max(100, "Use at most 100 characters."),
+    registration_number: z
+      .string()
+      .trim()
+      .toUpperCase()
+      .min(1)
+      .max(100, "Use at most 100 characters."),
+    corporate_group: z.string().trim().max(200, "Use at most 200 characters."),
     website: z
       .string()
       .trim()
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => {
         if (value === "") return true;
         try {
@@ -124,11 +129,11 @@ export const supplyPremiseFieldsSchema = supplyPostalAddressSchema
       .trim()
       .toUpperCase()
       .min(1)
-      .max(40)
+      .max(40, "Use at most 40 characters.")
       .regex(new RegExp("^[A-Z0-9][A-Z0-9._-]{0,39}$"), "Use the required format."),
-    name: z.string().trim().min(1).max(200),
+    name: z.string().trim().min(1).max(200, "Use at most 200 characters."),
     kind: z.enum(["registered", "branch", "warehouse", "depot", "pharmacy"]),
-    time_zone: z.string().trim().min(1).max(100),
+    time_zone: z.string().trim().min(1).max(100, "Use at most 100 characters."),
     status: z.enum(["active", "inactive"]),
     branch_premise_id: identifier.nullable().optional(),
   })
@@ -141,14 +146,22 @@ export const supplyLicenseFieldsSchema = z
       .trim()
       .toUpperCase()
       .min(1)
-      .max(60)
+      .max(60, "Use at most 60 characters.")
       .regex(new RegExp("^[A-Z0-9][A-Z0-9._-]{0,59}$"), "Use the required format."),
-    number: z.string().trim().toUpperCase().min(1).max(100),
-    issuing_authority: z.string().trim().min(1).max(200),
-    jurisdiction: z.string().trim().min(1).max(100),
+    number: z.string().trim().toUpperCase().min(1).max(100, "Use at most 100 characters."),
+    issuing_authority: z.string().trim().min(1).max(200, "Use at most 200 characters."),
+    jurisdiction: z.string().trim().min(1).max(100, "Use at most 100 characters."),
     premise_id: identifier,
-    issued_on: z.string().min(10).max(10).date("Use a full valid date."),
-    expires_on: z.string().min(10).max(10).date("Use a full valid date."),
+    issued_on: z
+      .string()
+      .min(10)
+      .max(10, "Use at most 10 characters.")
+      .date("Use a full valid date."),
+    expires_on: z
+      .string()
+      .min(10)
+      .max(10, "Use at most 10 characters.")
+      .date("Use a full valid date."),
     product_categories: z
       .array(z.enum(["otc", "prescription", "controlled", "cold_chain"]))
       .min(1)
@@ -170,13 +183,13 @@ export const supplyLicenseInputSchema = supplyLicenseFieldsSchema
 
 export const supplyEvidenceFieldsSchema = z
   .object({
-    filename: z.string().min(1).max(180),
+    filename: z.string().min(1).max(180, "Use at most 180 characters."),
     content_type: z.enum(["image/png", "image/jpeg"]),
     size: z.number().int().min(1).max(10485760),
     sha256: z
       .string()
       .min(64)
-      .max(64)
+      .max(64, "Use at most 64 characters.")
       .regex(new RegExp("^[a-f0-9]{64}$"), "Use the required format."),
   })
   .strict();
@@ -195,14 +208,14 @@ export const supplyReviewInputSchema = z
     expected_license_version: z.number().int().min(1).max(9007199254740991),
     evidence_id: identifier,
     action: z.enum(["submit", "verify", "reject", "suspend"]),
-    reason: z.string().trim().min(5).max(2000),
+    reason: z.string().trim().min(5).max(2000, "Use at most 2000 characters."),
     method: z.enum([
       "not_applicable",
       "authority_portal",
       "authority_contact",
       "physical_inspection",
     ]),
-    reference: z.string().trim().max(300),
+    reference: z.string().trim().max(300, "Use at most 300 characters."),
   })
   .strict();
 
@@ -213,12 +226,12 @@ export const supplyBinFieldsSchema = z
       .trim()
       .toUpperCase()
       .min(1)
-      .max(40)
+      .max(40, "Use at most 40 characters.")
       .regex(new RegExp("^[A-Z0-9][A-Z0-9._-]{0,39}$"), "Use the required format."),
-    name: z.string().trim().min(1).max(200),
-    aisle: z.string().trim().max(60),
-    rack: z.string().trim().max(60),
-    shelf: z.string().trim().max(60),
+    name: z.string().trim().min(1).max(200, "Use at most 200 characters."),
+    aisle: z.string().trim().max(60, "Use at most 60 characters."),
+    rack: z.string().trim().max(60, "Use at most 60 characters."),
+    shelf: z.string().trim().max(60, "Use at most 60 characters."),
     storage_class: z.enum(["ambient", "cold_chain", "controlled", "quarantine"]),
     status: z.enum(["active", "inactive"]),
   })
@@ -249,13 +262,13 @@ export const supplyTerritoryFieldsSchema = z
       .trim()
       .toUpperCase()
       .min(1)
-      .max(40)
+      .max(40, "Use at most 40 characters.")
       .regex(new RegExp("^[A-Z0-9][A-Z0-9._-]{0,39}$"), "Use the required format."),
-    name: z.string().trim().min(1).max(200),
+    name: z.string().trim().min(1).max(200, "Use at most 200 characters."),
     country_code: z.enum(["IN"]),
-    region: z.string().trim().min(1).max(100),
-    city: z.string().trim().max(100),
-    description: z.string().trim().max(1000),
+    region: z.string().trim().min(1).max(100, "Use at most 100 characters."),
+    city: z.string().trim().max(100, "Use at most 100 characters."),
+    description: z.string().trim().max(1000, "Use at most 1000 characters."),
     status: z.enum(["active", "inactive"]),
     branch_premise_id: identifier.nullable().optional(),
     assigned_sales_subjects: z
@@ -277,7 +290,7 @@ export const supplyAccessGrantFieldsSchema = z
     subject: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .regex(new RegExp("^[A-Za-z0-9._:@|+\\-]{1,200}$"), "Use the required format."),
     role: z.enum([
       "administrator",
@@ -298,14 +311,14 @@ export const supplyAccessGrantFieldsSchema = z
     valid_from: z
       .string()
       .min(20)
-      .max(35)
+      .max(35, "Use at most 35 characters.")
       .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
     expires_at: z
       .string()
       .min(20)
-      .max(35)
+      .max(35, "Use at most 35 characters.")
       .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
-    reason: z.string().trim().min(5).max(500),
+    reason: z.string().trim().min(5).max(500, "Use at most 500 characters."),
     status: z.enum(["active", "revoked"]),
   })
   .strict();
@@ -369,39 +382,39 @@ export const supplyDeliveryTaskFieldsSchema = z
       .trim()
       .toUpperCase()
       .min(1)
-      .max(40)
+      .max(40, "Use at most 40 characters.")
       .regex(new RegExp("^[A-Z0-9][A-Z0-9._-]{0,39}$"), "Use the required format."),
-    source_reference: z.string().trim().min(1).max(100),
-    destination_business_name: z.string().trim().min(1).max(200),
-    destination_line1: z.string().trim().min(1).max(200),
-    destination_line2: z.string().trim().min(0).max(200),
-    destination_city: z.string().trim().min(1).max(100),
-    destination_region: z.string().trim().min(1).max(100),
-    destination_postal_code: z.string().trim().min(1).max(20),
+    source_reference: z.string().trim().min(1).max(100, "Use at most 100 characters."),
+    destination_business_name: z.string().trim().min(1).max(200, "Use at most 200 characters."),
+    destination_line1: z.string().trim().min(1).max(200, "Use at most 200 characters."),
+    destination_line2: z.string().trim().min(0).max(200, "Use at most 200 characters."),
+    destination_city: z.string().trim().min(1).max(100, "Use at most 100 characters."),
+    destination_region: z.string().trim().min(1).max(100, "Use at most 100 characters."),
+    destination_postal_code: z.string().trim().min(1).max(20, "Use at most 20 characters."),
     country_code: z.enum(["IN"]),
-    business_contact_name: z.string().trim().min(0).max(200),
+    business_contact_name: z.string().trim().min(0).max(200, "Use at most 200 characters."),
     business_contact_phone: z
       .string()
       .trim()
       .min(0)
-      .max(16)
+      .max(16, "Use at most 16 characters.")
       .regex(new RegExp("^(?:|\\+[1-9][0-9]{7,14})$"), "Use the required format."),
     window_start: z
       .string()
       .trim()
       .min(20)
-      .max(35)
+      .max(35, "Use at most 35 characters.")
       .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
     window_end: z
       .string()
       .trim()
       .min(20)
-      .max(35)
+      .max(35, "Use at most 35 characters.")
       .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
     package_count: z.number().int().min(1).max(100000),
-    handling_notes: z.string().trim().min(0).max(500),
-    driver_subject: z.string().trim().min(0).max(200),
-    assignment_expires_at: z.string().trim().min(0).max(35),
+    handling_notes: z.string().trim().min(0).max(500, "Use at most 500 characters."),
+    driver_subject: z.string().trim().min(0).max(200, "Use at most 200 characters."),
+    assignment_expires_at: z.string().trim().min(0).max(35, "Use at most 35 characters."),
     status: z.enum(["draft", "assigned", "cancelled"]),
   })
   .strict();
@@ -409,7 +422,7 @@ export const supplyDeliveryTaskFieldsSchema = z
 export const supplyDeliveryTaskInputSchema = supplyDeliveryTaskFieldsSchema
   .extend({
     expected_version: z.number().int().min(0).max(9007199254740990),
-    change_reason: z.string().trim().min(5).max(500),
+    change_reason: z.string().trim().min(5).max(500, "Use at most 500 characters."),
   })
   .strict()
   .refine((value) => Date.parse(value.window_end) > Date.parse(value.window_start), {
@@ -422,7 +435,7 @@ export const supplyDeliveryActionInputSchema = z
     expected_version: z.number().int().min(0).max(9007199254740990),
     expected_assignment_generation: z.number().int().min(1).max(9007199254740990),
     action: z.enum(["start", "deliver", "exception"]),
-    reason: z.string().trim().min(5).max(500),
+    reason: z.string().trim().min(5).max(500, "Use at most 500 characters."),
   })
   .strict();
 
@@ -431,20 +444,20 @@ export const supplySupportRequestFieldsSchema = z
     beneficiary_subject: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .regex(new RegExp("^[A-Za-z0-9._:@|+\\-]{1,200}$"), "Use the required format."),
     premise_id: identifier,
-    ticket_reference: z.string().trim().min(1).max(100),
-    reason: z.string().trim().min(5).max(500),
+    ticket_reference: z.string().trim().min(1).max(100, "Use at most 100 characters."),
+    reason: z.string().trim().min(5).max(500, "Use at most 500 characters."),
     valid_from: z
       .string()
       .min(20)
-      .max(35)
+      .max(35, "Use at most 35 characters.")
       .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
     expires_at: z
       .string()
       .min(20)
-      .max(35)
+      .max(35, "Use at most 35 characters.")
       .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),
   })
   .strict();
@@ -463,14 +476,14 @@ export const supplySupportDecisionInputSchema = z
   .object({
     expected_version: z.number().int().min(1).max(9007199254740990),
     action: z.enum(["approve", "reject", "revoke"]),
-    reason: z.string().trim().min(5).max(500),
+    reason: z.string().trim().min(5).max(500, "Use at most 500 characters."),
   })
   .strict();
 
 export const supplySupportRevokeInputSchema = z
   .object({
     expected_version: z.number().int().min(1).max(9007199254740990),
-    reason: z.string().trim().min(5).max(500),
+    reason: z.string().trim().min(5).max(500, "Use at most 500 characters."),
   })
   .strict();
 
@@ -479,7 +492,7 @@ export const supplyAccessLimitsInputSchema = z
     expected_version: z.number().int().min(0).max(9007199254740990),
     max_grant_hours: z.number().int().min(1).max(8784),
     max_support_hours: z.number().int().min(1).max(24, "Must be less than or equal to 24."),
-    reason: z.string().trim().min(5).max(500),
+    reason: z.string().trim().min(5).max(500, "Use at most 500 characters."),
   })
   .strict();
 
@@ -496,7 +509,7 @@ export const supplyLicenseRenewalSchema = z
     ]),
     days_remaining: z.number().int().min(-3652059).max(3652059),
     local_date: z.string().date("Use a full valid date."),
-    time_zone: z.string().min(1).max(100),
+    time_zone: z.string().min(1).max(100, "Use at most 100 characters."),
     observed_at: z
       .string()
       .datetime({ offset: true, message: "Use a valid date and time with a timezone." }),

@@ -511,6 +511,42 @@ describe("CounterSale", () => {
     });
   });
 
+  it("refuses a 5-character invoice prefix inline without saving", async () => {
+    const saves: string[] = [];
+    fixture({
+      profile: null,
+      saveProfile: (init) => {
+        saves.push(String(init.body));
+        return new Response(JSON.stringify(profile), { status: 201 });
+      },
+    });
+    const { user } = renderWithProviders(<CounterSale scope={scope} canSell canManageProfile />);
+    await user.type(await screen.findByLabelText("Legal name"), "TEST Main Pharmacy LLP");
+    await user.type(screen.getByLabelText("Address"), "TEST 1 Market Road");
+    await user.type(screen.getByLabelText("Invoice prefix"), "ABCDE");
+    await user.click(screen.getByRole("button", { name: "Record invoice details" }));
+    expect(await screen.findByText("1 to 4 capital letters or digits")).toBeVisible();
+    expect(saves).toHaveLength(0);
+  });
+
+  it("refuses an overlong payment reference and buyer name inline without posting", async () => {
+    const fetcher = fixture();
+    const { user } = renderWithProviders(
+      <CounterSale scope={scope} canSell canManageProfile={false} />,
+    );
+    await basketOfEight(user);
+    await user.click(screen.getByRole("button", { name: "Price basket" }));
+    await user.click(await screen.findByLabelText("Buyer name (optional)"));
+    await user.paste("n".repeat(201));
+    await chooseOption(user, await screen.findByLabelText("Paid by"), "UPI (reference only)");
+    await user.click(screen.getByLabelText("Payment reference"));
+    await user.paste("r".repeat(65));
+    await user.click(screen.getByRole("button", { name: "Post sale" }));
+    expect(await screen.findByText("At most 200 characters")).toBeVisible();
+    expect(screen.getByText("At most 64 characters")).toBeVisible();
+    expect(fetcher.mock.calls.some(([, init]) => init?.method === "PUT")).toBe(false);
+  });
+
   it("tells a seller without invoice details whom to ask, and a non-seller that they cannot sell", async () => {
     fixture({ profile: null });
     const first = renderWithProviders(
@@ -1200,6 +1236,39 @@ describe("CounterSale", () => {
     expect(body.discount_reason).toBe("TEST senior citizen");
   });
 
+  it("refuses an overlong discount reason inline without posting", async () => {
+    const discounted = {
+      ...line,
+      list_amount_minor: 10000,
+      discount_bps: 1000,
+      discount_minor: 1000,
+      amount_minor: 9000,
+    };
+    const fetcher = fixture({
+      ceilingBps: 1000,
+      quote: () =>
+        new Response(JSON.stringify({ ...totals, total_minor: 9000, lines: [discounted] })),
+    });
+    const { user } = renderWithProviders(
+      <CounterSale scope={scope} canSell canManageProfile={false} canDiscount />,
+    );
+    await chooseOption(user, await screen.findByLabelText("Product"), /TEST-PCM-500/);
+    await screen.findByText("105 units sellable, nearest expiry 2027-03-31");
+    const units = screen.getByLabelText("Units");
+    await user.clear(units);
+    await user.type(units, "8");
+    await user.type(await screen.findByLabelText("Discount % (up to 10%)"), "10");
+    await user.click(screen.getByRole("button", { name: "Add to basket" }));
+    await user.click(await screen.findByRole("button", { name: "Price basket" }));
+    await chooseOption(user, await screen.findByLabelText("Paid by"), "UPI (reference only)");
+    await user.type(screen.getByLabelText("Payment reference"), "TEST-UPI");
+    await user.click(screen.getByLabelText("Reason for the discount"));
+    await user.paste("d".repeat(201));
+    await user.click(screen.getByRole("button", { name: "Post sale" }));
+    expect(await screen.findByText("At most 200 characters")).toBeVisible();
+    expect(fetcher.mock.calls.some(([, init]) => init?.method === "PUT")).toBe(false);
+  });
+
   it("offers no discount without the permission", async () => {
     fixture({ ceilingBps: 1000 });
     const { user } = renderWithProviders(
@@ -1229,6 +1298,12 @@ describe("CounterSale", () => {
     await user.type(screen.getByLabelText("Ceiling %"), "7.5");
     await user.click(screen.getByRole("button", { name: "Record discount ceiling" }));
     expect(await screen.findByText("Give the reason, at least 5 characters")).toBeVisible();
+    await user.click(screen.getByLabelText("Reason"));
+    await user.paste("c".repeat(201));
+    await user.click(screen.getByRole("button", { name: "Record discount ceiling" }));
+    expect(await screen.findByText("At most 200 characters")).toBeVisible();
+    expect(fetcher.mock.calls.some(([, init]) => init?.method === "PUT")).toBe(false);
+    await user.clear(screen.getByLabelText("Reason"));
     await user.type(screen.getByLabelText("Reason"), "TEST loyalty scheme");
     await user.click(screen.getByRole("button", { name: "Record discount ceiling" }));
     expect(await screen.findByText("Discount ceiling recorded")).toBeVisible();

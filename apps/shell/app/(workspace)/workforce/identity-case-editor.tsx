@@ -146,7 +146,7 @@ export function IdentityCaseEditor({
               : form.formState.errors.policy_reference?.message
           }
         >
-          <Input id="identity-case-policy" maxLength={300} {...form.register("policy_reference")} />
+          <Input id="identity-case-policy" {...form.register("policy_reference")} />
         </Field>
         <Field
           id="identity-case-reference"
@@ -159,7 +159,7 @@ export function IdentityCaseEditor({
         >
           <Input
             id="identity-case-reference"
-            maxLength={500}
+
             {...form.register("check_reference")}
           />
         </Field>

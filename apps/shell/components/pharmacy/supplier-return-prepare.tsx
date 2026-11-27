@@ -512,7 +512,6 @@ function PrepareForm({ scope, canStart, onPrepared }: Props) {
                                 value={units}
                                 onChange={(event) => setUnits(event.target.value)}
                                 disabled={pending}
-                                maxLength={10}
                               />
                             </Field>
                             <CurrencyAmountField
@@ -612,7 +611,6 @@ function PrepareForm({ scope, canStart, onPrepared }: Props) {
                           id="supplier-return-reason"
                           value={reason}
                           onChange={(event) => setReason(event.target.value)}
-                          maxLength={500}
                           disabled={pending}
                         />
                       </Field>

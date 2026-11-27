@@ -91,8 +91,12 @@ for (const [name, fields] of Object.entries(source.models)) {
   // The shared emitter's identifier is file-local; all these models share it.
   let model = emitted.ts.replace(/^const identifier=.*;\n/u, "");
   for (const field of resolved.filter((field) => field.max_ref !== undefined)) {
+    const emittedMax = `${field.name}:z.string().min(${field.min}).max(${field.max}, "Use at most ${field.max} characters.")`;
+    // A silent no-op would ship zod's code-point limit instead of UTF16 units.
+    if (!model.includes(emittedMax))
+      throw new Error(`${name}.${field.name}: emitted max not found`);
     model = model.replace(
-      `${field.name}:z.string().min(${field.min}).max(${field.max})`,
+      emittedMax,
       `${field.name}:z.string().min(${field.min}).refine(value=>value.length<=${field.max},"Use at most ${field.max} UTF16 units.")`,
     );
   }

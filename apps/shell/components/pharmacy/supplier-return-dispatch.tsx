@@ -278,7 +278,6 @@ function DispatchForm({ scope, value, canStart, timeZone }: Props) {
                 value={reference}
                 onChange={(event) => setReference(event.target.value)}
                 disabled={pending}
-                maxLength={100}
               />
             </Field>
             <Field id="supplier-return-recipient" label="Recipient name">
@@ -287,7 +286,6 @@ function DispatchForm({ scope, value, canStart, timeZone }: Props) {
                 value={recipient}
                 onChange={(event) => setRecipient(event.target.value)}
                 disabled={pending}
-                maxLength={200}
               />
             </Field>
             <Field id="supplier-return-handoff" label="Handoff time (device time)">
@@ -310,7 +308,6 @@ function DispatchForm({ scope, value, canStart, timeZone }: Props) {
                 value={reason}
                 onChange={(event) => setReason(event.target.value)}
                 disabled={pending}
-                maxLength={500}
               />
             </Field>
             <label className="flex items-start gap-3 text-sm">

@@ -363,7 +363,6 @@ function ReversalController({ scope, credit, requested, canManage }: Props) {
                   <Input
                     id="supplier-match-reversal-reason"
                     {...form.register("reason")}
-                    maxLength={500}
                     disabled={pending}
                   />
                 </Field>

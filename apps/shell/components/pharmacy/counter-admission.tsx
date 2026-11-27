@@ -180,7 +180,6 @@ function ResolveForm({
         <Field id="admission-code" label="Code" error={form.formState.errors.code?.message}>
           <Input
             id="admission-code"
-            maxLength={20}
             autoComplete="off"
             {...form.register("code")}
             onKeyDown={(event) => {

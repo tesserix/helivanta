@@ -291,7 +291,6 @@ function UnusedPaymentRefund({
       >
         <Input
           id={referenceId}
-          maxLength={64}
           {...form.register("reference")}
           onKeyDown={(event) => {
             if (event.key === "Enter") event.preventDefault();
@@ -301,7 +300,6 @@ function UnusedPaymentRefund({
       <Field id={reasonId} label="Refund reason" error={form.formState.errors.reason?.message}>
         <Input
           id={reasonId}
-          maxLength={200}
           {...form.register("reason")}
           onKeyDown={(event) => {
             if (event.key === "Enter") event.preventDefault();

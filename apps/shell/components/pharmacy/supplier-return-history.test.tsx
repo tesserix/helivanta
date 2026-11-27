@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { renderWithProviders as renderBase } from "@helivanta/api/testing";
 import { NavigationGuardProvider } from "@helivanta/ui";
 import type { ReactElement } from "react";
@@ -278,4 +278,29 @@ it("labels a physically dispatched return without offering draft cancellation", 
   await user.click(screen.getByRole("button", { name: "Open return 17" }));
   expect(await screen.findByText(/Original bill TEST-INVOICE · Dispatched/)).toBeVisible();
   expect(screen.queryByRole("button", { name: "Cancel draft" })).not.toBeInTheDocument();
+});
+it("refuses an overlong cancellation reason inline without sending a cancellation", async () => {
+  const fetcher = vi.fn(
+    async (url: string) =>
+      new Response(
+        JSON.stringify(
+          url.includes("?limit=")
+            ? { data: [row], page: { has_more: false, next_cursor: null } }
+            : detail,
+        ),
+      ),
+  );
+  vi.stubGlobal("fetch", fetcher);
+  const { user } = renderWithProviders(
+    <SupplierReturnHistory scope={scope} canCancel timeZone="Asia/Kolkata" />,
+  );
+  await user.click(await screen.findByRole("button", { name: "Open return 17" }));
+  fireEvent.change(await screen.findByLabelText("Cancellation reason"), {
+    target: { value: "x".repeat(501) },
+  });
+  await user.click(screen.getByRole("button", { name: "Cancel draft" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent(
+    "Provide a cancellation reason of 1 to 500 characters.",
+  );
+  expect(fetcher.mock.calls.some(([url]) => url.includes("/cancellations/"))).toBe(false);
 });

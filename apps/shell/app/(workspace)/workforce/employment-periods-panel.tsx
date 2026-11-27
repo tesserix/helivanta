@@ -578,7 +578,7 @@ export function EmploymentTermsForm({
           label={contract ? "Contracting party (required)" : "Contracting party"}
           error={form.formState.errors.contracting_party?.message}
         >
-          <Input id="period-party" maxLength={200} {...form.register("contracting_party")} />
+          <Input id="period-party" {...form.register("contracting_party")} />
         </Field>
         <div>
           <FormSelectField
@@ -623,10 +623,10 @@ export function EmploymentTermsForm({
           label="Appointment or contract reference"
           error={form.formState.errors.evidence_reference?.message}
         >
-          <Input id="period-evidence" maxLength={300} {...form.register("evidence_reference")} />
+          <Input id="period-evidence" {...form.register("evidence_reference")} />
         </Field>
         <Field id="period-reason" label="Reason" error={form.formState.errors.reason?.message}>
-          <Input id="period-reason" maxLength={500} {...form.register("reason")} />
+          <Input id="period-reason" {...form.register("reason")} />
         </Field>
       </fieldset>
       <p className="text-xs text-muted-foreground">
@@ -697,6 +697,7 @@ function EmploymentWithdrawalForm({
   return (
     <Panel className="p-4">
       <form
+        noValidate
         aria-label="Withdraw employment draft"
         className="space-y-4"
         onSubmit={form.handleSubmit((value) => {
@@ -723,7 +724,7 @@ function EmploymentWithdrawalForm({
                 : undefined
             }
           >
-            <Input id="employment-withdrawal-reason" maxLength={500} {...form.register("reason")} />
+            <Input id="employment-withdrawal-reason" {...form.register("reason")} />
           </Field>
         </fieldset>
         {mutation.error && (

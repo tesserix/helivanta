@@ -146,6 +146,18 @@ describe("CounterAdmissionLookup", () => {
     expect(screen.queryByRole("button", { name: "Bill this admission" })).toBeNull();
   });
 
+  it("refuses a code over 20 characters with an inline error and no lookup", async () => {
+    const fetcher = stub(() => new Response(JSON.stringify(stay)));
+    const { user } = renderWithProviders(
+      <CounterAdmissionLookup scope={scope} value={null} onChange={vi.fn()} />,
+    );
+    await user.click(await screen.findByLabelText("Code"));
+    await user.paste("A".repeat(21));
+    await user.click(screen.getByRole("button", { name: "Find admission" }));
+    expect(await screen.findByText("Up to 20 letters, digits and dashes")).toBeInTheDocument();
+    expect(fetcher.mock.calls.some(([u]) => String(u).includes("/admission-occupant"))).toBe(false);
+  });
+
   it("says to ask for lookup access when the patient cannot be confirmed", async () => {
     stub(
       () => new Response(JSON.stringify(stay)),

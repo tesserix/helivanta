@@ -359,7 +359,6 @@ function Appointments({ scope }: { scope: GovernanceRequestScope }) {
                 id={`${prefix}-${key}`}
                 type={key === "reason" ? "text" : "datetime-local"}
                 disabled={locked}
-                maxLength={key === "reason" ? 500 : undefined}
                 {...form.register(key)}
               />
             </Field>

@@ -13,28 +13,28 @@ export const ReferenceContract = z
     brand_name: z
       .string()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     manufacturer: z
       .string()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     formulation_label: z
       .string()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     pack_size: z.number().int().min(1).max(9007199254740991),
     unit_of_issue: z
       .string()
       .min(1)
-      .max(100)
+      .max(100, "Use at most 100 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     regulatory_class: z
       .string()
       .min(1)
-      .max(100)
+      .max(100, "Use at most 100 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     ndps: z.boolean(),
   })
@@ -47,17 +47,17 @@ export const CatalogueIngredientContract = z
     inn_name: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     strength_value: z
       .string()
       .min(1)
-      .max(30)
+      .max(30, "Use at most 30 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     strength_unit: z
       .string()
       .min(1)
-      .max(40)
+      .max(40, "Use at most 40 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     per_value: z
       .string()
@@ -81,47 +81,47 @@ export const CatalogueProductContract = z
     source_name: z
       .string()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     source_version: z
       .string()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     licence_ref: z
       .string()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     brand_name: z
       .string()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     manufacturer: z
       .string()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     formulation_label: z
       .string()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     dose_form: z
       .string()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     route: z
       .string()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     regulatory_class: z
       .string()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     valid_from: z
       .string()
@@ -132,7 +132,7 @@ export const CatalogueProductContract = z
     unit_of_issue: z
       .string()
       .min(1)
-      .max(40)
+      .max(40, "Use at most 40 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     gtin: z
       .string()
@@ -141,7 +141,7 @@ export const CatalogueProductContract = z
     hsn_code: z
       .string()
       .min(4)
-      .max(8)
+      .max(8, "Use at most 8 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     ndps: z.boolean(),
     ingredients: z.array(CatalogueIngredientContract).min(1).max(20),

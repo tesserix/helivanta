@@ -279,7 +279,6 @@ export function SupplierCreditApplicationReview({
                   <Input
                     id="credit-application-reversal-reason"
                     {...form.register("reason")}
-                    maxLength={500}
                     disabled={command.busy}
                   />
                 </Field>

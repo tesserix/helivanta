@@ -19,13 +19,13 @@ export const OperatingDutyTemplateContract = z
     key: z
       .string()
       .min(1)
-      .max(100)
+      .max(100, "Use at most 100 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     employer_kind: z.enum(["pharmacy", "supplier"]),
     label: z
       .string()
       .min(1)
-      .max(100)
+      .max(100, "Use at most 100 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     permissions: z.array(z.string()).min(1).max(32),
     max_validity_hours: z.number().int().min(1).max(8784),
@@ -51,18 +51,18 @@ export const OperatingDutyInputContract = z
     subject: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     template_key: z
       .string()
       .min(1)
-      .max(100)
+      .max(100, "Use at most 100 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     reason: z
       .string()
       .trim()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     valid_from: z.string().datetime({ offset: true }),
     expires_at: z.string().datetime({ offset: true }),
@@ -87,7 +87,7 @@ export const OperatingDutyContract = z
     prepared_by: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     created_at: z.string().datetime({ offset: true }),
     updated_at: z.string().datetime({ offset: true }),
@@ -103,7 +103,7 @@ export const OperatingDutyDecisionInputContract = z
       .string()
       .trim()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
   .strict();
@@ -118,7 +118,7 @@ export const OperatingDutyDecisionContract = z
     actor_subject: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     created_at: z.string().datetime({ offset: true }),
   })
@@ -134,13 +134,13 @@ export const OperatingLocationChoiceContract = z
     code: z
       .string()
       .min(1)
-      .max(40)
+      .max(40, "Use at most 40 characters.")
       .refine((value) => !value.includes(String.fromCharCode(0)), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     name: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes(String.fromCharCode(0)), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     country_code: z.enum(["IN"]),
@@ -159,37 +159,37 @@ export const StocktakeDutyLocationChoiceContract = z
     employer_name: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes(String.fromCharCode(0)), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     location_name: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes(String.fromCharCode(0)), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     location_code: z
       .string()
       .min(1)
-      .max(40)
+      .max(40, "Use at most 40 characters.")
       .refine((value) => !value.includes(String.fromCharCode(0)), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     time_zone: z
       .string()
       .min(1)
-      .max(100)
+      .max(100, "Use at most 100 characters.")
       .refine((value) => !value.includes(String.fromCharCode(0)), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     template_key: z
       .string()
       .min(1)
-      .max(100)
+      .max(100, "Use at most 100 characters.")
       .refine((value) => !value.includes(String.fromCharCode(0)), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     template_label: z
       .string()
       .min(1)
-      .max(100)
+      .max(100, "Use at most 100 characters.")
       .refine((value) => !value.includes(String.fromCharCode(0)), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     country_code: z.enum(["IN"]),

@@ -10,13 +10,13 @@ export const PartnerGroupProposalInputContract = z
     name: z
       .string()
       .min(1)
-      .max(120)
+      .max(120, "Use at most 120 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     purpose: z.enum(["procurement", "receiving", "finance"]),
     reason: z
       .string()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     valid_from: z.string().datetime({ offset: true }),
     expires_at: z.string().datetime({ offset: true }),
@@ -41,13 +41,13 @@ export const PartnerGroupContract = z
     name: z
       .string()
       .min(1)
-      .max(120)
+      .max(120, "Use at most 120 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     purpose: z.enum(["procurement", "receiving", "finance"]),
     reason: z
       .string()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     valid_from: z.string().datetime({ offset: true }),
     expires_at: z.string().datetime({ offset: true }),
@@ -64,7 +64,7 @@ export const PartnerGroupContract = z
     proposed_by: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     external_access_enabled: z.boolean(),
     created_at: z.string().datetime({ offset: true }),
@@ -103,7 +103,7 @@ export const PartnerGroupCommandInputContract = z
     reason: z
       .string()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
   .strict();
@@ -119,13 +119,13 @@ export const PartnerGroupCommandReceiptContract = z
     actor_subject: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     actor_membership_epoch: z.number().int().min(1).max(9007199254740991),
     reason: z
       .string()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     group: PartnerGroupContract,
     created_at: z.string().datetime({ offset: true }),
@@ -151,7 +151,7 @@ export const PartnerMemberProposalInputContract = z
     subject: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .regex(new RegExp("^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$", "u"), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     staff_id: identifier,
@@ -166,7 +166,7 @@ export const PartnerMemberProposalInputContract = z
     reason: z
       .string()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     sources_examined: z.boolean(),
   })
@@ -198,7 +198,7 @@ export const PartnerGroupMemberProposalContract = z
     member_display_name: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     member_link_id: identifier,
     member_link_version: z.number().int().min(1).max(9007199254740991),
@@ -211,7 +211,7 @@ export const PartnerGroupMemberProposalContract = z
     prepared_by: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     prepared_by_staff_id: identifier,
     prepared_by_link_id: identifier,
@@ -243,7 +243,7 @@ export const PartnerMemberCommandInputContract = z
     reason: z
       .string()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     sources_examined: z.boolean().optional(),
     purpose_eligibility_confirmed: z.boolean().optional(),
@@ -274,7 +274,7 @@ export const PartnerMemberCommandReceiptContract = z
     actor_subject: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     actor_staff_id: identifier,
     actor_link_id: identifier,
@@ -307,12 +307,12 @@ export const PartnerMemberCandidateContract = z
     subject: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     display_name: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     posting_revision_id: identifier,
     posting_version: z.number().int().min(2).max(9007199254740990),

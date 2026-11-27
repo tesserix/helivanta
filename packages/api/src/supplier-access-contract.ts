@@ -22,13 +22,13 @@ export const SupplierGrantInputContract = z
     terms_sha256: z
       .string()
       .min(64)
-      .max(64)
+      .max(64, "Use at most 64 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     recipient_kind: z.enum(["subject", "group"]),
     recipient_subject: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters.")
       .optional(),
     recipient_group_id: identifier.optional(),
@@ -42,7 +42,7 @@ export const SupplierGrantInputContract = z
     reason: z
       .string()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
   .strict();
@@ -57,7 +57,7 @@ export const SupplierGrantContract = z
     input_sha256: z
       .string()
       .min(64)
-      .max(64)
+      .max(64, "Use at most 64 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     side: z.enum(["source", "hospital"]),
     status: z.enum([
@@ -75,7 +75,7 @@ export const SupplierGrantContract = z
     prepared_by: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     signed_by: z
       .string()
@@ -102,7 +102,7 @@ export const SupplierGrantDecisionInputContract = z
     reason: z
       .string()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
   .strict();
@@ -116,7 +116,7 @@ export const SupplierGrantExchangeContract = z
     input_sha256: z
       .string()
       .min(64)
-      .max(64)
+      .max(64, "Use at most 64 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     sender_tenant_id: identifier,
     sender_epoch: z.number().int().min(1).max(9007199254740991),
@@ -124,7 +124,7 @@ export const SupplierGrantExchangeContract = z
     signatory_subject: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     home_basis_sha256: z
       .string()
@@ -155,7 +155,7 @@ export const SupplierGrantHospitalDecisionInputContract = z
     reason: z
       .string()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     recipient_basis: SupplierGrantRecipientBasisInputContract.optional(),
     expected_group_version: z.number().int().min(1).max(9007199254740991).optional(),
@@ -172,14 +172,14 @@ export const SupplierGrantCommandReceiptContract = z
     actor_subject: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     expected_version: z.number().int().min(1).max(9007199254740990),
     operation: z.enum(["approve", "reject", "suspend"]),
     reason: z
       .string()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     grant: SupplierGrantContract,
     created_at: z.string().datetime({ offset: true }),
@@ -210,24 +210,24 @@ export const PartnerShipmentOrderContract = z
     terms_sha256: z
       .string()
       .min(1)
-      .max(64)
+      .max(64, "Use at most 64 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     purchase_order_reference: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     created_at: z.string().datetime({ offset: true }),
     source_organization_name: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .regex(new RegExp("^(?!\\s)(?!.*\\s$)[^\\p{Cc}]+$", "u"), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     source_location_name: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .regex(new RegExp("^(?!\\s)(?!.*\\s$)[^\\p{Cc}]+$", "u"), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
@@ -243,30 +243,30 @@ export const PartnerShipmentContract = z
     terms_sha256: z
       .string()
       .min(1)
-      .max(64)
+      .max(64, "Use at most 64 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     order_id: identifier,
     purchase_order_reference: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     product_description: z
       .string()
       .min(1)
-      .max(2000)
+      .max(2000, "Use at most 2000 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     unit_code: z
       .string()
       .min(1)
-      .max(100)
+      .max(100, "Use at most 100 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     pack_size: z.number().int().min(1).max(1000000000),
     quantity_units: z.number().int().min(1).max(1000000000),
     lot_number: z
       .string()
       .min(1)
-      .max(100)
+      .max(100, "Use at most 100 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     expires_on: z
       .string()
@@ -276,19 +276,19 @@ export const PartnerShipmentContract = z
     handoff_reference: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     dispatched_at: z.string().datetime({ offset: true }),
     source_organization_name: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .regex(new RegExp("^(?!\\s)(?!.*\\s$)[^\\p{Cc}]+$", "u"), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     source_location_name: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .regex(new RegExp("^(?!\\s)(?!.*\\s$)[^\\p{Cc}]+$", "u"), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
@@ -303,18 +303,18 @@ export const PartnerShipmentSourceContract = z
     terms_sha256: z
       .string()
       .min(64)
-      .max(64)
+      .max(64, "Use at most 64 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     source_organization_name: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .regex(new RegExp("^(?!\\s)(?!.*\\s$)[^\\p{Cc}]+$", "u"), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     source_location_name: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .regex(new RegExp("^(?!\\s)(?!.*\\s$)[^\\p{Cc}]+$", "u"), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
@@ -329,7 +329,7 @@ export const SupplierShipmentGrantCandidateContract = z
     terms_sha256: z
       .string()
       .min(64)
-      .max(64)
+      .max(64, "Use at most 64 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     recipient_kind: z.enum(["subject", "group"]),
     created_at: z.string().datetime({ offset: true }),

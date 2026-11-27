@@ -875,7 +875,6 @@ function ConcernForm({
               <textarea
                 id="safety-reason"
                 rows={3}
-                maxLength={500}
                 {...form.register("reason")}
                 aria-invalid={!!form.formState.errors.reason}
                 aria-describedby={

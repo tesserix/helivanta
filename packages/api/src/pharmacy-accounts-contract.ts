@@ -31,18 +31,18 @@ export const AcquisitionReceiptContract = z
     currency: z
       .string()
       .min(3)
-      .max(3)
+      .max(3, "Use at most 3 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     unit_code: z
       .string()
       .min(1)
-      .max(40)
+      .max(40, "Use at most 40 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     quantity_units: z.number().int().min(1).max(1000000000),
     source_reference: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     payable_id: identifier.optional(),
     supplier: AcquisitionSupplierContract.optional(),
@@ -63,7 +63,7 @@ export const PayableReceiptMetadataContract = z
     actor_subject: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     created_at: z.string().datetime({ offset: true }),
   })

@@ -11,7 +11,7 @@ export const WholesaleReceiptInputContract = z
     lot_number: z
       .string()
       .min(1)
-      .max(100)
+      .max(100, "Use at most 100 characters.")
       .regex(new RegExp("^(?!\\s)(?!.*\\s$)[^\\p{Cc}]+$", "u"), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     expires_on: z
@@ -26,20 +26,20 @@ export const WholesaleReceiptInputContract = z
     unit_code: z
       .string()
       .min(1)
-      .max(40)
+      .max(40, "Use at most 40 characters.")
       .regex(new RegExp("^[a-z][a-z0-9._-]{0,39}$", "u"), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     quantity_units: z.number().int().min(1).max(9007199254740991),
     source_reference: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .regex(new RegExp("^(?!\\s)(?!.*\\s$)[^\\p{Cc}]+$", "u"), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     reason: z
       .string()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .regex(new RegExp("^(?!\\s)(?!.*\\s$)[^\\p{Cc}]+$", "u"), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
@@ -74,7 +74,7 @@ export const WholesaleIdentityInputContract = z
     reason: z
       .string()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .regex(new RegExp("^(?!\\s)(?!.*\\s$)[^\\p{Cc}]+$", "u"), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
@@ -110,7 +110,7 @@ export const WholesaleQualityInputContract = z
     reason: z
       .string()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .regex(new RegExp("^(?!\\s)(?!.*\\s$)[^\\p{Cc}]+$", "u"), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
@@ -131,7 +131,7 @@ export const WholesaleQualityDecisionContract = z
     actor_subject: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     created_at: z.string().datetime({ offset: true }),
   })

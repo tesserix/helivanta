@@ -1,7 +1,8 @@
-import { screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
-import { PayableForm } from "./payable-forms";
+import type { PharmacyPayableDetail } from "@helivanta/api";
+import { PayableForm, SettlementForm } from "./payable-forms";
 const id = (n: number) => `0199e000-0000-7000-8000-${String(n).padStart(12, "0")}`;
 const scope = { tenantId: id(1), pharmacyId: id(2), outletId: id(3) };
 const receipt = {
@@ -130,3 +131,61 @@ it("freezes a lost bill response and recovers the committed original without ano
   expect(requests.map((x) => x.method)).toEqual(["PUT", "GET"]);
   expect(requests[0].url).toBe(requests[1].url);
 });
+it("refuses an overlong bill field inline and sends no write", async () => {
+  const { user, fetcher } = setup();
+  fireEvent.change(screen.getByLabelText("Payee name"), { target: { value: "x".repeat(201) } });
+  fireEvent.change(screen.getByLabelText("Document reference"), {
+    target: { value: "x".repeat(101) },
+  });
+  fireEvent.change(screen.getByLabelText("Description 1"), { target: { value: "x".repeat(501) } });
+  await user.click(screen.getByRole("button", { name: "Save bill or expense" }));
+  expect(await screen.findAllByText(/200 characters/)).not.toHaveLength(0);
+  expect(screen.getAllByText(/100 characters/)).not.toHaveLength(0);
+  expect(screen.getAllByText(/500 characters/)).not.toHaveLength(0);
+  expect(screen.getByLabelText("Payee name")).toHaveValue("x".repeat(201));
+  expect(wrote(fetcher)).toBe(false);
+});
+it("refuses overlong settlement fields inline and records nothing", async () => {
+  const fetcher = vi.fn(async (url: string) =>
+    url.endsWith("/permissions")
+      ? new Response(
+          JSON.stringify({
+            tenant_id: scope.tenantId,
+            subject: "TEST-finance",
+            data: ["pharmacy.accounts.read", "pharmacy.accounts.payment"],
+          }),
+        )
+      : new Response("{}", { status: 403 }),
+  );
+  vi.stubGlobal("fetch", fetcher);
+  const { user } = renderWithProviders(
+    <SettlementForm
+      scope={scope}
+      doc={
+        {
+          id: id(20),
+          currency: "INR",
+          outstanding_minor: 10000,
+        } as unknown as PharmacyPayableDetail
+      }
+      payments={[]}
+    />,
+  );
+  fireEvent.change(await screen.findByLabelText(/Paid by|Responsible person/), {
+    target: { value: "x".repeat(201) },
+  });
+  fireEvent.change(screen.getByLabelText("Settlement reference"), {
+    target: { value: "x".repeat(101) },
+  });
+  fireEvent.change(screen.getByLabelText("Reason / evidence note"), {
+    target: { value: "x".repeat(501) },
+  });
+  await user.click(screen.getByRole("button", { name: "Save settlement" }));
+  expect(await screen.findByText("Use at most 200 characters.")).toBeVisible();
+  expect(screen.getByText("Use at most 100 characters.")).toBeVisible();
+  expect(screen.getByText("Use at most 500 characters.")).toBeVisible();
+  expect(wrote(fetcher)).toBe(false);
+});
+function wrote(fetcher: { mock: { calls: unknown[][] } }) {
+  return fetcher.mock.calls.some(([, init]) => (init as RequestInit | undefined)?.method === "PUT");
+}

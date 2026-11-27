@@ -336,7 +336,7 @@ export function PharmacyBindingCommand({
             label={proposal ? "Proposal reason" : "Decision reason"}
             error={form.formState.errors.reason?.message}
           >
-            <Input id={prefix + "-reason"} maxLength={500} {...form.register("reason")} />
+            <Input id={prefix + "-reason"} {...form.register("reason")} />
           </Field>
           {approval && (
             <Field

@@ -11,7 +11,7 @@ export const StaffActorHospitalChoiceContract = z
       .string()
       .trim()
       .min(1)
-      .max(150)
+      .max(150, "Use at most 150 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
   .strict();

@@ -607,3 +607,25 @@ it("clears private command fields when current command access is denied", async 
   expect(screen.queryByDisplayValue("Synthetic protected rationale")).not.toBeInTheDocument();
   expect(cutoff).toHaveBeenCalledTimes(1);
 });
+
+it("shows an inline error for an overlong proposal reason and sends nothing", async () => {
+  const fetch = vi.fn(async () => Response.json(page([department])));
+  vi.stubGlobal("fetch", fetch);
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <PharmacyBindingCommand
+        scope={scope}
+        intent={{ kind: "proposal", replacement: null }}
+        onBusy={() => {}}
+        onCompleted={() => {}}
+        onContextChanged={() => {}}
+      />
+    </NavigationGuardProvider>,
+  );
+  await screen.findByLabelText("Department");
+  await user.click(screen.getByLabelText("Proposal reason"));
+  await user.paste("x".repeat(501));
+  await user.click(screen.getByRole("button", { name: "Record relationship proposal" }));
+  expect(await screen.findByText(/500 characters/)).toBeInTheDocument();
+  expect(fetch).toHaveBeenCalledTimes(1);
+});

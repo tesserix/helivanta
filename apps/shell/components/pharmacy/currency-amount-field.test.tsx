@@ -62,3 +62,20 @@ it("starts empty when no amount is known yet, rather than offering zero", async 
   await user.type(screen.getByLabelText("Amount (INR)"), "125");
   expect(entered.at(-1)).toBe(12500);
 });
+it("keeps an overlong pasted amount as typed and reports it invalid instead of truncating it", async () => {
+  const entered: number[] = [];
+  const user = userEvent.setup();
+  render(
+    <CurrencyAmountField
+      id="long"
+      label="Amount"
+      currency="INR"
+      initialMinor={null}
+      onChange={(minor) => entered.push(minor)}
+    />,
+  );
+  await user.click(screen.getByLabelText("Amount (INR)"));
+  await user.paste("1".repeat(25));
+  expect(screen.getByLabelText("Amount (INR)")).toHaveValue("1".repeat(25));
+  expect(entered.at(-1)).toBeNaN();
+});

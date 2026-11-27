@@ -179,25 +179,21 @@ export function PayableForm({
             label="Payee name"
             error={form.formState.errors.payee_name?.message}
           >
-            <Input id="payee-name" {...form.register("payee_name")} maxLength={200} />
+            <Input id="payee-name" {...form.register("payee_name")} />
           </Field>
           <Field
             id="payee-reference"
             label="Payee reference"
             error={form.formState.errors.payee_reference?.message}
           >
-            <Input id="payee-reference" {...form.register("payee_reference")} maxLength={100} />
+            <Input id="payee-reference" {...form.register("payee_reference")} />
           </Field>
           <Field
             id="payable-reference"
             label="Document reference"
             error={form.formState.errors.document_reference?.message}
           >
-            <Input
-              id="payable-reference"
-              {...form.register("document_reference")}
-              maxLength={100}
-            />
+            <Input id="payable-reference" {...form.register("document_reference")} />
           </Field>
           <Field
             id="payable-issued"
@@ -273,7 +269,6 @@ export function PayableForm({
                     <Input
                       id={`payable-description-${index}`}
                       {...form.register(`lines.${index}.description`)}
-                      maxLength={500}
                     />
                   </Field>
                 </div>
@@ -682,7 +677,7 @@ export function PayableHistory({
     </div>
   );
 }
-function SettlementForm({
+export function SettlementForm({
   scope,
   doc,
   payments,
@@ -763,7 +758,7 @@ function SettlementForm({
             label={kind === "payment" ? "Paid by" : "Responsible person"}
             error={form.formState.errors.paid_by?.message}
           >
-            <Input id="settlement-payer" {...form.register("paid_by")} maxLength={200} />
+            <Input id="settlement-payer" {...form.register("paid_by")} />
           </Field>
           <FormSelectField
             control={form.control}
@@ -780,11 +775,7 @@ function SettlementForm({
             label="Settlement reference"
             error={form.formState.errors.source_reference?.message}
           >
-            <Input
-              id="settlement-reference"
-              {...form.register("source_reference")}
-              maxLength={100}
-            />
+            <Input id="settlement-reference" {...form.register("source_reference")} />
           </Field>
           <Field
             id="settlement-date"
@@ -832,7 +823,7 @@ function SettlementForm({
               label="Reason / evidence note"
               error={form.formState.errors.reason?.message}
             >
-              <Input id="settlement-reason" {...form.register("reason")} maxLength={500} />
+              <Input id="settlement-reason" {...form.register("reason")} />
             </Field>
           </div>
         </fieldset>

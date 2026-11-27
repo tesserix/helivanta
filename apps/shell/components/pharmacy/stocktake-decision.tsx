@@ -232,12 +232,7 @@ export function StocktakeDecision({
         label="Decision reason"
         error={form.formState.errors.reason?.message}
       >
-        <Input
-          id="stocktake-decision-reason"
-          maxLength={500}
-          {...form.register("reason")}
-          disabled={locked}
-        />
+        <Input id="stocktake-decision-reason" {...form.register("reason")} disabled={locked} />
       </Field>
       {stale && (
         <p role="status">

@@ -221,6 +221,23 @@ describe("Returns", () => {
     });
   });
 
+  it("refuses a refund reference over 64 characters inline without issuing", async () => {
+    const fetcher = fixture();
+    const { user } = renderWithProviders(<Returns scope={scope} canReturn />);
+    await user.click(await screen.findByRole("button", { name: "Return from TS/2627/1" }));
+    await user.type(await screen.findByLabelText("Units returned on line 1"), "3");
+    await user.type(screen.getByLabelText("Refunded to"), "TEST Ravi Kumar");
+    await user.type(screen.getByLabelText("Their address"), "TEST 4 Station Road");
+    await user.type(screen.getByLabelText("Reason"), "TEST prescription changed");
+    await chooseOption(user, screen.getByLabelText("Quarantine location"), /TEST-Q/);
+    await chooseOption(user, screen.getByLabelText("Refund by"), /UPI/);
+    await user.click(screen.getByLabelText("Refund reference"));
+    await user.paste("r".repeat(65));
+    await user.click(screen.getByRole("button", { name: "Issue credit note" }));
+    expect(await screen.findByText("At most 64 characters")).toBeVisible();
+    expect(fetcher.mock.calls.some(([, init]) => init?.method === "PUT")).toBe(false);
+  });
+
   it("lets a reader see invoices but not take a return", async () => {
     fixture();
     const { user } = renderWithProviders(<Returns scope={scope} canReturn={false} />);

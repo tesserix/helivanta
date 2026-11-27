@@ -299,3 +299,44 @@ it("asks again for posting drafts after an outage", async () => {
   await user.click(screen.getByRole("button", { name: "Try again" }));
   await vi.waitFor(() => expect(fetcher.mock.calls.length).toBeGreaterThan(reads));
 });
+
+it("shows an inline error for an overlong posting reason and sends nothing", async () => {
+  const writes: string[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (init?.method === "PUT") writes.push(url);
+      if (url.endsWith("posting-draft-source"))
+        return Response.json({
+          hospital_id: scope.hospitalId,
+          staff_id: scope.staffId,
+          staff_version: 1,
+          employment_epoch: 1,
+        });
+      return Response.json({
+        data: url.includes("/organization/") ? [department] : [],
+        page: { has_more: false, next_cursor: null },
+      });
+    }),
+  );
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <StaffPostingDraftPanel
+        scope={scope}
+        staffLabel="Synthetic Applicant"
+        canManage
+        onClose={() => {}}
+      />
+    </NavigationGuardProvider>,
+  );
+  await user.click(await screen.findByRole("button", { name: "Prepare posting draft" }));
+  const form = screen.getByRole("form", { name: "Posting preparation" });
+  await user.click(await within(form).findByLabelText("Department or sub-unit"));
+  await user.click(await screen.findByRole("option", { name: "PHARMA · Synthetic Pharmacy" }));
+  await user.type(within(form).getByLabelText("Start (UTC)"), "2027-01-01T00:00");
+  await user.click(within(form).getByLabelText("Reason"));
+  await user.paste("x".repeat(501));
+  await user.click(within(form).getByRole("button", { name: "Save posting draft" }));
+  expect(await within(form).findByText(/500 characters/)).toBeInTheDocument();
+  expect(writes).toHaveLength(0);
+});

@@ -272,7 +272,6 @@ export function SupplierCreditApplicationForm({
                     <Input
                       id="credit-application-reason"
                       {...form.register("reason")}
-                      maxLength={500}
                       disabled={command.busy}
                     />
                   </Field>

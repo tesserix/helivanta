@@ -14,7 +14,7 @@ export const StaffDepartmentBindingProposalInputContract = z
       .string()
       .trim()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
   .strict()
@@ -39,7 +39,7 @@ export const StaffDepartmentBindingCommandInputContract = z
       .string()
       .trim()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     attest_department_responsibility: z.boolean(),
   })
@@ -70,7 +70,7 @@ export const StaffDepartmentBindingContract = z
       .string()
       .trim()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     status: z.enum(["pending", "approved", "rejected", "withdrawn", "ended"]),
     version: z.number().int().min(1).max(9007199254740990),
@@ -78,7 +78,7 @@ export const StaffDepartmentBindingContract = z
       .string()
       .trim()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     proposer_staff_id: identifier,
     created_at: z.string().datetime({ offset: true }),
@@ -86,7 +86,7 @@ export const StaffDepartmentBindingContract = z
       .string()
       .trim()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters.")
       .nullable(),
     reviewer_staff_id: identifier.nullable(),
@@ -94,7 +94,7 @@ export const StaffDepartmentBindingContract = z
       .string()
       .trim()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters.")
       .nullable(),
     decided_at: z.string().datetime({ offset: true }).nullable(),
@@ -139,13 +139,13 @@ export const StaffDepartmentBindingCommandReceiptContract = z
       .string()
       .trim()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     actor_subject: z
       .string()
       .trim()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     actor_staff_id: identifier,
     recorded_at: z.string().datetime({ offset: true }),
@@ -168,7 +168,7 @@ export const StaffDepartmentBindingHistoryEntryContract = z
     actor_subject: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     action: z.enum(["read", "propose", "approve", "reject", "withdraw", "end"]),
     command_id: identifier.nullable(),
@@ -192,13 +192,13 @@ export const StaffBindingOutletChoiceContract = z
       .string()
       .trim()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     outlet_name: z
       .string()
       .trim()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
   .strict();
@@ -217,25 +217,25 @@ export const HospitalStocktakeOutletChoiceContract = z
     pharmacy_name: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes(String.fromCharCode(0)), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     outlet_name: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes(String.fromCharCode(0)), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     outlet_code: z
       .string()
       .min(1)
-      .max(40)
+      .max(40, "Use at most 40 characters.")
       .refine((value) => !value.includes(String.fromCharCode(0)), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     time_zone: z
       .string()
       .min(1)
-      .max(64)
+      .max(64, "Use at most 64 characters.")
       .refine((value) => !value.includes(String.fromCharCode(0)), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     country_code: z.enum(["IN"]),
@@ -254,13 +254,13 @@ export const HospitalStocktakeDepartmentChoiceContract = z
       .string()
       .trim()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     department_code: z
       .string()
       .trim()
       .min(1)
-      .max(40)
+      .max(40, "Use at most 40 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
   .strict();

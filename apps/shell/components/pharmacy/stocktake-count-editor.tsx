@@ -151,7 +151,6 @@ export function StocktakeCountEditor({
         <Input
           id="stocktake-quantity"
           inputMode="numeric"
-          maxLength={13}
           {...form.register("counts.0.counted_units")}
           disabled={busy || attempt !== null || stale || saved}
         />
@@ -163,7 +162,6 @@ export function StocktakeCountEditor({
       >
         <Input
           id="stocktake-count-reason"
-          maxLength={500}
           {...form.register("reason")}
           disabled={busy || attempt !== null || stale || saved}
         />

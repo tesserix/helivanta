@@ -239,6 +239,16 @@ it("refuses a name Tally would not match before asking the server", async () => 
   expect(state.puts).toEqual([]);
 });
 
+it("refuses a ledger name over 100 characters inline and sends nothing", async () => {
+  const state = serve();
+  const { user } = render();
+  fireEvent.change(await screen.findByLabelText("Counter cash"), {
+    target: { value: "x".repeat(101) },
+  });
+  await user.click(screen.getByRole("button", { name: "Save ledger names" }));
+  expect(await screen.findByText("Use at most 100 characters.")).toBeVisible();
+  expect(state.puts).toEqual([]);
+});
 it("retries an unanswered save under the same map id, so it can replay", async () => {
   let fail = true;
   const state = serve({

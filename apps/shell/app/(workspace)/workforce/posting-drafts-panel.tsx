@@ -419,7 +419,7 @@ function PostingEditor({
               : undefined
           }
         >
-          <Input id="posting-reason" maxLength={500} {...form.register("reason")} />
+          <Input id="posting-reason" {...form.register("reason")} />
         </Field>
       </fieldset>
       {departments.isError && (

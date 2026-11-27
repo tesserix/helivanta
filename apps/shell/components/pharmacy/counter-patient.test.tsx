@@ -154,6 +154,18 @@ describe("CounterPatientLookup", () => {
     expect(lookups(fetcher)).toHaveLength(0);
   });
 
+  it("refuses an MRN over 64 characters with an inline error and no lookup", async () => {
+    const fetcher = stub([link("verified")], () => new Response("{}"));
+    const { user } = renderWithProviders(
+      <CounterPatientLookup scope={scope} value={null} onChange={vi.fn()} />,
+    );
+    await user.click(await screen.findByLabelText("MRN"));
+    await user.paste("9".repeat(65));
+    await user.click(screen.getByRole("button", { name: "Find patient" }));
+    expect(await screen.findByText("At most 64 characters")).toBeInTheDocument();
+    expect(lookups(fetcher)).toHaveLength(0);
+  });
+
   it("says when it could not check the hospitals, rather than that none verified", async () => {
     stub([], () => new Response("{}"));
     vi.stubGlobal(

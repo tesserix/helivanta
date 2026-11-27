@@ -47,6 +47,29 @@ it("configures a minimum through the narrow product choices while the general ca
   expect(await screen.findByRole("textbox", { name: "Minimum (capsule)" })).toBeVisible();
   expect(fetch.mock.calls.some(([url]) => url.includes("/catalogue/reorder-products"))).toBe(true);
 });
+it("shows an inline error and sends no write for a minimum over 1,000,000,000", async () => {
+  const fetch = vi.fn(async (url: string) => {
+    if (url.includes("/catalogue/reorder-products")) return json(page([product]));
+    if (url.endsWith("/reorder-level")) return json({ level: null });
+    if (url.includes("/stock/low-products")) return json(page([]));
+    return json({ error: "feature_unavailable" }, 404);
+  });
+  vi.stubGlobal("fetch", fetch);
+  const { user } = renderPanel(true);
+  await user.click(await screen.findByRole("combobox", { name: "Product" }));
+  await user.click(await screen.findByRole("option", { name: "TEST Medicine · TEST-MED" }));
+  // Enable first: a disabled input drops the paste, which would test an empty value instead.
+  const enable = await screen.findByRole("checkbox", { name: "Enable low-stock warning" });
+  if (!(enable as HTMLInputElement).checked) await user.click(enable);
+  const minimum = screen.getByRole("textbox", { name: "Minimum (capsule)" });
+  await user.clear(minimum);
+  await user.click(minimum);
+  await user.paste("12345678901");
+  expect(minimum).toHaveValue("12345678901");
+  await user.click(screen.getByRole("button", { name: "Save reorder level" }));
+  expect(await screen.findByText("Enter a whole number from 0 to 1,000,000,000.")).toBeVisible();
+  expect(fetch.mock.calls.some(([, init]) => init?.method === "PUT")).toBe(false);
+});
 it("keeps unavailable stock distinct from an empty list and never fetches configuration for a reader", async () => {
   const fetch = vi.fn().mockResolvedValue(json({ error: "unavailable" }, 503));
   vi.stubGlobal("fetch", fetch);

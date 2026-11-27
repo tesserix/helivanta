@@ -451,7 +451,7 @@ export const StaffPostingCutoffInputContract = z
       .string()
       .trim()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     sources_examined: z
       .boolean()
@@ -478,7 +478,7 @@ export const StaffPostingCutoffContract = z
       .string()
       .trim()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     sources_examined: z
       .boolean()
@@ -501,7 +501,7 @@ export const StaffPostingDraftInputContract = z
       .string()
       .trim()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
   .strict()
@@ -536,7 +536,7 @@ export const StaffPostingHospitalScopeContract = z
     name: z
       .string()
       .min(1)
-      .max(150)
+      .max(150, "Use at most 150 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     can_prepare: z.boolean(),
   })
@@ -549,12 +549,12 @@ export const StaffPostingTargetContract = z
     employee_code: z
       .string()
       .min(1)
-      .max(40)
+      .max(40, "Use at most 40 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     display_name: z
       .string()
       .min(1)
-      .max(150)
+      .max(150, "Use at most 150 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
   .strict();
@@ -584,7 +584,7 @@ export const StaffPostingProposalInputContract = z
       .string()
       .trim()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     sources_examined: z
       .boolean()
@@ -643,7 +643,7 @@ export const StaffPostingDecisionInputContract = z
       .string()
       .trim()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     sources_examined: z
       .boolean()
@@ -684,7 +684,7 @@ export const StaffPostingReviewHospitalScopeContract = z
     name: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     can_submit: z.boolean(),
     can_review: z.boolean(),
@@ -718,19 +718,19 @@ export const StaffPostingProposalContextContract = z
     draft_reason: z
       .string()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .regex(new RegExp("^[^\\p{Cc}]+$", "u"), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     submission_reason: z
       .string()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .regex(new RegExp("^[^\\p{Cc}]+$", "u"), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     decision_reason: z
       .string()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .regex(new RegExp("^[^\\p{Cc}]+$", "u"), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters.")
       .nullable(),
@@ -798,7 +798,7 @@ export const StaffPostingCutoffHospitalScopeContract = z
     name: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
   .strict();

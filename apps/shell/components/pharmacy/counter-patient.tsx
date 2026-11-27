@@ -160,7 +160,6 @@ function LookupForm({
         <Field id="patient-mrn" label="MRN" error={form.formState.errors.mrn?.message}>
           <Input
             id="patient-mrn"
-            maxLength={64}
             autoComplete="off"
             {...form.register("mrn")}
             onKeyDown={(event) => {

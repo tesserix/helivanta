@@ -11,7 +11,7 @@ export const PharmacyEmployerContract = z
       .string()
       .trim()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     ownership_type: z.enum(["independent", "chain"]),
     created_at: z.string().datetime({ offset: true }),
@@ -26,14 +26,14 @@ export const PharmacyStaffContract = z
     employee_code: z
       .string()
       .min(1)
-      .max(40)
+      .max(40, "Use at most 40 characters.")
       .regex(new RegExp("^[A-Za-z0-9_-]{1,40}$", "u"), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     display_name: z
       .string()
       .trim()
       .min(1)
-      .max(150)
+      .max(150, "Use at most 150 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     job_category: z.enum([
       "doctor",
@@ -57,7 +57,7 @@ export const PharmacyAccessContract = z
     subject: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     level: z.enum(["reader", "manager"]),
   })
@@ -71,7 +71,7 @@ export const PharmacyStaffSourceContract = z
       .string()
       .trim()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     access_level: z.enum(["reader", "manager"]),
     created_at: z.string().datetime({ offset: true }),
@@ -86,7 +86,7 @@ export const SupplierEmployerContract = z
       .string()
       .trim()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     source_version: z.number().int().min(1).max(9007199254740991),
     created_at: z.string().datetime({ offset: true }),
@@ -101,14 +101,14 @@ export const SupplierStaffContract = z
     employee_code: z
       .string()
       .min(1)
-      .max(40)
+      .max(40, "Use at most 40 characters.")
       .regex(new RegExp("^[A-Za-z0-9_-]{1,40}$", "u"), "Use a valid identifier.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     display_name: z
       .string()
       .trim()
       .min(1)
-      .max(150)
+      .max(150, "Use at most 150 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     job_category: z.enum([
       "doctor",
@@ -132,7 +132,7 @@ export const SupplierAccessContract = z
     subject: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     level: z.enum(["reader", "manager"]),
   })
@@ -146,7 +146,7 @@ export const SupplierStaffSourceContract = z
       .string()
       .trim()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     access_level: z.enum(["reader", "manager"]),
     created_at: z.string().datetime({ offset: true }),

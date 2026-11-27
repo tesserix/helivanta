@@ -28,7 +28,7 @@ export const credentialReviewInputContract = z
       .string()
       .trim()
       .min(1)
-      .max(100)
+      .max(100, "Use at most 100 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     valid_from: z
       .string()
@@ -45,7 +45,7 @@ export const credentialReviewInputContract = z
       .string()
       .trim()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
   .strict();
@@ -58,7 +58,7 @@ export const credentialDecisionInputContract = z
     note: z
       .string()
       .trim()
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
   .strict();
@@ -69,7 +69,7 @@ export const credentialWithdrawInputContract = z
     note: z
       .string()
       .trim()
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
   .strict();
@@ -242,7 +242,7 @@ export const pharmacyTimeZoneInputContract = z
     time_zone: z
       .string()
       .min(1)
-      .max(64)
+      .max(64, "Use at most 64 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
   .strict();

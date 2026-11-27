@@ -159,6 +159,19 @@ describe("Receiving shows the chosen lot beside the chooser (#1303 E4)", () => {
     expect(leftTo).not.toHaveBeenCalled();
   });
 
+  it("refuses a 33-character storage code inline without creating the location", async () => {
+    mockReceiving();
+    const { user } = renderReceiving();
+    await user.type(await screen.findByLabelText("Location code"), "TEST-NEW");
+    await user.type(screen.getByLabelText("Location name"), "TEST New bin");
+    await user.click(screen.getByLabelText("Zone code (optional)"));
+    await user.paste("Z".repeat(33));
+    await user.click(screen.getByRole("button", { name: "Add location" }));
+    expect(await screen.findByText("Use the required format.")).toBeVisible();
+    const fetched = (globalThis.fetch as unknown as ReturnType<typeof vi.fn>).mock.calls;
+    expect(fetched.some(([, init]) => init?.method === "PUT")).toBe(false);
+  });
+
   // Review Important 1: a lot that is not the chosen product's must never get
   // a live movement form; a movement names only the location and the lot.
   it("refuses a lot in the address that is not one of the chosen product's lots", async () => {

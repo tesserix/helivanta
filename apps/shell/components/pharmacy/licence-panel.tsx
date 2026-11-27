@@ -535,7 +535,6 @@ function LicenceReview({
       >
         <Input
           id={`licence-reason-${licence}`}
-          maxLength={500}
           disabled={!ready || review.isPending}
           {...form.register("reason")}
         />

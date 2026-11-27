@@ -232,6 +232,20 @@ it("retries an ambiguous write with the same identity and exact submitted payloa
   expect(screen.getByLabelText("Reason and observed evidence")).toHaveValue("");
 });
 
+it("shows an inline error and sends nothing for a reason over 500 characters", async () => {
+  const fetcher = fixture({ save: () => new Response(JSON.stringify(incident)) });
+  const { user } = renderWithProviders(<BatchSafety scope={scope} />);
+  await selectBatch(user);
+  await user.click(await screen.findByLabelText("Reason and observed evidence"));
+  await user.paste("r".repeat(501));
+  fireEvent.change(screen.getByLabelText("Occurred at (UTC)"), {
+    target: { value: "2026-10-17T09:30" },
+  });
+  await user.click(screen.getByRole("button", { name: "Record safety concern" }));
+  expect(await screen.findAllByText("Use at most 500 characters.")).not.toHaveLength(0);
+  expect(fetcher.mock.calls.filter(([, init]) => init?.method === "PUT")).toHaveLength(0);
+});
+
 it("allows read-only auditors to inspect concerns without a write form", async () => {
   const fetcher = fixture({ permissions: ["pharmacy.stock.read"] });
   const { user } = renderWithProviders(<BatchSafety scope={scope} />);

@@ -542,3 +542,24 @@ it("keeps replacement recovery available after closing when new writes are withd
   ).toBeInTheDocument();
   expect(sessionStorage.length).toBe(0);
 });
+it("refuses an overlong credit reference and reason inline without sending a write", async () => {
+  const fetcher = vi.fn<typeof fetch>(
+    async () =>
+      new Response(
+        JSON.stringify({ data: [source], page: { has_more: false, next_cursor: null } }),
+      ),
+  );
+  vi.stubGlobal("fetch", fetcher);
+  const { user } = render(<SupplierCreditRecord scope={scope} canRecord />);
+  await enterCredit(user);
+  fireEvent.change(screen.getByLabelText("Supplier credit reference"), {
+    target: { value: "x".repeat(101) },
+  });
+  fireEvent.change(screen.getByLabelText("Credit record reason"), {
+    target: { value: "x".repeat(501) },
+  });
+  await user.click(screen.getByRole("button", { name: "Save supplier credit" }));
+  expect(await screen.findByText("Use at most 100 characters.")).toBeVisible();
+  expect(screen.getByText("Use at most 500 characters.")).toBeVisible();
+  expect(fetcher.mock.calls.some(([, options]) => options?.method === "PUT")).toBe(false);
+});

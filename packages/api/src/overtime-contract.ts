@@ -78,7 +78,7 @@ export const overtimeRequestInputContract = z
       .string()
       .trim()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
   .strict();
@@ -92,7 +92,7 @@ export const overtimeDecisionInputContract = z
     note: z
       .string()
       .trim()
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
   .strict();
@@ -104,7 +104,7 @@ export const overtimeCancelInputContract = z
     note: z
       .string()
       .trim()
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
   .strict();

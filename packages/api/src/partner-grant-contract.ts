@@ -24,7 +24,7 @@ export const PartnerGrantDraftInputContract = z
     recipient_subject: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters.")
       .optional(),
     template_key: z.enum([
@@ -39,7 +39,7 @@ export const PartnerGrantDraftInputContract = z
     reason: z
       .string()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
   .strict()
@@ -145,7 +145,7 @@ export const PartnerGrantDraftContract = z
     prepared_by: z
       .string()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     created_at: z.string().datetime({ offset: true }),
   })

@@ -27,6 +27,8 @@ export function DrugCataloguePicker({
   onStateChange?: FormState;
 }) {
   const [query, setQuery] = useState("");
+  // The backend refuses a query over 200 characters (drugmaster/catalogue.go SearchCatalogue).
+  const tooLong = query.trim().length > 200;
   const input = useRef<HTMLInputElement>(null);
   useEffect(() => {
     input.current?.focus();
@@ -66,8 +68,10 @@ export function DrugCataloguePicker({
     <Panel className="mb-6 space-y-4">
       <h3 className="font-semibold">Add from the medicine master</h3>
       <form
+        noValidate
         onSubmit={(event) => {
           event.preventDefault();
+          if (tooLong) return;
           setSelection(null);
           search.reset();
           add.reset();
@@ -75,12 +79,15 @@ export function DrugCataloguePicker({
         }}
         className="flex items-end gap-3"
       >
-        <Field id="master-query" label="Medicine name, composition or barcode">
+        <Field
+          id="master-query"
+          label="Medicine name, composition or barcode"
+          error={tooLong ? "At most 200 characters" : undefined}
+        >
           <Input
             id="master-query"
             ref={input}
             value={query}
-            maxLength={200}
             onChange={(event) => setQuery(event.target.value)}
           />
         </Field>

@@ -33,7 +33,7 @@ export const salaryHeadInputContract = z
       .string()
       .trim()
       .min(1, "Enter a name.")
-      .max(80)
+      .max(80, "Use at most 80 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     active: z.boolean(),
     basis: z.enum(["fixed", "percent"]),
@@ -54,7 +54,7 @@ export const salaryHeadInputContract = z
     tax_note: z
       .string()
       .trim()
-      .max(300)
+      .max(300, "Use at most 300 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters.")
       .optional(),
     wage_class: z.enum(["wages", "excluded", "outside"]),
@@ -62,7 +62,7 @@ export const salaryHeadInputContract = z
       .string()
       .trim()
       .min(1, "Enter a name.")
-      .max(40)
+      .max(40, "Use at most 40 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     payslip_order: z.number().int().min(0).max(999),
     show_when_zero: z.boolean(),
@@ -142,12 +142,12 @@ export const salaryStructureInputContract = z
       .string()
       .trim()
       .min(1, "Enter a name.")
-      .max(80)
+      .max(80, "Use at most 80 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     description: z
       .string()
       .trim()
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     active: z.boolean(),
     department_id: identifier.optional(),
@@ -319,7 +319,7 @@ export const statutoryPtParamsContract = z
       .string()
       .trim()
       .min(5)
-      .max(5)
+      .max(5, "Use at most 5 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     wage_basis: z.enum(["statutory_wages", "gross"]),
     cadence: z.enum(["monthly", "half_yearly", "annual"]),
@@ -349,7 +349,7 @@ export const statutoryLwfParamsContract = z
       .string()
       .trim()
       .min(5)
-      .max(5)
+      .max(5, "Use at most 5 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     wage_basis: z.enum(["statutory_wages", "gross"]),
     deduction_months: z.array(z.number().int()).max(12),
@@ -406,7 +406,7 @@ export const incomeTaxClaimGroupContract = z
       .string()
       .trim()
       .min(1, "Enter a name.")
-      .max(100)
+      .max(100, "Use at most 100 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     cap_paise: z.number().int().min(1).max(1000000000),
   })
@@ -425,7 +425,7 @@ export const incomeTaxClaimContract = z
       .string()
       .trim()
       .min(1, "Enter a name.")
-      .max(100)
+      .max(100, "Use at most 100 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     kind: z.enum(["deduction", "house_property_interest", "hra"]),
     cap_paise: z.number().int().min(1).max(1000000000).optional(),
@@ -450,7 +450,7 @@ export const incomeTaxParamsContract = z
       .string()
       .trim()
       .min(7)
-      .max(7)
+      .max(7, "Use at most 7 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     standard_deduction_paise: z.number().int().min(0).max(100000000),
     taxable_rounding_mode: z.enum(["nearest", "up", "down"]),
@@ -475,7 +475,7 @@ export const statutoryRuleInputContract = z
       .string()
       .trim()
       .min(1, "Enter a name.")
-      .max(80)
+      .max(80, "Use at most 80 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     covered: z.boolean(),
     effective_on: z
@@ -487,12 +487,12 @@ export const statutoryRuleInputContract = z
       .string()
       .trim()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     reference: z
       .string()
       .trim()
-      .max(300)
+      .max(300, "Use at most 300 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     pf: statutoryPfParamsContract.optional(),
     esi: statutoryEsiParamsContract.optional(),
@@ -563,7 +563,7 @@ export const statutoryDecisionInputContract = z
     note: z
       .string()
       .trim()
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
   .strict();
@@ -575,7 +575,7 @@ export const statutoryWithdrawInputContract = z
     note: z
       .string()
       .trim()
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
   .strict();
@@ -775,7 +775,7 @@ export const salaryAssignmentInputContract = z
       .string()
       .trim()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     amounts: z.array(salaryAssignmentAmountContract).max(60),
   })
@@ -868,7 +868,7 @@ export const taxRegimeInputContract = z
     note: z
       .string()
       .trim()
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
   .strict();
@@ -910,18 +910,18 @@ export const staffBankChangeContract = z
     action: z.enum(["keep", "set", "clear"]),
     account_number: z
       .string()
-      .max(18)
+      .max(18, "Use at most 18 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters.")
       .optional(),
     ifsc: z
       .string()
-      .max(11)
+      .max(11, "Use at most 11 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters.")
       .optional(),
     holder_name: z
       .string()
       .trim()
-      .max(150)
+      .max(150, "Use at most 150 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters.")
       .optional(),
   })
@@ -933,7 +933,7 @@ export const staffIdentifierChangeContract = z
     action: z.enum(["keep", "set", "clear"]),
     value: z
       .string()
-      .max(12)
+      .max(12, "Use at most 12 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters.")
       .optional(),
   })
@@ -947,7 +947,7 @@ export const staffIdentifiersInputContract = z
       .string()
       .trim()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     bank: staffBankChangeContract,
     pan: staffIdentifierChangeContract,
@@ -1021,7 +1021,7 @@ export const staffIdentifierRevealInputContract = z
       .string()
       .trim()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
   .strict();
@@ -1054,7 +1054,7 @@ export const taxDeclarationPanChangeContract = z
     action: z.enum(["keep", "set", "none"]),
     value: z
       .string()
-      .max(10)
+      .max(10, "Use at most 10 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters.")
       .optional(),
   })
@@ -1067,13 +1067,13 @@ export const taxDeclarationLandlordInputContract = z
       .string()
       .trim()
       .min(1, "Enter a name.")
-      .max(150)
+      .max(150, "Use at most 150 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     address: z
       .string()
       .trim()
       .min(1)
-      .max(300)
+      .max(300, "Use at most 300 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     rent_paise: z.number().int().min(1).max(1000000000),
     pan: taxDeclarationPanChangeContract,
@@ -1087,13 +1087,13 @@ export const taxDeclarationLenderInputContract = z
       .string()
       .trim()
       .min(1, "Enter a name.")
-      .max(150)
+      .max(150, "Use at most 150 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     address: z
       .string()
       .trim()
       .min(1)
-      .max(300)
+      .max(300, "Use at most 300 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     pan: taxDeclarationPanChangeContract,
   })
@@ -1123,7 +1123,7 @@ export const taxDeclarationInputContract = z
       .string()
       .trim()
       .min(1)
-      .max(500)
+      .max(500, "Use at most 500 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     claims: z.array(taxDeclarationClaimContract).max(24),
     hra: taxDeclarationHraInputContract.optional(),
@@ -1207,7 +1207,7 @@ export const taxDeclarationRevealInputContract = z
       .string()
       .trim()
       .min(1)
-      .max(200)
+      .max(200, "Use at most 200 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
   .strict();
@@ -1229,14 +1229,14 @@ export const taxEvidenceInputContract = z
     filename: z
       .string()
       .min(1)
-      .max(180)
+      .max(180, "Use at most 180 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     content_type: z.enum(["image/png", "image/jpeg"]),
     size: z.number().int().min(1).max(10485760),
     sha256: z
       .string()
       .min(64)
-      .max(64)
+      .max(64, "Use at most 64 characters.")
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
   })
   .strict();

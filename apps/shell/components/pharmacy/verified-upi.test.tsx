@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
 import type { PharmacyCounterPayment } from "@helivanta/api";
@@ -229,5 +229,24 @@ describe("VerifiedUpi", () => {
         }),
       }),
     );
+  });
+
+  it("refuses an overlong refund reference and reason inline without recording a refund", async () => {
+    const fetcher = stub({ status: "paid", rrn: "TEST-PAID" });
+    const { user } = renderWithProviders(
+      <VerifiedUpi scope={scope} amountMinor={68000} currency="INR" onPaid={vi.fn()} canRefund />,
+    );
+    await user.click(await screen.findByRole("button", { name: /Show UPI QR for/ }));
+    await screen.findByRole("button", { name: "Confirm the full refund was completed" });
+    fireEvent.change(screen.getByLabelText("Completed refund reference"), {
+      target: { value: "x".repeat(65) },
+    });
+    fireEvent.change(screen.getByLabelText("Refund reason"), {
+      target: { value: "x".repeat(201) },
+    });
+    await user.click(screen.getByRole("button", { name: "Confirm the full refund was completed" }));
+    expect(await screen.findByText("Use at most 64 characters.")).toBeVisible();
+    expect(screen.getByText("Use at most 200 characters.")).toBeVisible();
+    expect(fetcher.mock.calls.some(([url]) => url.endsWith("/refund"))).toBe(false);
   });
 });

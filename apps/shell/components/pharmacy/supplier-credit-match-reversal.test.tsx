@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { screen, within } from "@testing-library/react";
+import { fireEvent, screen, within } from "@testing-library/react";
 import { renderWithProviders as renderBase } from "@helivanta/api/testing";
 import { NavigationGuardProvider } from "@helivanta/ui";
 import type { ReactElement } from "react";
@@ -372,7 +372,7 @@ it("hides invalid current source evidence and never offers a financial command",
   expect(document.body).not.toHaveTextContent("TEST PRIVATE UNRELATED BILL");
   expect(document.body).not.toHaveTextContent("TEST initial attribution");
   expect(screen.queryByRole("button", { name: "Reverse full match" })).not.toBeInTheDocument();
-  expect(fetcher.mock.calls.some(([, options]) => options?.method === "PUT")).toBe(false);
+  expect(fetcher).toHaveBeenCalledTimes(1);
 });
 it("does not verify changed retained reversal intent after response loss", async () => {
   let committed: Record<string, unknown> | null = null;
@@ -414,4 +414,23 @@ it("does not verify changed retained reversal intent after response loss", async
   expect(await screen.findByText(/original reversal could not be verified/)).toBeInTheDocument();
   expect(screen.queryByText(/Return matching reversal verified/)).not.toBeInTheDocument();
   expect(sessionStorage.length).toBe(1);
+});
+it("refuses an overlong reversal reason inline without sending a write", async () => {
+  const fetcher = vi.fn(async () => new Response(JSON.stringify(context)));
+  vi.stubGlobal("fetch", fetcher);
+  const { user } = render(
+    <SupplierCreditMatchReversal
+      scope={scope}
+      credit={credit}
+      requested={{ id: match, sequence: 1 }}
+      canManage
+    />,
+  );
+  await screen.findByText(/Current return attribution across credits: INR 6.00/);
+  fireEvent.change(screen.getByLabelText("Reversal reason"), {
+    target: { value: "x".repeat(501) },
+  });
+  await user.click(screen.getByRole("button", { name: "Reverse full match" }));
+  expect(await screen.findByText("Use at most 500 characters.")).toBeVisible();
+  expect(fetcher).toHaveBeenCalledTimes(1);
 });

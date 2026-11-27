@@ -391,7 +391,7 @@ function ReturnFormFor({
                 label="Refund reference"
                 error={errors.reference?.message}
               >
-                <Input id="return-reference" maxLength={64} {...form.register("reference")} />
+                <Input id="return-reference" {...form.register("reference")} />
               </Field>
             )}
           </div>

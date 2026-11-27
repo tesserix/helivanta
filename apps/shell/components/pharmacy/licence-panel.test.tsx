@@ -149,6 +149,23 @@ describe("Pharmacy licence setup", () => {
     });
   });
 
+  it("shows an inline error and sends no review for a reason over 500 characters", async () => {
+    const { fetcher } = fixture({
+      image: { ...evidence, status: "available", scanned_at: "2026-11-01T06:31:00Z" },
+    });
+    const { user } = renderWithProviders(
+      <LicencePanel scope={scope} subject="user-reviewer" today="2026-11-01" />,
+    );
+    await user.click(await screen.findByText(/TEST-DL-001 · Awaiting independent review/));
+    const review = await screen.findByRole("button", { name: "Record independent licence review" });
+    await waitFor(() => expect(review).toBeEnabled(), { timeout: 6000 });
+    await user.click(screen.getByLabelText("Licence review reason"));
+    await user.paste("r".repeat(501));
+    await user.click(review);
+    expect(await screen.findByText("Give the reason for this review.")).toBeVisible();
+    expect(fetcher.mock.calls.filter(([url]) => url.endsWith("/review"))).toHaveLength(0);
+  });
+
   it("does not offer self-review even for a clean image", async () => {
     fixture({
       author: "user-reviewer",

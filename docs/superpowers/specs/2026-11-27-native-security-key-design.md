@@ -270,7 +270,16 @@ tesserix-k8s change if it goes ahead.
 
 - **D4 gap: accepted** by the product owner on 2026-11-27. A moved user may be
   password-only between the reset and re-enrolment.
-- **Who resets a tenant owner's key?** #1703's reset protects ordinary targets
-  and is run by an administrator. If the only legacy key belongs to an owner with
-  no administrator above them, the move needs a named operator path, which is
-  decided before slice 3.
+- **Who resets a tenant owner's key? Decided** by the product owner on
+  2026-11-27. #1703's reset refuses owner and administrator targets
+  (`ordinaryMFATarget`) and removes TOTP only, so it can't move an owner's key.
+  A Tesserix operator removes each legacy owner key once through Zitadel's API,
+  following a runbook that records the removal in Helivanta's audit trail. The
+  owner then registers a new key on Helivanta's page at the next sign-in (D3).
+  This replaces D4(2) for owners. Extending #1703's reset to security keys is
+  [#1905](https://github.com/tesserix/helivanta/issues/1905), needed for lost
+  keys regardless of the move.
+- **The count.** `scripts/security-key-inventory.mjs` takes it read-only: every
+  `iam_members` subject's READY u2f factors, less the `iam_security_keys`
+  registry, by the rule sign-in uses. It exits 0 only at zero legacy keys, and
+  never reports zero when a lookup fails.

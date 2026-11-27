@@ -88,6 +88,16 @@ func TestChallengeAndCheckSecurityKey(t *testing.T) {
 	require.ErrorIs(t, err, ErrUnavailable)
 }
 
+// A 200 without a rotated token is not a verified session: the empty token
+// would be stored and every later call on it refused, so it fails early.
+func TestCheckSecurityKeyMissingTokenIsUnavailable(t *testing.T) {
+	var got string
+	c := webauthnZitadel(t, 200, `{}`, &got)
+	_, err := c.CheckSecurityKey(context.Background(), Session{ID: "s", Token: "t2"}, json.RawMessage(`{"id":"a"}`))
+	require.ErrorIs(t, err, ErrUnavailable)
+	require.False(t, IsCredentialRefusal(err), "a malformed answer must not spend a guess")
+}
+
 func TestSessionFactorsReadsWebAuthN(t *testing.T) {
 	var got string
 	c := webauthnZitadel(t, 200, `{}`, &got)

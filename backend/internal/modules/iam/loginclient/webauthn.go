@@ -99,6 +99,9 @@ func (c *Client) CheckSecurityKey(ctx context.Context, s Session, assertion json
 	if err := c.do(ctx, http.MethodPatch, "/v2/sessions/"+url.PathEscape(s.ID), body, &wire, ErrBadCredentials); err != nil {
 		return Session{}, err
 	}
+	if wire.SessionToken == "" {
+		return Session{}, fmt.Errorf("PATCH /v2/sessions/%s: check response missing token: %w", s.ID, ErrUnavailable)
+	}
 	return Session{ID: s.ID, Token: wire.SessionToken}, nil
 }
 

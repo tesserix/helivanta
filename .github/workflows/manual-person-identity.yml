@@ -5,6 +5,7 @@ on:
     paths:
       - "backend/internal/modules/iam/manual_person*"
       - "backend/internal/modules/iam/module.go"
+      - "backend/internal/modules/iam/module_test.go"
       - "backend/cmd/manual-person-source/**"
       - "contracts/manual-person-identity.json"
       - "scripts/generate-manual-person-identity.mjs"
@@ -32,4 +33,4 @@ jobs:
           go-version-file: backend/go.mod
           cache: false
       - name: Verify source import, owner isolation, replay, audit and commit expiry
-        run: go test -race -v -count=1 -failfast -timeout 20m ./internal/modules/iam ./cmd/manual-person-source -run '^TestManual(Identity|PersonSource)'
+        run: go test -race -v -count=1 -failfast -timeout 20m ./internal/modules/iam ./cmd/manual-person-source -run '^Test(Manual(Identity|PersonSource)|MigrationIDIsPhaseScoped)'

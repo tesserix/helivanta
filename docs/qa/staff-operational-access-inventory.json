@@ -1,6 +1,6 @@
 {
   "format_version": 1,
-  "registry_sha256": "6c695406d352dc45aa1997dc15714ee0c804b6aaf2d15895f7b3bb2e8dbfc18c",
+  "registry_sha256": "b84cc3a5c3924b3c0461c12cfccd48b0e55dbc7a97c52ffa0756043a14cfb0b9",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
     "total": 1259,
@@ -3175,7 +3175,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/module.go",
-            "sha256": "7e4fe6e1d1cebf271db8ceec2f14d3afae53d1a0a77342f594432c43e281a956",
+            "sha256": "dc4599d35474b20fc777405c8edce97dc25a95717f40b7071c0a516d55c88aa6",
             "symbol": "func (m *Module) Routes("
           },
           {
@@ -3224,7 +3224,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/module.go",
-            "sha256": "7e4fe6e1d1cebf271db8ceec2f14d3afae53d1a0a77342f594432c43e281a956",
+            "sha256": "dc4599d35474b20fc777405c8edce97dc25a95717f40b7071c0a516d55c88aa6",
             "symbol": "func (m *Module) Routes("
           },
           {
@@ -4257,7 +4257,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/module.go",
-            "sha256": "7e4fe6e1d1cebf271db8ceec2f14d3afae53d1a0a77342f594432c43e281a956",
+            "sha256": "dc4599d35474b20fc777405c8edce97dc25a95717f40b7071c0a516d55c88aa6",
             "symbol": "m.registerPartnerGrantDrafts(g, deps)"
           },
           {
@@ -4304,7 +4304,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/module.go",
-            "sha256": "7e4fe6e1d1cebf271db8ceec2f14d3afae53d1a0a77342f594432c43e281a956",
+            "sha256": "dc4599d35474b20fc777405c8edce97dc25a95717f40b7071c0a516d55c88aa6",
             "symbol": "m.registerPartnerGrantDrafts(g, deps)"
           },
           {
@@ -4607,7 +4607,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/module.go",
-            "sha256": "7e4fe6e1d1cebf271db8ceec2f14d3afae53d1a0a77342f594432c43e281a956",
+            "sha256": "dc4599d35474b20fc777405c8edce97dc25a95717f40b7071c0a516d55c88aa6",
             "symbol": "func (m *Module) Routes("
           },
           {
@@ -4652,7 +4652,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/module.go",
-            "sha256": "7e4fe6e1d1cebf271db8ceec2f14d3afae53d1a0a77342f594432c43e281a956",
+            "sha256": "dc4599d35474b20fc777405c8edce97dc25a95717f40b7071c0a516d55c88aa6",
             "symbol": "func (m *Module) Routes("
           },
           {
@@ -4787,7 +4787,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/module.go",
-            "sha256": "7e4fe6e1d1cebf271db8ceec2f14d3afae53d1a0a77342f594432c43e281a956",
+            "sha256": "dc4599d35474b20fc777405c8edce97dc25a95717f40b7071c0a516d55c88aa6",
             "symbol": "func (m *Module) Routes("
           },
           {
@@ -4965,7 +4965,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/module.go",
-            "sha256": "7e4fe6e1d1cebf271db8ceec2f14d3afae53d1a0a77342f594432c43e281a956",
+            "sha256": "dc4599d35474b20fc777405c8edce97dc25a95717f40b7071c0a516d55c88aa6",
             "symbol": "func (m *Module) Routes("
           },
           {
@@ -5009,7 +5009,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/module.go",
-            "sha256": "7e4fe6e1d1cebf271db8ceec2f14d3afae53d1a0a77342f594432c43e281a956",
+            "sha256": "dc4599d35474b20fc777405c8edce97dc25a95717f40b7071c0a516d55c88aa6",
             "symbol": "func (m *Module) Routes("
           },
           {
@@ -5361,7 +5361,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/module.go",
-            "sha256": "7e4fe6e1d1cebf271db8ceec2f14d3afae53d1a0a77342f594432c43e281a956",
+            "sha256": "dc4599d35474b20fc777405c8edce97dc25a95717f40b7071c0a516d55c88aa6",
             "symbol": "m.registerPartnerGrantDrafts(g, deps)"
           },
           {

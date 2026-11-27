@@ -332,6 +332,11 @@ var lintAllowlist = map[string]bool{
 	// reasoning as login_attempt: its tenant_id is a candidate the person has
 	// not chosen yet, not a scope. See backend/internal/modules/iam/loginchoice.go.
 	"login_account_choice": true,
+	// iam_security_keys records the security keys a person registered while
+	// signing in (#1898). A key belongs to the global Zitadel identity, not to
+	// a tenant, and is written before any tenant is chosen: the same reasoning
+	// as login_attempt. See backend/internal/modules/iam/security_keys.go.
+	"iam_security_keys": true,
 	// The drug master (#476 spec D1) is one catalogue every tenant reads,
 	// not tenant data: no PHI, no tenant to scope on. Each table is still
 	// FORCE ROW LEVEL SECURITY, hms_app holds SELECT only and sees only

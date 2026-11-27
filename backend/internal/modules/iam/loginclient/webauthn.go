@@ -101,3 +101,11 @@ func (c *Client) CheckSecurityKey(ctx context.Context, s Session, assertion json
 	}
 	return Session{ID: s.ID, Token: wire.SessionToken}, nil
 }
+
+// SessionUserID returns the Zitadel user id the session authenticated (GET
+// /v2/sessions/{id}): the subject a verified security key is recorded under.
+// It is read from Zitadel, never taken from the request.
+func (c *Client) SessionUserID(ctx context.Context, sessionID string) (string, error) {
+	subject, err := c.sessionSubject(ctx, sessionID)
+	return subject.UserID, err
+}

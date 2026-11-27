@@ -121,7 +121,6 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	_ = webAuthnRPID // consumed by the login handlers from the next task on
 	// Resolved alongside the signing key, for the same reason: a missing
 	// login-client PAT is a configuration defect, not a runtime one, and
 	// it should surface before anything else costs time or a network
@@ -662,6 +661,7 @@ func run() error {
 	loginUIHandlers := iam.NewLoginUIHandlers(zitadelLoginClient, db,
 		limiter, bootstrap.LoginRateLimitRule(cfg), bootstrap.FactorRateLimitRule(cfg))
 	loginUIHandlers.SetNativeWebClientID(cfg.ZitadelClientID)
+	loginUIHandlers.SetWebAuthnRPID(webAuthnRPID)
 
 	// Mounted through bootstrap so the bypass is declared in one
 	// enumerable place and pinned by

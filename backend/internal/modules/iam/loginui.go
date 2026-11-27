@@ -3,6 +3,7 @@ package iam
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -153,9 +154,13 @@ const loginAttemptTTL = 5 * time.Minute
 type LoginUIHandlers struct {
 	client            *loginclient.Client
 	nativeWebClientID string
-	store             *loginAttemptStore
-	limiter           ratelimit.Limiter
-	limit             ratelimit.Rule
+	// webauthnRPID is the boot-validated relying-party ID (SetWebAuthnRPID).
+	// Empty means no security key is offered: TOTP only, fail closed.
+	webauthnRPID string
+	store        *loginAttemptStore
+	keys         *securityKeys
+	limiter      ratelimit.Limiter
+	limit        ratelimit.Rule
 	// factorLimit is POST /v1/auth/login/factor's OWN budget — see
 	// factorRateBucket's doc comment on why a six-digit guessing
 	// endpoint cannot share limit (Password/AuthRequest's
@@ -192,6 +197,7 @@ func NewLoginUIHandlers(client *loginclient.Client, db *tenantdb.DB, limiter rat
 	return &LoginUIHandlers{
 		client:      client,
 		store:       newLoginAttemptStore(db),
+		keys:        &securityKeys{db: db},
 		limiter:     limiter,
 		limit:       limit,
 		factorLimit: factorLimit,
@@ -455,8 +461,15 @@ type factorRequiredResponse struct {
 // wire exactly once, here; there is no route that re-issues it for an
 // existing attempt (spec D2 — a new secret needs a new password check).
 type enrollmentRequiredResponse struct {
-	Factors []string           `json:"enrollment_required"`
-	TOTP    totpEnrollmentWire `json:"totp"`
+	Factors     []string                   `json:"enrollment_required"`
+	TOTP        totpEnrollmentWire         `json:"totp"`
+	SecurityKey *securityKeyEnrollmentWire `json:"security_key,omitempty"`
+}
+
+// securityKeyEnrollmentWire relays Zitadel's WebAuthn creation options
+// verbatim (#1898); Helivanta never parses them.
+type securityKeyEnrollmentWire struct {
+	CreationOptions json.RawMessage `json:"creation_options"`
 }
 
 type totpEnrollmentWire struct {
@@ -648,6 +661,21 @@ func (h *LoginUIHandlers) continueWithSession(c *gin.Context, authRequestID, sub
 			h.respondLoginClientError(c, err, "register_totp")
 			return
 		}
+		// A security key is registered beside the TOTP (#1898) only when this
+		// deployment has a validated relying party, and for the same ordering
+		// reason: register before the row write, so a failure leaves no row.
+		factors := nonNilFactors(result.Factors)
+		var key loginclient.SecurityKeyRegistration
+		var keyWire *securityKeyEnrollmentWire
+		if h.webauthnRPID != "" {
+			key, err = h.client.RegisterSecurityKey(c.Request.Context(), session.ID, h.webauthnRPID)
+			if err != nil {
+				h.respondLoginClientError(c, err, "register_security_key")
+				return
+			}
+			factors = append(factors, "security_key")
+			keyWire = &securityKeyEnrollmentWire{CreationOptions: key.CreationOptions}
+		}
 		err = h.store.Put(c.Request.Context(), loginAttempt{
 			AuthRequestID: authRequestID,
 			SessionID:     session.ID,
@@ -656,6 +684,7 @@ func (h *LoginUIHandlers) continueWithSession(c *gin.Context, authRequestID, sub
 			ExpiresAt:     time.Now().Add(loginAttemptTTL),
 			Enrolling:     true,
 			Stage:         stageFactor,
+			SecurityKeyID: key.ID,
 		})
 		if err != nil {
 			respond.InternalErr(c, err, "sign-in could not be completed")
@@ -667,8 +696,9 @@ func (h *LoginUIHandlers) continueWithSession(c *gin.Context, authRequestID, sub
 		requestid.Logger(c).InfoContext(c.Request.Context(), "login password succeeded, enrollment required",
 			"auth_request_id", authRequestID, "outcome", "enrollment_required")
 		respond.OK(c, enrollmentRequiredResponse{
-			Factors: nonNilFactors(result.Factors),
-			TOTP:    totpEnrollmentWire{URI: enrollment.URI, Secret: enrollment.Secret},
+			Factors:     factors,
+			TOTP:        totpEnrollmentWire{URI: enrollment.URI, Secret: enrollment.Secret},
+			SecurityKey: keyWire,
 		})
 
 	case loginclient.OutcomePasswordChangeRequired:
@@ -1058,13 +1088,17 @@ func (h *LoginUIHandlers) completeWithVerifiedCode(c *gin.Context, start time.Ti
 }
 
 // enrollRequest is the body POST /v1/auth/login/enroll accepts (#948, spec
-// D3): the auth request whose enrolment this confirms, which factor kind
-// is being confirmed ("totp" is the only one this handler knows how to
-// enrol), and the first code from the authenticator the user just set up.
+// D3): the auth request whose enrolment this confirms and which factor kind
+// is being confirmed. "totp" carries the authenticator's first code;
+// "security_key" (#1898) carries the browser's attestation credential and an
+// optional key name. What each factor requires is checked per factor
+// (validate), not at bind time.
 type enrollRequest struct {
-	AuthRequestID string `json:"auth_request_id" binding:"required"`
-	Factor        string `json:"factor" binding:"required"`
-	Code          string `json:"code" binding:"required"`
+	AuthRequestID string          `json:"auth_request_id" binding:"required"`
+	Factor        string          `json:"factor" binding:"required"`
+	Code          string          `json:"code"`
+	Credential    json.RawMessage `json:"credential"`
+	Name          string          `json:"name"`
 }
 
 // Enroll backs POST /v1/auth/login/enroll: the second half of the
@@ -1096,8 +1130,9 @@ func (h *LoginUIHandlers) Enroll(c *gin.Context) {
 		respond.BadRequest(c, err)
 		return
 	}
-	if req.Factor != "totp" {
-		respond.BadRequest(c, fmt.Errorf("unsupported factor %q", req.Factor))
+	keyName, err := req.validate()
+	if err != nil {
+		respond.BadRequest(c, err)
 		return
 	}
 
@@ -1111,6 +1146,10 @@ func (h *LoginUIHandlers) Enroll(c *gin.Context) {
 		requestid.Logger(c).WarnContext(c.Request.Context(), "login enroll: no pending attempt",
 			"auth_request_id", req.AuthRequestID)
 		h.respondAttemptExpired(c, start)
+		return
+	}
+	if req.Factor == "security_key" {
+		h.enrollSecurityKey(c, start, req.AuthRequestID, attempt, req.Credential, keyName)
 		return
 	}
 	if !attempt.Enrolling {

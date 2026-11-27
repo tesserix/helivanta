@@ -1362,6 +1362,11 @@ type zitadelEnrollmentFake struct {
 	// an enrolment. False (the default) keeps the enrolment tests on the
 	// path they are named for.
 	passwordChangeRequired atomic.Bool
+	// Security-key state (#1898): u2f verifies and WebAuthn challenges seen,
+	// and an optional hook run inside the challenge, before it answers.
+	keyVerifies   atomic.Int32
+	keyChallenges atomic.Int32
+	onChallenge   atomic.Pointer[func()]
 }
 
 func newZitadelEnrollmentFake(t *testing.T) *zitadelEnrollmentFake {
@@ -1408,16 +1413,48 @@ func newZitadelEnrollmentFake(t *testing.T) *zitadelEnrollmentFake {
 		f.verified.Store(true)
 		_, _ = w.Write([]byte(`{"details":{"sequence":"6"}}`))
 	})
+	mux.HandleFunc("POST /v2/users/{id}/u2f", func(w http.ResponseWriter, r *http.Request) {
+		if r.PathValue("id") != "user-enrol" {
+			t.Errorf("security key registered on %q, want the session's user", r.PathValue("id"))
+		}
+		_, _ = w.Write([]byte(`{"u2fId":"` + securityKeyFakeID + `","publicKeyCredentialCreationOptions":` + securityKeyFakeCreation + `}`))
+	})
+	mux.HandleFunc("POST /v2/users/{id}/u2f/{key}", func(w http.ResponseWriter, r *http.Request) {
+		f.keyVerifies.Add(1)
+		var body struct {
+			Credential map[string]any `json:"publicKeyCredential"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		if r.PathValue("key") != securityKeyFakeID || body.Credential["id"] != "good-credential" {
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = w.Write([]byte(`{"code":3,"message":"invalid attestation (COMMAND-webauthn)","details":[{"id":"COMMAND-webauthn"}]}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"details":{}}`))
+	})
 	mux.HandleFunc("PATCH /v2/sessions/{id}", func(w http.ResponseWriter, r *http.Request) {
-		f.sessionChecks.Add(1)
 		var body struct {
 			Checks struct {
 				TOTP struct {
 					Code string `json:"code"`
 				} `json:"totp"`
 			} `json:"checks"`
+			Challenges struct {
+				WebAuthN struct {
+					Domain string `json:"domain"`
+				} `json:"webAuthN"`
+			} `json:"challenges"`
 		}
 		_ = json.NewDecoder(r.Body).Decode(&body)
+		if body.Challenges.WebAuthN.Domain != "" {
+			f.keyChallenges.Add(1)
+			if hook := f.onChallenge.Load(); hook != nil {
+				(*hook)()
+			}
+			_, _ = w.Write([]byte(`{"sessionToken":"` + securityKeyChallengeToken + `","challenges":{"webAuthN":{"publicKeyCredentialRequestOptions":` + securityKeyFakeRequest + `}}}`))
+			return
+		}
+		f.sessionChecks.Add(1)
 		if !f.verified.Load() {
 			w.WriteHeader(http.StatusBadRequest)
 			_, _ = w.Write([]byte(`{"code":9,"message":"Multifactor OTP (OneTimePassword) isn't ready (COMMAND-3Mif9s)","details":[{"id":"COMMAND-3Mif9s"}]}`))

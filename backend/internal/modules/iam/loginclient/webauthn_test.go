@@ -102,3 +102,14 @@ func TestSufficiencyNeedsPasswordWithWebAuthN(t *testing.T) {
 	require.False(t, Factors{Password: true}.SecondFactorProven())
 	require.True(t, Factors{Password: true, TOTP: true}.SecondFactorProven())
 }
+
+func TestSessionUserIDReadsTheSessionsUser(t *testing.T) {
+	var got string
+	c := webauthnZitadel(t, 200, `{}`, &got)
+	id, err := c.SessionUserID(context.Background(), "s")
+	require.NoError(t, err)
+	require.Equal(t, "u1", id)
+
+	_, err = c.SessionUserID(context.Background(), "unknown")
+	require.Error(t, err, "a session Zitadel cannot describe must not yield a subject")
+}

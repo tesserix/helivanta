@@ -1842,6 +1842,7 @@ describe("native security key (#1898)", () => {
   const NO_WEBAUTHN = "This browser can't use security keys. Use the authenticator app instead.";
   const NOT_REGISTERED =
     "The security key wasn't registered. Try again, or use the authenticator app.";
+  const NOT_ACCEPTED = "The security key wasn't accepted. Try again.";
   const CALLBACK = "https://hms.example/api/auth/callback?code=key&state=xyz";
   const creationOptions = {
     publicKey: {
@@ -2050,7 +2051,9 @@ describe("native security key (#1898)", () => {
       factor: () => jsonResponse(200, { callback_url: CALLBACK }),
     });
     await user.click(await screen.findByRole("button", { name: "Security key" }));
-    expect(await screen.findByText(NOT_REGISTERED)).toBeInTheDocument();
+    // The key is registered by now, so saying it wasn't would be untrue.
+    expect(await screen.findByText(NOT_ACCEPTED)).toBeInTheDocument();
+    expect(screen.queryByText(NOT_REGISTERED)).not.toBeInTheDocument();
     expect(bodiesTo(fetchMock, "/auth/login/enroll")).toHaveLength(1);
     expect(bodiesTo(fetchMock, "/auth/login/factor")).toEqual([]);
     expect(assignSpy).not.toHaveBeenCalled();

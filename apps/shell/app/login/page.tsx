@@ -1103,19 +1103,20 @@ function TotpEnrollStep({
   );
 }
 
-// #1898 copy, approved by the product owner on 2026-11-27 (enrolment).
+// #1898 copy, approved by the product owner on 2026-11-27.
 const KEY_PROMPT = "Insert or touch your security key.";
 const KEY_NOT_REGISTERED =
   "The security key wasn't registered. Try again, or use the authenticator app.";
 const KEY_UNSUPPORTED = "This browser can't use security keys. Use the authenticator app instead.";
-// Sign-in copy (spec D2); not yet product-owner approved, which slice 2 needs.
+// Sign-in copy (spec D2).
 const KEY_UNSUPPORTED_SIGN_IN =
   "This browser can't use security keys. Use another browser, or your authenticator app if you have one.";
 const KEY_NOT_ACCEPTED = "The security key wasn't accepted. Try again.";
 
 // One press of the key: the API's answer to its assertion, or the browser
-// refusing the ceremony (cancelled, timed out, no matching key).
-type KeyAttempt = FactorCheckResult | { outcome: "keyFailed" };
+// refusing the ceremony (cancelled, timed out, no matching key), with the
+// copy to show when it is not the caller's default.
+type KeyAttempt = FactorCheckResult | { outcome: "keyFailed"; message?: string };
 
 // assertKey asks the browser for an assertion over the API's request options
 // and posts it to /factor. A refused ceremony posts nothing: there is no
@@ -1170,7 +1171,6 @@ function errorMessage(error: Error | null): string | undefined {
 
 // The key name Zitadel stores (#1898): the API trims it and allows 64
 // characters, so the form refuses the same before the key is touched.
-// Both messages are pending product-owner approval (not on the approved list).
 const keyNameSchema = z.object({
   name: z
     .string()
@@ -1226,12 +1226,17 @@ function SecurityKeyChoice({
         options = enrolled.requestOptions;
         setRequestOptions(options);
       }
-      return assertKey(authRequestId, options);
+      const asserted = await assertKey(authRequestId, options);
+      // /enroll has recorded the key by now: a refused confirmation is not a
+      // failed registration, so it must not say the key wasn't registered.
+      return asserted.outcome === "keyFailed"
+        ? { outcome: "keyFailed", message: KEY_NOT_ACCEPTED }
+        : asserted;
     },
     {
       onSuccess: (result) =>
         result.outcome === "keyFailed"
-          ? setFailure(KEY_NOT_REGISTERED)
+          ? setFailure(result.message ?? KEY_NOT_REGISTERED)
           : finishFactor(result, {
               ended: onEnded,
               passwordChange: onPasswordChangeRequired,
@@ -1344,8 +1349,6 @@ function SecurityKeyStep({
           </p>
         </div>
         <AuthError message={error} />
-        {/* "Try again" and "Use your authenticator app instead" are pending
-            product-owner approval (not on the approved list). */}
         {supported && error && !assert.isPending ? (
           <Button
             className="w-full"

@@ -301,3 +301,66 @@ export const VerificationPolicyDraftRevisionContract = z
 export type VerificationPolicyDraftRevision = z.infer<
   typeof VerificationPolicyDraftRevisionContract
 >;
+
+export const PrescriptionFulfilmentReviewLineInputContract = z
+  .object({
+    line_number: z.number().int().min(1).max(20),
+    quantity_units: z.number().int().min(1).max(100000),
+  })
+  .strict();
+export type PrescriptionFulfilmentReviewLineInput = z.infer<
+  typeof PrescriptionFulfilmentReviewLineInputContract
+>;
+
+export const PrescriptionFulfilmentReviewInputContract = z
+  .object({
+    source_state_hash: z
+      .string()
+      .min(64)
+      .max(64)
+      .regex(new RegExp("^[a-f0-9]{64}$", "u"), "Use a valid identifier.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    lines: z.array(PrescriptionFulfilmentReviewLineInputContract).min(1).max(20),
+  })
+  .strict()
+  .superRefine((value, ctx) => {
+    if (new Set(value.lines.map((line) => line.line_number)).size !== value.lines.length)
+      ctx.addIssue({
+        code: "custom",
+        path: ["lines"],
+        message: "Choose each prescription line once.",
+      });
+  });
+export type PrescriptionFulfilmentReviewInput = z.infer<
+  typeof PrescriptionFulfilmentReviewInputContract
+>;
+
+export const PrescriptionFulfilmentReviewLineContract = z
+  .object({
+    line_number: z.number().int().min(1).max(20),
+    product_id: identifier,
+    quantity_units: z.number().int().min(1).max(100000),
+  })
+  .strict();
+export type PrescriptionFulfilmentReviewLine = z.infer<
+  typeof PrescriptionFulfilmentReviewLineContract
+>;
+
+export const PrescriptionFulfilmentReviewContextContract = z
+  .object({
+    source: PrescriptionReviewContextContract,
+    lines: z.array(PrescriptionFulfilmentReviewLineContract).min(1).max(20),
+    fulfilment_state_hash: z
+      .string()
+      .min(64)
+      .max(64)
+      .regex(new RegExp("^[a-f0-9]{64}$", "u"), "Use a valid identifier.")
+      .refine((value) => !value.includes("\0"), "Remove invalid characters."),
+    state: z.enum(["proposed"]),
+    stock_reservation: z.enum(["not_reserved"]),
+    clinical_authority: z.enum(["not_evaluated"]),
+  })
+  .strict();
+export type PrescriptionFulfilmentReviewContext = z.infer<
+  typeof PrescriptionFulfilmentReviewContextContract
+>;

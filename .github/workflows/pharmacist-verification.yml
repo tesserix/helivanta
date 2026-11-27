@@ -33,4 +33,4 @@ jobs:
           go-version-file: backend/go.mod
           cache: false
       - name: Verify draft persistence, scope, replay, audit and canonical SQL bounds
-        run: go test -race -v -count=1 -failfast -timeout 20m ./internal/modules/pharmacy -run '^Test(VerificationPolicy|VerificationDecisionIntent)'
+        run: go test -race -v -count=1 -failfast -timeout 20m ./internal/modules/pharmacy -run '^Test(VerificationPolicy|VerificationDecisionIntent|VerificationFulfilment|PrescriptionReview)'

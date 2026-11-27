@@ -5865,6 +5865,15 @@
           "counted": false
         },
         {
+          "method": "POST",
+          "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id/fulfilment-review-context",
+          "permission": "pharmacy.prescription.read",
+          "authentication_required": true,
+          "membership_required": true,
+          "paginated": false,
+          "counted": false
+        },
+        {
           "method": "PUT",
           "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id/images/:file/content",
           "permission": "pharmacy.prescription.record",
@@ -7829,7 +7838,7 @@
         },
         {
           "id": "0076_pharmacy_verification_policy_preparation",
-          "sql_sha256": "1ecaeb10c94773a4aec51ce5f0c102127a9b8b6424477fc47ebfbac55778a8cd",
+          "sql_sha256": "16ae1adba44d7788cab1a16926c19a5c781e16817ef703824ae903cf6d6d8f29",
           "creates_tables": [
             "pharmacy_verification_policy_drafts"
           ]

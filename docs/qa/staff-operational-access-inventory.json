@@ -1,9 +1,9 @@
 {
   "format_version": 1,
-  "registry_sha256": "0b1dc379606659d540362548d3a4429dc586131319acccc95ee01fb5b272f42d",
+  "registry_sha256": "4fa85cacb3a5aa25b486c62f82089e479dbf2c9c18d89fe29927a6c237d5c0a1",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
-    "total": 1332,
+    "total": 1333,
     "unclassified": 1172
   },
   "entries": [
@@ -11760,6 +11760,49 @@
         "counted": false
       },
       "review": null
+    },
+    {
+      "id": "http pharmacy POST /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id/fulfilment-review-context",
+      "kind": "http",
+      "module": "pharmacy",
+      "registration": {
+        "source": "backend/internal/modules/pharmacy/module.go",
+        "method": "POST",
+        "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id/fulfilment-review-context",
+        "permission": "pharmacy.prescription.read",
+        "authentication_required": true,
+        "membership_required": true,
+        "paginated": false,
+        "counted": false
+      },
+      "review": {
+        "id": "http pharmacy POST /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id/fulfilment-review-context",
+        "registration_sha256": "0411b63a1cd3ca221e4af6ba1cddfa3230546bddfcccedf29f413499bef61125",
+        "authority_kind": "mixed",
+        "resource_scope": "Verified tenant/subject preconditions, named pharmacy and current outlet grant; pharmacy.prescription.read is required. This projection creates no clinical authority.",
+        "rationale": "The owner locks and reloads the exact prescription, checks the source-state precondition and bounded selected quantities, and audits before disclosure. Products are derived from owner lines. The response is a proposal with not_evaluated clinical authority and not_reserved stock. It cannot approve or dispense supply and is compiled unreleased.",
+        "authority_sources": [
+          {
+            "path": "backend/internal/modules/pharmacy/verification_fulfilment_http.go",
+            "sha256": "a6ec45b9563f37cf9754fc9361cf589f654cd8933fe5dc926db7dc98863c7cda",
+            "symbol": "func (h *catalogueHandlers) postPrescriptionFulfilmentReview("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/stock_command_scope.go",
+            "sha256": "b4195cd2c0f6db5dee1dfa8d959bede036398d282f4c03e6089a0c8e8d331070",
+            "symbol": "func stockCommandScope("
+          },
+          {
+            "path": "backend/internal/modules/pharmacy/catalogue.go",
+            "sha256": "37369392187518ed1851825a9235182bd74f9591d0cf67cfcca1037dbd75d983",
+            "symbol": "func (h *catalogueHandlers) transaction("
+          }
+        ],
+        "remaining": [
+          "Hosted scope, stale-balance, audit and no-business-effect acceptance on the exact final commit.",
+          "Qualified physical-person/clinical-policy authority and active approval/dispensing enforcement remain unfinished."
+        ]
+      }
     },
     {
       "id": "http pharmacy POST /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id/images/:file/retry/:attempt",

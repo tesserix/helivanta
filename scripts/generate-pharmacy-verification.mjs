@@ -36,7 +36,16 @@ const fields = Object.fromEntries(
 const policyFields = Object.fromEntries(
   source.models.VerificationPolicyDraftInput.map((field) => [field.name, field]),
 );
+const fulfilmentInput = Object.fromEntries(
+  source.models.PrescriptionFulfilmentReviewInput.map((field) => [field.name, field]),
+);
+const fulfilmentLine = Object.fromEntries(
+  source.models.PrescriptionFulfilmentReviewLineInput.map((field) => [field.name, field]),
+);
 const rules = `
+const verificationFulfilmentMaxLines=${fulfilmentInput.lines.max}
+const verificationFulfilmentMaxQuantity=${fulfilmentLine.quantity_units.max}
+
 const verificationPolicyMaxVersion=${policyFields.expected_version.max}
 const verificationPolicyLabelMax=${policyFields.label.max}
 const verificationPolicyReasonMax=${policyFields.reason.max}
@@ -76,6 +85,11 @@ if (decisionsTS === models.ts) {
   throw new Error("Verification decision requirements were not applied to the generated schema");
 }
 const ts = decisionsTS
+  .replace(
+    /(export const PrescriptionFulfilmentReviewInputContract=z.object\(\{[\s\S]*?\}\)\.strict\(\))/,
+    `$1.superRefine((value,ctx)=>{if(new Set(value.lines.map(line=>line.line_number)).size!==value.lines.length)ctx.addIssue({code:"custom",path:["lines"],message:"Choose each prescription line once."});})`,
+  )
+
   .replace(
     /(export const PrescriptionReviewLineContract=z.object\(\{[\s\S]*?\}\)\.strict\(\))/,
     `$1.superRefine((value,ctx)=>{

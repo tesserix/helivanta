@@ -5,6 +5,8 @@ import { Button } from "@tesserix/web";
 import { usePrescriptionReviewContext, type PharmacyScope } from "@helivanta/api";
 import { Panel, RefreshButton, RequestFailure } from "@helivanta/ui";
 
+import { PrescriptionFulfilmentReview } from "./prescription-fulfilment-review";
+
 export function PrescriptionReviewContext({
   scope,
   prescriptionId,
@@ -144,6 +146,7 @@ export function PrescriptionReviewContext({
               ))}
             </dl>
           </section>
+          <PrescriptionFulfilmentReview scope={scope} source={view} />
           <RefreshButton refresh={review.refetch} error={review.error} busy={review.isFetching}>
             Refresh recorded details
           </RefreshButton>

@@ -6471,6 +6471,11 @@
       "method": "GET",
       "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/verification-policy-drafts",
       "capability": "unreleased"
+    },
+    {
+      "method": "POST",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/prescriptions/:id/fulfilment-review-context",
+      "capability": "unreleased"
     }
   ],
   "pages": [

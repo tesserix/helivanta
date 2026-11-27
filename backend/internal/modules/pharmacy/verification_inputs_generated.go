@@ -93,6 +93,34 @@ type VerificationPolicyDraftRevision struct {
 	ClinicalAuthority          string    `json:"clinical_authority"`
 }
 
+type PrescriptionFulfilmentReviewLineInput struct {
+	LineNumber    int   `json:"line_number"`
+	QuantityUnits int64 `json:"quantity_units"`
+}
+
+type PrescriptionFulfilmentReviewInput struct {
+	SourceStateHash string                                  `json:"source_state_hash"`
+	Lines           []PrescriptionFulfilmentReviewLineInput `json:"lines"`
+}
+
+type PrescriptionFulfilmentReviewLine struct {
+	LineNumber    int       `json:"line_number"`
+	ProductID     uuid.UUID `json:"product_id"`
+	QuantityUnits int64     `json:"quantity_units"`
+}
+
+type PrescriptionFulfilmentReviewContext struct {
+	Source              PrescriptionReviewContext          `json:"source"`
+	Lines               []PrescriptionFulfilmentReviewLine `json:"lines"`
+	FulfilmentStateHash string                             `json:"fulfilment_state_hash"`
+	State               string                             `json:"state"`
+	StockReservation    string                             `json:"stock_reservation"`
+	ClinicalAuthority   string                             `json:"clinical_authority"`
+}
+
+const verificationFulfilmentMaxLines = 20
+const verificationFulfilmentMaxQuantity = 100000
+
 const verificationPolicyMaxVersion = 9007199254740990
 const verificationPolicyLabelMax = 120
 const verificationPolicyReasonMax = 500

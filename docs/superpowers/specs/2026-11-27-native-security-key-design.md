@@ -132,7 +132,7 @@ refusal. Local development uses the dev shell host the same way.
   `security_key: {request_options}`, the options from Zitadel's challenge. That
   gives one response shape, the existing `factorRequiredResponse` plus one field.
 - The page calls `navigator.credentials.get` and posts the assertion to the
-  existing `POST /v1/auth/login/factor` with `kind: "security_key"`. The server
+  existing `POST /v1/auth/login/factor` with `factor: "security_key"`. The server
   relays it as `checks.webAuthN`. Then the existing sufficiency, password-change
   and finalize steps run unchanged.
 - **Both enrolled:** the key is the default, with "Use your authenticator app
@@ -202,23 +202,58 @@ CSP is unchanged. `security-headers.test.ts` gains an assertion that
 `publickey-credentials-get` and `-create` are not disabled, so a future header
 edit can't break keys silently.
 
+## Wire contract (slices 1 and 2)
+
+The field naming the factor is `factor`, never `kind`. `code` is required only for
+`totp`; a `security_key` body carries its own proof field instead.
+
+- **Password step, key required.** `factor_required` lists `"security_key"`
+  (alongside `"totp"` when both are enrolled) and the response carries
+  `security_key: {request_options}`, Zitadel's challenge, relayed unparsed.
+- **Password step, setup required.** `enrollment_required` lists `"security_key"`
+  and the response carries `security_key: {creation_options}` beside the TOTP
+  secret. The key is registered at the password step and recorded on the attempt.
+- **`POST /v1/auth/login/enroll`** with `{auth_request_id, factor: "security_key",
+credential, name?}` verifies the browser's attestation, records the key in
+  `iam_security_keys`, and answers `{security_key: {request_options}}`. The page
+  then asserts that challenge on `/factor`. `name` is trimmed, at most 64
+  characters, has no control characters, and defaults to "Security key".
+- **Recovery.** If the registry write failed after Zitadel verified the key, the
+  retry finds the key READY in Zitadel and records it without verifying again,
+  because Zitadel refuses a second verify. A key missing from the registry is
+  never accepted at sign-in.
+- **`POST /v1/auth/login/factor`** with `{auth_request_id, factor: "security_key",
+assertion}` relays the assertion as `checks.webAuthN`, then runs the same
+  sufficiency, password-change and finalize tail as TOTP. A refused assertion
+  spends one of the attempt's five guesses.
+- **Failures.** A registry or Zitadel read failure is 503, never a refusal and
+  never a success. A body without `credential` (enroll) or `assertion` (factor)
+  is a 400.
+- **Relying party.** `WEBAUTHN_RP_ID` must be exactly `helivanta.app` in
+  production and `helivanta.localhost` in development, or the API fails to boot.
+- **Registry.** Migration `0057_iam_security_keys` adds `iam_security_keys
+(subject, key_id, rp_id, registered_at)` and `login_attempt.security_key_id`.
+- **Legacy keys.** A user whose U2F key was registered on `auth.tesserix.app`
+  still gets ADR-0069's `security_key_required` continuation until slice 3.
+
 ## Slices
 
-1. **Native registration.** S1, then D1 and D3's required-setup path, plus the
-   IAM key registry if S1(4) needs it. Proven by registering a key against the
-   dev Zitadel and finding it listed with RP ID helivanta.app.
-2. **Native sign-in.** D2, with copy approved. Proven end to end: a key
-   registered in slice 1 signs in on Helivanta's pages and reaches the callback.
-   The unreachable-Zitadel, wrong-key, cancel and no-WebAuthn cases each get a
-   test. ADR-0069's continuation still exists for legacy keys.
+1. **Native registration** and
+2. **native sign-in** are delivered together by
+   `docs/superpowers/plans/2026-11-27-native-security-key-slice-1.md`. S1, then
+   D1, D2 and D3's required-setup path, plus the IAM key registry. A key
+   registered on the enrol step signs in on Helivanta's pages and reaches the
+   callback. The unreachable-Zitadel, wrong-key, cancel and no-WebAuthn cases each
+   get a test. ADR-0069's continuation still exists for legacy keys.
 3. **Move and delete.** D4's inventory and extended reset, the moves done, and
-   then D5's deletion and guards. This slice merges only when the inventory reads
-   zero legacy keys.
+   then D5's deletion and guards. Slice 3 deletes the continuation once legacy
+   keys are moved, and merges only when the inventory reads zero legacy keys.
 4. **Account security page.** D3's add and remove. It is separate because
    slices 1–3 already give every user a working key.
 
-Each slice is a vertical PR with backend, shell, tests and docs. The plan goes in
-`docs/superpowers/plans/` after this design is approved.
+Each slice is a vertical PR with backend, shell, tests and docs. Renaming
+`rp.name` ("ZITADEL") is decided in slice 1's PR review and is a separate
+tesserix-k8s change if it goes ahead.
 
 ## Left to the builder
 

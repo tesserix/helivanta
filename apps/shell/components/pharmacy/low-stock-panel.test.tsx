@@ -48,7 +48,7 @@ it("configures a minimum through the narrow product choices while the general ca
   expect(fetch.mock.calls.some(([url]) => url.includes("/catalogue/reorder-products"))).toBe(true);
 });
 it("shows an inline error and sends no write for a minimum over 1,000,000,000", async () => {
-  const fetch = vi.fn(async (url: string) => {
+  const fetch = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>(async (url) => {
     if (url.includes("/catalogue/reorder-products")) return json(page([product]));
     if (url.endsWith("/reorder-level")) return json({ level: null });
     if (url.includes("/stock/low-products")) return json(page([]));

@@ -167,6 +167,9 @@ it("shows inline errors and sends no count for a reason over 500 characters or a
   await user.click(screen.getByRole("textbox", { name: "Count reason" }));
   await user.paste("r".repeat(501));
   await user.click(screen.getByRole("button", { name: "Save physical count" }));
-  expect(await screen.findAllByText(/1000000000000|500/)).toHaveLength(2);
+  expect(
+    await screen.findByText("Enter a whole number from 0 to 1,000,000,000,000."),
+  ).toBeVisible();
+  expect(screen.getByText("Use at most 500 characters.")).toBeVisible();
   expect(fetch).not.toHaveBeenCalled();
 });

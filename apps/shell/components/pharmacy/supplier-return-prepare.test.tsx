@@ -323,7 +323,9 @@ it("refuses an overlong return reason inline without preparing a return", async 
   await user.click(screen.getByRole("button", { name: "Add return line" }));
   fireEvent.change(screen.getByLabelText("Return reason"), { target: { value: "x".repeat(501) } });
   await user.click(screen.getByRole("button", { name: "Prepare supplier return" }));
-  expect(await screen.findByText(/provide a return reason/)).toBeVisible();
+  expect(
+    await screen.findByText("Shorten the return reason to at most 500 characters."),
+  ).toBeVisible();
   expect(screen.getByLabelText("Return reason")).toHaveValue("x".repeat(501));
   expect(commands.prepare).not.toHaveBeenCalled();
 });

@@ -341,7 +341,14 @@ function PrepareForm({ scope, canStart, onPrepared }: Props) {
             })),
           });
           if (!parsed.success) {
-            setFailure("Add at least one return line and provide a return reason.");
+            const reasonTooLong = parsed.error.issues.some(
+              (issue) => issue.code === "too_big" && issue.path[0] === "reason",
+            );
+            setFailure(
+              reasonTooLong
+                ? "Shorten the return reason to at most 500 characters."
+                : "Add at least one return line and provide a return reason.",
+            );
             return;
           }
           const id = command ?? newPharmacyId();

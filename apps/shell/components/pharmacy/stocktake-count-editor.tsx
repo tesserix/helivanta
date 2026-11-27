@@ -35,6 +35,11 @@ const schema = pharmacyStocktakeCountInputSchema.extend({
             "Enter a whole physical count, including zero for an empty shelf.",
           )
           .transform(Number)
+          // The contract's own message is zod's default number text.
+          .refine(
+            (units) => units <= 1_000_000_000_000,
+            "Enter a whole number from 0 to 1,000,000,000,000.",
+          )
           .pipe(pharmacyStocktakeCountEntrySchema.shape.counted_units),
       }),
     )

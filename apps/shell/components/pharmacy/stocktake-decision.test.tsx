@@ -155,6 +155,6 @@ it("shows an inline error and sends no decision for a reason over 500 characters
   await user.click(screen.getByRole("textbox", { name: "Decision reason" }));
   await user.paste("r".repeat(501));
   await user.click(screen.getByRole("button", { name: "Record decision" }));
-  expect(await screen.findByText(/500/)).toBeInTheDocument();
+  expect(await screen.findByText("Use at most 500 characters.")).toBeInTheDocument();
   expect(fetch).not.toHaveBeenCalled();
 });

@@ -531,7 +531,11 @@ function LicenceReview({
       <Field
         id={`licence-reason-${licence}`}
         label="Licence review reason"
-        error={form.formState.errors.reason ? "Give the reason for this review." : undefined}
+        error={
+          form.formState.errors.reason?.type === "too_small"
+            ? "Give the reason for this review."
+            : form.formState.errors.reason?.message
+        }
       >
         <Input
           id={`licence-reason-${licence}`}

@@ -183,6 +183,6 @@ it("shows an inline error for an overlong appointment reason without creating a 
   await user.click(reason);
   await user.paste("x".repeat(501));
   await user.click(screen.getByRole("button", { name: "Submit appointment" }));
-  expect(await screen.findByText(/500 characters/)).toBeInTheDocument();
+  expect(await screen.findByText("Use at most 500 characters.")).toBeInTheDocument();
   expect(commands).toHaveLength(0);
 });

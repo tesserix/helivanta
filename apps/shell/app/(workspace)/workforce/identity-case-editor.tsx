@@ -157,11 +157,7 @@ export function IdentityCaseEditor({
               : form.formState.errors.check_reference?.message
           }
         >
-          <Input
-            id="identity-case-reference"
-
-            {...form.register("check_reference")}
-          />
+          <Input id="identity-case-reference" {...form.register("check_reference")} />
         </Field>
         <Field
           id="identity-case-observed"

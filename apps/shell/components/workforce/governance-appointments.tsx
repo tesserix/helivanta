@@ -35,7 +35,11 @@ import {
 const schema = z.object({
   subject: z.string().min(1, "Choose a current member."),
   scope_id: z.string(),
-  reason: z.string().trim().min(1, "Enter an appointment reason.").max(500),
+  reason: z
+    .string()
+    .trim()
+    .min(1, "Enter an appointment reason.")
+    .max(500, "Use at most 500 characters."),
   start: z.string().min(1, "Choose a start time."),
   end: z.string().min(1, "Choose an expiry."),
   acknowledged: z.boolean().refine(Boolean, "Review the appointment first."),

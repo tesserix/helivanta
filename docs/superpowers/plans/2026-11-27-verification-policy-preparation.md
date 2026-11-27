@@ -13,7 +13,8 @@ and the complete #169 acceptance design. Preparation does not close the parent i
 - [x] Regenerate route contracts, release admission and Staff source inventory.
 - [x] Pass focused local Go race tests, API build, Go vet and package lint.
 - [x] Pass SDK/UI tests, API typecheck, focused ESLint and shell production build.
-- [ ] Run the real PostgreSQL tests and all required checks on the exact PR head.
+- [x] Pass focused hosted PostgreSQL acceptance at `f900221b` (run 45929283832).
+- [ ] Pass all required checks on the final PR head.
 - [ ] Obtain named migration approval before merging this migration-bearing change.
 - [ ] Deploy through Kargo and perform actual acceptance before exposing the feature.
 - [ ] Continue verified-person authority, qualified independent clinical approval,
@@ -41,6 +42,7 @@ pnpm --filter @helivanta/shell exec eslint components/pharmacy/verification-poli
 node --test scripts/pharmacy-verification-contract.test.mjs
 node --test scripts/release-capabilities.test.mjs
 node scripts/generate-pharmacy-verification.mjs --check
+node scripts/generate-release-capabilities.mjs --check
 node scripts/staff-operational-access-inventory.mjs --check
 API_URL=http://127.0.0.1:8081 NEXT_PUBLIC_ZITADEL_CLIENT_ID=ci-build-client-id NEXT_PUBLIC_ZITADEL_ISSUER_URL=http://auth.tesserix.localhost:20080 pnpm --filter @helivanta/shell build
 ```
@@ -55,3 +57,11 @@ Go now derives each interval bound independently from its canonical field.
 
 These results do not establish PostgreSQL migration correctness, live clinical
 authority, worker readiness, deployed UI behavior or completion of #169.
+
+## Hosted evidence
+
+[Focused PostgreSQL acceptance](https://github.com/tesserix/helivanta/actions/runs/45929283832)
+passed at `f900221b`. The broad web check caught a stale generated release
+manifest; regeneration corrected the canonical-output drift. All required checks
+must pass again on the final commit. No live migration, clinical activation or
+browser acceptance is implied.

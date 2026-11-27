@@ -1284,7 +1284,11 @@ var routeCapabilities = map[string]string{"POST /v1/workforce/hospitals/:hospita
 	"POST /v1/practitioners/steward-appointments/:appointment/revoke":                                                                                "unreleased",
 	"GET /v1/practitioners/steward-appointments/:appointment":                                                                                        "unreleased",
 	"PUT /v1/practitioners/steward-appointments/:appointment":                                                                                        "unreleased",
-	"GET /v1/practitioners/steward-appointments":                                                                                                     "unreleased"}
+	"GET /v1/practitioners/steward-appointments":                                                                                                     "unreleased",
+	"PUT /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/verification-policy-drafts/:policy/revisions/:revision":                                   "unreleased",
+	"GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/verification-policy-drafts/:policy/revisions/:revision":                                   "unreleased",
+	"GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/verification-policy-drafts/:policy/revisions":                                             "unreleased",
+	"GET /v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/verification-policy-drafts":                                                               "unreleased"}
 var internalRouteCapabilities = map[string]string{"POST /v1/supply/internal/trading-source/check": "baseline",
 	"POST /v1/supply/internal/relationship/check": "baseline",
 	"POST /internal/v1/mediconnect/current-claim": "baseline",

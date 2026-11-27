@@ -171,6 +171,7 @@ Migration table declarations:
 - `0051_iam_operating_employer_inbox`: concurrent index `iam_operating_employer_inbox` on `iam_operating_duties (tenant_id, employer_kind, employer_id, native_administration, created_at DESC, id DESC)`.
 - `0053_iam_login_account_choice`: `login_account_choice`.
 - `0054_iam_staff_mfa_fences`: `iam_staff_mfa_commands`, `iam_staff_mfa_cancellations`, `iam_staff_mfa_fences`.
+- `0057_iam_security_keys`: `iam_security_keys`.
 
 ## reference
 

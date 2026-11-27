@@ -97,6 +97,14 @@ const PASSWORD = "HmsDev123!";
 // about the factor check, not about roles or tenants.
 const MFA_EMAIL = "mfa@helivanta.dev";
 
+// #1898: e2e/tests/security-key-enrol.spec.ts's own account, named like
+// MFA_EMAIL for the same reason. Its home organisation is the second
+// hospital's, whose login policy this script makes force MFA (no other seeded
+// account lives there, so nobody else is affected), and every run starts it
+// with nothing enrolled: the spec registers a security key on Helivanta's
+// enrol step, and a re-run must see that step again.
+const SECURITY_KEY_EMAIL = "security-key@helivanta.dev";
+
 // Where the TOTP secret Zitadel hands back on enrolment gets recorded so
 // e2e/tests/support/totp.ts can compute a real code at test time. Lives
 // alongside the PAT files in dev/zitadel/secrets/ (gitignored — see that
@@ -154,6 +162,11 @@ const USERS = [
   { email: "test@helivanta.dev", memberships: ADMIN_MEMBERSHIPS },
   { email: "pharmacist@helivanta.dev", memberships: PHARMACIST_MEMBERSHIPS },
   { email: MFA_EMAIL, memberships: PHARMACIST_MEMBERSHIPS },
+  {
+    email: SECURITY_KEY_EMAIL,
+    homeTenant: SECOND_TENANT_ID,
+    memberships: [{ tenantId: SECOND_TENANT_ID, role: "pharmacist" }],
+  },
   ...(process.env.HELIVANTA_STAFF_MFA_RECOVERY_FIXTURE === "true"
     ? [
         {
@@ -330,6 +343,97 @@ async function ensureTOTPEnrolled(pat, userId, email) {
   return secret;
 }
 
+// An org-scoped call with an explicit method: managementAPI only POSTs and
+// sends no x-zitadel-orgid.
+async function orgAPI(pat, method, path, orgId, body) {
+  const res = await fetch(`${ISSUER}${path}`, {
+    method,
+    headers: {
+      Authorization: `Bearer ${pat}`,
+      "Content-Type": "application/json",
+      ...(orgId ? { "x-zitadel-orgid": orgId } : {}),
+    },
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(`${method} ${path} failed: HTTP ${res.status} ${JSON.stringify(json)}`);
+  }
+  return json;
+}
+
+// The login-policy fields a custom policy is created or updated with, copied
+// from the org's current policy so that only forceMfa changes: an omitted
+// field resets to its zero value (allowUsernamePassword=false would end
+// password sign-in for the org).
+const LOGIN_POLICY_FIELDS = [
+  "allowUsernamePassword",
+  "allowRegister",
+  "allowExternalIdp",
+  "forceMfaLocalOnly",
+  "passwordlessType",
+  "hidePasswordReset",
+  "ignoreUnknownUsernames",
+  "defaultRedirectUri",
+  "passwordCheckLifetime",
+  "externalLoginCheckLifetime",
+  "mfaInitSkipLifetime",
+  "secondFactorCheckLifetime",
+  "multiFactorCheckLifetime",
+  "allowDomainDiscovery",
+  "disableLoginWithEmail",
+  "disableLoginWithPhone",
+];
+
+// ensureForcedMFA gives orgId a login policy that forces MFA, the policy the
+// API reads to decide that a password alone is not enough (loginclient's
+// LoginPolicyForOrg). An org that inherits the instance default gets its own
+// policy; one that already has its own is updated. Read back afterwards, as
+// every other write in this script is proved rather than trusted.
+async function ensureForcedMFA(pat, orgId) {
+  const path = "/management/v1/policies/login";
+  const { policy } = await orgAPI(pat, "GET", path, orgId);
+  if (!policy) throw new Error(`GET ${path} for ${orgId} returned no policy`);
+  if (policy.forceMfa === true && policy.isDefault !== true) return;
+  const settings = Object.fromEntries(LOGIN_POLICY_FIELDS.map((key) => [key, policy[key]]));
+  if (policy.isDefault === true) {
+    await orgAPI(pat, "POST", path, orgId, {
+      ...settings,
+      forceMfa: true,
+      secondFactors: policy.secondFactors,
+      multiFactors: policy.multiFactors,
+    });
+  } else {
+    await orgAPI(pat, "PUT", path, orgId, { ...settings, forceMfa: true });
+  }
+  const after = await orgAPI(pat, "GET", path, orgId);
+  if (after.policy?.forceMfa !== true || after.policy?.isDefault === true) {
+    throw new Error(`${orgId}'s login policy does not force MFA after the update`);
+  }
+  console.log(`${orgId}'s login policy now forces MFA`);
+}
+
+// clearSecondFactors removes every second factor the user holds (a security
+// key from an earlier run of the spec, ready or abandoned mid-registration,
+// or a TOTP), so the next sign-in is the enrol step again. Proved by reading
+// the factors back.
+async function clearSecondFactors(pat, userId, orgId, email) {
+  const search = `/management/v1/users/${userId}/auth_factors/_search`;
+  const { result = [] } = await orgAPI(pat, "POST", search, orgId, {});
+  for (const factor of result) {
+    if (factor.u2f?.id) {
+      await orgAPI(pat, "DELETE", `/v2/users/${userId}/u2f/${factor.u2f.id}`);
+    } else if (factor.otp) {
+      await orgAPI(pat, "DELETE", `/v2/users/${userId}/totp`);
+    }
+  }
+  const after = await orgAPI(pat, "POST", search, orgId, {});
+  if ((after.result ?? []).length > 0) {
+    throw new Error(`${email} still has second factors after clearing: ${JSON.stringify(after)}`);
+  }
+  console.log(`Cleared every second factor from ${email}`);
+}
+
 async function main() {
   const pat = readMachinePAT();
   const loginClientPAT = readLoginClientPAT();
@@ -413,6 +517,15 @@ async function main() {
       if (email === MFA_EMAIL) {
         await ensureTOTPEnrolled(pat, userId, email);
       }
+      if (email === SECURITY_KEY_EMAIL) {
+        // This forces two-step verification on the whole second-hospital org
+        // of the local dev stack: any user later homed there must enrol a
+        // factor to sign in. The key user is homed there because no other
+        // seeded account is (they only hold memberships), so nothing else
+        // is affected today.
+        await ensureForcedMFA(pat, `helivanta-${homeTenant}`);
+        await clearSecondFactors(pat, userId, `helivanta-${homeTenant}`, email);
+      }
     }
   } finally {
     await pg.end();
@@ -424,6 +537,8 @@ async function main() {
   pharmacist@helivanta.dev / ${PASSWORD}  (pharmacist — sees Pharmacy only)
   ${MFA_EMAIL}       / ${PASSWORD}  (pharmacist — TOTP-enrolled; e2e/tests/mfa.spec.ts's own
                                     account, secret recorded in ${TOTP_SECRET_PATH})
+  ${SECURITY_KEY_EMAIL} / ${PASSWORD}  (pharmacist in ${SECOND_TENANT_ID}, whose org forces MFA;
+                                    nothing enrolled — e2e/tests/security-key-enrol.spec.ts's own)
   plus one e2e-<spec>-admin@helivanta.dev and one e2e-<spec>-pharmacist@helivanta.dev per
   Playwright spec file, so no two specs share a revocation subject.`);
 }

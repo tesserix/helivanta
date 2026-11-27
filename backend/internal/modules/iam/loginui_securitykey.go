@@ -1,7 +1,15 @@
 package iam
 
 import (
+	"encoding/json"
+	"errors"
+	"fmt"
 	"log/slog"
+	"slices"
+	"strings"
+	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/gin-gonic/gin"
 	"github.com/tesserix/helivanta/internal/modules/iam/loginclient"
@@ -50,3 +58,225 @@ func (h *LoginUIHandlers) securityKeyContinuation(c *gin.Context, requestID stri
 
 // SetNativeWebClientID binds the native-key action to this deployment's OIDC client.
 func (h *LoginUIHandlers) SetNativeWebClientID(clientID string) { h.nativeWebClientID = clientID }
+
+// keyRegistry is what the sufficiency decision consults to treat an enrolled
+// U2F as collectible (loginclient.KeyRegistry). nil without a validated
+// relying party: no key is ever offered, so none can count (fail closed).
+func (h *LoginUIHandlers) keyRegistry() loginclient.KeyRegistry {
+	if h.webauthnRPID == "" {
+		return nil
+	}
+	return h.keys.Contains
+}
+
+// SetWebAuthnRPID binds the boot-validated relying-party ID
+// (config.ValidatedWebAuthnRPID). Left empty, no security key is offered.
+func (h *LoginUIHandlers) SetWebAuthnRPID(rpID string) { h.webauthnRPID = rpID }
+
+const (
+	defaultSecurityKeyName  = "Security key"
+	maxSecurityKeyNameRunes = 64
+)
+
+// validate checks what each enrolment factor requires and returns the key
+// name to record (security_key only). Any factor other than totp and
+// security_key is a 400, never a credential refusal: it says nothing about a
+// login, only that the caller sent a value this endpoint does not support.
+func (r enrollRequest) validate() (string, error) {
+	switch r.Factor {
+	case "totp":
+		if r.Code == "" {
+			return "", errors.New("code is required for totp")
+		}
+		return "", nil
+	case "security_key":
+		if len(r.Credential) == 0 || string(r.Credential) == "null" {
+			return "", errors.New("credential is required for security_key")
+		}
+		return securityKeyName(r.Name)
+	default:
+		return "", fmt.Errorf("unsupported factor %q", r.Factor)
+	}
+}
+
+// securityKeyName is the label Zitadel stores for the key: trimmed, at most
+// 64 characters, no control characters, and "Security key" when blank.
+func securityKeyName(raw string) (string, error) {
+	name := strings.TrimSpace(raw)
+	if name == "" {
+		return defaultSecurityKeyName, nil
+	}
+	if !utf8.ValidString(name) || utf8.RuneCountInString(name) > maxSecurityKeyNameRunes {
+		return "", fmt.Errorf("name must be at most %d characters", maxSecurityKeyNameRunes)
+	}
+	if strings.ContainsFunc(name, unicode.IsControl) {
+		return "", errors.New("name must not contain control characters")
+	}
+	return name, nil
+}
+
+// validate checks what each factor requires: a code for totp, a non-null
+// assertion for security_key. Any other factor is a 400.
+func (r factorRequest) validate() error {
+	switch r.Factor {
+	case "totp":
+		if r.Code == "" {
+			return errors.New("code is required for totp")
+		}
+	case "security_key":
+		if len(r.Assertion) == 0 || string(r.Assertion) == "null" {
+			return errors.New("assertion is required for security_key")
+		}
+	default:
+		return fmt.Errorf("unsupported factor %q", r.Factor)
+	}
+	return nil
+}
+
+// checkSecurityKey is /factor's security-key branch (#1898): Zitadel checks
+// the browser's assertion against the session's WebAuthn challenge, and a
+// success finishes through exactly the TOTP tail (completeVerifiedFactor).
+// Only an attempt a key challenge was issued to may assert: one from /enroll
+// (SecurityKeyID is the just-registered key, Enrolling still true) or a
+// sign-in with a Helivanta-registered key (securityKeySignIn). Any other attempt is
+// refused before any round trip, indistinguishably from a wrong code (spec
+// D4's rule for the TOTP pair). A refused assertion spends one of the five
+// guesses, as a wrong code does; a cancelled ceremony posts nothing.
+func (h *LoginUIHandlers) checkSecurityKey(c *gin.Context, start time.Time, authRequestID string, attempt loginAttempt, assertion json.RawMessage) {
+	if attempt.SecurityKeyID == "" || h.webauthnRPID == "" {
+		h.bumpFactorAttempt(c, authRequestID, errAttemptInOtherFlow, start)
+		return
+	}
+	// An Enrolling attempt whose key /enroll has not confirmed yet is admitted
+	// too; harmless: its session holds no WebAuthn challenge, so Zitadel
+	// refuses the assertion (one guess spent), and CompleteAfterFactor would
+	// still refuse a key absent from the registry.
+	verified, err := h.client.CheckSecurityKey(c.Request.Context(),
+		loginclient.Session{ID: attempt.SessionID, Token: attempt.SessionToken}, assertion)
+	if err != nil {
+		if loginclient.IsCredentialRefusal(err) {
+			h.bumpFactorAttempt(c, authRequestID, err, start)
+			return
+		}
+		h.respondLoginClientError(c, err, "check_security_key")
+		return
+	}
+	h.completeVerifiedFactor(c, authRequestID, verified)
+}
+
+// securityKeyRequestWire relays Zitadel's WebAuthn request options verbatim.
+type securityKeyRequestWire struct {
+	RequestOptions json.RawMessage `json:"request_options"`
+}
+
+type securityKeyChallengeResponse struct {
+	SecurityKey securityKeyRequestWire `json:"security_key"`
+}
+
+// securityKeySignIn is the SecurityKeyID a sign-in attempt carries when the
+// password step challenged the user's Helivanta-registered keys (#1898). It
+// is not a Zitadel u2fId (those are numeric): it marks that a challenge was
+// issued, so checkSecurityKey admits the assertion; which key answers is
+// Zitadel's to verify. /enroll refuses it (Enrolling is false).
+const securityKeySignIn = "registered"
+
+// enrollSecurityKey confirms the key the password step registered (#1898):
+// Zitadel verifies the browser's attestation, the key is recorded in the
+// registry, and the session gets a WebAuthn challenge the page asserts next
+// on /factor. The order is the recovery argument: the registry row is
+// written before any challenge exists, and a retry that finds the row skips
+// the verify (Zitadel would refuse a second verify of the same key) and only
+// issues a fresh challenge. A retry after a failed registry write finds the
+// key READY in Zitadel and records it without verifying again, and so does a
+// switch to the authenticator app (Enroll's TOTP branch). Refusals and the
+// five-guess budget are exactly the TOTP enrolment's.
+func (h *LoginUIHandlers) enrollSecurityKey(c *gin.Context, start time.Time, authRequestID string, attempt loginAttempt, credential json.RawMessage, name string) {
+	ctx := c.Request.Context()
+	if !attempt.Enrolling || attempt.SecurityKeyID == "" || h.webauthnRPID == "" {
+		// No key was offered to this attempt: refused like a wrong
+		// credential, before any round trip (spec D4's rule for the TOTP pair).
+		h.bumpFactorAttempt(c, authRequestID, errAttemptInOtherFlow, start)
+		return
+	}
+	subject, err := h.client.SessionUserID(ctx, attempt.SessionID)
+	if err != nil {
+		h.respondLoginClientError(c, err, "security_key_subject")
+		return
+	}
+	recorded, err := h.keys.Contains(ctx, subject, []string{attempt.SecurityKeyID})
+	if err != nil {
+		// Fail closed as retryable: an unreadable registry must not become a
+		// second verify (refused by Zitadel, so a spent guess) or a success.
+		h.respondLoginClientError(c, fmt.Errorf("%w: %w", err, loginclient.ErrUnavailable), "security_key_registry")
+		return
+	}
+	if !recorded {
+		// Verifying a key an earlier call already verified would be refused
+		// and spend a guess, so a READY key is only recorded.
+		recovered, ok := h.recordVerifiedSecurityKey(c, subject, attempt)
+		if !ok {
+			return
+		}
+		if !recovered {
+			if err := h.client.VerifySecurityKey(ctx, attempt.SessionID, attempt.SecurityKeyID, credential, name); err != nil {
+				if loginclient.IsCredentialRefusal(err) {
+					h.bumpFactorAttempt(c, authRequestID, err, start)
+					return
+				}
+				h.respondLoginClientError(c, err, "verify_security_key")
+				return
+			}
+			if !h.addSecurityKey(c, subject, attempt.SecurityKeyID) {
+				return
+			}
+		}
+	}
+	challenged, options, err := h.client.ChallengeSecurityKey(ctx,
+		loginclient.Session{ID: attempt.SessionID, Token: attempt.SessionToken}, h.webauthnRPID)
+	if err != nil {
+		h.respondLoginClientError(c, err, "challenge_security_key")
+		return
+	}
+	// The challenge rotated the token; the stored one must be the one that
+	// works for the assertion, as on the TOTP path.
+	if err := h.store.UpdateToken(ctx, authRequestID, challenged.Token); err != nil {
+		respond.InternalErr(c, err, "sign-in could not be completed")
+		return
+	}
+	audit.Log(ctx, requestid.Logger(c), slog.LevelInfo, "auth.login.security_key_enrolled", "login security key recorded",
+		"auth_request_id", authRequestID, "outcome", "security_key_challenge")
+	body := securityKeyChallengeResponse{}
+	body.SecurityKey.RequestOptions = options
+	respond.OK(c, body)
+}
+
+// recordVerifiedSecurityKey is the recovery for a verify that succeeded before
+// its registry write failed (#1898): Zitadel holds attempt.SecurityKeyID READY
+// but Helivanta has not recorded it. It records the key without a second
+// verify and reports whether it did. Safe without the browser's credential:
+// this attempt's own password-checked session registered the id, and READY
+// means Zitadel already verified its attestation. A key that is not READY
+// (never verified) is left alone. ok is false when it has already answered
+// (503): the caller must stop without spending a guess.
+func (h *LoginUIHandlers) recordVerifiedSecurityKey(c *gin.Context, subject string, attempt loginAttempt) (recovered, ok bool) {
+	ready, err := h.client.ReadySecurityKeyIDs(c.Request.Context(), attempt.SessionID)
+	if err != nil {
+		h.respondLoginClientError(c, err, "security_key_ready")
+		return false, false
+	}
+	if !slices.Contains(ready, attempt.SecurityKeyID) {
+		return false, true
+	}
+	return true, h.addSecurityKey(c, subject, attempt.SecurityKeyID)
+}
+
+// addSecurityKey records a verified key, answering 503 when it cannot: Zitadel
+// then holds a verified key Helivanta has not recorded, and a key absent from
+// the registry is never accepted later, so this fails closed. Never a success.
+func (h *LoginUIHandlers) addSecurityKey(c *gin.Context, subject, keyID string) bool {
+	if err := h.keys.Add(c.Request.Context(), subject, keyID, h.webauthnRPID); err != nil {
+		h.respondLoginClientError(c, fmt.Errorf("%w: %w", err, loginclient.ErrUnavailable), "security_key_registry")
+		return false
+	}
+	return true
+}

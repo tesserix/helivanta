@@ -182,6 +182,12 @@ var hospitalStocktakeTemplatesAfterSchema string
 //go:embed staff_mfa_fences.sql
 var staffMFAFencesSchema string
 
+//go:embed security_keys.sql
+var securityKeysSchema string
+
+//go:embed security_keys_guard.sql
+var securityKeysGuardSchema string
+
 func (m *Module) Migrations() []tenantdb.Migration {
 	return []tenantdb.Migration{{
 		ID: "0001_iam",
@@ -364,7 +370,7 @@ CREATE TABLE IF NOT EXISTS login_account_choice (
 );
 CREATE INDEX IF NOT EXISTS login_account_choice_expires_at_idx ON login_account_choice (expires_at);
 `,
-	}, {ID: "0054_iam_staff_mfa_fences", SQL: staffMFAFencesSchema}, {ID: "0055_iam_stocktake_operating_templates", SQL: stocktakeTemplatesBeforeSchema + operatingTemplatesStocktakeSchema + stocktakeTemplatesAfterSchema}, {ID: "0056_iam_pharmacy_stocktake_templates", SQL: hospitalStocktakeTemplatesBeforeSchema + hospitalStocktakeTemplatesSchema + hospitalStocktakeTemplatesAfterSchema}}
+	}, {ID: "0054_iam_staff_mfa_fences", SQL: staffMFAFencesSchema}, {ID: "0055_iam_stocktake_operating_templates", SQL: stocktakeTemplatesBeforeSchema + operatingTemplatesStocktakeSchema + stocktakeTemplatesAfterSchema}, {ID: "0056_iam_pharmacy_stocktake_templates", SQL: hospitalStocktakeTemplatesBeforeSchema + hospitalStocktakeTemplatesSchema + hospitalStocktakeTemplatesAfterSchema}, {ID: "0057_iam_security_keys", SQL: securityKeysSchema + securityKeysGuardSchema}}
 }
 
 type role struct {

@@ -66,6 +66,10 @@ func migrateLoginAttempt(t *testing.T, db *tenantdb.DB) {
 		require.True(t, ok, "precondition: %s shapes login_attempt", id)
 		migs = append(migs, m)
 	}
+	// 0057_iam_security_keys also re-pins operating governance, which this
+	// slim schema does not have; its table half is applied alone. The
+	// guarded whole migration is exercised in security_keys_migration_test.go.
+	migs = append(migs, tenantdb.Migration{ID: "test_0057_iam_security_keys_tables", SQL: securityKeysSchema})
 	require.NoError(t, db.Migrate(context.Background(), migs))
 }
 

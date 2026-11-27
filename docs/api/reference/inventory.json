@@ -1525,6 +1525,13 @@
           "id": "0056_iam_pharmacy_stocktake_templates",
           "sql_sha256": "d2e0c355c44510117899f0f1e8ca67cb3c288988ffa3f7017f856768083d69a4",
           "creates_tables": []
+        },
+        {
+          "id": "0057_iam_security_keys",
+          "sql_sha256": "65cb4e0ed795186c604be7a94379878760f9d2201e4fb9d696bdea65f7e9c33a",
+          "creates_tables": [
+            "iam_security_keys"
+          ]
         }
       ]
     },

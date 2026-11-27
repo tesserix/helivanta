@@ -432,6 +432,15 @@ func (c *Client) VerifyTOTPEnrollment(ctx context.Context, sessionID, code strin
 type Factors struct {
 	Password bool
 	TOTP     bool
+	WebAuthN bool
+}
+
+// SecondFactorProven reports whether the session carries a verified second
+// factor Helivanta can collect: TOTP, or a security key (WebAuthN) alongside
+// the password. A key alone never counts: fail closed, so a session that
+// somehow lacks the password proof is not treated as fully signed in.
+func (f Factors) SecondFactorProven() bool {
+	return f.TOTP || (f.Password && f.WebAuthN)
 }
 
 // SessionFactors reads GET /v2/sessions/{id} (MFA spike §1 — see
@@ -449,6 +458,9 @@ func (c *Client) SessionFactors(ctx context.Context, sessionID string) (Factors,
 				TOTP *struct {
 					VerifiedAt string `json:"verifiedAt"`
 				} `json:"totp"`
+				WebAuthN *struct {
+					VerifiedAt string `json:"verifiedAt"`
+				} `json:"webAuthN"`
 			} `json:"factors"`
 		} `json:"session"`
 	}
@@ -458,6 +470,7 @@ func (c *Client) SessionFactors(ctx context.Context, sessionID string) (Factors,
 	return Factors{
 		Password: wire.Session.Factors.Password != nil,
 		TOTP:     wire.Session.Factors.TOTP != nil,
+		WebAuthN: wire.Session.Factors.WebAuthN != nil,
 	}, nil
 }
 

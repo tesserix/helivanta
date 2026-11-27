@@ -8,6 +8,8 @@ import { z } from "zod";
 import {
   AuthCardCentered,
   AuthCredentialForm,
+  AuthError,
+  AuthLinkButton,
   AuthSetPasswordForm,
   Button,
   type AuthCredentialValues,
@@ -21,7 +23,7 @@ import {
   useApiMutation,
   useApiQuery,
 } from "@helivanta/api";
-import { IDLE_ENDED_MARK, SIGNED_OUT_MARK } from "@helivanta/ui";
+import { Field, IDLE_ENDED_MARK, SIGNED_OUT_MARK, controlClass, useZodForm } from "@helivanta/ui";
 import { QRCodeSVG } from "qrcode.react";
 
 import {
@@ -39,7 +41,9 @@ import {
   changePassword,
   checkFactor,
   checkPassword,
+  checkSecurityKey,
   chooseAccount,
+  enrollSecurityKey,
   verifyEnrollment,
   type AccountChoice,
   type AuthPoliciesInfo,
@@ -51,6 +55,13 @@ import {
   type PasswordPolicyInfo,
   type TotpEnrollment,
 } from "@/lib/login-client";
+import {
+  assertionJSON,
+  attestationJSON,
+  supportsSecurityKeys,
+  toCreationOptions,
+  toRequestOptions,
+} from "@/lib/webauthn";
 
 // Ordinary sign-in proves mailbox control before showing separate tenant accounts.
 // Scoped links keep their exact native organisation. Neither discovery nor a
@@ -272,7 +283,14 @@ type LoginStep =
   | { kind: "accountChoice"; currentPassword: string; choices: AccountChoice[] }
   | { kind: "securityKey"; url: string }
   | { kind: "otp"; currentPassword: string }
-  | { kind: "enroll"; currentPassword: string; totp: TotpEnrollment }
+  // #1898: a Helivanta-registered key is enrolled; `totp` when TOTP is too.
+  | { kind: "keyFactor"; currentPassword: string; requestOptions: unknown; totp: boolean }
+  | {
+      kind: "enroll";
+      currentPassword: string;
+      totp: TotpEnrollment;
+      securityKey?: { creationOptions: unknown };
+    }
   | { kind: "passwordChange"; currentPassword: string; change: PasswordChangeRequired };
 
 // Owns the steps a validated auth request can be in: the credential step
@@ -315,14 +333,21 @@ function LoginFlow({
   // on a first-render flag, so Strict Mode's re-run cannot move focus off the
   // credential step's own autofocus on arrival.
   const heading = useRef<HTMLHeadingElement>(null);
-  const shown = endedMessage === null ? step.kind : "ended";
+  // The enrol step with a key offered opens on a choice, which has no code.
+  const shown =
+    endedMessage !== null
+      ? "ended"
+      : step.kind === "enroll" && step.securityKey
+        ? "enrollChoice"
+        : step.kind;
   const focusedFor = useRef(shown);
   useEffect(() => {
     if (focusedFor.current === shown) return;
     focusedFor.current = shown;
     // A code step's one job is its code: MfaCodeForm already focused the
     // first digit, which is announced with its group label, so typing can
-    // start at once. Every other step lands on its heading.
+    // start at once. Every other step, the key steps included, lands on its
+    // heading.
     if (shown === "otp" || shown === "enroll") return;
     heading.current?.focus();
   }, [shown]);
@@ -351,13 +376,27 @@ function LoginFlow({
         setStep({ kind: "securityKey", url: result.url });
         break;
       case "factorRequired":
-        setStep({ kind: "otp", currentPassword });
+        setStep(
+          result.securityKey
+            ? {
+                kind: "keyFactor",
+                currentPassword,
+                requestOptions: result.securityKey.requestOptions,
+                totp: result.factors.includes("totp"),
+              }
+            : { kind: "otp", currentPassword },
+        );
         break;
       case "enrollmentRequired":
         // Neither success nor failure, like factorRequired: the password
         // was right and the next step is to set up the authenticator the
         // org requires (#948).
-        setStep({ kind: "enroll", currentPassword, totp: result.totp });
+        setStep({
+          kind: "enroll",
+          currentPassword,
+          totp: result.totp,
+          securityKey: result.securityKey,
+        });
         break;
       case "passwordChangeRequired":
         setStep({ kind: "passwordChange", currentPassword, change: result });
@@ -408,10 +447,24 @@ function LoginFlow({
     );
   }
 
-  if (step.kind === "otp" || step.kind === "enroll") {
+  if (step.kind === "otp" || step.kind === "enroll" || step.kind === "keyFactor") {
     const { currentPassword } = step;
     const toPasswordChange = (change: PasswordChangeRequired) =>
       setStep({ kind: "passwordChange", currentPassword, change });
+    if (step.kind === "keyFactor") {
+      return (
+        <SecurityKeyStep
+          authRequestId={authRequestId}
+          requestOptions={step.requestOptions}
+          headingRef={heading}
+          onEnded={end}
+          onPasswordChangeRequired={toPasswordChange}
+          onUseAuthenticator={
+            step.totp ? () => setStep({ kind: "otp", currentPassword }) : undefined
+          }
+        />
+      );
+    }
     return step.kind === "otp" ? (
       <OtpStep
         authRequestId={authRequestId}
@@ -423,6 +476,7 @@ function LoginFlow({
       <EnrollStep
         authRequestId={authRequestId}
         totp={step.totp}
+        securityKey={step.securityKey}
         headingRef={heading}
         onEnded={end}
         onPasswordChangeRequired={toPasswordChange}
@@ -900,7 +954,50 @@ function OtpStep({
 // end on the start-again landing. A refresh loses the secret with the rest
 // of the page state; the clinician signs in again and receives a new one
 // (spec D2) — there is deliberately no way to re-fetch it.
+//
+// When the API also offers a security key (#1898), the step opens on a choice
+// between the two. The authenticator app leads to the TOTP view below; the key
+// is registered and then confirmed in place (SecurityKeyChoice).
 function EnrollStep({
+  authRequestId,
+  totp,
+  securityKey,
+  headingRef,
+  onEnded,
+  onPasswordChangeRequired,
+}: {
+  authRequestId: string;
+  totp: TotpEnrollment;
+  securityKey?: { creationOptions: unknown };
+  headingRef: Ref<HTMLHeadingElement>;
+  onEnded: (message: string) => void;
+  onPasswordChangeRequired: (change: PasswordChangeRequired) => void;
+}) {
+  const [method, setMethod] = useState<"choice" | "totp">(securityKey ? "choice" : "totp");
+  if (securityKey && method === "choice") {
+    return (
+      <SecurityKeyChoice
+        authRequestId={authRequestId}
+        creationOptions={securityKey.creationOptions}
+        headingRef={headingRef}
+        onEnded={onEnded}
+        onPasswordChangeRequired={onPasswordChangeRequired}
+        onUseAuthenticator={() => setMethod("totp")}
+      />
+    );
+  }
+  return (
+    <TotpEnrollStep
+      authRequestId={authRequestId}
+      totp={totp}
+      headingRef={headingRef}
+      onEnded={onEnded}
+      onPasswordChangeRequired={onPasswordChangeRequired}
+    />
+  );
+}
+
+function TotpEnrollStep({
   authRequestId,
   totp,
   headingRef,
@@ -1001,6 +1098,268 @@ function EnrollStep({
         />
         <AuthenticatorHelp />
         <StartAgainButton onEnded={onEnded} disabled={submit.isPending} />
+      </AuthCardCentered>
+    </TenantLoginLayout>
+  );
+}
+
+// #1898 copy, approved by the product owner on 2026-11-27 (enrolment).
+const KEY_PROMPT = "Insert or touch your security key.";
+const KEY_NOT_REGISTERED =
+  "The security key wasn't registered. Try again, or use the authenticator app.";
+const KEY_UNSUPPORTED = "This browser can't use security keys. Use the authenticator app instead.";
+// Sign-in copy (spec D2); not yet product-owner approved, which slice 2 needs.
+const KEY_UNSUPPORTED_SIGN_IN =
+  "This browser can't use security keys. Use another browser, or your authenticator app if you have one.";
+const KEY_NOT_ACCEPTED = "The security key wasn't accepted. Try again.";
+
+// One press of the key: the API's answer to its assertion, or the browser
+// refusing the ceremony (cancelled, timed out, no matching key).
+type KeyAttempt = FactorCheckResult | { outcome: "keyFailed" };
+
+// assertKey asks the browser for an assertion over the API's request options
+// and posts it to /factor. A refused ceremony posts nothing: there is no
+// assertion to send, and the challenge stays valid for a retry. Options that
+// are not the server's shape throw (fail closed), outside the try, so they
+// are never mistaken for a cancelled key.
+async function assertKey(authRequestId: string, requestOptions: unknown): Promise<KeyAttempt> {
+  const options = toRequestOptions(requestOptions);
+  let assertion: Credential | null;
+  try {
+    assertion = await navigator.credentials.get(options);
+  } catch {
+    return { outcome: "keyFailed" };
+  }
+  if (!assertion) return { outcome: "keyFailed" };
+  return checkSecurityKey({
+    authRequestId,
+    assertion: assertionJSON(assertion as PublicKeyCredential),
+  });
+}
+
+// The factor check's outcomes, handled exactly as OtpStep handles a code's.
+function finishFactor(
+  result: FactorCheckResult,
+  on: {
+    ended: (message: string) => void;
+    passwordChange: (change: PasswordChangeRequired) => void;
+    refused: (message: string) => void;
+  },
+) {
+  switch (result.outcome) {
+    case "complete":
+      window.location.assign(result.callbackUrl);
+      break;
+    case "passwordChangeRequired":
+      on.passwordChange(result);
+      break;
+    case "blocked":
+    case "expired":
+      on.ended(result.message);
+      break;
+    case "refused":
+      on.refused(result.message);
+      break;
+  }
+}
+
+function errorMessage(error: Error | null): string | undefined {
+  if (!error) return undefined;
+  return error instanceof ApiError ? error.message : "Sign-in failed. Please try again.";
+}
+
+// The key name Zitadel stores (#1898): the API trims it and allows 64
+// characters, so the form refuses the same before the key is touched.
+const keyNameSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(1, "Enter a name for the key.")
+    .max(64, "Use 64 characters or fewer."),
+});
+
+// SecurityKeyChoice is the enrol step's choice (#1898 spec D3). Choosing the
+// key runs navigator.credentials.create over the API's creation options,
+// posts the credential to /enroll, and then confirms the new key with an
+// assertion on /factor: the person touches the key twice, and the key prompt
+// covers both. Once /enroll accepts, a retry repeats only the confirmation:
+// the key is registered, and registering it again would be refused.
+function SecurityKeyChoice({
+  authRequestId,
+  creationOptions,
+  headingRef,
+  onEnded,
+  onPasswordChangeRequired,
+  onUseAuthenticator,
+}: {
+  authRequestId: string;
+  creationOptions: unknown;
+  headingRef: Ref<HTMLHeadingElement>;
+  onEnded: (message: string) => void;
+  onPasswordChangeRequired: (change: PasswordChangeRequired) => void;
+  onUseAuthenticator: () => void;
+}) {
+  const supported = supportsSecurityKeys();
+  const form = useZodForm(keyNameSchema, { name: "Security key" });
+  const [failure, setFailure] = useState<string | undefined>();
+  const [requestOptions, setRequestOptions] = useState<unknown>();
+
+  const register = useApiMutation<KeyAttempt, string>(
+    async (name) => {
+      let options = requestOptions;
+      if (options === undefined) {
+        const creation = toCreationOptions(creationOptions);
+        let credential: Credential | null;
+        try {
+          credential = await navigator.credentials.create(creation);
+        } catch {
+          return { outcome: "keyFailed" };
+        }
+        if (!credential) return { outcome: "keyFailed" };
+        const enrolled = await enrollSecurityKey({
+          authRequestId,
+          credential: attestationJSON(credential as PublicKeyCredential),
+          name,
+        });
+        if (enrolled.outcome !== "challenged") return enrolled;
+        options = enrolled.requestOptions;
+        setRequestOptions(options);
+      }
+      return assertKey(authRequestId, options);
+    },
+    {
+      onSuccess: (result) =>
+        result.outcome === "keyFailed"
+          ? setFailure(KEY_NOT_REGISTERED)
+          : finishFactor(result, {
+              ended: onEnded,
+              passwordChange: onPasswordChangeRequired,
+              refused: setFailure,
+            }),
+      suppressErrorToast: true,
+    },
+  );
+  const busy = register.isPending;
+  const nameError = form.formState.errors.name?.message;
+
+  return (
+    <TenantLoginLayout>
+      <AuthCardCentered>
+        <div className="space-y-2 text-center">
+          <TenantLoginHeading />
+          <h2 ref={headingRef} tabIndex={-1} className="text-lg font-semibold tracking-tight">
+            Set up two-step verification
+          </h2>
+        </div>
+        <Button variant="outline" className="w-full" disabled={busy} onClick={onUseAuthenticator}>
+          Authenticator app
+        </Button>
+        <form
+          noValidate
+          aria-label="Security key"
+          className="flex flex-col gap-4"
+          onSubmit={form.handleSubmit(({ name }) => {
+            setFailure(undefined);
+            register.mutate(name);
+          })}
+        >
+          <fieldset disabled={!supported || busy} className="flex flex-col gap-4">
+            <Field id="security-key-name" label="Key name" error={nameError}>
+              <input
+                id="security-key-name"
+                autoComplete="off"
+                className={controlClass}
+                aria-invalid={!!nameError}
+                {...form.register("name")}
+              />
+            </Field>
+            <Button type="submit" className="w-full">
+              Security key
+            </Button>
+          </fieldset>
+          {busy ? (
+            <p role="status" className="text-sm text-muted-foreground">
+              {KEY_PROMPT}
+            </p>
+          ) : null}
+          <AuthError message={failure ?? errorMessage(register.error)} />
+        </form>
+        {supported ? null : <p className="text-sm text-muted-foreground">{KEY_UNSUPPORTED}</p>}
+        <StartAgainButton onEnded={onEnded} disabled={busy} />
+      </AuthCardCentered>
+    </TenantLoginLayout>
+  );
+}
+
+// SecurityKeyStep is the factor step for a Helivanta-registered key (#1898
+// spec D2): it asks the browser for the key as soon as it renders. A refused
+// ceremony stays here with a retry, and the authenticator app is offered
+// when TOTP is enrolled too.
+function SecurityKeyStep({
+  authRequestId,
+  requestOptions,
+  headingRef,
+  onEnded,
+  onPasswordChangeRequired,
+  onUseAuthenticator,
+}: {
+  authRequestId: string;
+  requestOptions: unknown;
+  headingRef: Ref<HTMLHeadingElement>;
+  onEnded: (message: string) => void;
+  onPasswordChangeRequired: (change: PasswordChangeRequired) => void;
+  onUseAuthenticator?: () => void;
+}) {
+  const supported = supportsSecurityKeys();
+  const [failure, setFailure] = useState<string | undefined>();
+  const assert = useApiMutation<KeyAttempt>(() => assertKey(authRequestId, requestOptions), {
+    onSuccess: (result) =>
+      result.outcome === "keyFailed"
+        ? setFailure(KEY_NOT_ACCEPTED)
+        : finishFactor(result, {
+            ended: onEnded,
+            passwordChange: onPasswordChangeRequired,
+            refused: setFailure,
+          }),
+    suppressErrorToast: true,
+  });
+  // Once per step, Strict Mode's second effect run included: two concurrent
+  // ceremonies would cancel each other.
+  const started = useRef(false);
+  useEffect(() => {
+    if (!supported || started.current) return;
+    started.current = true;
+    assert.mutate();
+  }, [supported, assert]);
+  const error = failure ?? errorMessage(assert.error);
+
+  return (
+    <TenantLoginLayout>
+      <AuthCardCentered>
+        <div className="space-y-2 text-center">
+          <TenantLoginHeading ref={headingRef} />
+          <p className="text-sm text-muted-foreground">
+            {supported ? KEY_PROMPT : KEY_UNSUPPORTED_SIGN_IN}
+          </p>
+        </div>
+        <AuthError message={error} />
+        {supported && error && !assert.isPending ? (
+          <Button
+            className="w-full"
+            onClick={() => {
+              setFailure(undefined);
+              assert.mutate();
+            }}
+          >
+            Try again
+          </Button>
+        ) : null}
+        {onUseAuthenticator ? (
+          <AuthLinkButton disabled={assert.isPending} onClick={onUseAuthenticator}>
+            Use your authenticator app instead
+          </AuthLinkButton>
+        ) : null}
+        <StartAgainButton onEnded={onEnded} disabled={assert.isPending} />
       </AuthCardCentered>
     </TenantLoginLayout>
   );

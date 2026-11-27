@@ -246,7 +246,14 @@ export const VerificationPolicyDraftInputContract = z
       .trim()
       .min(1)
       .max(120)
-      .regex(new RegExp("^[^\\x00-\\x1f\\x7f]+$", "u"), "Use a valid identifier.")
+      .refine(
+        (value) =>
+          [...value].every((char) => {
+            const code = char.charCodeAt(0);
+            return code >= 32 && code !== 127;
+          }),
+        "Remove control characters.",
+      )
       .refine((value) => !value.includes("\0"), "Remove invalid characters."),
     second_check_required: z.boolean(),
     review_valid_for_seconds: z.number().int().min(1).max(9223372036),

@@ -273,7 +273,7 @@
         "min": 1,
         "max": 120,
         "format": "text",
-        "pattern": "^[^\\x00-\\x1f\\x7f]+$"
+        "no_ascii_controls": true
       },
       {
         "name": "second_check_required",

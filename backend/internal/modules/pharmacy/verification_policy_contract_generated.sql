@@ -7,7 +7,7 @@ CREATE FUNCTION pharmacy_verification_policy_draft_contract(
  expected bigint,label text,second_check boolean,review_seconds bigint,response_seconds bigint,reason text
 ) RETURNS boolean LANGUAGE sql IMMUTABLE STRICT PARALLEL SAFE AS $$
  SELECT expected BETWEEN 0 AND 9007199254740990
- AND label=btrim(label,U&'\0009\000a\000b\000c\000d\0020\00a0\1680\2000\2001\2002\2003\2004\2005\2006\2007\2008\2009\200a\2028\2029\202f\205f\3000\feff') AND label ~ '^[^\x01-\x1f\x7f]+$'
+ AND label=btrim(label,U&'\0009\000a\000b\000c\000d\0020\00a0\1680\2000\2001\2002\2003\2004\2005\2006\2007\2008\2009\200a\2028\2029\202f\205f\3000\feff') AND label !~ U&'[\0001-\001f\007f]'
  AND pharmacy_verification_utf16_length(label) BETWEEN 1 AND 120
  AND reason=btrim(reason,U&'\0009\000a\000b\000c\000d\0020\00a0\1680\2000\2001\2002\2003\2004\2005\2006\2007\2008\2009\200a\2028\2029\202f\205f\3000\feff')
  AND pharmacy_verification_utf16_length(reason) BETWEEN 1 AND 500

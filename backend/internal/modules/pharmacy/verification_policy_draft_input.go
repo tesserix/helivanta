@@ -1,11 +1,8 @@
 package pharmacy
 
 import (
-	"regexp"
 	"strings"
 )
-
-var verificationPolicyLabel = regexp.MustCompile(verificationPolicyLabelPattern)
 
 // validVerificationPolicyDraftInput validates administrative intent, never clinical authority.
 func validVerificationPolicyDraftInput(in VerificationPolicyDraftInput) bool {
@@ -17,7 +14,14 @@ func validVerificationPolicyDraftInput(in VerificationPolicyDraftInput) bool {
 	}
 	label := strings.Trim(in.Label, verificationBlankNoteCharacters)
 	reason := strings.Trim(in.Reason, verificationBlankNoteCharacters)
+	if verificationPolicyLabelNoASCIIControls {
+		for _, r := range label {
+			if r < 32 || r == 127 {
+				return false
+			}
+		}
+	}
 	labelLength, labelValid := verificationTextLength(label)
 	reasonLength, reasonValid := verificationTextLength(reason)
-	return labelValid && reasonValid && labelLength >= 1 && labelLength <= verificationPolicyLabelMax && reasonLength >= 1 && reasonLength <= verificationPolicyReasonMax && verificationPolicyLabel.MatchString(label)
+	return labelValid && reasonValid && labelLength >= 1 && labelLength <= verificationPolicyLabelMax && reasonLength >= 1 && reasonLength <= verificationPolicyReasonMax
 }

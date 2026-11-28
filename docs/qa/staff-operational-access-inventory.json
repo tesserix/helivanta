@@ -4719,7 +4719,7 @@
           {
             "path": "backend/internal/customeronboarding/identity_projection.go",
             "symbol": "case loginclient.IdentityReadAssignmentCandidate:",
-            "sha256": "4266d57348c83676e4f570bcc809b86a4355de111fc4e5808038893ff7c79af9"
+            "sha256": "c8badd39f9cba8ecce122995818a72a50e3c33dd17de2d1466eb1ed176419ebf"
           }
         ],
         "remaining": [
@@ -4881,7 +4881,7 @@
           {
             "path": "backend/internal/customeronboarding/identity_projection.go",
             "symbol": "case loginclient.IdentityReadAssignmentCandidate:",
-            "sha256": "4266d57348c83676e4f570bcc809b86a4355de111fc4e5808038893ff7c79af9"
+            "sha256": "c8badd39f9cba8ecce122995818a72a50e3c33dd17de2d1466eb1ed176419ebf"
           }
         ],
         "remaining": [

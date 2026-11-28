@@ -6309,7 +6309,7 @@
         },
         {
           "path": "backend/go.mod",
-          "sha256": "810b796e8bee5c7d0a9a011b878725f0069f66f9fdfb6b0c019906f88917db8c",
+          "sha256": "a14f9cef13ca5d4c2b2db5ab6b93bef897838e06ff9924083af4f340a0a7fa0c",
           "symbol": "github.com/tesserix/onboarding-service/api"
         }
       ],
@@ -6348,7 +6348,7 @@
         },
         {
           "path": "backend/go.mod",
-          "sha256": "810b796e8bee5c7d0a9a011b878725f0069f66f9fdfb6b0c019906f88917db8c",
+          "sha256": "a14f9cef13ca5d4c2b2db5ab6b93bef897838e06ff9924083af4f340a0a7fa0c",
           "symbol": "github.com/tesserix/onboarding-service/api"
         }
       ],
@@ -6387,7 +6387,7 @@
         },
         {
           "path": "backend/go.mod",
-          "sha256": "810b796e8bee5c7d0a9a011b878725f0069f66f9fdfb6b0c019906f88917db8c",
+          "sha256": "a14f9cef13ca5d4c2b2db5ab6b93bef897838e06ff9924083af4f340a0a7fa0c",
           "symbol": "github.com/tesserix/onboarding-service/api"
         }
       ],
@@ -6426,7 +6426,7 @@
         },
         {
           "path": "backend/go.mod",
-          "sha256": "810b796e8bee5c7d0a9a011b878725f0069f66f9fdfb6b0c019906f88917db8c",
+          "sha256": "a14f9cef13ca5d4c2b2db5ab6b93bef897838e06ff9924083af4f340a0a7fa0c",
           "symbol": "github.com/tesserix/onboarding-service/api"
         }
       ],
@@ -6465,7 +6465,7 @@
         },
         {
           "path": "backend/go.mod",
-          "sha256": "810b796e8bee5c7d0a9a011b878725f0069f66f9fdfb6b0c019906f88917db8c",
+          "sha256": "a14f9cef13ca5d4c2b2db5ab6b93bef897838e06ff9924083af4f340a0a7fa0c",
           "symbol": "github.com/tesserix/onboarding-service/api"
         }
       ],
@@ -6504,7 +6504,7 @@
         },
         {
           "path": "backend/go.mod",
-          "sha256": "810b796e8bee5c7d0a9a011b878725f0069f66f9fdfb6b0c019906f88917db8c",
+          "sha256": "a14f9cef13ca5d4c2b2db5ab6b93bef897838e06ff9924083af4f340a0a7fa0c",
           "symbol": "github.com/tesserix/onboarding-service/api"
         }
       ],
@@ -6543,7 +6543,7 @@
         },
         {
           "path": "backend/go.mod",
-          "sha256": "810b796e8bee5c7d0a9a011b878725f0069f66f9fdfb6b0c019906f88917db8c",
+          "sha256": "a14f9cef13ca5d4c2b2db5ab6b93bef897838e06ff9924083af4f340a0a7fa0c",
           "symbol": "github.com/tesserix/onboarding-service/api"
         }
       ],
@@ -6582,7 +6582,7 @@
         },
         {
           "path": "backend/go.mod",
-          "sha256": "810b796e8bee5c7d0a9a011b878725f0069f66f9fdfb6b0c019906f88917db8c",
+          "sha256": "a14f9cef13ca5d4c2b2db5ab6b93bef897838e06ff9924083af4f340a0a7fa0c",
           "symbol": "github.com/tesserix/onboarding-service/api"
         }
       ],
@@ -6621,7 +6621,7 @@
         },
         {
           "path": "backend/go.mod",
-          "sha256": "810b796e8bee5c7d0a9a011b878725f0069f66f9fdfb6b0c019906f88917db8c",
+          "sha256": "a14f9cef13ca5d4c2b2db5ab6b93bef897838e06ff9924083af4f340a0a7fa0c",
           "symbol": "github.com/tesserix/onboarding-service/api"
         }
       ],

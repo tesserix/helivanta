@@ -694,6 +694,8 @@ func run() error {
 	}
 	bootstrap.MountPasswordRecovery(srv.Engine, recoveryHandlers.Start, recoveryHandlers.Status, recoveryHandlers.Verify, recoveryHandlers.Prepare, recoveryHandlers.Cancel, recoveryHandlers.Password)
 	bootstrap.MountAccountDiscovery(srv.Engine, signupHandlers.DiscoverAccounts, signupHandlers.VerifyAccounts, signupHandlers.AccountChoices)
+	bootstrap.MountLoginResume(srv.Engine, loginUIHandlers.Resume)
+	signupHandlers.SetSessionParker(loginUIHandlers)
 	bootstrap.MountStaffSetup(srv.Engine, signupHandlers.StaffSetup(customeronboarding.StaffSetupDeps{Limiter: limiter, Limit: ratelimit.Rule{Rate: 20, Burst: 10, Per: time.Minute}}))
 	bootstrap.MountCustomerSignup(srv.Engine, releasePolicy.Admission("POST", "/v1/auth/signup"), signupHandlers.Start, signupHandlers.Status, signupHandlers.VerifyEmail, signupHandlers.Password, signupHandlers.EmailLink, signupHandlers.PasswordLink, signupHandlers.Signin(customeronboarding.SigninDeps{Tokens: zitadelVerifier, Revocations: revocationChecker, Limiter: limiter, Limit: bootstrap.LoginRateLimitRule(cfg)}), signupHandlers.NewReceipt)
 

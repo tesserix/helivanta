@@ -124,6 +124,12 @@ func (h *Handlers) StaffSetup(deps StaffSetupDeps) gin.HandlerFunc {
 			unavailable(c)
 			return
 		}
+		// The account names are for this server only (#1778): park the
+		// session for the password just set, then never forward them.
+		if receipt.State == "complete" && (action == "email" || action == "password") {
+			h.parkSetupSession(c, receipt.Subject, receipt.OrganizationID, in.Password)
+		}
+		receipt.Subject, receipt.OrganizationID = "", ""
 		c.JSON(200, receipt)
 	}
 }

@@ -286,6 +286,25 @@ export async function chooseAccount(params: {
   return result;
 }
 
+// resumeSetupSignin continues a sign-in with the session a password-setup
+// page parked server-side (#1778): POST /v1/auth/login/resume, bound to an
+// HttpOnly cookie this page cannot read. It answers like checkPassword
+// except an account choice, which a parked session for one account cannot
+// produce. Any refusal (nothing parked, expired, used) is an ApiError, and
+// the caller shows the ordinary credential card.
+export async function resumeSetupSignin(
+  authRequestId: string,
+): Promise<Exclude<PasswordCheckResult, { outcome: "accountChoice" }>> {
+  const result = await toPasswordCheckResult(
+    authRequestId,
+    postLoginStep("/auth/login/resume", { auth_request_id: authRequestId }),
+  );
+  if (result.outcome === "accountChoice") {
+    throw new Error("Sign-in could not be completed: the server sent an unexpected response.");
+  }
+  return result;
+}
+
 async function postLoginStep(
   path: string,
   payload: object,

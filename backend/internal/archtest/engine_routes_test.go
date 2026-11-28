@@ -56,6 +56,7 @@ func TestEveryEngineRouteIsDeclaredOrAllowlisted(t *testing.T) {
 	bootstrap.MountAccountDiscovery(srv.Engine, stub, stub, stub)
 	bootstrap.MountPasswordRecovery(srv.Engine, stub, stub, stub, stub, stub, stub)
 	bootstrap.MountStaffSetup(srv.Engine, stub)
+	bootstrap.MountLoginResume(srv.Engine, stub)
 
 	declared := map[string]bool{}
 	for _, dr := range api.Declared() {
@@ -106,6 +107,7 @@ func TestUnauthenticatedAllowlistHasNoDeadEntries(t *testing.T) {
 	bootstrap.MountAccountDiscovery(srv.Engine, stub, stub, stub)
 	bootstrap.MountPasswordRecovery(srv.Engine, stub, stub, stub, stub, stub, stub)
 	bootstrap.MountStaffSetup(srv.Engine, stub)
+	bootstrap.MountLoginResume(srv.Engine, stub)
 
 	onEngine := map[string]bool{}
 	for _, r := range srv.Engine.Routes() {

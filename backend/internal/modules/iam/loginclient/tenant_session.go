@@ -88,3 +88,35 @@ func (c *Client) AuthRequestOrganization(ctx context.Context, requestID, clientI
 	}
 	return org, nil
 }
+
+// CreateUserPasswordSession checks password for the exact native user and
+// organisation a setup step has just proven (#1778): a session for any other
+// account is refused before it is used.
+func (c *Client) CreateUserPasswordSession(ctx context.Context, userID, orgID, password string) (Session, error) {
+	if userID == "" || orgID == "" {
+		return Session{}, ErrAuthRequestInvalid
+	}
+	ctx, cancel := context.WithTimeout(ctx, defaultTimeout)
+	defer cancel()
+	session, err := c.createPasswordSession(ctx, map[string]any{"userId": userID}, password)
+	if err != nil {
+		return Session{}, err
+	}
+	if err = c.SessionBelongsTo(ctx, session.ID, userID, orgID); err != nil {
+		return Session{}, err
+	}
+	return session, nil
+}
+
+// SessionBelongsTo re-reads the session and requires its user, and its
+// organisation unless orgID is empty (an unscoped auth request).
+func (c *Client) SessionBelongsTo(ctx context.Context, sessionID, userID, orgID string) error {
+	subject, err := c.sessionSubject(ctx, sessionID)
+	if err != nil {
+		return err
+	}
+	if subject.UserID != userID || orgID != "" && subject.OrgID != orgID {
+		return ErrAuthRequestInvalid
+	}
+	return nil
+}

@@ -91,6 +91,10 @@ test("password setup starts its confirmed workspace's sign-in at once", async ({
   );
   expect(url.searchParams.get("prompt")).toBe("login");
   expect(url.searchParams.get("max_age")).toBe("0");
+  // #1778: the tab is marked so /login resumes the session the server parked.
+  expect(await page.evaluate(() => window.sessionStorage.getItem("helivanta.setupResume"))).toBe(
+    "1",
+  );
 });
 
 test("new tenant signup requires its own account instead of adopting another organisation's user", async ({

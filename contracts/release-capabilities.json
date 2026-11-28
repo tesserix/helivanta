@@ -298,6 +298,11 @@
       "capability": "baseline"
     },
     {
+      "method": "POST",
+      "path": "/v1/auth/login/resume",
+      "capability": "baseline"
+    },
+    {
       "method": "GET",
       "path": "/v1/auth/login/request/:id",
       "capability": "baseline"

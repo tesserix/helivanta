@@ -132,9 +132,12 @@ activation affects the product's production environment across all tenants.
 2. Choose **Reset authenticator**. The panel reads the current versioned Staff
    record; it does not assume a version from an old directory list. Enter a reason
    and explicitly confirm the identity check and reset.
-3. Submit once. Only an acknowledged `awaiting_enrollment` result means the native
-   authenticator removal was confirmed. Ask the Staff member to sign in and enroll
-   the replacement authenticator on their own device. The administrator does not
+3. Submit once. The reset removes the Staff member's authenticator app and every
+   security key, and Helivanta forgets those keys. Only an acknowledged
+   `awaiting_enrollment` result means every removal was confirmed; a removal that
+   failed part way stays `unconfirmed` (step 5). Ask the Staff member to sign in
+   and set up a new authenticator app or security key on their own device. They
+   are admitted only after signing in with the factor they just set up. The administrator does not
    receive the enrollment secret or an authenticated Staff session.
 4. If the response is lost, leave the selected request in place. Reopening the
    same Staff screen under the same account retains only its opaque command marker

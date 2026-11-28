@@ -225,7 +225,7 @@ function RecoveryRequest({
     unconfirmed:
       "The identity service has not confirmed the outcome. Check this request or contact your identity administrator.",
     awaiting_enrollment:
-      "The authenticator reset was acknowledged. Ask the Staff member to sign in and set up their authenticator app.",
+      "The authenticator reset was acknowledged. Ask the Staff member to sign in and set up a new authenticator app or security key.",
     completed: "This recovery request is complete.",
     cancelled: "This recovery request was cancelled.",
   };
@@ -358,7 +358,7 @@ function ResetForm({
     >
       <p className="text-sm">
         Verify the Staff member before resetting their authenticator. They will need to sign in and
-        enroll a new authenticator app.
+        set up a new authenticator app or security key.
       </p>
       {context.isPending && <p role="status">Checking the current Staff record…</p>}
       {context.isError && (

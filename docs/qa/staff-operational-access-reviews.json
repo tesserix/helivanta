@@ -6294,7 +6294,7 @@
         },
         {
           "path": "backend/internal/modules/iam/staff_mfa_reset.go",
-          "sha256": "e01441ac51f6007d5749e420461f69fc8a124d91ad8ba39923c77d0ee9185ac9",
+          "sha256": "6c9e6fc23164f389ef62c63158a34626c1f131d08a26e60fde7396be8f5767d8",
           "symbol": "func (h *staffMFAResetService) Cancel("
         },
         {
@@ -6309,7 +6309,7 @@
         },
         {
           "path": "backend/go.mod",
-          "sha256": "eb7a7406daca1e7835326155d55fd016256504a60d011106ea7aceb9872367fc",
+          "sha256": "9612742f808d3170a591f847749a32009eb163ba4e0942dda8a68e6f29f78941",
           "symbol": "github.com/tesserix/onboarding-service/api"
         }
       ],
@@ -6333,7 +6333,7 @@
         },
         {
           "path": "backend/internal/modules/iam/staff_mfa_reset.go",
-          "sha256": "e01441ac51f6007d5749e420461f69fc8a124d91ad8ba39923c77d0ee9185ac9",
+          "sha256": "6c9e6fc23164f389ef62c63158a34626c1f131d08a26e60fde7396be8f5767d8",
           "symbol": "func (h *staffMFAResetService) Read("
         },
         {
@@ -6348,7 +6348,7 @@
         },
         {
           "path": "backend/go.mod",
-          "sha256": "eb7a7406daca1e7835326155d55fd016256504a60d011106ea7aceb9872367fc",
+          "sha256": "9612742f808d3170a591f847749a32009eb163ba4e0942dda8a68e6f29f78941",
           "symbol": "github.com/tesserix/onboarding-service/api"
         }
       ],
@@ -6372,7 +6372,7 @@
         },
         {
           "path": "backend/internal/modules/iam/staff_mfa_reset.go",
-          "sha256": "e01441ac51f6007d5749e420461f69fc8a124d91ad8ba39923c77d0ee9185ac9",
+          "sha256": "6c9e6fc23164f389ef62c63158a34626c1f131d08a26e60fde7396be8f5767d8",
           "symbol": "func (h *staffMFAResetService) Reset("
         },
         {
@@ -6387,7 +6387,7 @@
         },
         {
           "path": "backend/go.mod",
-          "sha256": "eb7a7406daca1e7835326155d55fd016256504a60d011106ea7aceb9872367fc",
+          "sha256": "9612742f808d3170a591f847749a32009eb163ba4e0942dda8a68e6f29f78941",
           "symbol": "github.com/tesserix/onboarding-service/api"
         }
       ],
@@ -6411,7 +6411,7 @@
         },
         {
           "path": "backend/internal/modules/iam/staff_mfa_reset.go",
-          "sha256": "e01441ac51f6007d5749e420461f69fc8a124d91ad8ba39923c77d0ee9185ac9",
+          "sha256": "6c9e6fc23164f389ef62c63158a34626c1f131d08a26e60fde7396be8f5767d8",
           "symbol": "func (h *staffMFAResetService) Cancel("
         },
         {
@@ -6426,7 +6426,7 @@
         },
         {
           "path": "backend/go.mod",
-          "sha256": "eb7a7406daca1e7835326155d55fd016256504a60d011106ea7aceb9872367fc",
+          "sha256": "9612742f808d3170a591f847749a32009eb163ba4e0942dda8a68e6f29f78941",
           "symbol": "github.com/tesserix/onboarding-service/api"
         }
       ],
@@ -6450,7 +6450,7 @@
         },
         {
           "path": "backend/internal/modules/iam/staff_mfa_reset.go",
-          "sha256": "e01441ac51f6007d5749e420461f69fc8a124d91ad8ba39923c77d0ee9185ac9",
+          "sha256": "6c9e6fc23164f389ef62c63158a34626c1f131d08a26e60fde7396be8f5767d8",
           "symbol": "func (h *staffMFAResetService) Read("
         },
         {
@@ -6465,7 +6465,7 @@
         },
         {
           "path": "backend/go.mod",
-          "sha256": "eb7a7406daca1e7835326155d55fd016256504a60d011106ea7aceb9872367fc",
+          "sha256": "9612742f808d3170a591f847749a32009eb163ba4e0942dda8a68e6f29f78941",
           "symbol": "github.com/tesserix/onboarding-service/api"
         }
       ],
@@ -6489,7 +6489,7 @@
         },
         {
           "path": "backend/internal/modules/iam/staff_mfa_reset.go",
-          "sha256": "e01441ac51f6007d5749e420461f69fc8a124d91ad8ba39923c77d0ee9185ac9",
+          "sha256": "6c9e6fc23164f389ef62c63158a34626c1f131d08a26e60fde7396be8f5767d8",
           "symbol": "func (h *staffMFAResetService) Reset("
         },
         {
@@ -6504,7 +6504,7 @@
         },
         {
           "path": "backend/go.mod",
-          "sha256": "eb7a7406daca1e7835326155d55fd016256504a60d011106ea7aceb9872367fc",
+          "sha256": "9612742f808d3170a591f847749a32009eb163ba4e0942dda8a68e6f29f78941",
           "symbol": "github.com/tesserix/onboarding-service/api"
         }
       ],
@@ -6528,7 +6528,7 @@
         },
         {
           "path": "backend/internal/modules/iam/staff_mfa_reset.go",
-          "sha256": "e01441ac51f6007d5749e420461f69fc8a124d91ad8ba39923c77d0ee9185ac9",
+          "sha256": "6c9e6fc23164f389ef62c63158a34626c1f131d08a26e60fde7396be8f5767d8",
           "symbol": "func (h *staffMFAResetService) Cancel("
         },
         {
@@ -6543,7 +6543,7 @@
         },
         {
           "path": "backend/go.mod",
-          "sha256": "eb7a7406daca1e7835326155d55fd016256504a60d011106ea7aceb9872367fc",
+          "sha256": "9612742f808d3170a591f847749a32009eb163ba4e0942dda8a68e6f29f78941",
           "symbol": "github.com/tesserix/onboarding-service/api"
         }
       ],
@@ -6567,7 +6567,7 @@
         },
         {
           "path": "backend/internal/modules/iam/staff_mfa_reset.go",
-          "sha256": "e01441ac51f6007d5749e420461f69fc8a124d91ad8ba39923c77d0ee9185ac9",
+          "sha256": "6c9e6fc23164f389ef62c63158a34626c1f131d08a26e60fde7396be8f5767d8",
           "symbol": "func (h *staffMFAResetService) Read("
         },
         {
@@ -6582,7 +6582,7 @@
         },
         {
           "path": "backend/go.mod",
-          "sha256": "eb7a7406daca1e7835326155d55fd016256504a60d011106ea7aceb9872367fc",
+          "sha256": "9612742f808d3170a591f847749a32009eb163ba4e0942dda8a68e6f29f78941",
           "symbol": "github.com/tesserix/onboarding-service/api"
         }
       ],
@@ -6606,7 +6606,7 @@
         },
         {
           "path": "backend/internal/modules/iam/staff_mfa_reset.go",
-          "sha256": "e01441ac51f6007d5749e420461f69fc8a124d91ad8ba39923c77d0ee9185ac9",
+          "sha256": "6c9e6fc23164f389ef62c63158a34626c1f131d08a26e60fde7396be8f5767d8",
           "symbol": "func (h *staffMFAResetService) Reset("
         },
         {
@@ -6621,7 +6621,7 @@
         },
         {
           "path": "backend/go.mod",
-          "sha256": "eb7a7406daca1e7835326155d55fd016256504a60d011106ea7aceb9872367fc",
+          "sha256": "9612742f808d3170a591f847749a32009eb163ba4e0942dda8a68e6f29f78941",
           "symbol": "github.com/tesserix/onboarding-service/api"
         }
       ],

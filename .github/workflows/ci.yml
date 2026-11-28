@@ -484,6 +484,25 @@ jobs:
             ${{ runner.temp }}/emergency-web.log
             e2e/test-results/
           retention-days: 7
+  # #915 spike 2: the server-side OIDC handshake cookie must survive the
+  # identity provider's cross-site 302 in Chromium, Firefox and WebKit. Needs
+  # no Helivanta stack (e2e/playwright.oidc-spike.config.ts). Not required:
+  # it decides a design, and slice 2 keeps it as the cookie's regression test.
+  oidc-spike:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Use official Ubuntu package mirror
+        run: sudo "$(command -v node)" scripts/ci/ubuntu-archive-mirror.mjs
+      - run: pnpm --dir e2e exec playwright install --with-deps chromium firefox webkit
+      - run: pnpm --dir e2e exec playwright test --config playwright.oidc-spike.config.ts
   scripts:
     runs-on: ubuntu-latest
     steps:

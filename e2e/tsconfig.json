@@ -7,7 +7,9 @@
     "playwright.config.ts",
     "tests/**/*.ts",
     "playwright.emergency.config.ts",
-    "emergency-intake/**/*.ts"
+    "emergency-intake/**/*.ts",
+    "playwright.oidc-spike.config.ts",
+    "oidc-spike/**/*.ts"
   ],
   "exclude": ["node_modules"]
 }

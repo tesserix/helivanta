@@ -20,11 +20,11 @@
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "eslint-plugin-react-hooks": "^7.1.1",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
-    "typescript-eslint": "^8.73.0",
+    "typescript-eslint": "^8.74.0",
     "@testing-library/jest-dom": "^7.0.1",
     "jsdom": "^31.0.0",
     "prettier": "^3.10.1",
-    "vitest": "^5.1.0"
+    "vitest": "^5.1.2"
   },
   "prettier": "@helivanta/config/prettier"
 }

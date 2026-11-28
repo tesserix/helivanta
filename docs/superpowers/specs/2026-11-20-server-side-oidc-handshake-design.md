@@ -127,6 +127,11 @@ Both run in CI (slice 0, agreed 2026-11-28):
 - Spike 1 is `e2e/tests/oidc-session-delete.spec.ts`, against the e2e job's real Zitadel.
 - Spike 2 is `e2e/oidc-spike/handshake-cookie.spec.ts` in the `oidc-spike` job, on Chromium, Firefox and WebKit. It uses two local servers on different sites (localhost and 127.0.0.1). The dev hosts `*.localhost` count as one site, so they cannot show a cross-site hop. A Strict control cookie proves the hop really is cross-site. The servers use plain HTTP, so the cookie is not `Secure` there.
 
+### Spike results (CI, 2026-11-28, PR #1917)
+
+1. **Proven.** Against the e2e job's real Zitadel, the `id_token`'s `sid` is the v2 session of the same user. `DELETE /v2/sessions/{sid}` with the login-client PAT alone, without the session token, returns 200, and the session then reads 404. D4 needs no fallback.
+2. **Proven.** On Chromium, Firefox and WebKit, the `Lax` cookie on `/api/v1/auth/oidc` reached the callback after a cross-site 302. The `Strict` control did not reach it.
+
 ## Not in scope
 
 Renewal and idle timeout (unchanged), passkeys (#422), enterprise SSO (#423), D10 and D11 of #1751. D11 builds on this spec's callback, not on `oidc-client-ts`, so it waits for it.

@@ -69,3 +69,27 @@ Helivanta:
 - Vitest: the email link renders the password form; a GET of the link makes no request; submit posts `{userId, code, password}` to `verify-email`; 422 keeps the form and the link; 400 shows the expired line; success starts sign-in.
 - e2e (`customer-signup.spec.ts`): one email, one form, dashboard; the scanner-GET assertion stays.
 - The #1767 journey count: 5 screens, 1 email.
+
+## Staff invitations (#1777, onboarding-service#54)
+
+The same decisions apply to a staff invitation (`/staff/accept`).
+
+- **D1 and D2.** The `phase=email` link opens the password form. Its submit sends `staff-setup` action `email` with `code` and `password`.
+- **Identity owner (onboarding-service#60).**
+  - It claims one attempt of the invitation's existing proof budget.
+  - It sets the password with a native reset code obtained and spent inside the request.
+  - It then verifies the emailed code and marks both facts on the setup.
+  - A policy refusal is a 422 that spends that one attempt and leaves the link usable.
+  - A wrong or expired code is a 400.
+- **Helivanta's proxy** passes the 422 through as `password_policy` with the owner wording above. A 400 shows "This link has expired or been used" with a fresh-link button.
+- **D4.** Success starts sign-in at once on the single email card (`purpose: "email-login"`, `prompt=login`, `max_age=0`). The page knows no tenant, so the API resolves the account after the password. A failed start leaves a **Sign in** link.
+- **Kept:**
+  - the ticket and proof ledger;
+  - superseded-link refusal;
+  - `delivery_unresolved` and `proof_unresolved`;
+  - the attempt budget;
+  - codes never stored or logged.
+- **Links issued before this ships.** A link whose email was already verified keeps the existing password-setup email path.
+- **Not covered:**
+  - The second password entry at sign-in, which is #1778.
+  - An e2e for the staff email journey. The CI identity owner is a fixture, not onboarding-service, so no staff invitation email is sent in e2e. The DB-backed owner test and the shell tests cover the behaviour.

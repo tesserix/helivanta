@@ -85,6 +85,11 @@ func (h *Handlers) StaffSetup(deps StaffSetupDeps) gin.HandlerFunc {
 		case 400, 404, 409:
 			respond.Error(c, response.StatusCode, "staff_setup_refused", "Check this invitation or request a fresh link from your administrator.")
 			return
+		case 422:
+			// The identity owner refused the password itself (one step, #1777):
+			// the link is intact, so the form keeps it and asks again.
+			respond.Error(c, 422, "password_policy", "That password doesn't meet your workspace's password rules. Try a longer one with letters, numbers and a symbol.")
+			return
 		case 429:
 			seconds, err := strconv.Atoi(response.Header.Get("Retry-After"))
 			if err != nil || seconds < 1 || seconds > 86400 {

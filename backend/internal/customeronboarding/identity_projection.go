@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -37,9 +39,14 @@ func (h *Handlers) TenantIdentitySnapshot(ctx context.Context, tenant, subject s
 	if h == nil || h.client == nil || in.Validate() != nil {
 		return empty, loginclient.ErrUnavailable
 	}
+	// Fixed fields only: never the subject, tenant, token or the owner's response body.
+	unavailable := func(stage string, attrs ...any) (loginclient.IdentitySnapshot, error) {
+		slog.WarnContext(ctx, "identity owner read unavailable", append([]any{"purpose", in.Purpose, "stage", stage}, attrs...)...)
+		return empty, loginclient.ErrUnavailable
+	}
 	token, err := h.identityCredential()
 	if err != nil || len(token) > 8192 || strings.TrimSpace(string(token)) == "" {
-		return empty, loginclient.ErrUnavailable
+		return unavailable("credential")
 	}
 	body, err := json.Marshal(in)
 	if err != nil {
@@ -53,25 +60,25 @@ func (h *Handlers) TenantIdentitySnapshot(ctx context.Context, tenant, subject s
 	request.Header.Set("Content-Type", "application/json")
 	response, err := h.client.Do(request)
 	if err != nil {
-		return empty, loginclient.ErrUnavailable
+		return unavailable("transport", "deadline", errors.Is(err, context.DeadlineExceeded), "cancelled", errors.Is(err, context.Canceled))
 	}
 	defer func() { _ = response.Body.Close() }()
 	if response.StatusCode != http.StatusOK {
-		return empty, loginclient.ErrUnavailable
+		return unavailable("status", "status", response.StatusCode)
 	}
 	raw, err := io.ReadAll(io.LimitReader(response.Body, 8193))
 	if err != nil || len(raw) > 8192 {
-		return empty, loginclient.ErrUnavailable
+		return unavailable("body")
 	}
 	view, err := customercontract.DecodeIdentityProjection(raw)
 	if err != nil || view.Purpose != in.Purpose || view.TenantID != tenant || view.Subject != subject || view.OrganizationID != "helivanta-"+tenant {
-		return empty, loginclient.ErrUnavailable
+		return unavailable("projection")
 	}
 	if view.Credentials != nil && !in.IncludeCredentialState || in.IncludeCredentialState && view.State == "active" && view.Credentials == nil {
-		return empty, loginclient.ErrUnavailable
+		return unavailable("projection")
 	}
 	if view.MFARecovery != nil && !in.IncludeMFARecovery || in.IncludeMFARecovery && view.State == "active" && view.MFARecovery == nil {
-		return empty, loginclient.ErrUnavailable
+		return unavailable("projection")
 	}
 	snapshot := loginclient.IdentitySnapshot{Candidate: view.Candidate, Credentials: view.Credentials, MFARecovery: view.MFARecovery}
 	switch view.State {

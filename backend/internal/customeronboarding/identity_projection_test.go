@@ -1,9 +1,11 @@
 package customeronboarding
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -179,5 +181,32 @@ func TestAssignmentCandidatePurposeRejectsMisboundOrMalformedProjection(t *testi
 			require.Nil(t, result.Candidate)
 			require.Nil(t, result.Profile)
 		})
+	}
+}
+
+func TestIdentityProjectionFailureNamesItsStageWithoutIdentity(t *testing.T) {
+	const tenant = "11111111-1111-4111-8111-111111111111"
+	const subject = "synthetic-private-staff"
+	var logged bytes.Buffer
+	previous := slog.Default()
+	slog.SetDefault(slog.New(slog.NewJSONHandler(&logged, nil)))
+	t.Cleanup(func() { slog.SetDefault(previous) })
+	provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "PRIVATE-OWNER-DETAIL", http.StatusServiceUnavailable)
+	}))
+	defer provider.Close()
+	token := filepath.Join(t.TempDir(), "token")
+	require.NoError(t, os.WriteFile(token, []byte("synthetic-workload"), 0600))
+	h := &Handlers{base: provider.URL, tokenFile: token, client: provider.Client()}
+	_, err := h.TenantIdentitySnapshot(t.Context(), tenant, subject, loginclient.IdentityReadCredentials)
+	require.ErrorIs(t, err, loginclient.ErrUnavailable)
+	var event map[string]any
+	require.NoError(t, json.Unmarshal(logged.Bytes(), &event))
+	require.Equal(t, "identity owner read unavailable", event["msg"])
+	require.Equal(t, "status", event["stage"])
+	require.Equal(t, "status", event["purpose"])
+	require.EqualValues(t, http.StatusServiceUnavailable, event["status"])
+	for _, private := range []string{subject, tenant, "synthetic-workload", "PRIVATE-OWNER-DETAIL"} {
+		require.NotContains(t, logged.String(), private)
 	}
 }

@@ -7,6 +7,60 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { recoveryDiagnostics } from "./recovery-owner-diagnostics.mjs";
 
+test("identity projection failures keep their phase and timing without identity data", () => {
+  const record = {
+    msg: "identity projection unavailable",
+    phase: "native_identity",
+    elapsed_ms: 312,
+    parent_deadline: false,
+    parent_cancelled: true,
+    subject: "private-user",
+    tenant_id: "private-tenant",
+    error: "private-provider-payload",
+  };
+  assert.deepEqual(recoveryDiagnostics(JSON.stringify(record)), [
+    {
+      component: "identity_projection",
+      phase: "native_identity",
+      elapsed_ms: 312,
+      parent_deadline: false,
+      parent_cancelled: true,
+    },
+  ]);
+  for (const changes of [
+    { phase: "private-phase" },
+    { elapsed_ms: -1 },
+    { parent_cancelled: "true" },
+  ]) {
+    assert.deepEqual(recoveryDiagnostics(JSON.stringify({ ...record, ...changes })), []);
+  }
+});
+
+test("a flood from one component does not hide another component's lines", () => {
+  const lookup = JSON.stringify({
+    msg: "account lookup unavailable",
+    phase: "scope_current_identity",
+    elapsed_ms: 5,
+    parent_deadline: false,
+    parent_cancelled: true,
+  });
+  const projection = JSON.stringify({
+    msg: "identity projection unavailable",
+    phase: "native_credentials",
+    elapsed_ms: 9,
+    parent_deadline: false,
+    parent_cancelled: false,
+  });
+  const results = recoveryDiagnostics([...Array(150).fill(lookup), projection].join("\n"));
+  assert.equal(results.filter(({ component }) => component === "account_lookup").length, 100);
+  assert.deepEqual(
+    results
+      .filter(({ component }) => component === "identity_projection")
+      .map(({ phase }) => phase),
+    ["native_credentials"],
+  );
+});
+
 test("account scope failures retain bounded timing and cancellation without identity data", () => {
   const record = {
     msg: "account lookup unavailable",

@@ -691,6 +691,13 @@ global revocation, tenant membership and narrower resource checks still apply.
 The same native subject cannot bypass this requirement through a legacy membership
 in another tenant. Separate accounts sharing email remain distinct.
 
+A reset removes the account's authenticator app and every security key (#1905,
+[design](../../superpowers/specs/2026-11-28-reset-removes-security-keys-design.md)).
+Once the owner confirms the removal, the account's `iam_security_keys` rows
+registered before the reset fence are deleted. A prepared, cancelled or
+unconfirmed reset keeps them. Admission needs a new TOTP or key enrolled after the
+removal, and the native session must prove that same factor.
+
 The projection exposes no originating employer, actor, reason or native evidence.
 HMS login obtains a generation only from the private credential owner's native
 admission API, with a `sid` retained from a normally verified ID token. It re-reads

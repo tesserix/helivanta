@@ -25,6 +25,7 @@ func TestSecurityKeyRegistryContainsRequiresEveryKey(t *testing.T) {
 		{"duplicates count once", "user-a", []string{"key-1", "key-1"}, true},
 		{"one key missing", "user-a", []string{"key-1", "key-9"}, false},
 		{"another person's key", "user-a", []string{"key-3"}, false},
+		{"a removed key's leftover row never covers a new key", "user-a", []string{"key-new"}, false},
 		{"no keys is never all keys", "user-a", nil, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

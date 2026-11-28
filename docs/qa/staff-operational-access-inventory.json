@@ -21674,7 +21674,7 @@
           },
           {
             "path": "backend/internal/modules/iam/staff_mfa_reset.go",
-            "sha256": "e01441ac51f6007d5749e420461f69fc8a124d91ad8ba39923c77d0ee9185ac9",
+            "sha256": "6c9e6fc23164f389ef62c63158a34626c1f131d08a26e60fde7396be8f5767d8",
             "symbol": "func (h *staffMFAResetService) Read("
           },
           {
@@ -23007,7 +23007,7 @@
           },
           {
             "path": "backend/internal/modules/iam/staff_mfa_reset.go",
-            "sha256": "e01441ac51f6007d5749e420461f69fc8a124d91ad8ba39923c77d0ee9185ac9",
+            "sha256": "6c9e6fc23164f389ef62c63158a34626c1f131d08a26e60fde7396be8f5767d8",
             "symbol": "func (h *staffMFAResetService) Read("
           },
           {
@@ -23553,7 +23553,7 @@
           },
           {
             "path": "backend/internal/modules/iam/staff_mfa_reset.go",
-            "sha256": "e01441ac51f6007d5749e420461f69fc8a124d91ad8ba39923c77d0ee9185ac9",
+            "sha256": "6c9e6fc23164f389ef62c63158a34626c1f131d08a26e60fde7396be8f5767d8",
             "symbol": "func (h *staffMFAResetService) Read("
           },
           {
@@ -24788,7 +24788,7 @@
           },
           {
             "path": "backend/internal/modules/iam/staff_mfa_reset.go",
-            "sha256": "e01441ac51f6007d5749e420461f69fc8a124d91ad8ba39923c77d0ee9185ac9",
+            "sha256": "6c9e6fc23164f389ef62c63158a34626c1f131d08a26e60fde7396be8f5767d8",
             "symbol": "func (h *staffMFAResetService) Cancel("
           },
           {
@@ -24970,7 +24970,7 @@
           },
           {
             "path": "backend/internal/modules/iam/staff_mfa_reset.go",
-            "sha256": "e01441ac51f6007d5749e420461f69fc8a124d91ad8ba39923c77d0ee9185ac9",
+            "sha256": "6c9e6fc23164f389ef62c63158a34626c1f131d08a26e60fde7396be8f5767d8",
             "symbol": "func (h *staffMFAResetService) Cancel("
           },
           {
@@ -25024,7 +25024,7 @@
           },
           {
             "path": "backend/internal/modules/iam/staff_mfa_reset.go",
-            "sha256": "e01441ac51f6007d5749e420461f69fc8a124d91ad8ba39923c77d0ee9185ac9",
+            "sha256": "6c9e6fc23164f389ef62c63158a34626c1f131d08a26e60fde7396be8f5767d8",
             "symbol": "func (h *staffMFAResetService) Cancel("
           },
           {
@@ -26633,7 +26633,7 @@
           },
           {
             "path": "backend/internal/modules/iam/staff_mfa_reset.go",
-            "sha256": "e01441ac51f6007d5749e420461f69fc8a124d91ad8ba39923c77d0ee9185ac9",
+            "sha256": "6c9e6fc23164f389ef62c63158a34626c1f131d08a26e60fde7396be8f5767d8",
             "symbol": "func (h *staffMFAResetService) Reset("
           },
           {
@@ -27144,7 +27144,7 @@
           },
           {
             "path": "backend/internal/modules/iam/staff_mfa_reset.go",
-            "sha256": "e01441ac51f6007d5749e420461f69fc8a124d91ad8ba39923c77d0ee9185ac9",
+            "sha256": "6c9e6fc23164f389ef62c63158a34626c1f131d08a26e60fde7396be8f5767d8",
             "symbol": "func (h *staffMFAResetService) Reset("
           },
           {
@@ -27455,7 +27455,7 @@
           },
           {
             "path": "backend/internal/modules/iam/staff_mfa_reset.go",
-            "sha256": "e01441ac51f6007d5749e420461f69fc8a124d91ad8ba39923c77d0ee9185ac9",
+            "sha256": "6c9e6fc23164f389ef62c63158a34626c1f131d08a26e60fde7396be8f5767d8",
             "symbol": "func (h *staffMFAResetService) Reset("
           },
           {

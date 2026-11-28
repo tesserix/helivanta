@@ -263,8 +263,21 @@ func assertMFAResetAudit(t *testing.T, db *tenantdb.DB, request customercontract
 func TestStaffMFAResetFencesBeforeDispatchAndReplaysWithoutNewRevocation(t *testing.T) {
 	f, owner, input, path := newMFAResetFixture(t)
 	owner.failDispatch = true
+	keys := func(subject string) (ids []string) {
+		require.NoError(t, f.db.WithSystem(t.Context(), func(tx *gorm.DB) error {
+			return tx.Table("iam_security_keys").Where("subject=?", subject).Order("key_id").Pluck("key_id", &ids).Error
+		}))
+		return ids
+	}
+	require.NoError(t, f.db.WithSystem(t.Context(), func(tx *gorm.DB) error {
+		return tx.Exec(`INSERT INTO iam_security_keys(subject,key_id,rp_id) VALUES('user-candidate','lost-key','helivanta.test'),('user-manager','own-key','helivanta.test')`).Error
+	}))
 	response := mfaRequest(t, f.r, "PUT", path, "manager", input)
 	require.Equal(t, 503, response.Code, response.Body.String())
+	require.Equal(t, []string{"lost-key"}, keys("user-candidate"), "an unconfirmed native removal keeps the registry: the key may still be READY (#1905)")
+	require.NoError(t, f.db.WithSystem(t.Context(), func(tx *gorm.DB) error {
+		return tx.Exec(`INSERT INTO iam_security_keys(subject,key_id,rp_id) VALUES('user-candidate','replacement-key','helivanta.test')`).Error
+	}))
 	require.NoError(t, f.db.WithTenant(t.Context(), staffMFATenantA, func(tx *gorm.DB) error {
 		var reason string
 		if err := tx.Table("iam_credential_revocations").Select("reason").Where("subject='user-candidate'").Scan(&reason).Error; err != nil {
@@ -285,6 +298,8 @@ func TestStaffMFAResetFencesBeforeDispatchAndReplaysWithoutNewRevocation(t *test
 	require.Equal(t, cutoff, mfaWatermark(t, f.db))
 	require.Equal(t, 2, owner.dispatches)
 	require.Equal(t, 1, owner.writes)
+	require.Equal(t, []string{"replacement-key"}, keys("user-candidate"), "a confirmed removal forgets only keys registered before the fence")
+	require.Equal(t, []string{"own-key"}, keys("user-manager"), "only the target's keys go")
 	response = mfaRequest(t, f.r, "PUT", path, "manager", input)
 	require.Equal(t, 202, response.Code, response.Body.String())
 	require.Equal(t, 2, owner.dispatches)
@@ -293,6 +308,7 @@ func TestStaffMFAResetFencesBeforeDispatchAndReplaysWithoutNewRevocation(t *test
 	response = mfaRequest(t, f.r, "GET", path, "manager", nil)
 	require.Equal(t, 200, response.Code, response.Body.String())
 	require.NotContains(t, response.Body.String(), "user-candidate")
+	require.Equal(t, []string{"replacement-key"}, keys("user-candidate"), "a replayed reset or status read must not delete a re-enrolled key")
 	for _, statement := range []string{
 		`UPDATE iam_staff_mfa_fences SET fingerprint=repeat('0',64) WHERE command_id=?`,
 		`DELETE FROM iam_staff_mfa_fences WHERE command_id=?`,

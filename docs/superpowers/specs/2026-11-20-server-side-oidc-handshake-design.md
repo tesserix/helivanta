@@ -114,13 +114,18 @@ The exception for `renewSession` remains.
 
 ## Decisions that need agreement
 
-- **Public client with PKCE versus confidential client.** #915 proposed a confidential client. This spec keeps the app a **public client with PKCE**: the verifier never leaves the server and the sealed cookie, so a stolen code cannot be exchanged. That avoids a new client secret to provision through OpenBao → ESO. Switching to `private_key_jwt` later is a provisioning change only. _Needs the D1 author's agreement._
+- **Public client with PKCE versus confidential client.** #915 proposed a confidential client. This spec keeps the app a **public client with PKCE**: the verifier never leaves the server and the sealed cookie, so a stolen code cannot be exchanged. That avoids a new client secret to provision through OpenBao → ESO. Switching to `private_key_jwt` later is a provisioning change only. **Agreed by the D1 author on 2026-11-28.**
 - **D1/D4a of the 2026-08-15 design.** D1's "public client in the browser" premise is replaced. D4a stands: no refresh token, no `offline_access`, and renewal remains first-party.
 
 ## Must be proven before implementation (spike, dev Zitadel)
 
 1. That the `id_token`'s `sid` equals the v2 session id, and that the login-client PAT may `DELETE /v2/sessions/{id}` without that session's token. The existing `loginclient.DeleteSession` sends the token, so this is not yet shown. If either fails, D4 falls back to a server-built end-session redirect with `client_id` and `post_logout_redirect_uri`, whose behaviour without `id_token_hint` must then be verified the same way.
 2. That `SameSite=Lax` cookies on `/api/v1/auth/oidc` survive Zitadel's 302 in Chromium, Firefox and Safari, as an e2e assertion.
+
+Both run in CI (slice 0, agreed 2026-11-28):
+
+- Spike 1 is `e2e/tests/oidc-session-delete.spec.ts`, against the e2e job's real Zitadel.
+- Spike 2 is `e2e/oidc-spike/handshake-cookie.spec.ts` in the `oidc-spike` job, on Chromium, Firefox and WebKit. It uses two local servers on different sites (localhost and 127.0.0.1). The dev hosts `*.localhost` count as one site, so they cannot show a cross-site hop. A Strict control cookie proves the hop really is cross-site. The servers use plain HTTP, so the cookie is not `Secure` there.
 
 ## Not in scope
 

@@ -8,6 +8,12 @@ const identifier = z
     /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
     "Choose a valid record.",
   );
+export const pharmacyBarcodeLinkInputSchema = z
+  .object({
+    product_id: identifier,
+  })
+  .strict();
+
 export const pharmacyPurchaseTaxLineInputSchema = z
   .object({
     position: z.number().int().min(1).max(100),

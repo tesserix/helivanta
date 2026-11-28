@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { Button, Input } from "@tesserix/web";
 import {
@@ -30,6 +30,7 @@ import { CounterPatientLookup, CounterVisit, type CounterPatient } from "./count
 import { CounterAdmissionLookup, type CounterAdmission } from "./counter-admission";
 import { CurrencyAmountField, formatPharmacyMoney } from "./currency-amount-field";
 import { VerifiedUpi } from "./verified-upi";
+import { BarcodeInput } from "./barcode-input";
 
 /**
  * The counter sale (#1386 B-1, B-2b): a basket priced by the server exactly
@@ -45,6 +46,7 @@ export function CounterSale({
   canDiscount = false,
   canManageDiscount = false,
   canRefund = false,
+  canLinkBarcode = false,
 }: {
   scope: PharmacyScope;
   /** The outlet's time zone, for when a visit opened. */
@@ -56,6 +58,7 @@ export function CounterSale({
   /** Records the outlet's discount ceiling. */
   canManageDiscount?: boolean;
   canRefund?: boolean;
+  canLinkBarcode?: boolean;
 }) {
   const profile = useApiQuery<{ profile: PharmacyInvoiceProfile | null }>(
     pharmacyKey(scope, "invoice-profile"),
@@ -92,6 +95,8 @@ export function CounterSale({
       {canSell ? (
         current && (
           <Counter
+            key={`${scope.tenantId}:${scope.pharmacyId}:${scope.outletId}`}
+            canLinkBarcode={canLinkBarcode}
             scope={scope}
             timeZone={timeZone}
             canDiscount={canDiscount}
@@ -206,11 +211,13 @@ function Counter({
   timeZone,
   canDiscount,
   canRefund,
+  canLinkBarcode,
 }: {
   scope: PharmacyScope;
   timeZone?: string;
   canDiscount: boolean;
   canRefund: boolean;
+  canLinkBarcode: boolean;
 }) {
   const ceiling = useApiQuery<{ ceiling: PharmacyDiscountCeiling | null }>(
     pharmacyKey(scope, "counter", "discount-ceiling"),
@@ -222,7 +229,16 @@ function Counter({
     pharmacyKey(scope, "counter", "products"),
     `${pharmacyRoot(scope)}/catalogue/products?limit=100`,
   );
+  const [scannedProducts, setScannedProducts] = useState<PharmacyProduct[]>([]);
+  const allProducts = [
+    ...products.items.filter((p) => !scannedProducts.some((s) => s.id === p.id)),
+    ...scannedProducts,
+  ];
   const [basket, setBasket] = useState<BasketLine[]>([]);
+  const currentBasket = useRef(basket);
+  useLayoutEffect(() => {
+    currentBasket.current = basket;
+  }, [basket]);
   const [quote, setQuote] = useState<PharmacySaleQuote | null>(null);
   const destinationForm = useZodForm(z.object({ place_of_supply: z.string() }), {
     place_of_supply: "",
@@ -270,9 +286,11 @@ function Counter({
   }, [chosen, form]);
   // The class decides whether a prescription is needed, so a line waits for it.
   const classKnown = chosen === "" || availability.data !== undefined;
+  const priceRevision = useRef(0);
   const price = useApiMutation(
-    (lines: BasketLine[]) =>
-      apiFetch<PharmacySaleQuote>(`${pharmacyRoot(scope)}/sales/quote`, {
+    async (lines: BasketLine[]) => {
+      const revision = priceRevision.current;
+      const quote = await apiFetch<PharmacySaleQuote>(`${pharmacyRoot(scope)}/sales/quote`, {
         method: "POST",
         body: JSON.stringify({
           lines: lines.map(lineBody),
@@ -281,19 +299,28 @@ function Counter({
             ? { charges: chargeIds.map((id) => ({ charge_id: id })), channel: chargeChannel }
             : {}),
         }),
-      }),
-    { onSuccess: setQuote, suppressErrorToast: true },
+      });
+      return { quote, revision };
+    },
+    {
+      onSuccess: ({ quote, revision }) => {
+        if (revision === priceRevision.current) setQuote(quote);
+      },
+      suppressErrorToast: true,
+    },
   );
   // A changed basket is a new price: the old quote no longer applies.
-  function changeBasket(next: BasketLine[]) {
+  function changeBasket(next: BasketLine[] | ((current: BasketLine[]) => BasketLine[])) {
     if (held) return;
     setBasket(next);
+    priceRevision.current++;
     setQuote(null);
     price.reset();
   }
   function toggleCharge(id: string) {
     if (held) return;
     setPicked(chargeIds.includes(id) ? chargeIds.filter((c) => c !== id) : [...chargeIds, id]);
+    priceRevision.current++;
     setQuote(null);
     price.reset();
   }
@@ -301,7 +328,7 @@ function Counter({
     return (
       <Invoice
         sale={posted}
-        products={products.items}
+        products={allProducts}
         onNext={() => {
           setPosted(null);
           destinationForm.setValue("place_of_supply", "");
@@ -319,7 +346,7 @@ function Counter({
       />
     );
   if (products.isPending) return <p role="status">Loading products…</p>;
-  const active = products.items.filter(
+  const active = allProducts.filter(
     (p) => p.status === "active" && !basket.some((b) => b.product.id === p.id),
   );
   return (
@@ -353,48 +380,112 @@ function Counter({
         an NPPA ceiling in force is priced within it; one with no price control declared sells at
         its MRP.
       </p>
+      <p className="mt-2 text-sm text-muted-foreground">
+        Each scan adds one full pack, converted to units of issue using its catalogue pack size.
+        Prescription medicines require a prescription choice before adding.
+      </p>
+      <BarcodeInput
+        scope={scope}
+        canLink={canLinkBarcode}
+        disabled={held}
+        onProduct={async (product, signal) => {
+          const stock = await apiFetch<PharmacySaleAvailability>(
+            `${pharmacyRoot(scope)}/sales/availability?product_id=${encodeURIComponent(product.id)}`,
+            { signal, headers: { "X-Helivanta-Expected-Tenant": scope.tenantId } },
+          );
+          signal.throwIfAborted();
+          if (held)
+            throw new Error("This sale is held for payment. Finish payment before scanning.");
+          if (
+            stock.product_id !== product.id ||
+            !["none", "G", "H", "H1"].includes(stock.regulatory_class ?? "")
+          )
+            throw new Error("This product cannot be added. Review its schedule and availability.");
+          const units = product.pack_size;
+          if (!Number.isInteger(units) || units < 1 || units > 1000000)
+            throw new Error(
+              "This product has no valid pack size. Ask a catalogue editor to review it.",
+            );
+          const existingLine = currentBasket.current.find((line) => line.product.id === product.id);
+          const existingUnits = existingLine?.quantity_units ?? 0;
+          if (existingUnits + units > 1000000)
+            throw new Error("At most 1,000,000 units can be added for one product.");
+          if (stock.sellable_units < existingUnits + units)
+            throw new Error(
+              "Not enough sellable units for another pack. Review stock or enter a smaller quantity manually.",
+            );
+          setScannedProducts((current) => [...current.filter((p) => p.id !== product.id), product]);
+          if (stock.regulatory_class !== "none" && existingLine && !existingLine.prescription) {
+            throw new Error(
+              "This medicine now requires a prescription. Remove its basket line and scan it again to choose the prescription.",
+            );
+          }
+          if (stock.regulatory_class !== "none" && !existingLine) {
+            form.reset({
+              product_id: product.id,
+              quantity_units: units,
+              prescription: "",
+              discount: "",
+            });
+            return `Selected ${product.brand_name}. Choose its Schedule ${stock.regulatory_class} prescription and add to basket.`;
+          }
+          changeBasket((current) => {
+            const existing = current.find((line) => line.product.id === product.id);
+            return existing
+              ? current.map((line) =>
+                  line === existing
+                    ? { ...line, quantity_units: line.quantity_units + units }
+                    : line,
+                )
+              : [...current, { product, quantity_units: units }];
+          });
+          return `Added one pack of ${product.brand_name} (${units} units).`;
+        }}
+      />
       <form
         noValidate
         className="mt-4 grid gap-4 sm:grid-cols-3"
-        onSubmit={form.handleSubmit((values) => {
-          const product = products.items.find((p) => p.id === values.product_id);
-          if (!product) return;
-          const offered = (openLines.data?.lines ?? []).some(
-            (l) => `${l.prescription_id}:${l.line_number}` === values.prescription,
-          );
-          if (needsPrescription && !offered) {
-            form.setError("prescription", {
-              message: `Schedule ${rxClass}: choose the prescription this is dispensed against`,
-            });
-            return;
-          }
-          const discountBps =
-            values.discount === "" ? 0 : Math.round(Number(values.discount) * 100);
-          if (discountBps > maxBps) {
-            form.setError("discount", {
-              message: `This outlet's ceiling is ${maxBps / 100}%`,
-            });
-            return;
-          }
-          const [prescriptionID, lineNumber] = values.prescription.split(":");
-          changeBasket([
-            ...basket,
-            {
-              product,
-              quantity_units: values.quantity_units,
-              ...(discountBps > 0 ? { discount_bps: discountBps } : {}),
-              ...(needsPrescription
-                ? {
-                    prescription: {
-                      prescription_id: prescriptionID,
-                      line_number: Number(lineNumber),
-                    },
-                  }
-                : {}),
-            },
-          ]);
-          form.reset({ product_id: "", quantity_units: 1, prescription: "", discount: "" });
-        })}
+        onSubmit={(event) => {
+          void form.handleSubmit((values) => {
+            const product = allProducts.find((p) => p.id === values.product_id);
+            if (!product) return;
+            const offered = (openLines.data?.lines ?? []).some(
+              (l) => `${l.prescription_id}:${l.line_number}` === values.prescription,
+            );
+            if (needsPrescription && !offered) {
+              form.setError("prescription", {
+                message: `Schedule ${rxClass}: choose the prescription this is dispensed against`,
+              });
+              return;
+            }
+            const discountBps =
+              values.discount === "" ? 0 : Math.round(Number(values.discount) * 100);
+            if (discountBps > maxBps) {
+              form.setError("discount", {
+                message: `This outlet's ceiling is ${maxBps / 100}%`,
+              });
+              return;
+            }
+            const [prescriptionID, lineNumber] = values.prescription.split(":");
+            changeBasket([
+              ...basket,
+              {
+                product,
+                quantity_units: values.quantity_units,
+                ...(discountBps > 0 ? { discount_bps: discountBps } : {}),
+                ...(needsPrescription
+                  ? {
+                      prescription: {
+                        prescription_id: prescriptionID,
+                        line_number: Number(lineNumber),
+                      },
+                    }
+                  : {}),
+              },
+            ]);
+            form.reset({ product_id: "", quantity_units: 1, prescription: "", discount: "" });
+          })(event);
+        }}
       >
         <FormSelectField
           control={form.control}
@@ -529,7 +620,7 @@ function Counter({
       )}
       {quote && (
         <>
-          <SaleLines lines={quote.lines} currency={quote.currency} products={products.items} />
+          <SaleLines lines={quote.lines} currency={quote.currency} products={allProducts} />
           <SaleCharges charges={quote.charges} currency={quote.currency} />
           <Totals sale={quote} />
           <TenderForm

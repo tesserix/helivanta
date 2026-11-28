@@ -63,7 +63,7 @@ afterEach(() => {
 function fixture(
   options: {
     profile?: typeof profile | null;
-    quote?: () => Response;
+    quote?: () => Response | Promise<Response>;
     sale?: (init: RequestInit) => Response;
     saveProfile?: (init: RequestInit) => Response;
     rxClass?: string;
@@ -156,6 +156,17 @@ function fixture(
     if (url.endsWith("/invoice-profile"))
       return new Response(
         JSON.stringify({ profile: options.profile === undefined ? profile : options.profile }),
+      );
+    if (url.includes("/catalogue/barcodes/"))
+      return new Response(
+        JSON.stringify({
+          id: productId,
+          sku: "TEST-PCM-500",
+          pack_size: 10,
+          brand_name: "TEST Paracetamol",
+          status: "active",
+          currency: "INR",
+        }),
       );
     if (url.includes("/catalogue/products"))
       return new Response(
@@ -1341,4 +1352,157 @@ describe("CounterSale", () => {
     );
     expect(JSON.parse(String(put?.[1]?.body)).tenders[0].kind).toBe("upi_verified");
   });
+});
+
+it("adds keyboard scans to the basket, increments repeats and invalidates the quote", async () => {
+  const fetcher = fixture();
+  const { user } = renderWithProviders(
+    <CounterSale scope={scope} canSell canManageProfile={false} />,
+  );
+  const input = await screen.findByLabelText("Barcode");
+  await user.type(input, "4006381333931{Enter}");
+  expect(await screen.findByRole("list", { name: "Basket" })).toHaveTextContent(
+    "TEST Paracetamol × 10",
+  );
+  await user.click(screen.getByRole("button", { name: "Price basket" }));
+  expect(await screen.findByText("INR 100.00", { selector: "dd" })).toBeVisible();
+  await user.type(input, "4006381333931{Enter}");
+  await waitFor(() =>
+    expect(screen.getByRole("list", { name: "Basket" })).toHaveTextContent("TEST Paracetamol × 20"),
+  );
+  expect(screen.queryByRole("button", { name: "Post sale" })).toBeNull();
+  expect(fetcher.mock.calls.filter(([, init]) => init?.method === "PUT")).toHaveLength(0);
+});
+
+it("requires the existing prescription choice for a scanned Schedule H product", async () => {
+  fixture({ rxClass: "H" });
+  const { user } = renderWithProviders(
+    <CounterSale scope={scope} canSell canManageProfile={false} />,
+  );
+  await user.type(await screen.findByLabelText("Barcode"), "4006381333931{Enter}");
+  expect(await screen.findByLabelText("Prescription (Schedule H)")).toBeVisible();
+  expect(screen.getByLabelText("Units")).toHaveValue(10);
+  expect(screen.queryByRole("list", { name: "Basket" })).toBeNull();
+  await user.click(screen.getByRole("button", { name: "Add to basket" }));
+  expect(
+    await screen.findByText("Schedule H: choose the prescription this is dispensed against"),
+  ).toBeVisible();
+});
+
+it("does not restore an older quote when another pack is scanned during pricing", async () => {
+  let finish!: (response: Response) => void;
+  fixture({
+    quote: () =>
+      new Promise<Response>((resolve) => {
+        finish = resolve;
+      }),
+  });
+  const { user } = renderWithProviders(
+    <CounterSale scope={scope} canSell canManageProfile={false} />,
+  );
+  const input = await screen.findByLabelText("Barcode");
+  await user.type(input, "4006381333931{Enter}");
+  await screen.findByRole("list", { name: "Basket" });
+  await user.click(screen.getByRole("button", { name: "Price basket" }));
+  await user.type(input, "4006381333931{Enter}");
+  await waitFor(() =>
+    expect(screen.getByRole("list", { name: "Basket" })).toHaveTextContent("× 20"),
+  );
+  await act(async () => finish(new Response(JSON.stringify({ ...totals, lines: [line] }))));
+  expect(screen.queryByRole("button", { name: "Post sale" })).toBeNull();
+  expect(screen.getByRole("button", { name: "Price basket" })).toBeEnabled();
+});
+
+it("adds repeat packs against the prescription already chosen for that basket line", async () => {
+  const fetcher = fixture({ rxClass: "H" });
+  const { user } = renderWithProviders(
+    <CounterSale scope={scope} canSell canManageProfile={false} />,
+  );
+  const input = await screen.findByLabelText("Barcode");
+  await user.type(input, "4006381333931{Enter}");
+  const prescription = await screen.findByLabelText("Prescription (Schedule H)");
+  await chooseOption(user, prescription, /TEST Ravi Kumar/);
+  await user.click(screen.getByRole("button", { name: "Add to basket" }));
+  expect(await screen.findByRole("list", { name: "Basket" })).toHaveTextContent(
+    "× 10 · on prescription",
+  );
+  await user.type(input, "4006381333931{Enter}");
+  await waitFor(() =>
+    expect(screen.getByRole("list", { name: "Basket" })).toHaveTextContent(
+      "× 20 · on prescription",
+    ),
+  );
+  await user.click(screen.getByRole("button", { name: "Price basket" }));
+  const quote = fetcher.mock.calls.filter(([url]) => url.endsWith("/sales/quote")).at(-1);
+  expect(JSON.parse(String(quote?.[1]?.body)).lines).toEqual([
+    {
+      product_id: productId,
+      quantity_units: 20,
+      prescription: { prescription_id: rxId, line_number: 1 },
+    },
+  ]);
+});
+
+it("adds an exact barcode match outside the currently loaded catalogue page", async () => {
+  const otherProduct = "0199e000-0000-7000-8000-000000000099";
+  const fetcher = fixture({
+    quote: () =>
+      new Response(
+        JSON.stringify({
+          ...totals,
+          lines: [{ ...line, product_id: otherProduct, quantity_units: 10 }],
+        }),
+      ),
+  });
+  const read = fetcher.getMockImplementation()!;
+  fetcher.mockImplementation(async (url, init) => {
+    if (url.includes("/catalogue/barcodes/"))
+      return new Response(
+        JSON.stringify({
+          id: otherProduct,
+          sku: "TEST-SPECIAL",
+          brand_name: "Test special pack",
+          pack_size: 10,
+          status: "active",
+          currency: "INR",
+        }),
+      );
+    if (url.includes("/sales/availability"))
+      return new Response(
+        JSON.stringify({ product_id: otherProduct, sellable_units: 100, regulatory_class: "none" }),
+      );
+    return read(url, init);
+  });
+  const { user } = renderWithProviders(
+    <CounterSale scope={scope} canSell canManageProfile={false} />,
+  );
+  await user.type(await screen.findByLabelText("Barcode"), "4006381333931{Enter}");
+  expect(await screen.findByRole("list", { name: "Basket" })).toHaveTextContent(
+    "Test special pack × 10",
+  );
+  await user.click(screen.getByRole("button", { name: "Price basket" }));
+  const quoted = fetcher.mock.calls.filter(([url]) => url.endsWith("/sales/quote")).at(-1);
+  expect(JSON.parse(String(quoted?.[1]?.body)).lines).toEqual([
+    { product_id: otherProduct, quantity_units: 10 },
+  ]);
+});
+
+it("preserves the barcode and adds nothing when current sale availability cannot be checked", async () => {
+  const fetcher = fixture();
+  const read = fetcher.getMockImplementation()!;
+  fetcher.mockImplementation(async (url, init) =>
+    url.includes("/sales/availability")
+      ? new Response(
+          JSON.stringify({ error: "unavailable", message: "Availability unavailable; retry" }),
+          { status: 503 },
+        )
+      : read(url, init),
+  );
+  const { user } = renderWithProviders(
+    <CounterSale scope={scope} canSell canManageProfile={false} />,
+  );
+  await user.type(await screen.findByLabelText("Barcode"), "4006381333931{Enter}");
+  expect(await screen.findByRole("alert")).toHaveTextContent("Availability unavailable");
+  expect(screen.getByLabelText("Barcode")).toHaveValue("4006381333931");
+  expect(screen.queryByRole("list", { name: "Basket" })).toBeNull();
 });

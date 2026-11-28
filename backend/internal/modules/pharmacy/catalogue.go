@@ -93,6 +93,8 @@ func catalogueRoutes(g *platform.Router, deps platform.Deps) {
 	s.GET("/overview", PermCatalogueRead, h.getOverview)
 	s.PUT("/access/:subject", PermAccessManage, h.putAccess)
 	s.DELETE("/access/:subject", PermAccessManage, h.deleteAccess)
+	s.GET("/catalogue/barcodes/:gtin", PermCatalogueRead, h.getBarcode)
+	s.PUT("/catalogue/barcodes/:gtin", PermCatalogueWrite, h.linkBarcode)
 	s.PUT("/catalogue/products/:id", PermCatalogueWrite, h.putProduct)
 	s.GET("/catalogue/products/:id", PermCatalogueRead, h.getProduct)
 	platform.ListRoute(s, "/catalogue/products", PermCatalogueRead, h.listProducts)

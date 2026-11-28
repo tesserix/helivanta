@@ -274,6 +274,38 @@ Canonical request fields and constraints live in [contracts/pharmacy.json](../..
 
 Use client resource IDs and exact `expected_version` semantics of each handler; supplying a valid-looking UUID does not make every PUT replaceable or every POST retry-safe. The optional expected-tenant header returns `409 session_changed` if session context drifted. Never retry an in-flight action under a newly selected tenant.
 
+### Desktop barcode input (#1688, unreleased)
+
+The counter sale and quarantine receiving screens accept a keyboard-wedge USB or
+Bluetooth scanner in the labelled Barcode field, with Enter as the terminator.
+The Find product button also supports manual entry. There is no global key
+capture or camera scanning (#569).
+
+`GET …/catalogue/barcodes/{gtin}` resolves one active outlet product through an explicit link or the drug master's exact GTIN search and its current pinned product/formulation import references;
+`PUT` on the same path accepts `{product_id}` to link an unknown GTIN. Existing
+catalogue read/write permissions and current outlet reader/editor grants apply,
+with tenant expectations on client requests. GTIN-8/12/13/14 check digits are
+validated and equivalent zero-padded forms share a GTIN-14 key. Links belong to
+one tenant/outlet, are immutable and audited, and identical retries replay.
+Reassignment is `409 barcode_conflict`; an inactive explicit match is `409 barcode_inactive`.
+Ambiguous current imports are `409 barcode_ambiguous`; a reference-source failure
+is `503 catalogue_unavailable`, rather than an unknown barcode.
+Only an authorized missing mapping returns `404 barcode_unknown`, offering the
+paged active-product linker to catalogue editors or instructions to ask an editor.
+A known identifier never creates a drug-master or catalogue product automatically. The routes retain the pharmacy_catalogue release gate; this change enables no capability.
+
+At the counter each scan adds one full pack using its catalogue pack size;
+repeat scans increase that product's quantity and invalidate the quote. Current
+availability and schedule are checked. Regulated medicines prefill the existing
+prescription workflow instead of inferring a prescription. Held or uncertain
+payments block scans; stale lookup and pricing results cannot alter a new context
+or restore an old quote. Receiving selects the product and clears the previous
+lot through the unsaved-work guard; the exact manufacturer lot, quarantine
+location, quantity and receipt evidence remain explicit. No scan posts a sale,
+stock movement or payment. Supplier-shipment and independent operating-duty
+receiving retain their separate contracts. See the
+[design](../../superpowers/specs/2026-11-28-pharmacy-barcode-input.md).
+
 ### Outlet drug licences (#1386 A1)
 
 An outlet may sell only while it holds an approved licence that is valid on the outlet's own date ([counter sale design](../../superpowers/specs/2026-10-27-counter-sale-design.md)).

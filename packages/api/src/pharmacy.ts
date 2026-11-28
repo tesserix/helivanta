@@ -13,6 +13,7 @@ import {
 } from "./pharmacy-contract";
 export { v7 as newPharmacyId } from "uuid";
 export {
+  pharmacyBarcodeLinkInputSchema,
   pharmacyUnusedPaymentRefundFieldsSchema,
   pharmacyBatchInputSchema,
   pharmacyMovementInputSchema,

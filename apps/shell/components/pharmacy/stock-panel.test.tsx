@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@helivanta/api/testing";
 import { NavigationGuardProvider, useConfirmLeave } from "@helivanta/ui";
@@ -57,6 +57,15 @@ function mockReceiving(dispensable = 0) {
               { id: other, code: "TEST-Q2", name: "TEST Second" },
             ]),
           ),
+        );
+      if (url.includes("/catalogue/barcodes/"))
+        return new Response(
+          JSON.stringify({
+            id: product,
+            sku: "TEST-500",
+            brand_name: "TEST capsule",
+            status: "active",
+          }),
         );
       if (url.includes("/catalogue/products"))
         return new Response(
@@ -301,5 +310,60 @@ describe("Release for sale (#1386 A3)", () => {
     renderRelease(false);
     await screen.findByText("Selected lot balance");
     expect(screen.queryByRole("heading", { name: "Release for sale" })).toBeNull();
+  });
+});
+
+it("selects a receiving product from keyboard scanner input without recording stock or guessing a lot", async () => {
+  mockReceiving();
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <StockPanel scope={scope} writable correctable={false} />
+    </NavigationGuardProvider>,
+  );
+  await user.type(await screen.findByLabelText("Barcode"), "4006381333931{Enter}");
+  expect(await screen.findByRole("status")).toHaveTextContent(/choose the exact manufacturer lot/i);
+  expect(new URLSearchParams(nav.search).get("product")).toBe(product);
+  expect(new URLSearchParams(nav.search).has("open")).toBe(false);
+  expect(screen.queryByRole("button", { name: "Record movement" })).toBeNull();
+});
+
+it("records the scanned product's chosen lot through the normal receiving command", async () => {
+  mockReceiving();
+  const fetcher = vi.mocked(globalThis.fetch);
+  const read = fetcher.getMockImplementation()!;
+  const writes: RequestInit[] = [];
+  fetcher.mockImplementation(async (url, init) => {
+    if (String(url).includes("/stock/movements/") && init?.method === "PUT") {
+      writes.push(init);
+      return new Response(JSON.stringify({}), { status: 200 });
+    }
+    return read(url, init);
+  });
+  const { user } = renderWithProviders(
+    <NavigationGuardProvider>
+      <StockPanel scope={scope} writable correctable={false} />
+    </NavigationGuardProvider>,
+  );
+  await user.type(await screen.findByLabelText("Barcode"), "4006381333931{Enter}");
+  await screen.findByText(/Barcode matched TEST capsule/);
+  await chooseOption(user, screen.getByLabelText("Quarantine location"), /^TEST-Q ·/);
+  await chooseOption(user, screen.getByLabelText("Manufacturer lot"), /^TEST-LOT/);
+  const quantity = await screen.findByLabelText("Quantity in base units");
+  await user.clear(quantity);
+  await user.type(quantity, "20");
+  await user.type(
+    screen.getByLabelText("Receipt / correction line reference"),
+    "TEST-BARCODE-GRN-1",
+  );
+  await user.type(screen.getByLabelText("Reason"), "Received scanned packs");
+  await user.click(screen.getByRole("button", { name: "Record movement" }));
+  await waitFor(() => expect(writes).toHaveLength(1));
+  expect(JSON.parse(String(writes[0].body))).toEqual({
+    location_id: location,
+    batch_id: batch,
+    kind: "receipt",
+    quantity_units: 20,
+    source_reference: "TEST-BARCODE-GRN-1",
+    reason: "Received scanned packs",
   });
 });

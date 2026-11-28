@@ -2449,6 +2449,16 @@
     },
     {
       "method": "GET",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/barcodes/:gtin",
+      "capability": "pharmacy_catalogue"
+    },
+    {
+      "method": "PUT",
+      "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/barcodes/:gtin",
+      "capability": "pharmacy_catalogue"
+    },
+    {
+      "method": "GET",
       "path": "/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/products",
       "capability": "pharmacy_catalogue"
     },

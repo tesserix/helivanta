@@ -451,6 +451,7 @@ func TestNoTenantMembershipAllowlist(t *testing.T) {
 // tenant has enough rows, which is #816. Adding an entry here is a
 // decision a reviewer sees.
 var unpaginatedGETAllowlist = map[string]string{
+	"GET /pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/barcodes/:gtin":                                                            "Exact outlet GTIN lookup returns one product, never a collection (#1688).",
 	"GET /practitioners/:practitioner/registrations/:registration/source-reconciliations/:reconciliation/withdrawals/:withdrawal":            "one immutable source-reconciliation withdrawal receipt within the exact practitioner/registration/reconciliation path",
 	"GET /practitioners/:practitioner/registrations/:registration/source-reconciliations/:reconciliation":                                    "one immutable registration source-reconciliation receipt, not reconciliation history",
 	"GET /practitioners/:practitioner/registrations/:registration/revisions/:revision/verifications/:verification":                           "one immutable registration verification receipt for the exact revision and verification identity",

@@ -340,6 +340,14 @@ func (h *staffMFAResetService) fence(ctx context.Context, p authn.Principal, in 
 		if err := tx.Exec(`INSERT INTO iam_staff_mfa_fences(tenant_id,command_id,target_subject,actor_subject,fingerprint,revoked_at) VALUES(?,?,?,?,?,?)`, p.TenantID, in.Intent.CommandID, in.Target.Subject, p.Subject, fingerprint, cutoff).Error; err != nil {
 			return err
 		}
+		// The reset removes every key in Zitadel (#1905), so its registry rows go
+		// with the fence, atomically and only once: a later status read would
+		// otherwise delete the replacement key the person enrols. A key that
+		// slips in before the native removal leaves an orphan row, which can
+		// never count because Contains matches only ids Zitadel reports READY.
+		if err := tx.Exec(`DELETE FROM iam_security_keys WHERE subject=?`, in.Target.Subject).Error; err != nil {
+			return err
+		}
 		return tx.Exec(`INSERT INTO audit_events(tenant_id,actor_subject,action,resource_type,resource_id) VALUES(?,?,'staff_mfa_reset_fenced','iam_staff_mfa_fences',?)`, p.TenantID, p.Subject, in.Intent.CommandID).Error
 	})
 	if err == nil {

@@ -39,9 +39,74 @@ async function code(page: Page, label: string, secret: string) {
     .pressSequentially(generateTOTP(secret));
 }
 
+// Registers a security key for the user through Zitadel's native API, with the
+// page's virtual authenticator answering. Helivanta's registry never sees it.
+async function registerNativeKey(
+  page: Page,
+  native: (path: string, data?: unknown) => Promise<unknown>,
+  subject: string,
+) {
+  const domain = new URL(test.info().project.use.baseURL!).hostname;
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send("WebAuthn.enable");
+  await cdp.send("WebAuthn.addVirtualAuthenticator", {
+    options: {
+      protocol: "ctap2",
+      transport: "usb",
+      hasResidentKey: false,
+      hasUserVerification: true,
+      isUserVerified: true,
+    },
+  });
+  const registration = (await native(`/v2/users/${subject}/u2f`, { domain })) as {
+    u2fId: string;
+    publicKeyCredentialCreationOptions: {
+      publicKey: { challenge: string; user: { id: string }; excludeCredentials?: { id: string }[] };
+    };
+  };
+  const credential = await page.evaluate(async (options) => {
+    const decode = (v: string) =>
+      Uint8Array.from(atob(v.replace(/-/g, "+").replace(/_/g, "/")), (c) => c.charCodeAt(0));
+    const encode = (b: ArrayBuffer) =>
+      btoa(String.fromCharCode(...new Uint8Array(b)))
+        .replace(/\+/g, "-")
+        .replace(/\//g, "_")
+        .replace(/=+$/, "");
+    const pk = options.publicKey;
+    const created = (await navigator.credentials.create({
+      publicKey: {
+        ...pk,
+        challenge: decode(pk.challenge),
+        user: { ...pk.user, id: decode(pk.user.id) },
+        excludeCredentials: (pk.excludeCredentials ?? []).map((d: { id: string }) => ({
+          ...d,
+          id: decode(d.id),
+        })),
+      } as unknown as PublicKeyCredentialCreationOptions,
+    })) as PublicKeyCredential;
+    const response = created.response as AuthenticatorAttestationResponse;
+    return {
+      id: created.id,
+      rawId: encode(created.rawId),
+      type: created.type,
+      response: {
+        attestationObject: encode(response.attestationObject),
+        clientDataJSON: encode(response.clientDataJSON),
+      },
+    };
+  }, registration.publicKeyCredentialCreationOptions);
+  await native(`/v2/users/${subject}/u2f/${registration.u2fId}`, {
+    publicKeyCredential: credential,
+    tokenName: "Original synthetic key",
+  });
+}
+
+// factor "key_and_totp" (#1905) starts the colleague with a security key and a
+// TOTP, both registered natively, and re-enrols with a key on Helivanta's page.
 export async function exerciseNativeStaffMFARecovery(
   { page, browser }: { page: Page; browser: Browser },
   kind: "hospital" | "pharmacy",
+  factor: "totp" | "key_and_totp" = "totp",
 ) {
   const tenant = nativeStaffTenants[kind];
   const slug = kind === "hospital" ? "staff-mfa-recovery-native" : "staff-mfa-pharmacy-native";
@@ -128,6 +193,9 @@ export async function exerciseNativeStaffMFARecovery(
         JSON.stringify(membershipProof),
       ).toBe(true);
     }
+    // A natively registered key is not in Helivanta's registry, so it cannot
+    // sign in there; the password-only session before it is the old session.
+    if (factor === "key_and_totp") await registerNativeKey(targetPage, native, colleague.subject);
     const initial = await native(`/v2/users/${colleague.subject}/totp`, {});
     if (typeof initial.secret !== "string" || !/^[A-Z2-7]+$/.test(initial.secret))
       throw new Error("native initial factor unavailable");
@@ -135,11 +203,13 @@ export async function exerciseNativeStaffMFARecovery(
     await native(`/v2/users/${colleague.subject}/totp/verify`, {
       code: generateTOTP(originalSecret),
     });
-    await targetContext.clearCookies();
-    await signInNativeStaff(targetPage, target, tenant);
-    await code(targetPage, "Verification code", originalSecret);
-    await targetPage.waitForURL((url) => url.pathname === "/dashboard");
-    await identity(targetPage.request, tenant);
+    if (factor === "totp") {
+      await targetContext.clearCookies();
+      await signInNativeStaff(targetPage, target, tenant);
+      await code(targetPage, "Verification code", originalSecret);
+      await targetPage.waitForURL((url) => url.pathname === "/dashboard");
+      await identity(targetPage.request, tenant);
+    }
     const old = (await targetContext.cookies()).find(
       (cookie) => cookie.name === "helivanta_session",
     );
@@ -291,6 +361,9 @@ export async function exerciseNativeStaffMFARecovery(
     }
     const before = await native(`/v2/users/${colleague.subject}/authentication_methods`);
     expect(before.authMethodTypes.includes("AUTHENTICATION_METHOD_TYPE_TOTP")).toBe(true);
+    expect(before.authMethodTypes.includes("AUTHENTICATION_METHOD_TYPE_U2F")).toBe(
+      factor === "key_and_totp",
+    );
     expect(
       (await targetPage.request.get(permissions, { headers: { Cookie: oldCookie } })).status(),
     ).toBe(200);
@@ -330,6 +403,7 @@ export async function exerciseNativeStaffMFARecovery(
     ).toBeVisible();
     const removed = await native(`/v2/users/${colleague.subject}/authentication_methods`);
     expect((removed.authMethodTypes ?? []).includes("AUTHENTICATION_METHOD_TYPE_TOTP")).toBe(false);
+    expect((removed.authMethodTypes ?? []).includes("AUTHENTICATION_METHOD_TYPE_U2F")).toBe(false);
     expect(
       (await targetPage.request.get(permissions, { headers: { Cookie: oldCookie } })).status(),
     ).toBe(401);
@@ -343,14 +417,24 @@ export async function exerciseNativeStaffMFARecovery(
     await targetPage.waitForTimeout(1100);
     await targetContext.clearCookies();
     await signInNativeStaff(targetPage, target, tenant);
-    await chooseAuthenticatorApp(targetPage);
-    const replacement = (
-      await targetPage.getByLabel("Authenticator setup key", { exact: true }).textContent()
-    )?.trim();
-    if (!replacement || !/^[A-Z2-7]+$/.test(replacement) || replacement === originalSecret)
-      throw new Error("native recovery did not issue a replacement factor");
-    expect((await targetPage.request.get(permissions)).status()).toBe(401);
-    await code(targetPage, "Confirmation code", replacement);
+    if (factor === "totp") {
+      await chooseAuthenticatorApp(targetPage);
+      const replacement = (
+        await targetPage.getByLabel("Authenticator setup key", { exact: true }).textContent()
+      )?.trim();
+      if (!replacement || !/^[A-Z2-7]+$/.test(replacement) || replacement === originalSecret)
+        throw new Error("native recovery did not issue a replacement factor");
+      expect((await targetPage.request.get(permissions)).status()).toBe(401);
+      await code(targetPage, "Confirmation code", replacement);
+    } else {
+      // Registers the replacement key (create), then signs in with it (get).
+      await expect(
+        targetPage.getByRole("heading", { name: "Set up two-step verification", exact: true }),
+      ).toBeVisible();
+      expect((await targetPage.request.get(permissions)).status()).toBe(401);
+      await targetPage.getByLabel("Key name", { exact: true }).fill("Replacement synthetic key");
+      await targetPage.getByRole("button", { name: "Security key", exact: true }).click();
+    }
     await targetPage.waitForURL((url) => url.pathname === "/dashboard", { timeout: 35000 });
     await identity(targetPage.request, tenant);
     expect((await targetPage.request.post("/api/v1/auth/renew")).status()).toBe(200);
@@ -359,6 +443,11 @@ export async function exerciseNativeStaffMFARecovery(
     await expect(
       page.getByRole("status").filter({ hasText: "This recovery request is complete." }),
     ).toBeVisible();
+    if (factor === "key_and_totp") {
+      const replaced = await native(`/v2/users/${colleague.subject}/authentication_methods`);
+      expect(replaced.authMethodTypes).toContain("AUTHENTICATION_METHOD_TYPE_U2F");
+      expect(replaced.authMethodTypes).not.toContain("AUTHENTICATION_METHOD_TYPE_TOTP");
+    }
     expect(
       (await targetPage.request.get(permissions, { headers: { Cookie: oldCookie } })).status(),
     ).toBe(401);

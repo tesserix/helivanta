@@ -1,5 +1,6 @@
 {
   "models": [
+    {"name":"BarcodeLinkInput","schema":"pharmacyBarcodeLinkInputSchema","fields":[{"name":"product_id","type":"uuid"}]},
     {
       "name": "PurchaseTaxLineInput",
       "schema": "pharmacyPurchaseTaxLineInputSchema",

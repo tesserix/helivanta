@@ -3,6 +3,10 @@ package pharmacy
 
 import "github.com/google/uuid"
 
+type BarcodeLinkInput struct {
+	ProductID uuid.UUID `json:"product_id" binding:"required"`
+}
+
 type PurchaseTaxLineInput struct {
 	Position              int     `json:"position" binding:"min=1,max=100"`
 	SupplyNature          string  `json:"supply_nature" binding:"required,oneof=taxable nil_rated exempt outside_gst"`

@@ -464,6 +464,7 @@ function OutletPharmacy({
       ) : view === "counter" ? (
         <div className="space-y-6">
           <CounterSale
+            canLinkBarcode={access.data?.level === "editor" && can("pharmacy.catalogue.write")}
             scope={scope}
             timeZone={outlet.timezone}
             canSell={access.data?.level === "editor" && can("pharmacy.sale.create")}
@@ -575,6 +576,7 @@ function OutletPharmacy({
         <BatchSafety scope={scope} timeZone={outlet.timezone} />
       ) : (
         <StockPanel
+          canLinkBarcode={access.data?.level === "editor" && can("pharmacy.catalogue.write")}
           scope={scope}
           timeZone={outlet.timezone}
           writable={access.data?.level === "editor" && can("pharmacy.stock.receive")}

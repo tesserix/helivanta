@@ -707,6 +707,8 @@ Source: [backend/internal/modules/pharmacy/module.go](../../../backend/internal/
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/tally/preview` | `pharmacy.accounts.export` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/accounts/tally/vouchers.xml` | `pharmacy.accounts.export` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/admission-occupant` | `pharmacy.sale.create` | false | false |
+| GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/barcodes/:gtin` | `pharmacy.catalogue.read` | false | false |
+| PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/barcodes/:gtin` | `pharmacy.catalogue.write` | false | false |
 | POST | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/categories/:id/retire` | `pharmacy.category.declare` | false | false |
 | PUT | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/categories/:id` | `pharmacy.category.declare` | false | false |
 | GET | `/v1/pharmacy/pharmacies/:pharmacy/outlets/:outlet/catalogue/categories` | `pharmacy.catalogue.read` | true | false |
@@ -963,6 +965,7 @@ Migration table declarations:
 - `0074_pharmacy_purchase_tax_evidence`: `pharmacy_purchase_tax_evidence`, `pharmacy_purchase_tax_lines`, `pharmacy_tally_export_receipts`.
 - `0075_pharmacy_purchase_export_day`: concurrent index `pharmacy_purchase_export_day` on `pharmacy_payables (tenant_id, outlet_id, issued_on, created_at, id)`.
 - `0076_pharmacy_verification_policy_preparation`: `pharmacy_verification_policy_drafts`.
+- `0077_pharmacy_barcodes`: `pharmacy_product_barcodes`.
 
 ## payments
 

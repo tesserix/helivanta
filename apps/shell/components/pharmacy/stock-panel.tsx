@@ -43,6 +43,7 @@ import {
 import { useListDetail, useReportState, type FormState } from "@/lib/use-list-detail";
 import { useUrlPage } from "@/lib/use-url-page";
 import { CurrencyAmountField } from "./currency-amount-field";
+import { BarcodeInput } from "./barcode-input";
 
 const inputClass =
   "w-full rounded-md border bg-background px-3 py-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-(--hms-accent)";
@@ -50,12 +51,14 @@ const inputClass =
 export function StockPanel({
   scope,
   writable,
+  canLinkBarcode = false,
   correctable,
   releasable = false,
   timeZone = "UTC",
 }: {
   scope: PharmacyScope;
   writable: boolean;
+  canLinkBarcode?: boolean;
   correctable: boolean;
   /** May move this lot from quarantine to a sellable location (#1386 A3). */
   releasable?: boolean;
@@ -76,6 +79,11 @@ export function StockPanel({
     pharmacyKey(scope, "catalogue", "active"),
     `${pharmacyRoot(scope)}/catalogue/products?status=active`,
   );
+  const [scannedProduct, setScannedProduct] = useState<PharmacyProduct | null>(null);
+  const productOptions =
+    scannedProduct && !products.items.some((p) => p.id === scannedProduct.id)
+      ? [...products.items, scannedProduct]
+      : products.items;
   const batches = useApiPagedQuery<PharmacyBatch>(
     pharmacyKey(scope, "stock", "batches", productId),
     `${pharmacyRoot(scope)}/stock/batches?product_id=${productId}`,
@@ -212,6 +220,18 @@ export function StockPanel({
                 />
               ) : (
                 <>
+                  {writable && (
+                    <BarcodeInput
+                      scope={scope}
+                      canLink={canLinkBarcode}
+                      onProduct={async (product, signal) => {
+                        signal.throwIfAborted();
+                        setScannedProduct(product);
+                        choose({ product: product.id });
+                        return `Barcode matched ${product.brand_name}. Choose the exact manufacturer lot and quarantine location to receive stock.`;
+                      }}
+                    />
+                  )}
                   <div className="grid gap-5 @[560px]/main:grid-cols-3">
                     <Field id="stock-location" label="Quarantine location">
                       <SelectControl
@@ -232,7 +252,7 @@ export function StockPanel({
                         value={productId}
                         onValueChange={(value) => choose({ product: value })}
                         placeholder="Select a product"
-                        options={products.items.map((row) => ({
+                        options={productOptions.map((row) => ({
                           value: row.id,
                           label: `${row.sku} · ${row.brand_name}`,
                         }))}

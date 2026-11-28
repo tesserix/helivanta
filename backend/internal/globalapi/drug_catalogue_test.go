@@ -68,6 +68,10 @@ func TestOutletMedicineImportThroughGlobalAPIPinsIdentityAndRejectsStaleOrUnauth
 	call("PUT", path+"/from-drugmaster", "foreign", command, 404)
 	call("PUT", path+"/from-drugmaster", "editor", fmt.Sprintf(`{"version_id":%q,"currency":"INR","mrp_minor":12500}`, source.VersionID), 400)
 	first := call("PUT", path+"/from-drugmaster", "editor", command, 200)
+	require.NotNil(t, source.Gtin)
+	barcode := root + "/catalogue/barcodes/" + *source.Gtin
+	require.JSONEq(t, first, call("GET", barcode, "editor", "", 200))
+	call("GET", barcode, "foreign", "", 404)
 	require.JSONEq(t, first, call("PUT", path+"/from-drugmaster", "editor", command, 200))
 	var result map[string]any
 	require.NoError(t, json.Unmarshal([]byte(first), &result))
@@ -113,6 +117,7 @@ func TestOutletMedicineImportThroughGlobalAPIPinsIdentityAndRejectsStaleOrUnauth
 	require.NotEqual(t, source.VersionID, found.Data[0].VersionID)
 	nextCommand := fmt.Sprintf(`{"version_id":%q,"formulation_version_id":%q,"currency":"INR","mrp_minor":25000}`, found.Data[0].VersionID, found.Data[0].FormulationVersionID)
 	revised := call("PUT", root+"/catalogue/products/"+uuid.Must(uuid.NewV7()).String()+"/from-drugmaster", "editor", nextCommand, 200)
+	require.JSONEq(t, revised, call("GET", barcode, "editor", "", 200), "barcode lookup follows the current published pack version")
 	require.Contains(t, revised, `"pack_size":20`)
 	require.Contains(t, call("GET", path, "editor", "", 200), `"pack_size":10`)
 	// A formulation-only update leaves the product version unchanged. A
@@ -129,6 +134,7 @@ func TestOutletMedicineImportThroughGlobalAPIPinsIdentityAndRejectsStaleOrUnauth
 	call("PUT", root+"/catalogue/products/"+uuid.Must(uuid.NewV7()).String()+"/from-drugmaster", "editor", nextCommand, 409)
 	formCommand := fmt.Sprintf(`{"version_id":%q,"formulation_version_id":%q,"currency":"INR","mrp_minor":25000}`, found.Data[0].VersionID, found.Data[0].FormulationVersionID)
 	updatedForm := call("PUT", root+"/catalogue/products/"+uuid.Must(uuid.NewV7()).String()+"/from-drugmaster", "editor", formCommand, 200)
+	require.JSONEq(t, updatedForm, call("GET", barcode, "editor", "", 200), "the same pack version resolves only the current formulation reference")
 	require.Contains(t, updatedForm, `"regulatory_class":"H1"`)
 	publishStockProduct(t, db, "recalled")
 	require.JSONEq(t, first, call("PUT", path+"/from-drugmaster", "editor", command, 200), "uncertain import replays original receipt even after commercial edits and recall")

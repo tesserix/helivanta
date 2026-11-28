@@ -6,6 +6,8 @@ import { StaffAcceptance } from "./acceptance";
 
 const navigation = vi.hoisted(() => ({ replace: vi.fn(), push: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => navigation }));
+const signin = vi.hoisted(() => ({ signinAfterStaffSetup: vi.fn(async () => {}) }));
+vi.mock("@/lib/signup-signin", () => signin);
 
 const invitation = "019a7777-7777-7777-8777-777777777777";
 const ticket = "A".repeat(43);
@@ -96,12 +98,14 @@ it("shows already verified without repeating proof or sending another email", as
   vi.stubGlobal("fetch", fetcher);
   renderWithProviders(<StaffAcceptance />);
   expect(await screen.findByRole("heading", { name: "Your email is verified" })).toBeVisible();
-  expect(screen.queryByRole("button", { name: "Verify email" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Set password" })).not.toBeInTheDocument();
   expect(fetcher).toHaveBeenCalledTimes(1);
   expect(window.location.hash).toBe("");
 });
 
-it("verifies only after a deliberate click and preserves opaque native codes", async () => {
+// #1777: the email link opens the password form, makes no proof request on
+// load (mail scanners), and one submit carries the code and the password.
+it("sets the password and confirms the email in one submit, then starts sign-in once", async () => {
   open();
   const calls: { path: string; body: Record<string, string> }[] = [];
   vi.stubGlobal(
@@ -110,20 +114,86 @@ it("verifies only after a deliberate click and preserves opaque native codes", a
       calls.push({ path, body: JSON.parse(init.body as string) });
       return new Response(
         JSON.stringify(
-          receipt(path.endsWith("/email") ? "already_verified" : "email_action_required"),
+          path.endsWith("/email") ? { state: "complete" } : receipt("email_action_required"),
         ),
         { status: 200 },
       );
     }),
   );
   renderWithProviders(<StaffAcceptance />);
-  const button = await screen.findByRole("button", { name: "Verify email" });
-  expect(calls).toHaveLength(1);
-  await userEvent.click(button);
-  expect(await screen.findByRole("heading", { name: "Your email is verified" })).toBeVisible();
-  expect(calls[1].body.code).toBe("Opaque+Code/==#");
-  expect(calls[1].body.ticket).toBe(ticket);
+  expect(await screen.findByRole("heading", { name: "Choose your password" })).toBeVisible();
+  expect(screen.getByText("This also confirms your email address.")).toBeVisible();
+  expect(screen.queryByRole("button", { name: "Verify email" })).not.toBeInTheDocument();
+  expect(calls.map((c) => c.path.split("/").pop())).toEqual(["status"]);
+  await userEvent.type(screen.getByLabelText("New password"), "private-password");
+  await userEvent.type(screen.getByLabelText("Confirm password"), "private-password");
+  await userEvent.click(screen.getByRole("button", { name: "Set password" }));
+  expect(await screen.findByRole("status")).toHaveTextContent("Opening sign-in…");
+  expect(calls[1].path).toMatch(/\/email$/);
+  expect(calls[1].body).toMatchObject({
+    code: "Opaque+Code/==#",
+    ticket,
+    password: "private-password",
+  });
+  await waitFor(() => expect(signin.signinAfterStaffSetup).toHaveBeenCalledTimes(1));
+  expect(document.body.textContent).not.toContain("private-password");
   expect(document.body.textContent).not.toContain(ticket);
+});
+
+it("keeps the form after a password policy refusal and resubmits the same link", async () => {
+  open();
+  const bodies: Record<string, string>[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (path: string, init: RequestInit) => {
+      bodies.push(JSON.parse(init.body as string));
+      if (!path.endsWith("/email"))
+        return new Response(JSON.stringify(receipt("email_action_required")), { status: 200 });
+      if (bodies.length === 2)
+        return new Response(JSON.stringify({ error: "password_policy", message: "x" }), {
+          status: 422,
+        });
+      return new Response(JSON.stringify({ state: "complete" }), { status: 200 });
+    }),
+  );
+  renderWithProviders(<StaffAcceptance />);
+  const submit = async (value: string) => {
+    await userEvent.type(await screen.findByLabelText("New password"), value);
+    await userEvent.type(screen.getByLabelText("Confirm password"), value);
+    await userEvent.click(screen.getByRole("button", { name: "Set password" }));
+  };
+  await submit("short");
+  expect(await screen.findByRole("alert")).toHaveTextContent("password rules");
+  expect(screen.getByRole("heading", { name: "Choose your password" })).toBeVisible();
+  await submit("a-longer-private-password");
+  await waitFor(() => expect(signin.signinAfterStaffSetup).toHaveBeenCalledTimes(1));
+  expect(bodies[2]).toMatchObject({
+    code: "Opaque+Code/==#",
+    password: "a-longer-private-password",
+  });
+});
+
+it("offers a fresh link when the emailed code is refused", async () => {
+  open();
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (path: string) =>
+      path.endsWith("/email")
+        ? new Response(JSON.stringify({ error: "staff_setup_refused", message: "x" }), {
+            status: 400,
+          })
+        : new Response(JSON.stringify(receipt("email_action_required")), { status: 200 }),
+    ),
+  );
+  renderWithProviders(<StaffAcceptance />);
+  await userEvent.type(await screen.findByLabelText("New password"), "private-password");
+  await userEvent.type(screen.getByLabelText("Confirm password"), "private-password");
+  await userEvent.click(screen.getByRole("button", { name: "Set password" }));
+  expect(
+    await screen.findByRole("heading", { name: "This link has expired or been used" }),
+  ).toBeVisible();
+  expect(screen.getByRole("button", { name: "Send a fresh link" })).toBeVisible();
+  expect(signin.signinAfterStaffSetup).not.toHaveBeenCalled();
 });
 
 it("sends no password request until confirmation matches and clears submitted credentials", async () => {
@@ -156,10 +226,9 @@ it("sends no password request until confirmation matches and clears submitted cr
   await userEvent.clear(screen.getByLabelText("Confirm password"));
   await userEvent.type(screen.getByLabelText("Confirm password"), "private-password");
   await userEvent.click(screen.getByRole("button", { name: "Set password" }));
-  expect(await screen.findByRole("heading", { name: "Your account is ready" })).toBeVisible();
-  expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", "/login");
+  await waitFor(() => expect(signin.signinAfterStaffSetup).toHaveBeenCalledTimes(1));
   expect(document.body.textContent).not.toContain("private-password");
-  await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(2));
+  expect(fetcher).toHaveBeenCalledTimes(2);
 });
 
 it("explains superseded links without offering verification or password submission", async () => {

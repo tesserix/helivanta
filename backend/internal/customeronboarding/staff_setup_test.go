@@ -60,6 +60,7 @@ func TestStaffSetupBoundsPrivateHandoffAndNeverEchoesUpstreamSecrets(t *testing.
 		{"unsafe retry", `private-upstream-secret`, "999999999", 429, 503},
 		{"invalid", `private-upstream-secret`, "", 400, 400},
 		{"expired", `private-upstream-secret`, "", 409, 409},
+		{"password policy (#1777)", `{"error":"Errors.User.PasswordComplexityPolicy private-upstream-secret"}`, "", 422, 422},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			key := t.TempDir() + "/token"

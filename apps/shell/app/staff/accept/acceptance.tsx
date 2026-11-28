@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { z } from "zod";
 import {
+  ApiError,
   newStaffInvitationDeliveryID,
   staffSetup,
   useApiMutation,
@@ -12,6 +13,7 @@ import {
   type StaffSetupReceipt,
 } from "@helivanta/api";
 import { Button, Field, RequestFailure, useZodForm } from "@helivanta/ui";
+import { signinAfterStaffSetup } from "@/lib/signup-signin";
 
 type Invitation = { id: string; ticket: string; phase: "email" | "password"; code: string };
 
@@ -35,6 +37,11 @@ export function StaffAcceptance() {
   const [delivery, setDelivery] = useState<StaffSetupReceipt>();
   const [pending, setPending] = useState<StaffSetupAction | null>("status");
   const [problem, setProblem] = useState<{ error: unknown; action: StaffSetupAction }>();
+  // "policy": the identity owner refused the password and the link still
+  // works; "refused": the code was refused, so only a fresh link helps.
+  const [refusal, setRefusal] = useState<"policy" | "refused">();
+  // Set when this page just set the password, so sign-in starts at once.
+  const [finished, setFinished] = useState(false);
   const busy = useRef(false);
   const deliveryID = useRef<string | undefined>(undefined);
   const secret = useRef<string | undefined>(undefined);
@@ -45,7 +52,8 @@ export function StaffAcceptance() {
     (action: StaffSetupAction) => {
       const input: StaffRecipientInput = { invitation_id: link!.id, ticket: link!.ticket };
       if (action === "email" || action === "password") input.code = link!.code;
-      if (action === "password") input.password = secret.current;
+      // One step (#1777): the email link's submit also sets the password.
+      if (action === "email" || action === "password") input.password = secret.current;
       secret.current = undefined;
       if (action === "resend") {
         deliveryID.current ??= newStaffInvitationDeliveryID();
@@ -81,13 +89,21 @@ export function StaffAcceptance() {
     busy.current = true;
     setPending(action);
     setProblem(undefined);
+    setRefusal(undefined);
     secret.current = password;
     step.mutate(action, {
       onSuccess: (value) => {
         if (action === "resend" && value.state !== "complete") setDelivery(value);
         else setReceipt(value);
+        if (password && value.state === "complete") setFinished(true);
       },
-      onError: (error) => setProblem({ error, action }),
+      onError: (error) => {
+        if (password && error instanceof ApiError && error.code === "password_policy")
+          setRefusal("policy");
+        else if (password && error instanceof ApiError && error.code === "staff_setup_refused")
+          setRefusal("refused");
+        else setProblem({ error, action });
+      },
       onSettled: () => {
         busy.current = false;
         setPending(null);
@@ -128,6 +144,7 @@ export function StaffAcceptance() {
       />
     );
   if (!receipt) return <p role="status">Checking your invitation…</p>;
+  if (receipt.state === "complete" && finished) return <StaffSignin />;
   if (receipt.state === "complete")
     return (
       <div className="space-y-4">
@@ -157,22 +174,18 @@ export function StaffAcceptance() {
 
   const sent = !!delivery;
   const verified = receipt.state === "already_verified";
-  const expired = receipt.state === "expired" || receipt.state === "consumed";
+  const expired =
+    receipt.state === "expired" || receipt.state === "consumed" || refusal === "refused";
   const uncertain = receipt.state === "delivery_unresolved" || receipt.state === "proof_unresolved";
+  // Either link opens the password form (#1777): an email link's submit also
+  // confirms the address, so there is no separate verify click.
   const password =
     !sent &&
     !expired &&
     !uncertain &&
     !verified &&
-    link.phase === "password" &&
-    receipt.state === "password_action_required";
-  const email =
-    !sent &&
-    !expired &&
-    !uncertain &&
-    !verified &&
-    link.phase === "email" &&
-    receipt.state === "email_action_required";
+    ((link.phase === "password" && receipt.state === "password_action_required") ||
+      (link.phase === "email" && receipt.state === "email_action_required"));
 
   return (
     <div className="space-y-5">
@@ -185,9 +198,7 @@ export function StaffAcceptance() {
               ? "This link has expired or been used"
               : uncertain
                 ? "Check your previous request"
-                : password
-                  ? "Choose your password"
-                  : "Verify your email"}
+                : "Choose your password"}
       </h1>
       <p className="text-muted-foreground">
         {sent
@@ -200,14 +211,15 @@ export function StaffAcceptance() {
               ? "A previous request has an uncertain result. Check its status before making another change."
               : expired
                 ? "Request a fresh link below and continue from your latest email."
-                : password
-                  ? "Choose a private password that follows your organisation’s policy."
-                  : "Confirm your email to continue setting up your staff account."}
+                : link.phase === "email"
+                  ? "This also confirms your email address."
+                  : "Choose a private password that follows your organisation’s policy."}
       </p>
-      {email && (
-        <Button type="button" disabled={!!pending} onClick={() => run("email")}>
-          Verify email
-        </Button>
+      {refusal === "policy" && (
+        <p role="alert">
+          That password doesn&apos;t meet your workspace&apos;s password rules. Try a longer one
+          with letters, numbers and a symbol.
+        </p>
       )}
       {password && (
         <form
@@ -216,7 +228,7 @@ export function StaffAcceptance() {
           onSubmit={(event) =>
             void form.handleSubmit(({ password: value }) => {
               form.reset();
-              run("password", value);
+              run(link.phase, value);
             })(event)
           }
         >
@@ -258,7 +270,7 @@ export function StaffAcceptance() {
           Check status
         </Button>
       )}
-      {!email && !password && (
+      {!password && (
         <Button type="button" disabled={!!pending} onClick={freshDelivery}>
           {verified && !sent
             ? "Send password setup email"
@@ -311,4 +323,28 @@ function invitationStore() {
       return () => {};
     },
   };
+}
+
+// The password was set moments ago, so sign-in starts at once (#1777, as
+// #1763 for owners). A failed start leaves a link to retry.
+function StaffSignin() {
+  const [failed, setFailed] = useState(false);
+  const started = useRef(false);
+  useEffect(() => {
+    if (started.current) return;
+    started.current = true;
+    Promise.resolve()
+      .then(() => signinAfterStaffSetup())
+      .catch(() => setFailed(true));
+  }, []);
+  if (failed)
+    return (
+      <div className="space-y-4">
+        <p role="alert">We couldn&apos;t open sign-in. Try again.</p>
+        <a className="underline underline-offset-4" href="/login">
+          Sign in
+        </a>
+      </div>
+    );
+  return <p role="status">Opening sign-in…</p>;
 }

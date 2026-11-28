@@ -9,6 +9,17 @@ const accountPhases = new Set([
   "scope_enrolments",
   "scope_current_identity",
 ]);
+// #1891: the owner's identity read after its scope check.
+const projectionPhases = new Set([
+  "native_identity",
+  "native_projection",
+  "native_credentials",
+  "mfa_recovery",
+  "scope_recheck",
+  "tenant_name",
+  "audit",
+]);
+const perComponentLimit = 100;
 const stages = new Map([
   [
     "Staff MFA recovery admission unavailable",
@@ -99,6 +110,22 @@ export function recoveryDiagnostics(log) {
         parent_cancelled: record.parent_cancelled,
       });
     } else if (
+      record.msg === "identity projection unavailable" &&
+      projectionPhases.has(record.phase) &&
+      Number.isInteger(record.elapsed_ms) &&
+      record.elapsed_ms >= 0 &&
+      record.elapsed_ms <= 60_000 &&
+      typeof record.parent_deadline === "boolean" &&
+      typeof record.parent_cancelled === "boolean"
+    ) {
+      results.push({
+        component: "identity_projection",
+        phase: record.phase,
+        elapsed_ms: record.elapsed_ms,
+        parent_deadline: record.parent_deadline,
+        parent_cancelled: record.parent_cancelled,
+      });
+    } else if (
       record.msg === "request" &&
       record.method === "PUT" &&
       record.path === "/v1/orgs/:id/staff-mfa-recoveries/:commandId" &&
@@ -108,9 +135,13 @@ export function recoveryDiagnostics(log) {
     ) {
       results.push({ component: "owner_http", method: "PUT", status: record.status });
     }
-    if (results.length === 100) break;
   }
-  return results;
+  // A flood from one component must not hide another's evidence.
+  const counts = new Map();
+  return results.filter(({ component }) => {
+    counts.set(component, (counts.get(component) ?? 0) + 1);
+    return counts.get(component) <= perComponentLimit;
+  });
 }
 
 async function main(path) {

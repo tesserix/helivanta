@@ -1379,6 +1379,11 @@ type zitadelEnrollmentFake struct {
 	// authFactorsDown makes the READY-key read answer 503 (#1898).
 	totpVerifies    atomic.Int32
 	authFactorsDown atomic.Bool
+	// requestOrg, when set, scopes GET /v2/oidc/auth_requests/{id} to that
+	// organisation (#1778 resume tests).
+	requestOrg atomic.Value
+	// sessionOrg overrides the session's organisation (default org-1).
+	sessionOrg atomic.Value
 }
 
 func newZitadelEnrollmentFake(t *testing.T) *zitadelEnrollmentFake {
@@ -1399,7 +1404,11 @@ func newZitadelEnrollmentFake(t *testing.T) *zitadelEnrollmentFake {
 		if f.sessionKey.Load() {
 			totp += `,"webAuthN":{"verifiedAt":"2026-11-27T00:00:00Z"}`
 		}
-		_, _ = w.Write([]byte(`{"session":{"id":"sess-enrol","factors":{"user":{"id":"user-enrol","organizationId":"org-1"},"password":{"verifiedAt":"2026-10-08T00:00:00Z"}` + totp + `}}}`))
+		org, _ := f.sessionOrg.Load().(string)
+		if org == "" {
+			org = "org-1"
+		}
+		_, _ = w.Write([]byte(`{"session":{"id":"sess-enrol","factors":{"user":{"id":"user-enrol","organizationId":"` + org + `"},"password":{"verifiedAt":"2026-10-08T00:00:00Z"}` + totp + `}}}`))
 	})
 	mux.HandleFunc("GET /v2/users/{id}/authentication_methods", func(w http.ResponseWriter, _ *http.Request) {
 		methods := []string{"AUTHENTICATION_METHOD_TYPE_PASSWORD"}
@@ -1525,6 +1534,13 @@ func newZitadelEnrollmentFake(t *testing.T) *zitadelEnrollmentFake {
 	mux.HandleFunc("POST /v2/oidc/auth_requests/{id}", func(w http.ResponseWriter, r *http.Request) {
 		f.finalized.Store(true)
 		finalizeRequireRotatedToken(w, r)
+	})
+	mux.HandleFunc("GET /v2/oidc/auth_requests/{id}", func(w http.ResponseWriter, r *http.Request) {
+		scope := []string{"openid"}
+		if org, _ := f.requestOrg.Load().(string); org != "" {
+			scope = append(scope, "urn:zitadel:iam:org:id:"+org)
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"authRequest": map[string]any{"id": r.PathValue("id"), "clientId": "helivanta-web", "redirectUri": "https://helivanta.app/api/auth/callback", "scope": scope}})
 	})
 	mux.HandleFunc("GET /v2/users/{id}", func(w http.ResponseWriter, _ *http.Request) {
 		human := `"passwordChanged":"2026-01-01T00:00:00Z"`

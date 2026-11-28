@@ -185,6 +185,9 @@ var staffMFAFencesSchema string
 //go:embed security_keys.sql
 var securityKeysSchema string
 
+//go:embed parked_sessions.sql
+var parkedSessionsSchema string
+
 //go:embed security_keys_guard.sql
 var securityKeysGuardSchema string
 
@@ -370,7 +373,7 @@ CREATE TABLE IF NOT EXISTS login_account_choice (
 );
 CREATE INDEX IF NOT EXISTS login_account_choice_expires_at_idx ON login_account_choice (expires_at);
 `,
-	}, {ID: "0054_iam_staff_mfa_fences", SQL: staffMFAFencesSchema}, {ID: "0055_iam_stocktake_operating_templates", SQL: stocktakeTemplatesBeforeSchema + operatingTemplatesStocktakeSchema + stocktakeTemplatesAfterSchema}, {ID: "0056_iam_pharmacy_stocktake_templates", SQL: hospitalStocktakeTemplatesBeforeSchema + hospitalStocktakeTemplatesSchema + hospitalStocktakeTemplatesAfterSchema}, {ID: "0057_iam_security_keys", SQL: securityKeysSchema + securityKeysGuardSchema}, {ID: "0058_iam_manual_person_source_import", SQL: manualPersonSourceBeforeSchema + manualPersonSourceContractSchema + manualPersonSourceSchema}}
+	}, {ID: "0054_iam_staff_mfa_fences", SQL: staffMFAFencesSchema}, {ID: "0055_iam_stocktake_operating_templates", SQL: stocktakeTemplatesBeforeSchema + operatingTemplatesStocktakeSchema + stocktakeTemplatesAfterSchema}, {ID: "0056_iam_pharmacy_stocktake_templates", SQL: hospitalStocktakeTemplatesBeforeSchema + hospitalStocktakeTemplatesSchema + hospitalStocktakeTemplatesAfterSchema}, {ID: "0057_iam_security_keys", SQL: securityKeysSchema + securityKeysGuardSchema}, {ID: "0058_iam_manual_person_source_import", SQL: manualPersonSourceBeforeSchema + manualPersonSourceContractSchema + manualPersonSourceSchema}, {ID: "0059_iam_parked_sessions", SQL: parkedSessionsSchema}}
 }
 
 type role struct {

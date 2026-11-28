@@ -70,6 +70,8 @@ func migrateLoginAttempt(t *testing.T, db *tenantdb.DB) {
 	// slim schema does not have; its table half is applied alone. The
 	// guarded whole migration is exercised in security_keys_migration_test.go.
 	migs = append(migs, tenantdb.Migration{ID: "test_0057_iam_security_keys_tables", SQL: securityKeysSchema})
+	// 0059 (#1778) widens the stage check for parked setup sessions.
+	migs = append(migs, byID["0059_iam_parked_sessions"])
 	require.NoError(t, db.Migrate(context.Background(), migs))
 }
 

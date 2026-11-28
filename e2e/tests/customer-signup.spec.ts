@@ -69,6 +69,18 @@ test("password setup starts its confirmed workspace's sign-in at once", async ({
       body: "<p>Captured sign-in request</p>",
     }),
   );
+  const resumeMarks: string[] = [];
+  await page.exposeFunction("recordSetupResume", (value: string) => resumeMarks.push(value));
+  await page.addInitScript(() => {
+    const set = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (key: string, value: string) {
+      if (this === window.sessionStorage && key === "helivanta.setupResume")
+        void (
+          window as unknown as { recordSetupResume(v: string): Promise<void> }
+        ).recordSetupResume(value);
+      return set.call(this, key, value);
+    };
+  });
   await page.goto("/signup/verify#phase=password&userId=owner-synthetic&code=one-use-proof");
   await page.getByLabel("New password", { exact: true }).fill("Synthetic-password-only-42!");
   await page.getByLabel("Confirm password", { exact: true }).fill("Synthetic-password-only-42!");
@@ -91,6 +103,9 @@ test("password setup starts its confirmed workspace's sign-in at once", async ({
   );
   expect(url.searchParams.get("prompt")).toBe("login");
   expect(url.searchParams.get("max_age")).toBe("0");
+  // #1778: the tab is marked so /login resumes the session the server parked.
+  // Recorded as it is written: by now the page has left for the authorize URL.
+  expect(resumeMarks).toEqual(["1"]);
 });
 
 test("new tenant signup requires its own account instead of adopting another organisation's user", async ({

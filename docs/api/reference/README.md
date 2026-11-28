@@ -2014,6 +2014,7 @@ Migration table declarations:
 | `POST /v1/auth/login/factor` | checks the second factor that creates the session, so it cannot require one |
 | `POST /v1/auth/login/password` | checks the credential that creates the session, so it cannot require one |
 | `POST /v1/auth/login/password-change` | completes a sign-in whose password must change first, so it cannot require a session |
+| `POST /v1/auth/login/resume` | continues a sign-in right after password setup, so it cannot require a session |
 | `POST /v1/auth/password-recovery` | same-origin rate-limited mailbox delivery bound to a validated native tenant request; no account lookup |
 | `POST /v1/auth/password-recovery/cancel` | verified browser-bound cancellation of prepared intent only; processing commands remain fenced |
 | `POST /v1/auth/password-recovery/password` | verified browser-bound retained native reset command; ordinary password/MFA sign-in remains required |

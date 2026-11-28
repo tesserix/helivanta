@@ -35,6 +35,7 @@ type Handlers struct {
 	base                 string
 	tokenFile            string
 	client               *http.Client
+	parker               SessionParker
 }
 
 // New accepts only the owned private onboarding origin and public browser origin.
@@ -244,6 +245,9 @@ func (h *Handlers) prove(c *gin.Context, password bool) {
 	}
 	next.id = id
 	setCapability(c, next)
+	// The identity owner just proved the code for exactly this owner and
+	// accepted the password, so sign-in can continue without retyping it.
+	h.parkSetupSession(c, in.UserID, ownerOrganization(in.UserID), in.Password)
 	respond.OK(c, receipt)
 }
 

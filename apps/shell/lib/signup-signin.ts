@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { getUserManager } from "./oidc";
 import { workspaceSigninScope } from "./workspace-signin";
+import { markSetupResume } from "./setup-resume";
 
 export const customerSignupSigninStateContract = z.discriminatedUnion("purpose", [
   z.object({ purpose: z.literal("customer-signup") }).strict(),
@@ -14,6 +15,7 @@ export const customerSignupSigninStateContract = z.discriminatedUnion("purpose",
 // After an invitation sets the password (#1777), sign-in starts at once on the
 // single email card: no tenant is known to the page, so the API resolves it.
 export function signinAfterStaffSetup() {
+  markSetupResume();
   return getUserManager().signinRedirect({
     state: customerSignupSigninStateContract.parse({ purpose: "email-login" }),
     prompt: "login",

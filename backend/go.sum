@@ -314,8 +314,8 @@ github.com/stretchr/testify v1.8.4/go.mod h1:sz/lmYIOXD/1dqDmKjjqLyZ2RngseejIcXl
 github.com/stretchr/testify v1.10.0/go.mod h1:r2ic/lqez/lEtzL7wO/rwa5dbSLXVDPFyf8C91i36aY=
 github.com/stretchr/testify v1.12.1 h1:EuwCh5fleGS7H32xRwO3wRGT7DxrDhLAT6FF8MpWDWE=
 github.com/stretchr/testify v1.12.1/go.mod h1:MDEgiDPPsNp5cuIrHPPCyornHKgEVbtFUmoNlxoYthg=
-github.com/tesserix/onboarding-service/apps/api v0.0.0-20261128071649-c68a9a919458 h1:vDbLFTgxArOQCmVfuz86V6u5IU5AdUNiP7nOhbEQPnA=
-github.com/tesserix/onboarding-service/apps/api v0.0.0-20261128071649-c68a9a919458/go.mod h1:d1/GNO77a3U9rsk1p36HXF3aqikHIZg6hfWncprSqGQ=
+github.com/tesserix/onboarding-service/apps/api v0.0.0-20261128071651-ec1c2b0fac8f h1:8lvCCWQ4EsTb6UoAg6eAMVsXKEK93D47yMmS1hH7J8c=
+github.com/tesserix/onboarding-service/apps/api v0.0.0-20261128071651-ec1c2b0fac8f/go.mod h1:d1/GNO77a3U9rsk1p36HXF3aqikHIZg6hfWncprSqGQ=
 github.com/tesserix/tesserix-operators v0.0.0-20261111042344-fe1127b299d6 h1:UDTmG4BecDoNI3V8Zme5upaC/62ipJnQRfAbhxdpcwY=
 github.com/tesserix/tesserix-operators v0.0.0-20261111042344-fe1127b299d6/go.mod h1:RBAnrbc/MwNRz7Gl2yFw1lFrN3beRj+XZwkdk2ly+tg=
 github.com/testcontainers/testcontainers-go v0.45.0 h1:ss9Stm9KDX6JLgGL4jr2fC5dwpabTbCBsRcGadBPR9k=

@@ -14,6 +14,7 @@ import { Loader2 } from "lucide-react";
 import { ApiError } from "@helivanta/api";
 import { Button, Field, RequestFailure, useZodForm } from "@helivanta/ui";
 import { signinForCustomerSignup } from "@/lib/signup-signin";
+import { markSetupResume } from "@/lib/setup-resume";
 import { emailRequestRefusal } from "../signup-form";
 
 type Link = { phase: "email" | "password"; userId: string; code: string };
@@ -280,7 +281,12 @@ function SignupSignin({ tenantId }: { tenantId: string }) {
     // A synchronous throw (state parse, OIDC settings) must land in the same
     // failed state as a rejected redirect, so the person always gets a link.
     Promise.resolve()
-      .then(() => signinForCustomerSignup(tenantId))
+      .then(() => {
+        // The password was just set here, so the server may have parked a
+        // session: /login resumes it instead of asking again (#1778).
+        markSetupResume();
+        return signinForCustomerSignup(tenantId);
+      })
       .catch(() => setFailed(true));
   }, [tenantId]);
   if (failed)

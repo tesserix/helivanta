@@ -32,6 +32,7 @@ import {
   TenantLoginHeading,
   retainLoginBrandingTenant,
 } from "@/components/login-branding";
+import { peekSetupResume, takeSetupResume } from "@/lib/setup-resume";
 import { getUserManager } from "@/lib/oidc";
 import { AccountDiscovery } from "@/components/account-discovery";
 import { MfaCodeForm } from "@/components/mfa-code-form";
@@ -43,6 +44,7 @@ import {
   checkPassword,
   checkSecurityKey,
   chooseAccount,
+  resumeSetupSignin,
   enrollSecurityKey,
   verifyEnrollment,
   type AccountChoice,
@@ -327,6 +329,24 @@ function LoginFlow({
   // landing, carrying the API's own wording — never a navigation to
   // Zitadel's hosted login.
   const [endedMessage, setEndedMessage] = useState<string | null>(null);
+  // #1778: right after a setup page set the password, ask the server to
+  // continue with the session it parked. Until it answers, show progress;
+  // any refusal shows the ordinary card. The marker is consumed either way.
+  const [resumePending] = useState(peekSetupResume);
+  const [resumeSettled, setResumeSettled] = useState(false);
+  const resumeAsked = useRef(false);
+  useEffect(() => {
+    if (resumeAsked.current) return;
+    resumeAsked.current = true;
+    if (!takeSetupResume()) return;
+    resumeSetupSignin(authRequestId)
+      .then((result) => advance(result, ""))
+      .catch(() => undefined)
+      .finally(() => setResumeSettled(true));
+    // advance only calls state setters and navigates.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authRequestId]);
+  const resuming = resumePending && !resumeSettled;
 
   // Focus follows the step (#1854 D2): the pressed control unmounts with its
   // step, so the new step's heading takes focus. Keyed on what is shown, not
@@ -406,6 +426,8 @@ function LoginFlow({
         break;
     }
   }
+
+  if (resuming) return <p role="status">Opening sign-in…</p>;
 
   if (endedMessage) {
     return <RedirectLanding message={endedMessage} headingRef={heading} />;

@@ -81,6 +81,11 @@ var UnauthenticatedRoutes = map[string]string{
 	// server-held Zitadel session as the factor step, at its own stage.
 	"POST /v1/auth/login/password-change": "completes a sign-in whose password must change first, so it cannot require a session",
 
+	// #1778: continues a sign-in with the session a password-setup step
+	// parked server-side, bound to an HttpOnly cookie; it finishes only
+	// through the same sufficiency decision as the password step.
+	"POST /v1/auth/login/resume": "continues a sign-in right after password setup, so it cannot require a session",
+
 	// Liveness and readiness. Deliberately outside /v1 and unlimited: a
 	// throttled or authenticated probe takes a healthy replica out of
 	// service, which is the failure mode these exist to prevent.
@@ -92,6 +97,12 @@ var UnauthenticatedRoutes = map[string]string{
 func MountReleaseAvailability(e *gin.Engine, handler gin.HandlerFunc) {
 	mustHandler("GET /v1/auth/release-capabilities", handler)
 	e.GET("/v1/auth/release-capabilities", handler)
+}
+
+// MountLoginResume mounts the post-setup sign-in continuation (#1778).
+func MountLoginResume(e *gin.Engine, handler gin.HandlerFunc) {
+	mustHandler("POST /v1/auth/login/resume", handler)
+	e.POST("/v1/auth/login/resume", handler)
 }
 
 // MountStaffSetup mounts only the recipient capability endpoint before sign-in.

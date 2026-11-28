@@ -1,10 +1,10 @@
 {
   "format_version": 1,
-  "registry_sha256": "147e14dbcec7add97be437722cf051ae8adfe55213d6aca38910a399c61b1789",
+  "registry_sha256": "07f199a451f12ea4f76003d67877d8442f10daacb48950de0756ca904df01f68",
   "scope": "Registered HTTP routes, unauthenticated allowlist entries, async consumers and broadcasts only. This is a source-review ledger, not proof of runtime cutoff or a complete inventory of timers, external integrations and unregistered background work.",
   "summary": {
-    "total": 1333,
-    "unclassified": 1172
+    "total": 1334,
+    "unclassified": 1173
   },
   "entries": [
     {
@@ -3187,7 +3187,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/module.go",
-            "sha256": "246a207c0b294519f5e080e00e04274a6b287486c32a8cf40e8127b05f3a9cae",
+            "sha256": "ded50ce51f9922c8865070548e1efe9bf461c603060e6423073eef280f6e6be1",
             "symbol": "func (m *Module) Routes("
           },
           {
@@ -3236,7 +3236,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/module.go",
-            "sha256": "246a207c0b294519f5e080e00e04274a6b287486c32a8cf40e8127b05f3a9cae",
+            "sha256": "ded50ce51f9922c8865070548e1efe9bf461c603060e6423073eef280f6e6be1",
             "symbol": "func (m *Module) Routes("
           },
           {
@@ -4269,7 +4269,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/module.go",
-            "sha256": "246a207c0b294519f5e080e00e04274a6b287486c32a8cf40e8127b05f3a9cae",
+            "sha256": "ded50ce51f9922c8865070548e1efe9bf461c603060e6423073eef280f6e6be1",
             "symbol": "m.registerPartnerGrantDrafts(g, deps)"
           },
           {
@@ -4316,7 +4316,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/module.go",
-            "sha256": "246a207c0b294519f5e080e00e04274a6b287486c32a8cf40e8127b05f3a9cae",
+            "sha256": "ded50ce51f9922c8865070548e1efe9bf461c603060e6423073eef280f6e6be1",
             "symbol": "m.registerPartnerGrantDrafts(g, deps)"
           },
           {
@@ -4619,7 +4619,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/module.go",
-            "sha256": "246a207c0b294519f5e080e00e04274a6b287486c32a8cf40e8127b05f3a9cae",
+            "sha256": "ded50ce51f9922c8865070548e1efe9bf461c603060e6423073eef280f6e6be1",
             "symbol": "func (m *Module) Routes("
           },
           {
@@ -4664,7 +4664,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/module.go",
-            "sha256": "246a207c0b294519f5e080e00e04274a6b287486c32a8cf40e8127b05f3a9cae",
+            "sha256": "ded50ce51f9922c8865070548e1efe9bf461c603060e6423073eef280f6e6be1",
             "symbol": "func (m *Module) Routes("
           },
           {
@@ -4799,7 +4799,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/module.go",
-            "sha256": "246a207c0b294519f5e080e00e04274a6b287486c32a8cf40e8127b05f3a9cae",
+            "sha256": "ded50ce51f9922c8865070548e1efe9bf461c603060e6423073eef280f6e6be1",
             "symbol": "func (m *Module) Routes("
           },
           {
@@ -4977,7 +4977,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/module.go",
-            "sha256": "246a207c0b294519f5e080e00e04274a6b287486c32a8cf40e8127b05f3a9cae",
+            "sha256": "ded50ce51f9922c8865070548e1efe9bf461c603060e6423073eef280f6e6be1",
             "symbol": "func (m *Module) Routes("
           },
           {
@@ -5021,7 +5021,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/module.go",
-            "sha256": "246a207c0b294519f5e080e00e04274a6b287486c32a8cf40e8127b05f3a9cae",
+            "sha256": "ded50ce51f9922c8865070548e1efe9bf461c603060e6423073eef280f6e6be1",
             "symbol": "func (m *Module) Routes("
           },
           {
@@ -5373,7 +5373,7 @@
         "authority_sources": [
           {
             "path": "backend/internal/modules/iam/module.go",
-            "sha256": "246a207c0b294519f5e080e00e04274a6b287486c32a8cf40e8127b05f3a9cae",
+            "sha256": "ded50ce51f9922c8865070548e1efe9bf461c603060e6423073eef280f6e6be1",
             "symbol": "m.registerPartnerGrantDrafts(g, deps)"
           },
           {
@@ -21689,7 +21689,7 @@
           },
           {
             "path": "backend/go.mod",
-            "sha256": "a14f9cef13ca5d4c2b2db5ab6b93bef897838e06ff9924083af4f340a0a7fa0c",
+            "sha256": "e822f87ac9c73182ab40a744f2a4d2ce1da157342a61ca4dae29fafd1c5e61ab",
             "symbol": "github.com/tesserix/onboarding-service/api"
           }
         ],
@@ -23022,7 +23022,7 @@
           },
           {
             "path": "backend/go.mod",
-            "sha256": "a14f9cef13ca5d4c2b2db5ab6b93bef897838e06ff9924083af4f340a0a7fa0c",
+            "sha256": "e822f87ac9c73182ab40a744f2a4d2ce1da157342a61ca4dae29fafd1c5e61ab",
             "symbol": "github.com/tesserix/onboarding-service/api"
           }
         ],
@@ -23568,7 +23568,7 @@
           },
           {
             "path": "backend/go.mod",
-            "sha256": "a14f9cef13ca5d4c2b2db5ab6b93bef897838e06ff9924083af4f340a0a7fa0c",
+            "sha256": "e822f87ac9c73182ab40a744f2a4d2ce1da157342a61ca4dae29fafd1c5e61ab",
             "symbol": "github.com/tesserix/onboarding-service/api"
           }
         ],
@@ -24803,7 +24803,7 @@
           },
           {
             "path": "backend/go.mod",
-            "sha256": "a14f9cef13ca5d4c2b2db5ab6b93bef897838e06ff9924083af4f340a0a7fa0c",
+            "sha256": "e822f87ac9c73182ab40a744f2a4d2ce1da157342a61ca4dae29fafd1c5e61ab",
             "symbol": "github.com/tesserix/onboarding-service/api"
           }
         ],
@@ -24985,7 +24985,7 @@
           },
           {
             "path": "backend/go.mod",
-            "sha256": "a14f9cef13ca5d4c2b2db5ab6b93bef897838e06ff9924083af4f340a0a7fa0c",
+            "sha256": "e822f87ac9c73182ab40a744f2a4d2ce1da157342a61ca4dae29fafd1c5e61ab",
             "symbol": "github.com/tesserix/onboarding-service/api"
           }
         ],
@@ -25039,7 +25039,7 @@
           },
           {
             "path": "backend/go.mod",
-            "sha256": "a14f9cef13ca5d4c2b2db5ab6b93bef897838e06ff9924083af4f340a0a7fa0c",
+            "sha256": "e822f87ac9c73182ab40a744f2a4d2ce1da157342a61ca4dae29fafd1c5e61ab",
             "symbol": "github.com/tesserix/onboarding-service/api"
           }
         ],
@@ -26648,7 +26648,7 @@
           },
           {
             "path": "backend/go.mod",
-            "sha256": "a14f9cef13ca5d4c2b2db5ab6b93bef897838e06ff9924083af4f340a0a7fa0c",
+            "sha256": "e822f87ac9c73182ab40a744f2a4d2ce1da157342a61ca4dae29fafd1c5e61ab",
             "symbol": "github.com/tesserix/onboarding-service/api"
           }
         ],
@@ -27159,7 +27159,7 @@
           },
           {
             "path": "backend/go.mod",
-            "sha256": "a14f9cef13ca5d4c2b2db5ab6b93bef897838e06ff9924083af4f340a0a7fa0c",
+            "sha256": "e822f87ac9c73182ab40a744f2a4d2ce1da157342a61ca4dae29fafd1c5e61ab",
             "symbol": "github.com/tesserix/onboarding-service/api"
           }
         ],
@@ -27470,7 +27470,7 @@
           },
           {
             "path": "backend/go.mod",
-            "sha256": "a14f9cef13ca5d4c2b2db5ab6b93bef897838e06ff9924083af4f340a0a7fa0c",
+            "sha256": "e822f87ac9c73182ab40a744f2a4d2ce1da157342a61ca4dae29fafd1c5e61ab",
             "symbol": "github.com/tesserix/onboarding-service/api"
           }
         ],
@@ -27699,7 +27699,7 @@
           },
           {
             "path": "backend/internal/customeronboarding/handlers.go",
-            "sha256": "2517b6017a1103b32b73df3e259577e83d806869aa0625534c966c258483acdc",
+            "sha256": "976480e3636347978cd6a541f30a2ae4c432873509be6804361380ce768a46fb",
             "symbol": "func (h *Handlers) browser("
           }
         ],
@@ -27781,7 +27781,7 @@
           },
           {
             "path": "backend/internal/customeronboarding/handlers.go",
-            "sha256": "2517b6017a1103b32b73df3e259577e83d806869aa0625534c966c258483acdc",
+            "sha256": "976480e3636347978cd6a541f30a2ae4c432873509be6804361380ce768a46fb",
             "symbol": "func (h *Handlers) browser("
           }
         ],
@@ -27813,7 +27813,7 @@
           },
           {
             "path": "backend/internal/customeronboarding/handlers.go",
-            "sha256": "2517b6017a1103b32b73df3e259577e83d806869aa0625534c966c258483acdc",
+            "sha256": "976480e3636347978cd6a541f30a2ae4c432873509be6804361380ce768a46fb",
             "symbol": "func (h *Handlers) browser("
           }
         ],
@@ -27880,6 +27880,16 @@
       "registration": {
         "route": "POST /v1/auth/login/password-change",
         "rationale": "completes a sign-in whose password must change first, so it cannot require a session"
+      },
+      "review": null
+    },
+    {
+      "id": "unauthenticated_http platform POST /v1/auth/login/resume",
+      "kind": "unauthenticated_http",
+      "module": "platform",
+      "registration": {
+        "route": "POST /v1/auth/login/resume",
+        "rationale": "continues a sign-in right after password setup, so it cannot require a session"
       },
       "review": null
     },

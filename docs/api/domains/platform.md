@@ -693,8 +693,9 @@ in another tenant. Separate accounts sharing email remain distinct.
 
 A reset removes the account's authenticator app and every security key (#1905,
 [design](../../superpowers/specs/2026-11-28-reset-removes-security-keys-design.md)).
-The fence that revokes the account's sessions also deletes its `iam_security_keys`
-rows in the same transaction. Admission needs a new TOTP or key enrolled after the
+Once the owner confirms the removal, the account's `iam_security_keys` rows
+registered before the reset fence are deleted. A prepared, cancelled or
+unconfirmed reset keeps them. Admission needs a new TOTP or key enrolled after the
 removal, and the native session must prove that same factor.
 
 The projection exposes no originating employer, actor, reason or native evidence.

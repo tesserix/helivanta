@@ -101,12 +101,12 @@ async function registerNativeKey(
   });
 }
 
-// factor "key_and_totp" (#1905) starts the colleague with a security key and a
-// TOTP, both registered natively, and re-enrols with a key on Helivanta's page.
+// factor "security_key" (#1905) starts the colleague with only a natively
+// registered security key and re-enrols with a key on Helivanta's page.
 export async function exerciseNativeStaffMFARecovery(
   { page, browser }: { page: Page; browser: Browser },
   kind: "hospital" | "pharmacy",
-  factor: "totp" | "key_and_totp" = "totp",
+  factor: "totp" | "security_key" = "totp",
 ) {
   const tenant = nativeStaffTenants[kind];
   const slug = kind === "hospital" ? "staff-mfa-recovery-native" : "staff-mfa-pharmacy-native";
@@ -195,15 +195,17 @@ export async function exerciseNativeStaffMFARecovery(
     }
     // A natively registered key is not in Helivanta's registry, so it cannot
     // sign in there; the password-only session before it is the old session.
-    if (factor === "key_and_totp") await registerNativeKey(targetPage, native, colleague.subject);
-    const initial = await native(`/v2/users/${colleague.subject}/totp`, {});
-    if (typeof initial.secret !== "string" || !/^[A-Z2-7]+$/.test(initial.secret))
-      throw new Error("native initial factor unavailable");
-    const originalSecret = initial.secret as string;
-    await native(`/v2/users/${colleague.subject}/totp/verify`, {
-      code: generateTOTP(originalSecret),
-    });
-    if (factor === "totp") {
+    let originalSecret = "";
+    if (factor === "security_key") {
+      await registerNativeKey(targetPage, native, colleague.subject);
+    } else {
+      const initial = await native(`/v2/users/${colleague.subject}/totp`, {});
+      if (typeof initial.secret !== "string" || !/^[A-Z2-7]+$/.test(initial.secret))
+        throw new Error("native initial factor unavailable");
+      originalSecret = initial.secret as string;
+      await native(`/v2/users/${colleague.subject}/totp/verify`, {
+        code: generateTOTP(originalSecret),
+      });
       await targetContext.clearCookies();
       await signInNativeStaff(targetPage, target, tenant);
       await code(targetPage, "Verification code", originalSecret);
@@ -360,9 +362,11 @@ export async function exerciseNativeStaffMFARecovery(
       ).toBe(404);
     }
     const before = await native(`/v2/users/${colleague.subject}/authentication_methods`);
-    expect(before.authMethodTypes.includes("AUTHENTICATION_METHOD_TYPE_TOTP")).toBe(true);
+    expect(before.authMethodTypes.includes("AUTHENTICATION_METHOD_TYPE_TOTP")).toBe(
+      factor === "totp",
+    );
     expect(before.authMethodTypes.includes("AUTHENTICATION_METHOD_TYPE_U2F")).toBe(
-      factor === "key_and_totp",
+      factor === "security_key",
     );
     expect(
       (await targetPage.request.get(permissions, { headers: { Cookie: oldCookie } })).status(),
@@ -443,7 +447,7 @@ export async function exerciseNativeStaffMFARecovery(
     await expect(
       page.getByRole("status").filter({ hasText: "This recovery request is complete." }),
     ).toBeVisible();
-    if (factor === "key_and_totp") {
+    if (factor === "security_key") {
       const replaced = await native(`/v2/users/${colleague.subject}/authentication_methods`);
       expect(replaced.authMethodTypes).toContain("AUTHENTICATION_METHOD_TYPE_U2F");
       expect(replaced.authMethodTypes).not.toContain("AUTHENTICATION_METHOD_TYPE_TOTP");

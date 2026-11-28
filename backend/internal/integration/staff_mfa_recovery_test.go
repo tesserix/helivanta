@@ -274,8 +274,7 @@ func TestStaffMFAResetFencesBeforeDispatchAndReplaysWithoutNewRevocation(t *test
 	}))
 	response := mfaRequest(t, f.r, "PUT", path, "manager", input)
 	require.Equal(t, 503, response.Code, response.Body.String())
-	require.Empty(t, keys("user-candidate"), "the fence removes the target's registered keys (#1905)")
-	require.Equal(t, []string{"own-key"}, keys("user-manager"), "only the target's keys go")
+	require.Equal(t, []string{"lost-key"}, keys("user-candidate"), "an unconfirmed native removal keeps the registry: the key may still be READY (#1905)")
 	require.NoError(t, f.db.WithSystem(t.Context(), func(tx *gorm.DB) error {
 		return tx.Exec(`INSERT INTO iam_security_keys(subject,key_id,rp_id) VALUES('user-candidate','replacement-key','helivanta.test')`).Error
 	}))
@@ -299,6 +298,8 @@ func TestStaffMFAResetFencesBeforeDispatchAndReplaysWithoutNewRevocation(t *test
 	require.Equal(t, cutoff, mfaWatermark(t, f.db))
 	require.Equal(t, 2, owner.dispatches)
 	require.Equal(t, 1, owner.writes)
+	require.Equal(t, []string{"replacement-key"}, keys("user-candidate"), "a confirmed removal forgets only keys registered before the fence")
+	require.Equal(t, []string{"own-key"}, keys("user-manager"), "only the target's keys go")
 	response = mfaRequest(t, f.r, "PUT", path, "manager", input)
 	require.Equal(t, 202, response.Code, response.Body.String())
 	require.Equal(t, 2, owner.dispatches)

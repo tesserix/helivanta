@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -242,7 +243,33 @@ func (h *staffMFAResetService) Reset(ctx context.Context, p authn.Principal, int
 	if err = h.recheck(ctx, p, in, source); err != nil {
 		return empty, err
 	}
+	stage = "forget_removed_keys"
+	if err = h.forgetRemovedKeys(ctx, p, intent.CommandID, receipt.State); err != nil {
+		return empty, err
+	}
 	return receipt, nil
+}
+
+// forgetRemovedKeys deletes the target's iam_security_keys rows once the owner
+// has confirmed the native removal of every key (#1905). Only rows registered
+// before the fence cutoff go: a later row is the replacement the person
+// enrolled, so this is safe on every confirmed reset or status read. A
+// prepared, cancelled or unconfirmed reset keeps them, because those keys may
+// still be READY in Zitadel and deleting them would lock the person out. A
+// row this misses can never count for another key: Contains matches only the
+// ids Zitadel reports READY, and Zitadel never reuses one.
+func (h *staffMFAResetService) forgetRemovedKeys(ctx context.Context, p authn.Principal, command, state string) error {
+	if state != "awaiting_enrollment" && state != "completed" {
+		return nil
+	}
+	err := h.db.WithTenant(ctx, p.TenantID, func(tx *gorm.DB) error {
+		return tx.Exec(`DELETE FROM iam_security_keys k USING iam_staff_mfa_fences f
+WHERE f.tenant_id=? AND f.command_id=? AND k.subject=f.target_subject AND k.registered_at<=f.revoked_at`, p.TenantID, command).Error
+	})
+	if err != nil {
+		return fmt.Errorf("forget removed security keys: %w: %w", staffclient.ErrUnavailable, err)
+	}
+	return nil
 }
 
 func (h *staffMFAResetService) Read(ctx context.Context, p authn.Principal, command string, scope platform.StaffMFARecoveryScope, source platform.StaffMFATargetReader) (customercontract.StaffMFARecoveryReceipt, error) {
@@ -289,6 +316,9 @@ func (h *staffMFAResetService) Read(ctx context.Context, p authn.Principal, comm
 		err = h.recheck(ctx, p, original, source)
 	}
 	if err != nil {
+		return empty, err
+	}
+	if err = h.forgetRemovedKeys(ctx, p, command, snapshot.Receipt.State); err != nil {
 		return empty, err
 	}
 	return snapshot.Receipt, nil
@@ -338,14 +368,6 @@ func (h *staffMFAResetService) fence(ctx context.Context, p authn.Principal, in 
 			return err
 		}
 		if err := tx.Exec(`INSERT INTO iam_staff_mfa_fences(tenant_id,command_id,target_subject,actor_subject,fingerprint,revoked_at) VALUES(?,?,?,?,?,?)`, p.TenantID, in.Intent.CommandID, in.Target.Subject, p.Subject, fingerprint, cutoff).Error; err != nil {
-			return err
-		}
-		// The reset removes every key in Zitadel (#1905), so its registry rows go
-		// with the fence, atomically and only once: a later status read would
-		// otherwise delete the replacement key the person enrols. A key that
-		// slips in before the native removal leaves an orphan row, which can
-		// never count because Contains matches only ids Zitadel reports READY.
-		if err := tx.Exec(`DELETE FROM iam_security_keys WHERE subject=?`, in.Target.Subject).Error; err != nil {
 			return err
 		}
 		return tx.Exec(`INSERT INTO audit_events(tenant_id,actor_subject,action,resource_type,resource_id) VALUES(?,?,'staff_mfa_reset_fenced','iam_staff_mfa_fences',?)`, p.TenantID, p.Subject, in.Intent.CommandID).Error

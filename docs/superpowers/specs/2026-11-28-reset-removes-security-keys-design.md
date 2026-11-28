@@ -27,8 +27,8 @@ Owners and administrators are still refused.
 ### D2 Dispatch removes every second factor (onboarding-service)
 
 - **Presence check.** `StaffSecondFactorsConfigured` reads
-  `authentication_methods` and reports TOTP and U2F separately. It is still a
-  presence check, not proof. Neither present means cancel, as today.
+  `authentication_methods` and reports whether a TOTP or a U2F is present. It is
+  still a presence check, not proof. Neither present means cancel, as today.
 - **Removal.** `RemoveRecoveryFactors` replaces `RemoveRecoveryTOTP`, under the
   same durable claim:
   1. List the user's U2F factors (`POST /management/v1/users/{id}/auth_factors/_search`)
@@ -38,6 +38,10 @@ Owners and administrators are still refused.
   3. Delete TOTP if it was present.
   4. Re-read `authentication_methods`. Any TOTP or U2F still there means the
      result is uncertain.
+  5. Both reads are projections and can lag, so read the eventstore too: the
+     latest TOTP/key lifecycle event must be this removal's own last ack.
+     Anything later means a factor was added or verified that the removal
+     missed.
 - **Acknowledgements.** Every ack is validated as `RemoveRecoveryTOTP` validates
   one today: positive sequence, matching resource owner, sane change date.
   Sequences must strictly increase.
@@ -71,21 +75,22 @@ Owners and administrators are still refused.
 - **Recheck.** The second read of the event must match the first, as today.
 - Store columns, audit actions and the contract are unchanged.
 
-### D4 The registry rows go when the reset is fenced (helivanta)
+### D4 The registry rows go once the removal is confirmed (helivanta)
 
-- **Where.** The fence transaction (`staffMFAResetService.fence`) already revokes
-  the target's sessions and records the fence atomically.
-  - It now also deletes the target's `iam_security_keys` rows.
-  - The table is global and has no RLS, so the delete runs in the same
-    transaction.
-  - The delete runs only on the call that inserts the fence. A retry that finds
-    the fence has nothing left to do, so a retry can't leave half a reset behind.
-- **Why before the Zitadel removal, not after.** After dispatch the person
-  re-enrols, and a later status read would delete the new key's row.
-- **Leftover rows can't count.** A key registered between the fence and the
-  removal is removed by Zitadel, which orphans its row. Orphaned rows can't make
-  a later key count: `Contains` requires the IDs Zitadel reports as READY, and
-  Zitadel never reuses a key ID. A test pins this.
+- **When.** Reset and status read both call `forgetRemovedKeys` after the owner
+  answers `awaiting_enrollment` or `completed`. It deletes the target's
+  `iam_security_keys` rows registered at or before the fence's `revoked_at`.
+- **Why not at the fence.** The fence commits before dispatch. If the dispatch
+  then never reaches Zitadel and the admin cancels, the keys are still READY. A
+  registry already emptied would make them uncollectible and lock the person out
+  (review finding, 2026-11-28).
+- **Why the cutoff.** A row registered after the fence is the replacement the
+  person enrolled. Bounding by the cutoff makes the delete safe to repeat on
+  every confirmed read, so a lost response or a crash only defers it.
+- **Leftover rows can't count.** A row the delete misses, for a lost response
+  the admin never re-reads, belongs to a key Zitadel has removed. `Contains`
+  requires the IDs Zitadel reports as READY, and Zitadel never reuses a key ID,
+  so an orphan never covers a later key. A test pins this.
 
 ### D5 Copy
 
